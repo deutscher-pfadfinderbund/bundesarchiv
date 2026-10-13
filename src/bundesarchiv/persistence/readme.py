@@ -1,6 +1,4 @@
-"""README codec: Article ⇄ README text (ADR 0005, ADR 0006). Only `UnreadableReadme` crosses
-out.
-"""
+"""README codec (ADR 0005, ADR 0006). Only `UnreadableReadme` crosses out."""
 
 from datetime import datetime
 from typing import Any
@@ -21,8 +19,7 @@ from bundesarchiv.persistence.errors import UnreadableReadme
 
 
 def encode(article: Article, version: Version, change: Change) -> str:
-    """README text for `article`. Empty optional fields are omitted (ADR 0015); the reader still
-    accepts explicit nulls."""
+    """Empty optional fields are omitted (ADR 0015)."""
     front_matter = {
         "ulid": article.ulid,
         "version": version,
@@ -65,7 +62,6 @@ def encode(article: Article, version: Version, change: Change) -> str:
 
 
 def _media_entry(media: MediaRef) -> dict[str, Any]:
-    """One media entry, omitting empty fields like `encode` (ADR 0015, ADR 0019)."""
     entry: dict[str, Any] = {"filename": media.filename}
     if media.stored_name is not None:
         entry["stored_name"] = media.stored_name
@@ -96,7 +92,6 @@ def decode(ulid: Ulid, text: str) -> tuple[Article, Version, Change | None]:
 
 
 def read_version(ulid: Ulid, text: str) -> Version:
-    """The stored version alone, without rebuilding the Article."""
     front_matter, _ = _front_matter.parse(ulid, text)
     try:
         return _front_matter.version_of(front_matter)

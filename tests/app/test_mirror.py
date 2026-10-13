@@ -1,4 +1,4 @@
-"""The push to the system of record (ADR 0020) over an in-memory working copy and ``_Remote``. The push record is the in-memory fake; its Postgres twin answers the same contract (``test_push_record.py``)."""
+"""The push to the system of record (ADR 0020)."""
 
 import io
 from collections.abc import Callable, Iterable

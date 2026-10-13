@@ -1,5 +1,3 @@
-"""The shared Article builder."""
-
 from typing import Any
 
 from bundesarchiv.domain.models import Article, Lifecycle, Ulid

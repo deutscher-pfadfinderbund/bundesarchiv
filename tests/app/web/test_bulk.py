@@ -1,5 +1,3 @@
-"""The bulk-edit layer (Sammelbearbeitung): the pure field rules, and ``apply_bulk``, the one Conflict catch around ``save_article`` (spec §4, §6)."""
-
 import pytest
 
 from bundesarchiv.app.archive import Archive
@@ -132,7 +130,6 @@ def test_apply_bulk_missing_ulid_buckets() -> None:
 
 
 def test_apply_bulk_conflict_buckets_and_does_not_abort(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Partial durability (spec §8): a Conflict on one ulid never aborts the rest.
     from bundesarchiv.app import articles
 
     archive = _archive_with(_article(ulid="01A", ref_code="F1"), _article(ulid="01B"))

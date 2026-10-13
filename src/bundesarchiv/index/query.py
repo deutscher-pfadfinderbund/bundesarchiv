@@ -1,8 +1,7 @@
 """Viewer-scoped search over the derived index (ADR 0003, ADR 0004).
 
-Every count, facet and hit derives from one queryset filtered by ``_viewer_scope``; the only
-viewer branch here is the tsvector choice in ``_matched_vector``. Only frozen dataclasses cross
-the interface.
+Every ``ArticleIndex`` query starts from ``_scoped``; the only other viewer branch is the tsvector
+choice in ``_matched_vector``. No QuerySet or model instance crosses the interface.
 """
 
 import datetime
@@ -35,13 +34,11 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.index.scope import _viewer_scope
 
-# The FTS config of the generated columns and the query parser (ADR 0011).
+# Must name the config the tsvector wrappers use (migration 0001).
 _CONFIG = "bundesarchiv_german"
 
-# Larger page sizes are clamped, not rejected.
 _MAX_PAGE_SIZE = 200
 
-# ICU numeric collation (ADR 0011): "B 10" sorts after "B 2", "Ä 3" with A.
 _DE_NUMERIC = "de_numeric"
 
 type SortOrder = Literal["relevance", "ref_code", "date", "title", "added"]
@@ -73,11 +70,9 @@ class FileKind(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class SearchFilters:
-    """Facet and filter selection; None or False means no constraint, except ``deleted``, which
-    picks the side of the Papierkorb (ADR 0022). ``collection`` matches the whole subtree.
-    ``date_from``/``date_to`` are an interval overlap, and an undated row never matches one.
-    ``dateless`` keeps undated rows only. ``drafts_only``, ``templates_only`` and ``deleted=True``
-    narrow a non-Archivist to nothing."""
+    """None or False means no constraint, except ``deleted``, which picks the side of the
+    Papierkorb (ADR 0022). ``collection`` matches the whole subtree; ``date_from``/``date_to`` keep
+    rows whose date range overlaps the window."""
 
     collection: Ulid | None = None
     media_type: str | None = None
@@ -106,9 +101,7 @@ class TextPage:
 
 @dataclass(frozen=True, slots=True)
 class SearchHit:
-    """One result row, floor-safe by construction: no floored column (``physical_location``,
-    ``custom``, ``archivist_text``). ``text_pages`` are the matching pages of the hit's own files,
-    in media order then page order."""
+    """Never carries a floored column (``physical_location``, ``custom``, ``archivist_text``)."""
 
     ulid: str
     title: str
@@ -139,8 +132,8 @@ class FacetCount:
 
 @dataclass(frozen=True, slots=True)
 class SearchPage:
-    """A page of hits, the total before pagination, and the facets. ``dateless_count`` is the
-    "Ohne Datum" bucket, computed with its own dimension cleared like every facet."""
+    """``total`` counts every match, not just this page; ``dateless_count`` is the "Ohne Datum"
+    facet."""
 
     hits: tuple[SearchHit, ...]
     total: int
@@ -148,7 +141,6 @@ class SearchPage:
     dateless_count: int
 
 
-# SearchHit's columns: the floor holds because the floored columns are never named here.
 _HIT_COLUMNS = (
     "ulid",
     "title",
@@ -177,8 +169,7 @@ def search(
     page_size: int = 50,
     facets: tuple[Facet, ...] = _DEFAULT_FACETS,
 ) -> SearchPage:
-    """Viewer-scoped search. ``descending`` reverses a column sort, never relevance. The page's
-    facets are exactly ``facets``."""
+    """``descending`` reverses a column sort; ``relevance`` and ``added`` ignore it."""
     filters = filters or SearchFilters()
     query = _search_query(text)
 
@@ -230,10 +221,7 @@ _MAX_SUGGESTIONS = 10
 
 
 def suggest_tags(viewer: Viewer, text: str, *, exclude: Iterable[str] = ()) -> tuple[str, ...]:
-    """The Schlagworte of ``viewer``'s Articles outside the Papierkorb that contain ``text``,
-    ignoring case: the ones starting with it first, each part by how many Articles use the tag,
-    then alphabetically. At most ``_MAX_SUGGESTIONS``, none in ``exclude`` (ignoring case); a blank
-    ``text`` suggests nothing."""
+    """Those starting with ``text`` first, each part by use count, then alphabetically."""
     needle = text.strip().casefold()
     if not needle:
         return ()
@@ -255,7 +243,6 @@ def suggest_tags(viewer: Viewer, text: str, *, exclude: Iterable[str] = ()) -> t
 
 
 def _search_query(text: str | None) -> SearchQuery | None:
-    """The tsquery for ``text``; None (a browse) for blank text."""
     if text is None or not text.strip():
         return None
     return _PrefixWebSearchQuery(text, config=_CONFIG, search_type="websearch")
@@ -281,8 +268,8 @@ class _PrefixWebSearchQuery(SearchQuery):
         template: str | None = None,
     ) -> tuple[str, list[object]]:
         sql, params = super().as_sql(compiler, connection, function, template)  # type: ignore[arg-type]
-        # ``sql`` is ``websearch_to_tsquery(%s::regconfig, %s)``, config first. The inner call
-        # consumes the config param, so re-supply it for the outer to_tsquery.
+        # The inner ``websearch_to_tsquery`` consumes the config, its first param; re-supply it
+        # for the outer ``to_tsquery``.
         config_param = next(iter(params))
         wrapped = f"to_tsquery(%s::regconfig, regexp_replace(({sql})::text, '''$', ''':*'))"
         return wrapped, [config_param, *params]
@@ -369,7 +356,6 @@ def _ref_code_hit(text: str | None) -> Q | None:
 
 
 def _apply_filters(qs: QuerySet[ArticleIndex], f: SearchFilters) -> QuerySet[ArticleIndex]:
-    """Every filter in ``f``, over the scoped set."""
     if f.collection is not None:
         qs = qs.filter(collection_ancestors__contains=[f.collection])
     if f.media_type is not None:
@@ -402,8 +388,6 @@ def _apply_date_range(
     date_from: datetime.date | None,
     date_to: datetime.date | None,
 ) -> QuerySet[ArticleIndex]:
-    """Overlap of ``[date_earliest, date_latest]`` with the window. A NULL ``date_latest`` is an
-    open upper end; an undated row never overlaps."""
     if date_from is None and date_to is None:
         return qs
     # A dateless row (date_earliest IS NULL) can never overlap a date window — drop it whenever any
@@ -429,7 +413,6 @@ def _page_of_hits(
     page: int,
     page_size: int,
 ) -> tuple[SearchHit, ...]:
-    """Order ``qs``, slice the page window, and project to floor-safe ``SearchHit``s."""
     ordered = _ordered(
         qs,
         query=query,
@@ -487,15 +470,11 @@ def _ordered(
     sort: SortOrder,
     descending: bool = False,
 ) -> QuerySet[ArticleIndex]:
-    """Apply ``sort``, always ending on ``ulid`` so pages never shuffle. ``descending`` reverses
-    only a column sort's primary key; it does nothing for ``relevance`` and ``added`` (newest
-    first, unknown last)."""
+    """Every order ends on ``ulid`` so pages never shuffle."""
     match sort:
         case "relevance":
             if query is None or ref_code_match is None:
-                return qs.order_by("ulid")  # browse: deterministic, no rank to sort by
-            # An exact Signatur hit outranks every text rank; equal ranks fall back to numeric
-            # title order (Nr. 1, 2, 10).
+                return qs.order_by("ulid")
             exact = Case(When(ref_code_match, then=1), default=0, output_field=IntegerField())
             return qs.annotate(
                 _exact=exact,
@@ -525,7 +504,6 @@ def _clamp_page_size(page_size: int) -> int:
     return max(1, min(page_size, _MAX_PAGE_SIZE))
 
 
-# Scalar facets: (facet key, model column).
 _SCALAR_FACETS: tuple[tuple[str, str], ...] = (
     ("media_type", "media_type"),
     ("document_type", "document_type"),
@@ -533,8 +511,7 @@ _SCALAR_FACETS: tuple[tuple[str, str], ...] = (
     ("place", "subject_place"),
 )
 
-# Array facets, counted per element. ``collection`` counts the subtree (owner 2026-07-10): a count
-# equals what the subtree filter returns; fail-closed rows carry no ancestors.
+# ``collection`` counts the whole subtree, matching the subtree filter (owner 2026-07-10).
 _ARRAY_FACETS: tuple[tuple[str, str], ...] = (
     ("collection", "collection_ancestors"),
     ("tags", "tags"),
@@ -565,8 +542,7 @@ def _facets(
 
 
 def _dateless_count(matched: QuerySet[ArticleIndex], filters: SearchFilters) -> int:
-    """The "Ohne Datum" count, with the dateless and date-range dimensions cleared: a range would
-    zero it by construction."""
+    """Clears the date range too: a range would zero the count by construction."""
     other = replace(filters, dateless=False, date_from=None, date_to=None)
     return _apply_filters(matched, other).filter(date_earliest__isnull=True).count()
 
@@ -583,7 +559,6 @@ def _file_kind_facet(
 
 
 def _without(filters: SearchFilters, key: str) -> SearchFilters:
-    """``filters`` with facet ``key``'s own dimension cleared."""
     field = {"tags": "tag", "decades": "decade"}.get(key, key)
     # ``field`` is always a nullable dimension, never a bool, so None is well-typed; ``Any`` keeps
     # ``replace`` from narrowing the value against the union of field types.
@@ -594,7 +569,6 @@ def _without(filters: SearchFilters, key: str) -> SearchFilters:
 def _scalar_facet(
     matched: QuerySet[ArticleIndex], *, column: str, filters: SearchFilters
 ) -> tuple[FacetCount, ...]:
-    """Group-by count over a scalar column, NULLs dropped, by count desc then value."""
     rows = (
         _apply_filters(matched, filters)
         .exclude(**{f"{column}__isnull": True})
@@ -608,7 +582,6 @@ def _scalar_facet(
 def _array_facet(
     matched: QuerySet[ArticleIndex], *, column: str, filters: SearchFilters
 ) -> tuple[FacetCount, ...]:
-    """Per-element count over an array column; values are strings (decades too)."""
     rows = (
         _apply_filters(matched, filters)
         .annotate(_elem=Func(F(column), function="unnest"))

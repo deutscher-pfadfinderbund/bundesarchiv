@@ -1,4 +1,4 @@
-"""Pure-core errors, with their own base: the core never imports `persistence`."""
+"""Their own base, not `ArchiveError`: the core never imports `persistence`."""
 
 
 class DomainError(Exception):

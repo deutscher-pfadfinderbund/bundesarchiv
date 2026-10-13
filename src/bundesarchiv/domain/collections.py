@@ -1,5 +1,3 @@
-"""Collection-tree resolution: an Article's owning chain, leaf-first, root-last."""
-
 from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import pairwise
@@ -10,9 +8,7 @@ from bundesarchiv.domain.models import Collection, Ulid
 
 @dataclass(frozen=True, slots=True)
 class ResolvedChain:
-    """An owning Collection chain, leaf-first, proven non-empty, parent-linked and
-    root-terminated at construction. Article-agnostic: whether it belongs to a given Article is
-    the resolver's check."""
+    """Leaf-first. Article-agnostic: binding it to an Article is `effective_audience`'s check."""
 
     collections: tuple[Collection, ...]
 
@@ -38,8 +34,6 @@ class ResolvedChain:
 
 
 def resolve_chain(collection_id: Ulid, collections: Mapping[Ulid, Collection]) -> ResolvedChain:
-    """The chain from `collection_id` to the root. Raises `BrokenCollectionTree` on a cycle or
-    an id the lookup lacks."""
     chain: list[Collection] = []
     seen: set[Ulid] = set()
     current: Ulid | None = collection_id

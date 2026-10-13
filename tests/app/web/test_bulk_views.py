@@ -1,4 +1,5 @@
-"""POST /articles/bulk-edit (spec §2/§4/§6): without ``confirmed`` the check page, with it the apply and its result. The write path is real; only the index and queue seams are stubbed (conftest.py)."""
+"""POST /articles/bulk-edit: without ``confirmed`` the check page, with it the apply and its
+result."""
 
 import re
 from collections.abc import Callable
@@ -75,7 +76,6 @@ def test_forbidden_field_writes_nothing(two_drafts: Corpus, field: str) -> None:
 
 
 def test_validation_error_re_renders_drawer_with_selection_preserved(two_drafts: Corpus) -> None:
-    # spec §2 C: no dead end — the archivist fixes the value and re-submits from here.
     response = client_as(Archivist()).post(
         "/articles/bulk-edit",
         {"selection": [_A, _B], "field": "", "value_text": "x", "confirmed": "1"},
@@ -257,7 +257,6 @@ def test_commit_keeps_the_date_added(two_drafts: Corpus) -> None:
 def test_commit_cas_race_loser_value_not_on_disk(
     two_drafts: Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # spec §6.7: the race loser is reported, and its value never reaches disk.
     from bundesarchiv.app import articles
 
     real_save = articles.save_article

@@ -1,4 +1,4 @@
-"""The worker jobs: references (a ulid), never payloads, so a run re-reads canonical (ADR 0014). Driven through Procrastinate's ``InMemoryConnector``."""
+"""The worker jobs: references (a ulid), never payloads, so a run re-reads canonical (ADR 0014)."""
 
 import io
 from collections.abc import Callable
@@ -53,7 +53,6 @@ def store() -> InMemoryObjectStore:
 def test_reindex_article_job_recomputes_from_current_canonical(
     store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A job queued before a further edit indexes that edit: references, not payloads."""
     import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.index.models import ArticleIndex
 
@@ -145,7 +144,6 @@ def enqueue_test_article() -> None:
 def test_generate_thumbnail_task_derives_from_canonical(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The thumbnail task is a reference over an Article's ulid and a content hash: it re-reads the file and writes the AVIF tile into THUMBNAIL_ROOT."""
     import bundesarchiv.app.tasks as tasks_mod
 
     store = InMemoryObjectStore()
@@ -180,12 +178,11 @@ def test_the_monthly_verify_fails_its_job_when_it_finds_something(tmp_path: Path
 
 
 # ---------------------------------------------------------------------------
-# The push to the system of record + reconcile (jobs are references)
+# The push to the system of record + reconcile
 # ---------------------------------------------------------------------------
 
 
 def test_mirror_store_is_none_when_url_unset(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The dev case: with no URL set no store is built, and every mirror job is a no-op."""
     import bundesarchiv.app.tasks as tasks_mod
 
     with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=None):
@@ -275,7 +272,6 @@ def test_enqueue_mirror_push_is_noop_when_mirror_unset() -> None:
 
 
 def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The enqueue answers 'is mirroring on' from settings alone: an ``httpx2.Client`` loads an SSL context eagerly, so only a running ``mirror_push`` builds one."""
     import httpx2
 
     import bundesarchiv.app.tasks as tasks_mod

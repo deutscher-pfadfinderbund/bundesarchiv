@@ -1,5 +1,3 @@
-"""``ensure_index_current``: an index row stamped with another ``config_version`` forces a rebuild from canonical (ADR 0014 §3)."""
-
 import pytest
 
 from bundesarchiv.app.reindex import ensure_index_current

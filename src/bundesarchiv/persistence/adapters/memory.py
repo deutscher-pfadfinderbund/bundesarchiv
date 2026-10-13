@@ -1,4 +1,4 @@
-"""In-memory ObjectStore: the test fake (no disk)."""
+"""In-memory ObjectStore: the test fake."""
 
 import io
 import itertools

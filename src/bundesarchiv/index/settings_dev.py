@@ -1,18 +1,17 @@
-"""Dev settings: production settings plus the dev-viewer switcher. Prod never imports this
-module, so the switcher is absent from prod as code, not behind a flag.
+"""Prod never imports this module, so the dev-viewer switcher is absent from prod as code, not
+behind a flag.
 """
 
 import os
 
 from bundesarchiv.index.settings import *
 
-# Not SECRET_KEY: a dev cookie must be worthless against prod. A fixed value, because this file
-# never ships.
+# Not SECRET_KEY: a dev cookie must be worthless against prod.
 DEV_VIEWER_SIGNING_KEY = os.environ.get(
     "BUNDESARCHIV_DEV_VIEWER_SIGNING_KEY", "dev-viewer-signing-key-not-a-secret"
 )
 
-# Off in dev only: dev browses as Public and picks a viewer through the switcher (ADR 0018).
+# Dev browses as Public and picks a viewer through the switcher (ADR 0018).
 ANONYMOUS_GATE_ENABLED = False
 
 ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"

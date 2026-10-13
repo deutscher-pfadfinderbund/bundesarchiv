@@ -93,7 +93,6 @@ def test_sort_direction_from_minus_prefix() -> None:
     assert asc.sort == "ref_code" and asc.descending is False
     desc = _parse(sort="-ref_code")
     assert desc.sort == "ref_code" and desc.descending is True
-    # relevance has no direction — a stray "-relevance" collapses to plain relevance, not descending.
     rel = _parse(sort="-relevance")
     assert rel.sort == "relevance" and rel.descending is False
     # a bare "-" or a "-garbage" falls to the default, ascending.

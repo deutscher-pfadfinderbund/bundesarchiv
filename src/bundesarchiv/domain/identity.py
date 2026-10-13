@@ -1,5 +1,3 @@
-"""Article identity (ADR 0006): the ULID and the factory that mints it."""
-
 from datetime import UTC, datetime
 
 from ulid import ULID
@@ -30,8 +28,7 @@ def create_article(
     subject_place: str | None = None,
     custom: tuple[tuple[str, str], ...] = (),
 ) -> Article:
-    """A new Article with a freshly minted ULID (ADR 0006) and ``added_at`` now. Loaded
-    Articles keep their ULID."""
+    """Never for rebuilding a loaded Article: that keeps its ULID (ADR 0006)."""
     return Article(
         ulid=new_ulid(),
         title=title,

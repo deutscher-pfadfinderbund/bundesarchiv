@@ -1,7 +1,4 @@
-"""Shared response assertions for the web suite: the deny, the anonymous gate's bounce and its door.
-
-The one definition of a deny over HTTP (owner ruling 2026-08): a 404 whose body is the one constant ``404.html`` from ``not_found()``.
-"""
+"""``assert_denied`` is the one definition of a deny over HTTP (owner ruling 2026-08)."""
 
 import re
 from collections.abc import Sequence

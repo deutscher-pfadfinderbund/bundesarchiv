@@ -94,6 +94,7 @@ def test_static_assets_stay_public(gated: Corpus) -> None:
 
 
 def test_the_gate_is_off_when_the_flag_is_off(corpus: Corpus) -> None:
-    """settings_dev's configuration: an anonymous request is answered, not sent to the door."""
+    """settings_dev's configuration: the request reaches the view, which denies Public, instead
+    of the door."""
     with override_settings(ANONYMOUS_GATE_ENABLED=False):
         assert Client().get("/articles/new").status_code == 404

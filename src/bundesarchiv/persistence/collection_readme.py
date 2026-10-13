@@ -1,6 +1,4 @@
-"""Collection README codec: Collection ⇄ README text (ADR 0010, ADR 0013). An absent `version`
-reads as 0; a corrupt one is `UnreadableReadme`, the only error that crosses out.
-"""
+"""Collection README codec (ADR 0010, ADR 0013). Only `UnreadableReadme` crosses out."""
 
 from typing import Any
 

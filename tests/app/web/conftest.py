@@ -1,4 +1,4 @@
-"""Web-subtree wiring: the ``corpus`` / ``make_corpus`` fixtures (settings already applied), and a stub of the two external boundaries the write path reaches — the Postgres index and the worker queue. The canonical write and its CAS stay real; a stubbed index step returns None, which ``after_write.run`` reads as a current index."""
+"""The index and queue stubs never raise, so ``after_write.run`` reports the index current."""
 
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack

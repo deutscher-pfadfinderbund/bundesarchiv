@@ -1,4 +1,4 @@
-"""Domain data shapes (CONTEXT.md terms). Value objects validate their own invariants."""
+"""Names follow CONTEXT.md."""
 
 import enum
 import unicodedata
@@ -12,8 +12,6 @@ type Version = int  # optimistic-concurrency counter (0 = never saved; first sav
 
 
 class Lifecycle(enum.Enum):
-    """An Article's workflow state (CONTEXT.md)."""
-
     DRAFT = "draft"
     PUBLISHED = "published"
 
@@ -41,7 +39,6 @@ class Audience:
     groups: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        # Dedupe (groups are OR-combined), first occurrence wins; frozen, hence object.__setattr__.
         groups = tuple(dict.fromkeys(self.groups))
         if any(not name.strip() for name in groups):
             raise ValueError(f"audience: group names must be non-blank (got {self.groups!r})")
@@ -71,17 +68,14 @@ class Change:
 
 @dataclass(frozen=True, slots=True)
 class MediaRef:
-    """A reference to one write-once media file. `filename` is the upload name; `stored_name`
-    is set only when the stored name differs (ADR 0019); `content_hash` is the fixity value.
-    `caption` is README front-matter input (ADR 0015). Order is meaning: the first entry is the
-    cover."""
+    """One write-once media file. `stored_name` is set only when it differs from the upload's
+    `filename` (ADR 0019). In `Article.media` the first entry is the cover."""
 
     filename: str
     content_hash: str  # sha256 hex of the bytes
     media_type: str | None = None  # MIME-ish
     byte_size: int | None = None
     caption: str | None = None
-    # An image's description for people who cannot see it; the caption stands in.
     alt: str | None = None
     stored_name: str | None = None
 
@@ -117,11 +111,10 @@ class Article:
     tags: tuple[str, ...] = ()
     physical_location: str | None = None  # Standort
     media: tuple[MediaRef, ...] = ()
-    # Member-visible provenance fields.
-    date: EdtfDate | None = None  # EDTF Level 0/1 archival date
+    date: EdtfDate | None = None
     creator: str | None = None  # Urheber
     subject_place: str | None = None  # Ortsangabe
-    # Archivist-only escape hatch for metadata the schema doesn't cover (ADR 0009).
+    # Archivist-only metadata the schema doesn't cover (ADR 0009).
     custom: tuple[tuple[str, str], ...] = ()
     # Hinzugefügt am; None = unknown (ADR 0019).
     added_at: datetime | None = None
@@ -137,8 +130,7 @@ class Article:
             self.added_at.utcoffset() != timedelta(0) or self.added_at.microsecond
         ):
             raise ValueError(f"added_at must be UTC in whole seconds, got {self.added_at!r}")
-        # Canonical: sorted by key, last duplicate wins. A key may not shadow a predefined field,
-        # or it would pose as one.
+        # A custom key may not shadow a predefined field, or it would pose as one.
         reserved = {f.name for f in fields(self)} - {"custom"}
         normalized: dict[str, str] = {}
         for key, value in self.custom:

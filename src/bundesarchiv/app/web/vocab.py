@@ -1,6 +1,4 @@
-"""Controlled vocabulary and the UI's German spellings; pure. The Medienart and Dokumenttyp words
-are the legacy archive's own lists, verbatim and in legacy order.
-"""
+"""Controlled vocabulary and the UI's German spellings; pure."""
 
 import re
 from dataclasses import dataclass
@@ -68,8 +66,7 @@ def media_types() -> tuple[str, ...]:
 
 
 def media_type_options() -> tuple[tuple[str, str], ...]:
-    """The Medienart ``<select>`` options: the placeholder (empty value, server-rejected), then the
-    vocabulary."""
+    """The placeholder's empty value is server-rejected."""
     return (("", "— Medienart wählen —"), *((m, m) for m in media_types()))
 
 
@@ -90,8 +87,7 @@ def is_valid_pair(media_type: str | None, document_type: str | None) -> bool:
 
 
 def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], ...]], ...]:
-    """The Dokumenttyp ``<optgroup>``s of the no-JS baseline (spec §5). One group while every
-    Medienart shares one list — identical groups would be noise."""
+    """One group while every Medienart shares one list: identical groups would be noise."""
     offered = set(MEDIA_TYPE_DOCUMENT_TYPES.values())
     if len(offered) == 1:
         return ((ALL_MEDIA_TYPES, tuple((t, t) for t in offered.pop())),)
@@ -103,8 +99,6 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
 
 # --- Sichtbarkeit (audience) German labels -----------------------------------------
 
-#: The Sichtbarkeit rung captions, the one source of the ladder's words. ``AUDIENCE_INHERIT`` is the
-#: ADR 0001 default.
 AUDIENCE_INHERIT = "Vom Bestand erben"
 AUDIENCE_PUBLIC = "Öffentlich"
 AUDIENCE_MEMBERS = "Alle Mitglieder"
@@ -216,12 +210,10 @@ _BERLIN = ZoneInfo("Europe/Berlin")
 
 
 def groups_label(groups: tuple[str, ...]) -> str:
-    """The GROUPS-rung caption: ``Gruppe: <name>, <name>``."""
     return "Gruppe: " + ", ".join(groups)
 
 
 def audience_label(audience: Audience | None) -> str:
-    """An ``Audience`` (``None`` = inherit) as its Sichtbarkeit caption."""
     if audience is None:
         return AUDIENCE_INHERIT
     match audience.tier:
@@ -237,8 +229,6 @@ def audience_label(audience: Audience | None) -> str:
 
 
 def date_mono(date: EdtfDate | None) -> str:
-    """The machine date: the EDTF value verbatim, ``""`` when absent. ``date_parts`` is the same
-    text split for ``<time>``."""
     return date.value if date is not None else ""
 
 
@@ -341,10 +331,8 @@ def file_summary(counts: tuple[tuple[FileKind, int], ...]) -> str:
     return ", ".join(_files(kind, n) for kind, n in counts)
 
 
-#: The undated Articles' word: the start page's Zeitleiste row and the list's decade slot.
 UNDATED = "Unbekannt"
 
-#: The article page's plate register, headed by what it holds.
 FURTHER_IMAGES = "Weitere Aufnahmen"
 FURTHER_FILES = "Weitere Dateien"
 

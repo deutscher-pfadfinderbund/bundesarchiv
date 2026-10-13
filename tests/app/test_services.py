@@ -137,7 +137,6 @@ def test_update_article_applies_the_mutation_and_indexes(archive: Archive) -> No
 
 @pytest.mark.django_db
 def test_update_article_retries_onto_the_winner_of_a_concurrent_write(archive: Archive) -> None:
-    """The retry re-applies the mutation to the winner's article: the concurrent creator survives alongside our title."""
     calls = 0
 
     def mutate(article: Article) -> Article:
@@ -304,7 +303,7 @@ def test_create_article_mints_ulid_and_indexes(archive: Archive) -> None:
 
 
 # ---------------------------------------------------------------------------
-# create_collection — mints ulid, saves at v1, validates parent
+# create_collection
 # ---------------------------------------------------------------------------
 
 
@@ -456,7 +455,6 @@ def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
 def test_save_article_index_failure_stands_canonical_and_enqueues(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """index_updated=False is what makes the UI say 'Sichtbarkeitsänderung noch nicht wirksam'."""
     enqueued: list[str] = []
 
     def boom(*_args: object, **_kwargs: object) -> None:
@@ -480,8 +478,6 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
 def test_save_article_swallows_enqueue_failure_after_index_failure(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Queue down at enqueue time: the canonical write already stood, so save_article still returns index_updated=False and raises nothing."""
-
     def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
 
@@ -570,7 +566,6 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(
 def test_gate_unpublishing_article_via_service_hides_it_next_search(
     archive: Archive,
 ) -> None:
-    """rebuild() is forbidden here: only the production save_article path may touch the index (ADR 0014 gate)."""
     articles = archive.articles
     save_article(
         archive,
@@ -603,7 +598,6 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
 def test_gate_narrowing_collection_audience_via_service_hides_descendants(
     archive: Archive,
 ) -> None:
-    """rebuild() is forbidden here: only save_collection may touch the index (ADR 0014 gate)."""
     articles = archive.articles
     save_article(
         archive,
@@ -777,7 +771,7 @@ def test_save_collection_enqueues_one_push_of_the_collection(
 def test_save_article_mirror_enqueue_failure_does_not_break_save(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The canonical write stands; the reconcile heals a lost push (ADR 0020)."""
+    """The reconcile heals a lost push (ADR 0020)."""
 
     def boom(_ulid: str) -> None:
         raise RuntimeError("queue down")

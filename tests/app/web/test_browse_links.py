@@ -50,8 +50,6 @@ def test_add_then_parse_round_trips() -> None:
 
 
 # --- clear-all (clear_filters_query) -----------------------------------------------
-# The rail's "Alle Filter entfernen" link removes every filter param but keeps q and sort, like the
-# chips; page resets like every narrowing change.
 
 
 def test_clear_filters_removes_every_filter_keeps_q_and_sort() -> None:
@@ -83,7 +81,6 @@ def test_clear_filters_drops_blank_values_like_every_link_helper() -> None:
 
 
 # --- pagination boundary (has_next_page) ------------------------------------------
-# Consumed rows are (page-1)*page_size + hits_on_page; page*len(hits) understates a partial last page.
 
 
 def test_has_next_true_on_full_non_final_page() -> None:
@@ -105,7 +102,6 @@ def test_has_next_false_on_empty_results() -> None:
 
 
 def test_has_next_false_on_overshot_empty_page() -> None:
-    # A hand-edited page beyond the end (no hits) must not offer a further page.
     assert has_next_page(page=3, page_size=50, hits_on_page=0, total=60) is False
 
 
