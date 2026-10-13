@@ -1,9 +1,5 @@
-"""The canonical E2E corpus: a small archive every journey and gallery state names through
-``CorpusHandles``, rebuilt per test.
-
-SIGNATUREN follow the domain fact (owner, 2026-08-07): no spaces, 8 characters at most.
-``CEILING_REF_CODE`` sits at that ceiling; layout stress goes on the Titel, the one unbounded
-field.
+"""The canonical E2E corpus every journey and gallery state names through ``CorpusHandles``. Layout
+stress goes on the Titel, the one unbounded field (Signaturen are bounded: ``CEILING_REF_CODE``).
 """
 
 from dataclasses import dataclass
@@ -64,16 +60,15 @@ def _report_pdf() -> bytes:
 PUBLISHED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ7"
 SECOND_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ8"
 DRAFT_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ9"
-CEILING_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZA"  # the Signatur at the domain ceiling
-MARKED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZB"  # in the Papierkorb: no list or search shows it
-MANY_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZC"  # seven photos of mixed shape: rows and the lightbox
-TEMPLATE_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZD"  # a Vorlage: a draft the archivists copy
+CEILING_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZA"
+MARKED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZB"  # in the Papierkorb
+MANY_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZC"
+TEMPLATE_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZD"
 
 #: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Bestand ·
 #: subdivision · volume, the longest code the archive is expected to carry.
 CEILING_REF_CODE = "F12/3-b2"
-# A ULID-keyed Bestand: /collections/<ulid>/edit accepts only a real ULID, unlike the literal
-# ROOT/FOTOS ids.
+# /collections/<ulid>/edit accepts only a real ULID, unlike the literal ROOT/FOTOS ids.
 RENAMABLE_ULID = "01KX939S67DNGH0AB53HNXGB9B"
 
 #: The photos of MANY_ULID: (filename, caption, pixel size) — landscape, portrait, square, wide.
@@ -114,8 +109,8 @@ class CorpusHandles:
 
 
 def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
-    """Build and index the canonical corpus at ``root``; with ``thumbnail_root``, pre-generate the
-    thumbnails the (absent) worker would, so media <img>s render."""
+    """With ``thumbnail_root``, pre-generate the thumbnails the absent worker would, so media <img>s
+    render."""
     store = LocalFsObjectStore(root)
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
@@ -201,8 +196,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         0,
         changed_by="tester",
     )
-    # The draft's title is plain archive content: draft-ness is lifecycle state, never words in
-    # the title (G.6).
+    # draft-ness is lifecycle state, never words in the title (G.6)
     articles.save(
         Article(
             ulid=DRAFT_ULID,
@@ -218,8 +212,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         0,
         changed_by="tester",
     )
-    # Filed in AKTEN with its own Medienart, so it joins neither the "sommer" facet nor the
-    # Foto(s) count the filter journeys narrow on.
+    # not a Foto(s): the filter journeys narrow on that count
     articles.save(
         Article(
             ulid=CEILING_ULID,

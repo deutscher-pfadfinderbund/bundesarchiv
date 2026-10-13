@@ -1,7 +1,5 @@
 """The state gallery: every inventory screen plus the interaction states declared here, shot per mode
 and width to ``var/gallery/<state>.<mode>.<width>.png`` (``BUNDESARCHIV_GALLERY_DIR`` overrides).
-
-Entry point: ``mise run test:gallery``.
 """
 
 import os
@@ -15,15 +13,12 @@ from playwright.sync_api import Browser, Page
 from tests.e2e._corpus import TEMPLATE_ULID, CorpusHandles
 from tests.e2e._pages import LIST, SCREENS, Screen, reach_tag_suggestions
 
-#: The two color modes; each state is shot under the emulated ``prefers-color-scheme`` (no theme
-#: cookie set).
+#: Shot under the emulated ``prefers-color-scheme``, with no theme cookie.
 MODES: tuple[Literal["light", "dark"], ...] = ("light", "dark")
 
 
 @dataclass(frozen=True, slots=True)
 class GalleryState:
-    """One gallery shot target."""
-
     name: str
     what: str
     archivist: bool
@@ -202,7 +197,7 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_edit_more_details(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the published record holds no custom row; "+ Angabe hinzufügen" adds one without saving
+    # the published record holds no custom row
     page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
     page.click('button:has-text("+ Angabe hinzufügen")')
     page.fill('#custom-bag input[name="custom_key"]', "Legacy-ID")
@@ -229,7 +224,6 @@ def _reach_edit_conflict(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # a blank Medienart: the error mode
     page.goto(
         f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
@@ -456,8 +450,6 @@ def render_state(
     state: GalleryState,
     out_dir: Path | None = None,
 ) -> list[Path]:
-    """Shoot ``state`` at each width in each mode as ``<state>.<mode>.<width>.png``. One reach per
-    width; the modes switch in place."""
     out = out_dir if out_dir is not None else gallery_dir()
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
