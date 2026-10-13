@@ -1,23 +1,8 @@
-"""The cataloging-form views (Part 4.7 Slice A+B): create step + full edit form (no-JS baseline).
+"""The cataloguing routes, archivist-only (anyone else: the plain 404).
 
-Two production routes, both archivist-gated to the media route's plain 404 for anyone else
-(existence-hiding — the cataloging surface must not be discoverable). Thin by design: the
-leak-sensitive parsing + validation live in ``catalog`` (pure, unit-tested), the write services in
-``app.articles``, and the form's ADR-0013 ``Conflict`` catch site in ``catalog.save_catalog_form``
-(the delete confirm catches its own).
-These views only resolve the viewer, gate, and hand an ``EditSurface`` — the record as SAVED plus
-whatever the form shows — the overlay its outcome calls for.
-
-- ``article_create`` — ``GET/POST /articles/new``: GET renders the minimal create form (Titel +
-  Bestand); POST creates a DRAFT via ``create_article`` and 302s to the edit form. Validation
-  re-renders state B (verbatim errors, preserved values).
-- ``article_edit`` — ``GET/POST /articles/<ulid>/edit``: GET renders the full form seeded from
-  the stored Article; POST parses + saves (CAS on ``expected_version``). A ``Conflict`` re-renders
-  the "Inzwischen geändert" panel (state G) with the just-submitted values preserved.
-
-The ``<ulid>`` is validated in-view via ``is_valid_ulid`` (never a route converter), so a malformed
-value collapses to the same 404 as an absent one. ``neu`` is registered before ``<str:ulid>`` in
-``urls.py`` so the literal path wins.
+Every edit-form render is one ``EditSurface``; ``catalog`` owns the parse and the form's ADR 0013
+``Conflict`` catch. ``<ulid>`` is validated in-view (``is_valid_ulid``), never by a route
+converter, so malformed and absent are the same 404.
 """
 
 import contextlib
@@ -82,12 +67,8 @@ _PUBLISH_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffentl
 def _load_gated(
     request: HttpRequest, ulid: str, *, marked: bool = False
 ) -> tuple[Archive, Stored, Archivist] | None:
-    """The shared gate for every ulid-bearing cataloging route: archivist-only, validate the ulid
-    in-view, and load the Article — returning ``(archive, stored, archivist)`` ONLY if all pass,
-    else ``None`` (the caller maps ``None`` to the plain 404). A non-archivist, a malformed
-    ulid, and an absent/unreadable article all collapse to the SAME ``None`` (existence-hiding,
-    spec §8). So does an Article on the wrong side of the Papierkorb: ``marked`` routes take only a
-    marked one, every other route only an unmarked one (ADR 0022)."""
+    """The gate of every ulid route here: an Archivist, a valid ulid and a loadable Article on the
+    ``marked`` side of the Papierkorb (ADR 0022), else ``None`` — all alike (existence-hiding)."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or not is_valid_ulid(ulid):
         return None
@@ -105,17 +86,13 @@ def _load(archive: Archive, ulid: Ulid, *, marked: bool) -> Stored | None:
     return stored if (stored.article.deleted is not None) == marked else None
 
 
-# --- /articles/new — the create step (Slice A) --------------------------------------
+# --- /articles/new — the create step --------------------------------------
 
 
 def article_create(request: HttpRequest) -> HttpResponseBase:
-    """``GET/POST /articles/new`` — the minimal create step. Archivist-only (non-archivist → the
-    plain 404, both methods). POST creates a DRAFT with just Titel + Bestand and 302s to the
-    edit form; a validation failure re-renders state B with the verbatim error + preserved values.
-
-    On GET, a ``?collection=<ulid>`` param pre-selects that Bestand (validated against the real set,
-    ignored if bogus — no oracle) and ``?created=1`` announces it as just created — the
-    landing after creating a Bestand (4.8), so create-Bestand → catalog-an-article is one flow."""
+    """``GET/POST /articles/new`` — POST creates a DRAFT from Titel + Bestand and goes to its edit
+    form. On GET ``?collection=`` preselects a real Bestand (a bogus one is ignored — no oracle)
+    and ``?created=1`` names it as just created."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist):
         return not_found()
@@ -142,8 +119,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             _create_context(chooser, title=title, collection_id=collection_id, errors=errors),
             chooser=chooser,
         )
-    # GET: pre-select the Bestand only if it is a real collection (else ignore — no oracle); the
-    # "Bestand … angelegt." line shows the name of a real Bestand, never text from the URL.
+    # both read only a real Bestand, never text from the URL (no oracle)
     return render_screen(
         request,
         "workbench/article_new.html",
@@ -189,14 +165,12 @@ def _create_context(
     }
 
 
-# --- /articles/<ulid>/edit — the full edit form (Slice B) ---------------------
+# --- /articles/<ulid>/edit — the full edit form ---------------------
 
 
 def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET/POST /articles/<ulid>/edit`` — the full edit form. Archivist-only (non-archivist,
-    malformed, or absent ulid → the plain 404, both methods). GET seeds the form from the
-    stored Article; POST parses + saves under CAS. A ``Conflict`` re-renders state G with the
-    just-submitted values preserved and a refreshed ``expected_version``."""
+    """``GET/POST /articles/<ulid>/edit`` — GET seeds the form from the stored Article; POST is
+    ``_handle_edit_post``."""
     gated = _load_gated(request, ulid)
     if gated is None:
         return not_found()
@@ -231,7 +205,6 @@ def _handle_edit_post(
     surface = EditSurface.of(current, stored.version, chooser)
     adding = "custom_add" in request.POST
     if adding or "custom_remove" in request.POST:
-        # spec §5: drop the named row or add an empty one, preserve everything else, save nothing.
         return surface.submitted(
             request.POST,
             catalog.parse_version(request.POST.get("expected_version", "")),
@@ -259,15 +232,9 @@ def _handle_edit_post(
         and lifecycle is Lifecycle.PUBLISHED
         and chooser.chain_of(result.article.collection_id) is None
     ):
-        # FAIL-CLOSED, server-side (learning G.43/G.48). The Status select drops Veröffentlicht when
-        # the chain does not resolve, but that is the client half only, and the state is reachable with
-        # ordinary UI actions — re-parenting a Bestand under a missing parent leaves the article's
-        # own version untouched, so CAS passes. Published, the record 404s for everyone including its
-        # cataloguer, and a later repair puts it live at whatever rung results unreviewed.
-        # Refusing as a FIELD ERROR on the Bestand is what makes the whole re-render the existing
-        # validation path: nothing written, every value preserved, the caret on the field that has to
-        # change. Only the draft → published transition is gated: withdrawing, and saving a record
-        # already published, need no exposure fact.
+        # fail-closed (learning G.43/G.48): re-parenting a Bestand reaches this without bumping the
+        # article's version; as a Bestand field error it re-renders through validation, nothing
+        # written
         result = replace(
             result,
             article=None,
@@ -294,7 +261,7 @@ def _handle_edit_post(
                 .render(request, overlay=Conflict(conflict.submitted))
             )
         case catalog.DeletedOutcome():
-            # hard-deleted underneath the save — collapse to the byte-identical 404
+            # deleted underneath the save, for good or into the Papierkorb — the plain 404
             return not_found()
 
 
@@ -318,11 +285,7 @@ class _ConflictRow:
     stored: str
 
 
-# --- THE EDIT SURFACE --------------------------------------------------------------
-#
-# ONE value object per request and ONE render of workbench/article_edit.html: the template's
-# whole context is built in one expression below, and every panel that can sit over the form is a
-# member of the Overlay union (debt #3).
+# --- THE EDIT SURFACE: one render; every panel over it is an Overlay (debt #3) ------
 
 
 @dataclass(frozen=True, slots=True)
@@ -377,9 +340,9 @@ class EditSurface:
     publish affordance read it, so neither describes a record that does not exist yet.
 
     ``values``/``media`` are what the FORM shows, which is the stored record on a GET and the
-    archivist's own input on every re-render. ``version`` is what the hidden ``expected_version``
-    carries, and it is the SUBMISSION's on a re-render (a stale form must keep losing) — refreshed
-    only where a ``Conflict`` re-seeds the surface from the winner (spec §6.1)."""
+    archivist's own input on every re-render. ``version`` is the hidden ``expected_version``: the
+    submission's on a re-render (a stale form must keep losing), the winner's after a ``Conflict``
+    (spec §6.1), and past a media route's own save (``_media_surface``)."""
 
     stored: Article
     version: Version
@@ -424,7 +387,6 @@ class EditSurface:
         )
 
     def first_empty_field(self) -> str:
-        """The cataloguing spine's first empty field — the fresh-edit autofocus target (spec §5)."""
         return first_empty_field(self.values)
 
     def render(
@@ -583,7 +545,7 @@ def _conflict_rows(mine: Article, theirs: Article) -> list[_ConflictRow]:
     ]
 
 
-# --- /articles/<ulid>/publish — publish from the article page (a3 round 7) ---
+# --- /articles/<ulid>/publish — publish from the article page ---
 
 
 class _PublishRefused(Exception):
@@ -630,15 +592,13 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
             return redirect_to(request, landing.noting_lag(page, index_updated))
 
 
-# --- /articles/<ulid>/copy — copy to a fresh draft (Slice C, spec §7) -----------
+# --- /articles/<ulid>/copy — copy to a fresh draft (spec §7) -----------
 
 
 def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /articles/<ulid>/copy`` — copy the article's metadata into a fresh DRAFT (Signatur
-    cleared, no media) via the ``copy_article`` service, then 302 to the copy's edit form with the
-    Signatur field autofocused (spec §5 — the one field that must change first on the volume path).
-    Archivist-only; a non-archivist / malformed / absent ulid gets the plain 404. No confirm
-    (it creates, never destroys). GET is not allowed (a copy is a mutation)."""
+    """``POST /articles/<ulid>/copy`` — a fresh DRAFT of the metadata (Signatur cleared, no
+    media), landing on its edit form with Signatur focused (spec §5). No confirm: it creates, never
+    destroys."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
@@ -789,10 +749,8 @@ def _audience_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
 
 # --- media manager: structural POSTs (spec §6.3 + ADR 0015) -----------------------
 #
-# Reorder / remove / upload are SEPARATE structural POSTs, distinct from the caption metadata save.
-# "Non-CAS" in that they never save against the form's expected_version (they only hand it back,
-# _media_surface): they hand an idempotent transform of the media tuple to ``update_article``, which
-# loads, applies and retries onto a concurrent winner. Order is meaning (first = cover), so reorder is re-cover and upload appends at the END.
+# Idempotent transforms through the retrying update_article, never at the form's version; the
+# first entry is the cover.
 
 #: How many times a structural media save re-loads after a concurrent version bump before giving up
 #: and telling the archivist to try again (rare: single-app-process, a handful of writers).
@@ -851,12 +809,8 @@ def article_media_remove(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 
 def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /articles/<ulid>/media/upload`` — attach one or more files (multipart ``files``).
-    Each file is stored under its own name (write-once, ADR 0019) and its ref appended at the END
-    (never displacing the cover, ADR 0015). Archivist-only, POST-only → 404 otherwise. An oversize
-    file or one whose name cleans to nothing → a clean German error, not a 500, and no file of the
-    batch is stored. The file MUST persist before the README references it (repository.save raises
-    otherwise) — ``add_media`` writes the file, then the structural save commits the refs."""
+    """``POST /articles/<ulid>/media/upload`` — append the posted ``files`` (ADR 0015, 0019). An
+    oversize or nameless file stores none of the batch and says why in German."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
@@ -875,7 +829,7 @@ def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
     repo = archive.articles
     new_refs = [
         repo.add_media(ulid, f.name or "", cast(BinaryIO, f), f.content_type or None) for f in files
-    ]  # add_media persists each file (write-once) BEFORE any ref is committed
+    ]
     if new_refs:
         return _structural_change(
             request,
@@ -918,14 +872,9 @@ def _structural_change(
     *,
     changed_by: str,
 ) -> HttpResponseBase:
-    """Apply an idempotent structural transform to the article's media tuple through the retrying
-    write service and render the outcome — everything the three structural routes share once each
-    has parsed its own parameter. Non-CAS from the form's view: it saves at the version it just
-    loaded rather than the form's expected_version (spec §6.3), which is what makes retrying safe.
-
-    Hard-deleted underneath → the plain 404 (not a hinweis-worthy conflict); every attempt lost the
-    race → the edit form with the konflikt hinweis, over a FRESH load (the winners changed what the
-    register holds); committed → the edit form fed the post-save state, no re-load."""
+    """Apply a media transform through the retrying ``update_article`` and re-render; it saves at
+    the version it loads, not the form's (spec §6.3), which is what makes the retry safe. All
+    attempts lost → the konflikt hinweis over a fresh load."""
     outcome = article_services.update_article(
         archive,
         ulid,
@@ -994,10 +943,7 @@ def _without(media: tuple[MediaRef, ...], content_hash: str) -> tuple[MediaRef, 
     return tuple(r for r in media if r.content_hash != content_hash)
 
 
-# --- HTMX enhancement partial (Slice E, spec §5) -----------------------------------
-# An archivist-gated GET transform the edit form's HTMX layer swaps in. Its no-JS baseline already
-# ships (the grouped optgroup select), so it ONLY removes a round-trip. A pure transform, no mutation.
-# Gated via _load_gated -> 404 for anyone else and NEVER partial content (the 4.10 leak suite).
+# --- HTMX partial: saves a round-trip; the no-JS grouped select already ships -------
 
 
 def article_document_types(request: HttpRequest, ulid: str) -> HttpResponseBase:

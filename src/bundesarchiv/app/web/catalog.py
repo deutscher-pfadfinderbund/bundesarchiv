@@ -1,23 +1,5 @@
-"""The cataloging-form parse/validate layer + the ``catalog_form`` save controller (Part 4.7).
-
-Two halves, split so the leak-sensitive validation is pure and unit-testable and the ONE
-Conflict-catch site (ADR 0013) is a thin shell:
-
-- ``parse_edit_form`` — a total function over a QueryDict-shaped mapping: it either builds a valid
-  ``Article`` (ready for ``save_article``) or returns a ``FormErrors`` map keyed by field name with
-  the verbatim German strings (spec §3). It owns the ``"" → None`` boundary for EVERY optional
-  scalar (spec §8) and the GROUPS-iff-groups invariant. IO-free, request-free.
-- ``save_catalog_form`` — the thin controller that is the ONLY place ``Conflict`` is caught for a
-  form save (ADR 0013): it calls ``save_article(archive, article, expected_version)`` directly (never
-  the retrying ``update_article``), and on ``Conflict`` re-loads the winner and returns a
-  ``ConflictOutcome`` carrying the current version + winner article so the view re-renders the
-  "Inzwischen geändert" panel with the archivist's just-submitted values preserved and a refreshed
-  ``expected_version``. If that re-load instead finds the article gone or in the Papierkorb (a
-  stale save racing a delete, not a concurrent edit), it returns ``DeletedOutcome`` so the view
-  collapses to the plain 404 instead of a 500.
-
-The Django coupling is a single ``getlist`` helper so the parser can be driven by a plain dict in
-tests and a ``QueryDict`` in the view without knowing which it holds.
+"""The article edit form's pure parse (``parse_edit_form``) and its save shell
+(``save_catalog_form``, this form's ADR 0013 ``Conflict`` catch site).
 """
 
 import re
@@ -72,8 +54,7 @@ class ParseResult:
 
 @runtime_checkable
 class _HasGetlist(Protocol):
-    """Structural stand-in for ``QueryDict.getlist`` — keeps this module Django-import-free while
-    letting the multi-value read stay fully typed (no ``getattr``/``Any`` escape hatch)."""
+    """``QueryDict.getlist``'s shape, so this module imports no Django."""
 
     def getlist(self, key: str, /) -> list[str]: ...
 
@@ -107,9 +88,8 @@ def one_line(raw: str) -> str:
 
 
 def none_if_blank(raw: str) -> str | None:
-    """The ``"" → None`` boundary for an optional scalar: a blank or whitespace-only value becomes
-    ``None``; otherwise the stripped value. Pinned by the leak-sensitive form contract (spec §8).
-    Public: the pages read a stored caption or alt through it too, so blank is absent everywhere."""
+    """The ``"" → None`` boundary for an optional scalar (spec §8): blank → ``None``, else
+    stripped."""
     stripped = raw.strip()
     return stripped or None
 
@@ -190,17 +170,15 @@ def parse_edit_form(
         title=title,
         collection_id=collection_id,
         # a browser submits a textarea's line breaks as CRLF; the README keeps them as LF
-        body=_get(post, "body").replace("\r\n", "\n"),  # body stays a str ("" → "")
-        lifecycle=lifecycle,  # the state the caller handed us — see the docstring
+        body=_get(post, "body").replace("\r\n", "\n"),
+        lifecycle=lifecycle,
         audience=audience,
         ref_code=none_if_blank(_get(post, "ref_code")),
         media_type=media_type,
         document_type=document_type,
         tags=parse_lines(_get(post, "tags")),
         physical_location=none_if_blank(_get(post, "physical_location")),
-        media=apply_media_fields(
-            post, current_media
-        ),  # preserve media; update captions (spec §6.3)
+        media=apply_media_fields(post, current_media),
         date=date,
         creator=none_if_blank(_get(post, "creator")),
         subject_place=none_if_blank(_get(post, "subject_place")),
@@ -224,14 +202,10 @@ def _edited(raw: str | None, current: str | None) -> str | None:
 def apply_media_fields(
     post: Mapping[str, object], current_media: tuple[MediaRef, ...]
 ) -> tuple[MediaRef, ...]:
-    """Return ``current_media`` with each entry's caption and alt text replaced by the form's
-    ``caption[<hash>]`` / ``alt[<hash>]`` values (``"" → None``, spec §6.3/§8). Order is preserved
-    (reorder is a separate structural POST); an absent field leaves the stored value unchanged
-    (defensive — the form always renders one per row). The alt is one line and only an image has one
-    (the kind that gets a display version); a forged ``alt[<pdf hash>]`` is ignored.
-
-    Public because the edit surface re-renders the register from the SAME rule the save applies, so a
-    re-render cannot show a value the next Speichern would not write."""
+    """``current_media`` with captions and alts from the form's ``caption[<hash>]`` /
+    ``alt[<hash>]`` (spec §6.3/§8); an absent field keeps the stored value. Only an image takes an
+    alt, as one line — a forged ``alt[<pdf hash>]`` is ignored. Re-renders go through this same
+    rule, so they show only what Speichern would write."""
 
     def field(name: str, key: str) -> str | None:
         values = _getlist(post, f"{name}[{key}]")
@@ -250,9 +224,8 @@ def apply_media_fields(
 
 
 def parse_version(raw: str) -> Version:
-    """The hidden ``expected_version`` → int (0 if absent/garbage). A garbage version simply loses the
-    CAS check on save (the store's real version won't match), so it need not be a field error. Public
-    so the view's no-JS custom-row re-render path reads the SAME parse (no second copy)."""
+    """The hidden ``expected_version``, 0 when absent or garbage — a garbage one just loses the CAS
+    check, so it is no field error."""
     try:
         return int(raw)
     except ValueError:
@@ -312,15 +285,13 @@ def parse_audience(
 def _parse_custom(
     keys: Sequence[str], values: Sequence[str]
 ) -> tuple[tuple[tuple[str, str], ...], str | None]:
-    """The custom bag (Gruppe 7): pair keys with values, drop rows where either cell is blank (the
-    always-one-empty-row add affordance leaves a trailing blank pair), and reject a key that collides
-    with a predefined Article field (``Article.__post_init__`` raises; caught → the verbatim error).
-    ``"" → None`` on each value is implicit: a blank value drops the whole row (spec §8)."""
+    """The custom bag: rows with either cell blank are dropped (spec §8); a key that collides with
+    an Article field is the verbatim error."""
     rows: list[tuple[str, str]] = []
     for key, value in zip(keys, values, strict=False):
         name, val = key.strip(), value.strip()
         if not name or not val:
-            continue  # incomplete row → dropped (spec §3/§8)
+            continue
         rows.append((name, val))
     try:
         # Round-trip through Article so the reserved-key collision + normalization is the SAME rule
@@ -331,13 +302,12 @@ def _parse_custom(
     return normalized, None
 
 
-# --- the ONE Conflict catch site (ADR 0013) ----------------------------------------
+# --- the form save (ADR 0013) ---
 
 
 @dataclass(frozen=True, slots=True)
 class SavedOutcome:
-    """A successful CAS save: the new version + whether the synchronous index update took (ADR 0014,
-    surfaced as the index-lag hinweis by the view)."""
+    """A successful CAS save."""
 
     result: SaveResult
 
@@ -366,13 +336,9 @@ type SaveOutcome = SavedOutcome | ConflictOutcome | DeletedOutcome
 def save_catalog_form(
     archive: Archive, article: Article, expected_version: Version, *, changed_by: str
 ) -> SaveOutcome:
-    """The ONLY site that catches ``Conflict`` for a form save (ADR 0013). Calls ``save_article``
-    directly (never the retrying ``update_article``): on success returns a ``SavedOutcome``; on ``Conflict``
-    re-loads the winner at its current version and returns a ``ConflictOutcome`` carrying both the
-    winner and the archivist's submitted article, so the view preserves the just-typed values and
-    refreshes ``expected_version`` to the current version (the next Speichern then wins). If that
-    re-load instead finds the article deleted (the Conflict was a deletion, not a concurrent
-    edit), returns ``DeletedOutcome`` so the view 404s instead of letting the load failure propagate."""
+    """Save the article form against ``expected_version`` (ADR 0013: ``save_article``, never
+    ``update_article``). A lost race returns the winner with the submission, or ``DeletedOutcome``
+    when the winner deleted it."""
     try:
         result = articles.save_article(archive, article, expected_version, changed_by=changed_by)
     except Conflict:
