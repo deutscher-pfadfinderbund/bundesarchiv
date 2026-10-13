@@ -30,6 +30,7 @@
 | Postgres-backed tests only | `mise run test:db` |
 | New test in `tests/app/` or `tests/index/` that uses `django_db` | also `mise run test:db` — `check` deselects it (auto-marked `requires_pg`), so `check` alone never runs it |
 | UI change | `mise run test:gallery` and `mise run test:e2e`, per the `design-gate` agent |
+| A change meant to touch only comments or docstrings (Python, JS) | `mise run quality:comments-only -- BASE` — exit 0 proves no code changed |
 
 Each checkout has its own test database (`test_bundesarchiv_<dir>`), so Postgres-backed
 runs in two worktrees may overlap; within one checkout, run them one at a time.
