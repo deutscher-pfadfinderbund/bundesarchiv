@@ -1,10 +1,8 @@
-"""``manage.py rebuild_index`` — rebuild the search index from the canonical store and read the
+"""``manage.py rebuild_index``: rebuild the search index from the canonical store and read the
 page text it lacks.
 
-The index is shared by every canonical root; the root indexed last owns it. This command is how a
-root takes it back — after the legacy import, or when that import's own rebuild failed.
-
-Reads ``BUNDESARCHIV_CANONICAL_ROOT`` like every other entry point; rebuilding is idempotent.
+The index is shared by every canonical root and the root indexed last owns it; this is how a root
+takes it back.
 """
 
 from collections import Counter
