@@ -137,6 +137,12 @@ description = "Pixel-diff the gallery: a git ref (default main) vs the working t
 depends = ["pg:wait", "e2e:browsers"]
 run = "uv run python scripts/gallery_diff.py"
 
+# Code-quality clues (scripts/quality/): the reports always exit 0; only comments-only gates.
+
 [tasks."quality:comments-only"]
 description = "Gate: exit 1 unless BASE..HEAD changes only comments and docstrings. -- BASE [HEAD]"
 run = "uv run python -m scripts.quality.comments_only"
+
+[tasks."quality:comments"]
+description = "Report: comment blocks and docstrings ranked by smell flags. -- [--top N] [--json]"
+run = "uv run python -m scripts.quality.comments"

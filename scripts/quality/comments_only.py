@@ -20,11 +20,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
-from scripts.quality._common import DOC_OWNERS, Blobs, body_without_docstring, git
+from scripts.quality._common import DOC_OWNERS, Blobs, body_without_docstring, git, is_pragma
 
-_PY_PRAGMA = re.compile(
-    r"#\s*(noqa|type:|pyrefly:|pyright:|mypy:|ruff:|fmt:|isort:|pragma)", re.IGNORECASE
-)
 _JS_PRAGMA = re.compile(r"biome-ignore|@ts-|eslint|@license|@preserve|^/\*!")
 # What may stand before a regex literal; before anything else a slash divides.
 _REGEX_AFTER = re.compile(
@@ -60,8 +57,7 @@ def _py_shape(source: str) -> str:
     pragmas = [
         (tok.line[: tok.start[1]].strip(), tok.string)
         for tok in tokenize.generate_tokens(io.StringIO(source).readline)
-        if tok.type == tokenize.COMMENT
-        and (_PY_PRAGMA.search(tok.string) or (tok.start[0] == 1 and tok.string.startswith("#!")))
+        if tok.type == tokenize.COMMENT and is_pragma(tok)
     ]
     return ast.dump(tree) + repr(pragmas)
 
