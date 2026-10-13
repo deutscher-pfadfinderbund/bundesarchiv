@@ -89,7 +89,7 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 - A comment says only what the code at that spot cannot: an exception, a non-obvious constraint, a value someone would otherwise "fix".
 - Narration, restated law and history are defects — git holds the history, the law, ADRs and requirements hold the decisions; deleting code does not license a comment about the deletion.
 - A decision gets a pointer, never a paraphrase (`law C8`, `register row 9`, `ADR 0015`), once, where a reader needs it; a "why it is right" belongs in the law, cited here.
-- Before keeping a comment, delete it and re-read the code: if only your confidence is gone it was noise; if a future writer could now break something, keep it at one line.
+- Before keeping a comment, delete it and re-read the code: if only your confidence is gone it was noise; if a future writer could now break something, keep it at one line. Run that test per clause, not per comment, and again after every cut: one cut does not finish a comment.
 - Test docstrings name the contract under test, never the assertions; if the test name says it, write nothing.
 - Never advertise a gate that does not exist: when a planned test is dropped, grep for comments promising it.
 - A comment may not deform the code: if a trailing comment splits a one-line call across three, move it above or drop it.
