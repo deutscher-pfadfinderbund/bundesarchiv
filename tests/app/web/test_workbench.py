@@ -1,15 +1,5 @@
-"""The archivist workbench route (Part 4.5-MVP) — DB-backed, viewer-scoped search UI.
-
-Every case drives the real route through Django's test ``Client`` with a dev-viewer cookie, over a
-LocalFs-backed corpus that is BOTH indexed (so ``search`` sees it) and readable by the view's
-collection-name resolution (same store). The security spine: results are viewer-scoped by ``search``
-— an Archivist sees drafts in the results, a Public viewer never does (the Part-4 leak discipline,
-carried into the UI).
-
-These need Postgres (they call ``search``). The corpus is bespoke — a tiered tree, a dateless
-article, Signaturen at the domain ceiling, two valid-ULID pane articles — so it is built on
-``make_corpus`` rather than the frozen standard shape, and re-indexed per test inside the test's own
-transaction: the rollback IS the index isolation.
+"""The workbench list (``/articles``): results are viewer-scoped by ``search``. The corpus is bespoke
+and re-indexed inside each test's transaction: the rollback is the index isolation.
 """
 
 import io
@@ -178,10 +168,8 @@ def _fill(corpus: Corpus) -> None:
             custom=(("herkunft", "Nachlass Schmidt"),),
         )
     )
-    # Two articles with VALID ULIDs so the preview pane (resolve_visible_detail -> is_valid_ulid)
-    # can open them. PANE_PUB is public (pane opens for everyone) and carries a captioned media
-    # file; PANE_MEM is members-only with the floored fields (pane denied for public -> the
-    # workbench renders no pane at all; floored fields never in a member body).
+    # the pane articles: PANE_PUB public with a captioned file, PANE_MEM members-only with floored
+    # fields
     pub_ref = corpus.articles.add_media(
         PANE_PUB_ULID,
         "titel.jpg",
@@ -294,8 +282,8 @@ def test_hx_request_renders_only_results_partial(indexed_corpus: Corpus) -> None
     response = _get(Archivist(), "q=Foto", hx=True)
     body = response.content.decode()
     assert 'id="results"' in body  # the swap target
-    assert "<html" not in body  # NOT the full page — just the region
-    assert "Neuer Artikel" not in body  # topbar is outside the partial
+    assert "<html" not in body
+    assert "Neuer Artikel" not in body
 
 
 def test_history_restore_request_renders_full_page(indexed_corpus: Corpus) -> None:
@@ -303,8 +291,8 @@ def test_history_restore_request_renders_full_page(indexed_corpus: Corpus) -> No
     # _results.html fragment a plain HX-Request gets, even when both headers arrive together.
     response = _get(Public(), "q=Foto", hx=True, history_restore=True)
     body = response.content.decode()
-    assert '<html lang="de">' in body  # full page, not the bare fragment
-    assert not body.lstrip().startswith("<main")  # NOT the bare _results.html fragment
+    assert '<html lang="de">' in body
+    assert not body.lstrip().startswith("<main")
 
 
 # --- template hygiene + archivist chrome ------------------------------------------
@@ -341,7 +329,7 @@ def test_logout_is_not_offered_to_an_anonymous_visitor(indexed_corpus: Corpus) -
     assert "Abmelden" not in _get(Public()).content.decode()
 
 
-# --- §11 render-path leaks: floored fields + archivist chrome (the reviewer's mutation targets) --
+# --- render-path leaks: floored fields + archivist chrome ---
 
 _NON_ARCHIVIST: list[tuple[Viewer, str]] = [
     (Public(), "public"),
@@ -361,18 +349,14 @@ def test_floored_fields_never_in_a_non_archivist_body(indexed_corpus: Corpus) ->
 
 
 def test_floored_fields_present_for_archivist_only_where_intended(indexed_corpus: Corpus) -> None:
-    # The archivist reaches GRPPROT (a groups row) in results; the floored fields are NOT rendered
-    # in the LEDGER either (the ledger shows only member-visible columns + visibility chrome) — the
-    # floor holds even for the archivist's ledger. (Full floored content is the 4.6 detail's job.)
+    # the ledger shows no floored field, not even to the archivist
     body = _get(Archivist()).content.decode()
-    assert "Protokoll der Vorstandssitzung" in body  # the row is present for the archivist
+    assert "Protokoll der Vorstandssitzung" in body
     assert "Geheimregal" not in body  # ...but its floored physical_location is not in the ledger
 
 
 def test_visibility_column_renders_for_nobody(indexed_corpus: Corpus) -> None:
-    # The SICHTBARKEIT column died entirely (owner 2026-08-07): no header, no cells, no badges —
-    # for ANY viewer. Quiet default: ÖFFENTLICH renders nothing anywhere in the ledger. The leak
-    # half of the old contract still holds a fortiori: group names never reach a non-archivist.
+    # No visibility column for anyone (owner 2026-08-07); group names never reach a non-archivist.
     page = _get(Archivist()).content.decode()
     # the ledger alone: the header's "Neuer Bestand …" form offers a Sichtbarkeit of its own
     arch = page[page.index("<table") : page.index("</table>")]
@@ -576,20 +560,17 @@ def test_media_facet_filter_narrows_results(indexed_corpus: Corpus) -> None:
     assert "Öffentliches Foto" not in body  # a Foto is excluded
 
 
-# --- search form keeps active facet filters (GH #21) ------------------------------
+# --- search form keeps active facet filters ---
 
 
 def _search_form_html(body: str) -> str:
-    """The header search form's own markup (``<form role="search">``), isolated from the rail/
-    ledger — so an assertion here can never accidentally match a facet link or pagination href
-    that happens to carry the same param/value elsewhere on the page."""
+    """The header search form alone, so an assertion cannot match a facet or pager link."""
     return body.split('<form role="search"', 1)[1].split("</form>", 1)[0]
 
 
 def test_search_form_echoes_every_active_filter_as_hidden_input(indexed_corpus: Corpus) -> None:
-    # Typing a NEW q must refine WITHIN the active filter scope: the form carries every active
-    # filter param as a hidden input, with its exact current value. seite is the one deliberate
-    # exception (a new search resets to page 1); q stays the single live input, never also hidden.
+    # a new q refines within the active filters; page is dropped (a new search starts at page 1),
+    # and q is the one live input
     query = (
         "q=Fahrt&collection=FOTOS&media_type=Foto&document_type=Lagerheft&tag=fahrten"
         "&decade=1960&dateless=1&date_from=1960-01-01&date_to=1969-12-31&sort=-ref_code&page=2"
@@ -608,20 +589,16 @@ def test_search_form_echoes_every_active_filter_as_hidden_input(indexed_corpus: 
         ("sort", "-ref_code"),
     ]:
         assert f'type="hidden" name="{name}" value="{value}"' in form_html
-    assert 'name="page"' not in form_html  # deliberately NOT echoed — a new search resets to page 1
+    assert 'name="page"' not in form_html
 
 
 def test_form_filter_params_track_every_browse_search_param() -> None:
-    # Drift pin: the form's echo list must stay exactly browse's search-state vocabulary minus q
-    # (the live input) and seite (a new search resets to page 1). A search param added to
-    # browse._SEARCH_PARAMS but forgotten in _FORM_FILTER_PARAMS would silently reintroduce
-    # GH #21 (the form dropping that filter) with every markup test still green.
+    # a search param missing from the echo list would silently drop that filter on a new search
     assert set(_FORM_FILTER_PARAMS) == browse._SEARCH_PARAMS - {browse.PARAM_Q, browse.PARAM_PAGE}
     assert len(_FORM_FILTER_PARAMS) == len(set(_FORM_FILTER_PARAMS))  # no duplicate hidden inputs
 
 
 def test_search_form_has_no_hidden_inputs_when_no_filter_is_active(indexed_corpus: Corpus) -> None:
-    # No active filter → zero hidden inputs (today's markup, unchanged) — q alone never adds one.
     form_html = _search_form_html(_get(Public(), "q=Fahrt").content.decode())
     assert 'type="hidden"' not in form_html
 
@@ -637,9 +614,7 @@ def test_search_form_hidden_input_values_are_html_escaped(indexed_corpus: Corpus
 
 
 def test_round_trip_q_and_collection_both_filter_results(indexed_corpus: Corpus) -> None:
-    # The server side of the loop the form now closes: a GET carrying BOTH q and an active filter
-    # narrows by both together (not just markup) — proves the request the completed form emits
-    # actually works. "Fahrt" matches only FOTOS-collection articles; AKTEN has none.
+    # "Fahrt" matches only FOTOS articles; AKTEN has none
     empty = _get(Public(), "q=Fahrt&collection=AKTEN").content.decode()
     assert "Keine Treffer" in empty
     both = _get(Public(), "q=Fahrt&collection=FOTOS").content.decode()
@@ -661,8 +636,7 @@ def test_a_word_only_on_a_page_links_that_page_of_the_file(indexed_corpus: Corpu
 
 
 def test_long_ref_codes_render_in_full(indexed_corpus: Corpus) -> None:
-    # An identity mark must never truncate at realistic lengths (owner correction 3) — realistic
-    # being the 8-character, space-free ceiling (owner 2026-08-07), not an invented long code.
+    # realistic lengths: the 8-character, space-free ceiling (owner 2026-08-07)
     body = _get(Public()).content.decode()
     assert "F12/3-b" in body
     assert "BA1848/2" in body
@@ -711,8 +685,7 @@ _CONTINUE = "Weiter \N{SINGLE RIGHT-POINTING ANGLE QUOTATION MARK}"
 def test_the_pager_holds_the_range_between_its_steps(
     indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # a2 round 10: the count lives in the range, between the two steps. On page 1 Zurück stays,
-    # disabled: it becomes active one click later (LEARNINGS lesson 9).
+    # on page 1 Zurück stays, disabled: it becomes active one click later
     monkeypatch.setattr(browse, "PAGE_SIZE", 2)
     total = len(list(indexed_corpus.articles.list_ulids()))  # the archivist sees every record
     pager = _pager(_get(Archivist()).content.decode())
@@ -722,7 +695,7 @@ def test_the_pager_holds_the_range_between_its_steps(
 
 
 def test_a_one_page_list_shows_its_count_and_no_steps(indexed_corpus: Corpus) -> None:
-    # a2 round 9: neither step can become active on a one-page list, so neither shows.
+    # neither step can become active on a one-page list
     total = len(list(indexed_corpus.articles.list_ulids()))
     body = _get(Archivist()).content.decode()
     assert f'<data value="{total}">{total}</data> Artikel</span></p>' in body
@@ -765,7 +738,7 @@ def test_title_navigates_and_no_list_link_opens_the_pane(
     indexed_corpus: Corpus, viewer: Viewer
 ) -> None:
     # The Titel is plain navigation to the detail route (owner 2026-08-07). The preview is paused
-    # (owner 2026-09-30): the pane opens only from its address, so no link on the list sets artikel.
+    # (owner 2026-09-30): the pane opens only from its address, so no link on the list sets ?article=
     body = _get(viewer).content.decode()
     hrefs = page_hrefs(body)
     assert f"/articles/{PANE_PUB_ULID}" in hrefs
@@ -779,12 +752,10 @@ def test_a_row_leads_to_its_record_and_carries_no_tool(indexed_corpus: Corpus) -
     assert f'href="/articles/{PANE_PUB_ULID}/edit"' not in arch
 
 
-# --- preview pane (?artikel): fail-closed, leak-safe ----------------
+# --- preview pane (?article): fail-closed, leak-safe ---
 
 
 def test_pane_opens_for_a_viewable_article(indexed_corpus: Corpus) -> None:
-    # A public article's pane opens for the public viewer: its title + Signatur + Öffnen appear, and
-    # the row is marked selected.
     body = _get(Public(), f"article={PANE_PUB_ULID}").content.decode()
     assert 'class="pane"' in body
     assert "Vorschau Sommerfahrt" in body
@@ -802,8 +773,6 @@ def test_the_pane_opens_and_offers_to_save_each_original(indexed_corpus: Corpus)
 
 
 def test_pane_absent_or_malformed_article_renders_no_pane(indexed_corpus: Corpus) -> None:
-    # An ABSENT artikel (valid ULID not in the corpus) or a MALFORMED one renders the workbench
-    # without a pane — a plain 200, no pane markup. (The denied case is pinned below.)
     for query in (f"article={PANE_ABSENT_ULID}", "article=not-a-ulid"):
         response = _get(Public(), query)
         assert response.status_code == 200
@@ -811,8 +780,6 @@ def test_pane_absent_or_malformed_article_renders_no_pane(indexed_corpus: Corpus
 
 
 def test_pane_denied_for_member_only_article_as_public(indexed_corpus: Corpus) -> None:
-    # Public cannot open the members-only article's pane at all (no pane markup, no title, no floored
-    # fields) — the deny is total.
     body = _get(Public(), f"article={PANE_MEM_ULID}").content.decode()
     assert 'class="pane"' not in body
     assert "Vorschau Mitgliederakte" not in body
@@ -821,14 +788,12 @@ def test_pane_denied_for_member_only_article_as_public(indexed_corpus: Corpus) -
 
 
 def test_pane_floored_fields_absent_even_for_member_who_can_view(indexed_corpus: Corpus) -> None:
-    # A member CAN open the members-only article's pane, but its floored fields are projected away
-    # (visible() = can_view + project) — the pane view-model is built from the floored copy.
     body = _get(Member(groups=()), f"article={PANE_MEM_ULID}").content.decode()
     assert 'class="pane"' in body
-    assert "Vorschau Mitgliederakte" in body  # the member sees the article
-    assert "Panzerschrank" not in body  # ...but never its physical_location
-    assert "Panzernachlass" not in body  # ...nor its custom value
-    assert "geheimnis" not in body  # ...nor its custom key
+    assert "Vorschau Mitgliederakte" in body
+    assert "Panzerschrank" not in body
+    assert "Panzernachlass" not in body
+    assert "geheimnis" not in body
 
 
 def test_pane_edit_only_for_archivist(indexed_corpus: Corpus) -> None:
@@ -848,8 +813,7 @@ def test_no_pane_for_an_article_in_the_trash(indexed_corpus: Corpus) -> None:
 
 
 def test_pane_close_link_preserves_query_drops_only_article(indexed_corpus: Corpus) -> None:
-    # The pane-close ✕ must return to the SAME search (text + facets + sort + page), dropping only
-    # the pane selection (artikel). A bare href="?" would blow away the whole query — regression.
+    # a bare href="?" would drop the whole search; the close link drops only ?article=
     body = _get(
         Public(),
         f"q=Vorschau&media_type=Foto&article={PANE_PUB_ULID}",
@@ -858,7 +822,7 @@ def test_pane_close_link_preserves_query_drops_only_article(indexed_corpus: Corp
     # the close link carries the active search params...
     assert "q=Vorschau" in body
     assert "media_type=Foto" in body
-    # ...but never the artikel selection (it is pane state, stripped from the close href)
+    # ...but never the article selection (it is pane state, stripped from the close href)
     close_href = body.split(' aria-label="Vorschau schließen"', 1)[0].rsplit('href="', 1)[1]
     assert "artikel" not in close_href, f"close href must drop artikel: {close_href}"
     assert "q=Vorschau" in close_href and "media_type=Foto" in close_href

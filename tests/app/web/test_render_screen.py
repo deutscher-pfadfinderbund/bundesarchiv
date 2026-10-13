@@ -1,11 +1,5 @@
-"""``render_screen`` — the single authority for the shared header's authorization facts.
-
-``is_archivist`` and ``is_signed_in`` gate chrome (the "+ Neu …" create disclosure, Abmelden), so
-they are authorization-shaped: the helper resolves both from ``viewer_of`` and no caller context may
-assert them. The leak matrix asserts route gates and never chrome, so this is the only gate on that.
-
-DB-free: a ``RequestFactory`` request with no cookie floors to ``Public()``, and the shared header
-partial is rendered on its own — the smallest surface that carries both gates.
+"""``render_screen`` resolves the header's ``is_archivist`` and ``is_signed_in`` from ``viewer_of``; no
+caller context may assert them. The leak matrix never checks chrome, so this is the only gate on it.
 """
 
 from django.http import HttpRequest

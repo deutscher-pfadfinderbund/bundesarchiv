@@ -1,10 +1,4 @@
-"""The 4.6 detail resolver (`resolve_visible_detail`, spec §8) — ONE load feeding the render
-view-model.
-
-`resolve_visible_detail` loads ONCE and returns a `DetailResolution` carrying the projected Article,
-the Bestand chain and the is_archivist presentation gate. These tests pin the projection
-(archivist-only fields floored for members).
-"""
+"""``resolve_visible_detail``: the projection floors archivist-only fields for every non-archivist."""
 
 from collections.abc import Callable
 
@@ -60,7 +54,6 @@ def test_resolves_the_projected_article(archive: Corpus) -> None:
     assert res is not None
     assert res.article.title == "Sommerfahrt"
     assert res.is_archivist is True
-    # archivist sees the archivist-only fields
     assert res.article.physical_location == "Regal 7"
     assert res.article.custom == (("Bemerkung", "intern"),)
 
@@ -69,7 +62,6 @@ def test_member_projection_floors_archivist_only_fields(archive: Corpus) -> None
     res = _resolve(Member(groups=()), PUB_ULID)
     assert res is not None
     assert res.is_archivist is False
-    # project() floored these on the domain object — they cannot reach the template
     assert res.article.physical_location is None
     assert res.article.custom == ()
 
