@@ -1,5 +1,3 @@
-// Cataloging-form enhancements; without JS the dirty mark stays hidden and uploads take the native
-// submit.
 (() => {
   "use strict";
 

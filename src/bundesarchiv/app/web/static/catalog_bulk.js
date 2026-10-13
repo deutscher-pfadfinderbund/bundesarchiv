@@ -1,11 +1,8 @@
-// Bulk selection, enhanced: keeps the live count (this page's boxes plus the off-page selection the
-// server hands over in data-bulk-offpage) and carries fresh ticks into the pager links. Without it,
-// ticks need a submit before paging.
+// Bulk selection, enhanced; without it, ticks need a submit before paging.
 (() => {
   "use strict";
 
-  // Re-init after every swap: a live search and a history restore both replace the form. The data
-  // flag stops double binding.
+  // Re-init after every swap: a live search and a history restore both replace the form.
   document.addEventListener("DOMContentLoaded", init);
   document.body.addEventListener("htmx:after:swap", init);
 
@@ -49,8 +46,8 @@
       }
     }
 
-    // Count = this page's ticked boxes + the server's off-page count: other pages' selection is
-    // invisible to the DOM. Empty at zero (no "0 ausgewählt").
+    // Other pages' ticks are invisible to the DOM; the server hands their count over in
+    // data-bulk-offpage.
     function updateCount() {
       const count = form.querySelector("[data-bulk-count]");
       const bulk = form.querySelector("[data-bulk-offpage]");
@@ -59,8 +56,7 @@
       count.textContent = n > 0 ? `${n} ausgewählt` : "";
     }
 
-    // 2. Fold the live ticks into the pager links so unsubmitted changes survive paging. "Abbrechen"
-    // is left alone: it leaves the mode.
+    // 2. Only the pager links carry the live ticks: "Abbrechen" leaves the mode.
     function rewriteSelectionLinks() {
       const boxes = rowBoxes();
       const pageUlids = boxes.map((b) => b.value);
