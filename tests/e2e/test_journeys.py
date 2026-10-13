@@ -1,7 +1,3 @@
-"""Canonical E2E journeys: each walks a loss/leak spine or pins a named regression in a real browser
-(``mise run test:e2e``).
-"""
-
 import json
 import time
 from collections.abc import Callable
@@ -125,8 +121,7 @@ _PAST_SEARCH_DEBOUNCE_MS = 450
 def test_search_works_from_a_screen_without_the_results_region(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # Off the workbench there is no #results: the header search submits natively and htmx stays out
-    # of it (G.32).
+    # htmx stays out of the header search off the workbench (G.32).
     page = archivist_page
     article = f"/articles/{e2e_corpus.published_ulid}"
     for path, submit in (
@@ -136,7 +131,6 @@ def test_search_works_from_a_screen_without_the_results_region(
     ):
         page.goto(path if path.startswith("http") else live_workbench + path)
         page.evaluate(_COUNT_HTMX_JS)
-        # typing starts no htmx request here: the enhancement is not attached (G.25)
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
         page.wait_for_timeout(_PAST_SEARCH_DEBOUNCE_MS)
         assert page.evaluate("() => window.__htmxErrors") == [], f"{path}: htmx raised an error"
@@ -171,16 +165,13 @@ def test_the_edit_forms_small_swap_lands_its_own_partial(
     document_type = page.locator("#document-type-select")
     expect(document_type.locator("option")).to_have_count(len(vocab.DOCUMENT_TYPES) + 1)  # + "kein"
     expect(document_type).to_contain_text("Zeitschrift")
-    # ...and it is the swapped list: only the no-JS baseline emits an <optgroup>, and both offer the
-    # same words.
+    # only the no-JS baseline emits <optgroup>, so none proves the swapped list
     expect(document_type.locator("optgroup")).to_have_count(0)
 
 
 def test_ledger_headers_compute_one_uniform_treatment(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # Every column head and its sort link compute one type treatment; the link differs only by
-    # affordance (G.1).
     archivist_page.goto(live_workbench + LIST)
     treatments: list[str] = archivist_page.evaluate(
         """() => Array.from(document.querySelectorAll('.ledger th, .ledger th a')).map((el) => {
@@ -193,9 +184,7 @@ def test_ledger_headers_compute_one_uniform_treatment(
     assert len(set(treatments)) == 1, f"non-uniform header treatments: {sorted(set(treatments))}"
 
 
-#: Law C8's walker (design-review-law E; G.21). Rows are discovered: every element declaring its own
-#: --control-height, every [role=toolbar], every overlay panel. Controls are every interactive
-#: child, as C8 words it. Per-instance copies of this proof are forbidden.
+#: Law C8's walker (design-review-law E; G.21), the one proof: no per-instance copies.
 _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
     const declaresKnob = (el) => {
         const own = getComputedStyle(el).getPropertyValue('--control-height').trim();
@@ -269,9 +258,8 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
 
 
 def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]]]:
-    """Every control row on the current page, keyed ``<name>#<index>`` (names repeat, e.g. each media
-    row's toolbar). Overlay entries are measurable only while open, so each overlay is opened in
-    turn, one at a time, and the page re-walked."""
+    """Keyed ``<name>#<index>`` because names repeat. Overlay entries are measurable only while
+    open, so each overlay is opened in turn."""
     rows: list[dict[str, object]] = page.evaluate(_CONTROL_ROW_WALKER_JS, OVERLAY_PANELS)
     walked: dict[str, list[dict[str, str | int | bool]]] = {}
     for i, row in enumerate(rows):
@@ -289,15 +277,12 @@ def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]
     return walked
 
 
-#: WCAG 2.2 AA target floor (law D), per control and on both axes: C8's equality check cannot see a
-#: row that is uniformly too small.
+#: WCAG 2.2 AA target size (law D).
 _AA_TARGET_FLOOR = 24
 
 
 def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) -> list[str]:
-    """Law C8 and the AA floor: each control clears the floor and shares its row's height (±1px); the
-    controls share one face, and one weight except the active panel entry. The named text occupants
-    are compared on height only."""
+    """Defects against law C8 and the AA target floor."""
     defects: list[str] = []
     for name, controls in by_name.items():
         defects.extend(
@@ -307,8 +292,8 @@ def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) 
             if min(int(str(c["width"])), int(str(c["height"]))) < _AA_TARGET_FLOOR
         )
         if len(controls) < 2:
-            continue  # nothing to compare within this row
-        # Keyed by position: labels repeat (two "Bundesarchiv" links in the header) (G.37).
+            continue
+        # Keyed by position: labels repeat (G.37).
         heights = {f"{i}:{c['label']}": int(str(c["height"])) for i, c in enumerate(controls)}
         if max(heights.values()) - min(heights.values()) > 1:
             defects.append(f"row '{name}' computes more than one height: {heights}")
@@ -325,9 +310,6 @@ def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) 
 def test_control_rows_compute_one_height_source(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # Law C8 over every archivist screen of the inventory; each screen names the row prefixes it must
-    # compose. The toolbar-button ink walk rides the same loop to avoid a second pass over every
-    # screen.
     page = archivist_page
     defects: list[str] = []
     ink_defects: list[str] = []
@@ -349,9 +331,8 @@ def test_control_rows_compute_one_height_source(
     assert not ink_defects, "a toolbar button lost its button roles:\n" + "\n".join(ink_defects)
 
 
-#: Every toolbar `a.button` with its computed ink and fill, plus the two colour roles resolved on a
-#: probe (a token's raw value is a light-dark() expression only a rendered element resolves).
-#: Comparing roles, not literals, holds in both modes and after a retint.
+#: Roles resolve on a probe: a token's raw value is a light-dark() expression only a rendered
+#: element resolves.
 _TOOLBAR_BUTTON_JS = """() => {
     const probe = document.createElement('span');
     probe.style.position = 'absolute';
@@ -384,9 +365,7 @@ def _toolbar_buttons(page: Page) -> tuple[dict[str, str], list[dict[str, str | b
 
 
 def _toolbar_button_defects(page: Page, where: str) -> tuple[int, list[str]]:
-    """Toolbar `a.button`s against the elements layer's role pairs: `.primary` is `--ground` text on
-    `--ink`, a plain one `--ink` on `--ground`. Also counts the buttons, so an empty walk is
-    visible."""
+    """Returns (buttons measured, role-pair defects)."""
     roles, buttons = _toolbar_buttons(page)
     defects: list[str] = []
     for button in buttons:
@@ -406,9 +385,8 @@ def _toolbar_button_defects(page: Page, where: str) -> tuple[int, list[str]]:
 def test_the_primary_toolbar_button_keeps_its_button_roles_under_the_pointer(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # Resting ink is walked above; this is the hover state. A layer-outranked rule looks live in
-    # source and axe's color-contrast is off (owner ruling), so only the computed check catches it.
-    # Under the pointer the primary turns to its outline (DESIGN.md).
+    # Under the pointer the primary turns to its outline (DESIGN.md); axe's color-contrast is off
+    # (owner ruling), so only this computed check catches an outranked hover rule.
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
     page.goto(live_workbench + f"{LIST}?article={e2e_corpus.published_ulid}")
@@ -425,7 +403,6 @@ def test_the_primary_toolbar_button_keeps_its_button_roles_under_the_pointer(
 def test_the_control_row_walk_sees_what_the_screens_compose(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # The walk above asserts uniformity; this asserts that it finds the row kinds the app composes.
     page = archivist_page
     page.goto(live_workbench + f"{LIST}?tag=sommer")
     filtered = _walk_control_rows(page)
@@ -444,10 +421,8 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     assert len(media) >= 3, f"the media register's row toolbars were not walked: {sorted(edit)}"
 
 
-#: Opens every overlay on the page in turn, in one evaluate, and returns per panel: its box against
-#: the viewport, its top against its trigger's bottom, the document's horizontal overflow while
-#: open, and the entries a centre hit-test misses (on-viewport is not reachable: a sticky row can
-#: paint over a panel).
+#: Per overlay, opened in turn: its geometry plus the entries a centre hit-test misses (on-viewport
+#: is not reachable: a sticky row can paint over a panel).
 _OVERLAY_WALK_JS = (
     (
         """(triggers) => {
@@ -499,17 +474,16 @@ _OVERLAY_WALK_JS = (
     .replace("CENTRED", json.dumps(OVERLAY_CENTRED_PANEL))
 )
 
-#: 360 the narrowest phone, 1440 a wide desktop; 540/680/900 straddle the header and rail wraps; 1100
-#: sits just below the pane's 80rem switch.
+#: 360 the narrowest phone; 540/680/900 straddle the header and rail wraps; 1100 sits just below
+#: the pane's 80rem switch.
 _CONTAINMENT_WIDTHS = (360, 540, 680, 900, 1100, 1440)
 
 
 def _walk_overlay_containment(
     page: Page, live_workbench: str, corpus: CorpusHandles, *, anchored: bool
 ) -> list[str]:
-    """Containment defects of every overlay on every inventory screen that composes one, at every
-    containment width (one reach per screen; widths swept in place). ``anchored`` adds the anchored
-    tier's promise (G.50): each panel hangs from its own trigger, the drop gap below it."""
+    """``anchored`` also checks the anchored tier's promise (G.50): each panel hangs from its own
+    trigger."""
     defects: list[str] = []
     for screen in SCREENS:
         if not screen.overlays:
@@ -566,8 +540,7 @@ def _serve_css_without_anchor_positioning(route: Route) -> None:
 def test_overlays_stay_inside_the_viewport(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # Containment across the width range (G.26), in both tiers (law F): the anchored render, and the
-    # fallback, reached by serving the real stylesheets with the @supports condition falsified.
+    # G.26 in both tiers (law F): anchored, then the fallback.
     page = archivist_page
     assert page.evaluate("() => CSS.supports('anchor-name: --a')"), (
         "this browser has no anchor positioning — the anchored tier would go unproven"
@@ -598,8 +571,8 @@ def test_overlays_stay_inside_the_viewport(
 def test_the_header_menu_is_clickable_on_the_edit_screen(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # The sticky-overlay regression class (CLAUDE.md), as a real click: the walker's hit-test catches
-    # it generically, this pins the archivist's path.
+    # Sticky-overlay regression class (CLAUDE.md): the walker's hit-test covers it generically; this
+    # is the archivist's real click.
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
     for entry, panel in (
@@ -640,10 +613,8 @@ def test_a_tool_panel_opened_from_a_menu_closes_the_menu(
 def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # The result count lives in the pager's range; a one-page list shows it alone. The
-    # type-to-search swap replaces the pager with #results, and an aria-live element inserted with
-    # its content is not announced — so the announcement lives in a node OUTSIDE the swap target
-    # (#hit-count), refreshed out-of-band. It is silent on a full page load: nothing changed.
+    # An aria-live element inserted with its content is not announced, so #hit-count lives outside
+    # the #results swap and refreshes out-of-band.
     page = archivist_page
     page.goto(live_workbench + LIST)
     expect(page.locator(".pager")).to_have_text("6 Artikel")  # the canonical corpus, one page
@@ -750,9 +721,7 @@ def test_a_way_back_remembered_before_the_list_moved_is_not_followed(
 def test_sentence_links_keep_the_typed_q_after_a_live_swap(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # The sentence lives outside #results, so its links refresh out-of-band with the count; else
-    # removing a filter after a typed q drops the q. Both set filters here show in no slot, so each
-    # is its own removing link.
+    # Both set filters show in no slot, so each is its own removing link.
     page = archivist_page
     for nth in (0, 1):
         page.goto(live_workbench + f"{LIST}?tag=sommer&media_type=Foto(s)")
@@ -773,7 +742,6 @@ def test_sentence_links_keep_the_typed_q_after_a_live_swap(
 def test_on_a_phone_the_folded_slots_stay_reachable(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # On S the unset Jahrzehnt and Typ slots fold away; "Filter" must still reach them.
     page = archivist_page
     page.set_viewport_size({"width": 390, "height": 900})
     for param in ("decade", "document_type"):
@@ -799,10 +767,9 @@ def test_pane_open_never_folds_the_ledger(
     expect(page.locator(".ledger thead")).to_be_visible()  # the fold's signature is hidden heads
 
 
-#: Long content sized by what each field can carry (G.24, G.6): the Signatur at its 8-character
-#: ceiling (owner, 2026-08-07), Typ at the vocabulary's longest; the Titel, the one unbounded field,
-#: carries the pressure.
-_CEILING_REF_CODE = "B106/XVI"  # 8 chars, no spaces: Bestand · tectonic level
+#: Long content at each field's ceiling (G.24, G.6); the Titel, the one unbounded field, carries the
+#: pressure.
+_CEILING_REF_CODE = "B106/XVI"  # the Signatur's 8-character ceiling, no spaces (owner, 2026-08-07)
 _LONG_TITLE = (
     "Werbeplakat zur Bundesfahrt in die Rhön mit Aufruf zur Teilnahme"
     " am Pfingstlager des Gaues Hochland"
@@ -815,8 +782,8 @@ _LONG_ULID = "01KXE2E1ANG0000000000000AA"
 
 
 def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
-    """Add one article as long as real archive content gets, per test, so the count-asserting journeys
-    keep the canonical hit count."""
+    """Per test, not in the shared corpus: the count-asserting journeys keep the canonical hit
+    count."""
     from bundesarchiv.domain.edtf import EdtfDate
     from bundesarchiv.domain.models import Article, Lifecycle
     from bundesarchiv.index import indexer
@@ -866,8 +833,6 @@ def _sideways_scroll_defects(
     cases: tuple[tuple[int, str], ...],
     extra: Callable[[Page], list[str]] | None = None,
 ) -> list[str]:
-    """Defects where the page body scrolls sideways at each (width, url); ``extra`` probes run in the
-    same navigation."""
     defects: list[str] = []
     for width, url in cases:
         page.set_viewport_size({"width": width, "height": 900})
@@ -900,8 +865,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
     _e2e_root: Path,
     django_db_blocker: DjangoDbBlocker,
 ) -> None:
-    # Law C11: the ledger drops no column; the Titel wraps, every other cell keeps its line, and long
-    # content never scrolls the page body (G.24).
+    # Law C11 (G.24).
     _seed_long_content(_e2e_root, django_db_blocker)
     page = archivist_page
     for width, path in (
@@ -947,8 +911,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
 
 
 def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> None:
-    # the leak spine: a public visitor gets the published articles, never the draft, and no archivist
-    # chrome
+    # the leak spine: also no archivist chrome
     public_page.goto(live_workbench + LIST)
     expect(public_page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
@@ -992,9 +955,8 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")
     expect(page.locator("main time")).to_have_attribute("datetime", "1962-07")
     expect(page.get_by_text("F12")).to_be_visible()
-    expect(page.locator("main .cover img")).to_be_visible()  # cover Platte
+    expect(page.locator("main .cover img")).to_be_visible()
     expect(page.locator(".media-rows figure")).to_have_count(2)  # the two files after the cover
-    # a plate links its gated media byte route; the crumbs lead back into the list
     href = page.locator(".media-rows figure > a").first.get_attribute("href")
     assert href is not None and href.startswith("/media/")
     page.get_by_role("link", name="Archiv", exact=True).click()
@@ -1129,8 +1091,6 @@ def test_create_collection_then_file_an_article_under_it(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    # Creating a Bestand lands on the create-article form with it pre-selected: create→catalog is
-    # one flow.
     page.goto(live_workbench + LIST)
     page.click(".menu-button")
     page.get_by_role("button", name="Neuer Bestand …").click()
@@ -1181,8 +1141,8 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     _create_draft(page, live_workbench, "E2E Zu Bearbeiten")
     page.fill('input[name="ref_code"]', "E2E-1")
     page.fill('input[name="creator"]', "K. Meyer")
-    # Enter, not a click: Speichern sits outside #edit-form (form=), and implicit submission must
-    # still find it as the default button, which applies the Status.
+    # Enter, not a click: Speichern sits outside #edit-form (form=), so implicit submission must
+    # still find it as the default button.
     page.select_option('select[name="lifecycle"]', "published")
     page.click('input[name="ref_code"]')
     page.keyboard.press("Enter")
@@ -1532,8 +1492,6 @@ def test_publish_from_the_article_page_confirms_first(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    # Veröffentlichen opens a confirmation saying who will see the record; Esc cancels,
-    # Jetzt veröffentlichen publishes and lands on the published page.
     _create_draft(page, live_workbench, "E2E Vom Artikel veröffentlicht")
     page.click('button:has-text("Speichern")')
     page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
@@ -1551,8 +1509,8 @@ def test_publish_from_the_article_page_confirms_first(
 
 def test_publish_by_status_saves_the_form(archivist_page: Page, live_workbench: str) -> None:
     page = archivist_page
-    # Saving is part of publishing (owner, 2026-08-08): Speichern with Veröffentlicht writes the
-    # unsaved edits too, inside #edit-form's subtree and outside it (the media/custom split).
+    # Saving is part of publishing (owner, 2026-08-08), for edits inside #edit-form's subtree and
+    # outside it (the media/custom split).
     _create_draft(page, live_workbench, "E2E Zu Veröffentlichen")
     page.fill('input[name="ref_code"]', "E2E-42")
     page.click(
@@ -1648,9 +1606,6 @@ def test_bulk_url_seeded_selection_still_works(
 def test_bulk_enhancement_survives_a_history_restore(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # G.25: Back after an htmx search is one server GET that swaps the body; afterwards the page
-    # states the URL's selection, both enhancements are wired to the fresh nodes, and no script
-    # re-ran.
     page = archivist_page
     page.goto(live_workbench + f"{LIST}?selection=")
     page.check(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
@@ -1683,8 +1638,8 @@ def test_bulk_enhancement_survives_a_history_restore(
 
 
 def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
-    """Grow the corpus past one page with 60 published articles whose ULIDs sort after the canonical
-    ones (browse order is ulid), so page 1 opens with the canonical articles."""
+    """The filler ULIDs sort after the canonical ones (browse order is ulid), so page 1 keeps the
+    canonical articles."""
     from bundesarchiv.domain.models import Article, Lifecycle
     from bundesarchiv.index import indexer
     from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
@@ -1740,7 +1695,7 @@ def test_bulk_fresh_ticks_survive_paging(
     assert e2e_corpus.second_ulid in _selection_in_url(page)
     assert e2e_corpus.published_ulid not in _selection_in_url(page)
     # ...and the off-page selection shows here, before any tick on this page (G.25)
-    expect(page.locator('input[name="selection"]:checked')).to_have_count(0)  # none of it is here
+    expect(page.locator('input[name="selection"]:checked')).to_have_count(0)
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
     # tick an item on page 2, go back — the rewritten Zurück link preserves BOTH pages' selections
     page2_box = page.locator('input[name="selection"]').first
@@ -1788,8 +1743,7 @@ _ERROR_FIELD_WALKER_JS = """() => {
 
 
 def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbench: str) -> None:
-    # C13/G.29: an errored field draws the error border over its resting look; in source an
-    # outranked rule looks live, so only the browser's answer counts.
+    # C13/G.29: an outranked rule looks live in source, so only the computed border counts.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Fehlerhaft")
     page.select_option('select[name="media_type"]', "")  # Medienart is required
@@ -1971,8 +1925,6 @@ def test_the_edit_form_absorbs_long_content(
     _e2e_root: Path,
     django_db_blocker: DjangoDbBlocker,
 ) -> None:
-    # The long Titel reaches the form as the heading's textarea and the <title>; neither may scroll
-    # the page body (G.24).
     _seed_long_content(_e2e_root, django_db_blocker)
     url = live_workbench + f"/articles/{_LONG_ULID}/edit"
     # 360: a bare minmax(floor, 1fr) track cannot shrink below its floor and scrolls the page body
@@ -1990,7 +1942,6 @@ def test_no_js_bulk_flow_completes(
     no_js_archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = no_js_archivist_page
-    # Without JS the whole bulk flow completes, and the head box means every row on its page.
     page.goto(live_workbench + LIST)
     page.get_by_role("link", name="Auswählen").click()
     page.wait_for_url("**selection=**")  # selection mode is URL state
@@ -2010,7 +1961,6 @@ def test_no_js_bulk_flow_completes(
 
 def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workbench: str) -> None:
     page = no_js_archivist_page
-    # Without JS, create → edit → save works on plain server-rendered forms.
     page.goto(live_workbench + "/articles/new")
     page.fill('textarea[name="title"]', "E2E Ohne JS")
     page.select_option('main select[name="collection_id"]', "FOTOS")
