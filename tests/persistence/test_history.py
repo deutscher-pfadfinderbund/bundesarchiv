@@ -23,8 +23,8 @@ ULID = "01J0"
 
 @dataclass(frozen=True)
 class _Tree:
-    """One repository's folder for ``ULID``. ``older`` is a README an older codec wrote at
-    ``older_version``: it loads, but no current encode produces these bytes."""
+    """``older`` is a README an older codec wrote at ``older_version``: it loads, but no current
+    encode produces these bytes."""
 
     folder: str
     save: Callable[[str, Version, str], Version]

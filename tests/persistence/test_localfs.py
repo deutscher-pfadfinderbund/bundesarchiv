@@ -1,7 +1,4 @@
-"""LocalFsObjectStore-specific: what the in-memory fake cannot model — crash atomicity (ADR 0005),
-directory fsync, unreadable folders, delete_prefix leftovers and races. The general contract:
-``test_objectstore_conformance.py``.
-"""
+"""LocalFsObjectStore-specific: what the in-memory fake cannot model."""
 
 import os
 import signal
@@ -17,9 +14,6 @@ from bundesarchiv.persistence.errors import ArchiveError, NotFound
 
 
 class _KillAfterFirstChunk:
-    """A read-stream that SIGKILLs its own process on its second read: a hard crash partway
-    through a real write."""
-
     def __init__(self) -> None:
         self._sent = False
 

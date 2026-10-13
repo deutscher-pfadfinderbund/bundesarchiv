@@ -1,7 +1,5 @@
-"""Per-tier leak negatives over the shared corpus: each channel — floored-field text, drafts,
-GROUPS narrowing, facets, fail-closed rows, captions, ``SearchHit`` fields — asserted per tier so a
-regression names the leak. The decade differential lives in ``test_leaks_decades.py``: it needs a
-tier-exclusive decade this corpus cannot offer.
+"""The decade differential lives in ``test_leaks_decades.py``: this corpus has no tier-exclusive
+decade.
 """
 
 from collections.abc import Iterator
@@ -40,7 +38,6 @@ _NON_ARCHIVIST_TIERS = (
 def _indexed(
     django_db_setup: None, django_db_blocker: pytest.FixtureRequest
 ) -> Iterator[indexer.RebuildReport]:
-    """The shared corpus, indexed once per module via ``fixtures.indexed_corpus``."""
     yield from fixtures.indexed_corpus(django_db_blocker, fixtures.build_index)
 
 
@@ -126,7 +123,6 @@ _DRAFT_ULID = "ART_DRAFT"
 
 @pytest.mark.django_db
 def test_draft_invisible_via_text_to_non_archivists(corpus: None) -> None:
-    """Its title word 'Entwurf' and its document_type 'Chronik' return nothing for a non-Archivist."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         assert _DRAFT_ULID not in _ulids(viewer, text="Entwurf"), f"[{label}] draft via title text"
         assert _DRAFT_ULID not in _ulids(viewer, text="Chronik"), (
@@ -136,8 +132,6 @@ def test_draft_invisible_via_text_to_non_archivists(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_draft_invisible_via_filters_to_non_archivists(corpus: None) -> None:
-    """Every filter path is scope-first: the subtree (FOTOS, ROOT), document_type, tag and
-    has_files."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         for f in (
             SearchFilters(collection="FOTOS"),
@@ -153,7 +147,7 @@ def test_draft_invisible_via_filters_to_non_archivists(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_draft_absent_from_every_facet_key_for_non_archivists(corpus: None) -> None:
-    """Only the draft's exclusive values are probed; its media_type and decades are shared with
+    """Probes only tags and document_type: the draft's media_type and decades are shared with
     visible rows."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         assert "entwurf" not in _facet_values(viewer, "tags"), f"[{label}] draft tag in facet"
@@ -192,8 +186,6 @@ def test_the_drafts_filter_answers_a_non_archivist_with_an_empty_page(corpus: No
 
 
 def label_in(label: str, who: frozenset[str]) -> bool:
-    """The wrong-group Member has the same visibility as a plain Member (never clears the vorstand
-    GROUPS rung)."""
     mapping = {
         "public": "public",
         "member()": "member",
@@ -241,8 +233,6 @@ def test_collection_facet_count_equals_subtree_filter_result_per_tier(corpus: No
 
 @pytest.mark.django_db
 def test_collection_facet_root_count_is_the_whole_rooted_visible_set(corpus: None) -> None:
-    """A fail-closed row has no ancestors, so ROOT's count is the visible set minus ancestorless
-    rows."""
     root_pub = _facet_count(PUBLIC, "collection", "ROOT")
     root_arch = _facet_count(ARCHIVIST, "collection", "ROOT")
     assert root_arch == len(
@@ -315,7 +305,6 @@ def test_member_only_tag_absent_from_public_facets(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_draft_and_failclosed_tags_absent_from_all_non_archivist_facets(corpus: None) -> None:
-    """'entwurf' is draft-only, 'verwaist' fail-closed-only."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         tags = _facet_values(viewer, "tags")
         assert "entwurf" not in tags, f"[{label}] draft-only tag leaked"
@@ -371,7 +360,7 @@ def test_public_caption_word_reaches_every_tier(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_group_caption_word_does_not_leak_to_unauthorized_tiers(corpus: None) -> None:
-    """'Tresornotiz' is only in ART_GRPPROT's caption; a caption is scoped like body text."""
+    """'Tresornotiz' is only in ART_GRPPROT's caption."""
     assert _ulids(PUBLIC, text="Tresornotiz") == set()
     assert _ulids(PLAIN_MEMBER, text="Tresornotiz") == set()
     assert _ulids(Member(("nicht-vorstand",)), text="Tresornotiz") == set()
@@ -381,8 +370,7 @@ def test_group_caption_word_does_not_leak_to_unauthorized_tiers(corpus: None) ->
 
 @pytest.mark.django_db
 def test_draft_caption_word_invisible_to_every_non_archivist(corpus: None) -> None:
-    """'Skizzenblatt' is only in ART_DRAFT's caption: the caption channel does not bypass the
-    lifecycle gate."""
+    """'Skizzenblatt' is only in ART_DRAFT's caption."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         assert _ulids(viewer, text="Skizzenblatt") == set(), (
             f"[{label}] draft caption word 'Skizzenblatt' leaked via the caption channel"

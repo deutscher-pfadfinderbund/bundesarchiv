@@ -1,7 +1,3 @@
-"""ArticleRepository over the in-memory fake and LocalFs: the canonical-file protocol, optimistic
-concurrency, named write-once media (ADR 0019), the hard delete (ADR 0020).
-"""
-
 import io
 import threading
 from collections.abc import Iterable
@@ -22,8 +18,8 @@ from bundesarchiv.persistence.repository import ArticleRepository, cleaned_name
 
 @pytest.fixture(params=["memory", "localfs"])
 def repo(request: pytest.FixtureRequest, tmp_path: Path) -> ArticleRepository:
-    # The racing test needs localfs: the in-memory critical section has no IO yield point, so
-    # under the GIL it cannot lose the race even without the lock.
+    # The racing test needs localfs: the in-memory critical section has no IO yield point, so it
+    # cannot lose the race even without the lock.
     if request.param == "memory":
         store: ObjectStore = InMemoryObjectStore()
     else:
@@ -64,7 +60,6 @@ def test_load_missing_raises_not_found(repo: ArticleRepository) -> None:
 def test_stale_expected_version_raises_conflict(repo: ArticleRepository) -> None:
     repo.save(_article(), expected_version=0, changed_by="tester")  # -> v1
     with pytest.raises(Conflict):
-        # stale: the store is at v1
         repo.save(_article(title="rename"), expected_version=0, changed_by="tester")
     # correct version wins
     assert repo.save(_article(title="rename"), expected_version=1, changed_by="tester") == 2
@@ -316,7 +311,6 @@ def test_add_media_carries_the_optional_caption(repo: ArticleRepository) -> None
 
 
 def test_save_refuses_readme_referencing_unstored_media(repo: ArticleRepository) -> None:
-    # Not even a history file: a README never names a file that is not stored.
     ref = repo.add_media("01J0", "photo.jpg", io.BytesIO(b"the bytes"))
     repo.save(_article(media=(ref,)), expected_version=0, changed_by="tester")
     orphan = type(ref)(filename="ghost.jpg", content_hash="0" * 64)
@@ -352,8 +346,7 @@ def test_hard_delete_is_a_no_op_for_absent_article(repo: ArticleRepository) -> N
 def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     repo: ArticleRepository,
 ) -> None:
-    """The writer mutex (ADR 0013): of two saves at one expected_version exactly one wins. A barrier
-    forces the interleave, so no sleeps."""
+    """Concurrent saves serialize through the writer mutex (ADR 0013)."""
     repo.save(_article(), expected_version=0, changed_by="tester")  # store is now at v1
     barrier = threading.Barrier(2)
     results: dict[str, object] = {}

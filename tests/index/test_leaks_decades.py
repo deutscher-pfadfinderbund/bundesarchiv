@@ -1,6 +1,5 @@
-"""Decade facet-leak differential. Own corpus: it needs a decade carried only by a restricted row,
-and the shared corpus's open-ended ``ART_PUBPLAKAT`` puts a public row in every decade from 1970 on.
-The tag half is in ``test_leaks.py``.
+"""Own corpus: a decade carried only by a restricted row cannot exist in the shared one, whose
+open-ended ``ART_PUBPLAKAT`` puts a public row in every decade from 1970 on.
 """
 
 from collections.abc import Iterator
@@ -92,7 +91,6 @@ def _facet_count(viewer: Viewer, key: str, value: str) -> int:
 
 @pytest.mark.django_db
 def test_member_only_decade_absent_from_public_facets(decade_corpus: None) -> None:
-    """Decade 1810 is carried only by the member-only row."""
     assert "1810" not in _facet_values(PUBLIC, "decades")
     assert "1820" in _facet_values(PUBLIC, "decades")  # the public row's own decade is present
     assert _facet_count(PLAIN_MEMBER, "decades", "1810") == 1
@@ -101,7 +99,6 @@ def test_member_only_decade_absent_from_public_facets(decade_corpus: None) -> No
 
 @pytest.mark.django_db
 def test_member_only_decade_row_absent_from_public_hits_and_total(decade_corpus: None) -> None:
-    """Rules out a hit-level leak behind the facet absence."""
     public_hits = {hit.ulid for hit in search(PUBLIC, page_size=200).hits}
     assert _DEC_MEMBER_ULID not in public_hits
     assert search(PUBLIC, page_size=200).total == 1  # only the public 1820 row

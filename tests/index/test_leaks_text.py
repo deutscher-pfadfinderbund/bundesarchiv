@@ -1,8 +1,7 @@
 """Page text (ADR 0023): a word on a page reaches an Article only through the viewer's scope.
 
 Every restricted Article below carries a word that exists nowhere but on a page of its own file,
-so each absence is the scope's. Page rows are stored inside each test (they roll back with it);
-the differential tests take their baseline before storing them.
+so each absence is the scope's.
 """
 
 import io

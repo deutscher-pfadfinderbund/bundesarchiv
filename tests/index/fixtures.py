@@ -1,13 +1,10 @@
-"""Shared search corpus: collections and articles saved through the repositories, then indexed by
-``rebuild``.
+"""Shared search corpus (``build_store``; per-viewer truth in ``EXPECTED_VISIBILITY``):
 
-    ROOT  "Bundesarchiv"                       (no audience: MEMBERS default)
-    +- FOTOS "Fotografien"          PUBLIC
-    |    +- LAGER "Lagerfotos"      (inherits PUBLIC)
-    +- AKTEN "Aktenbestand"         MEMBERS
-         +- VORSTAND "Vorstandsakten"   GROUPS {vorstand}
-
-Per-viewer ground truth: ``EXPECTED_VISIBILITY``.
+ROOT  "Bundesarchiv"                       (no audience: MEMBERS default)
++- FOTOS "Fotografien"          PUBLIC
+|    +- LAGER "Lagerfotos"      (inherits PUBLIC)
++- AKTEN "Aktenbestand"         MEMBERS
+     +- VORSTAND "Vorstandsakten"   GROUPS {vorstand}
 """
 
 import io
@@ -30,7 +27,6 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-# BOARD_MEMBER holds "vorstand", the group that clears the VORSTAND collection.
 ARCHIVIST = Archivist()
 PLAIN_MEMBER = Member(())
 BOARD_MEMBER = Member(("vorstand",))
@@ -48,7 +44,6 @@ class FixtureArticle:
     visible_to: frozenset[str]
 
 
-# ulid -> the viewer labels ``search`` must return it for.
 EXPECTED_VISIBILITY: dict[str, frozenset[str]] = {
     # PUBLIC-tier, published: everyone.
     "ART_PUBFOTO": frozenset({"archivist", "vorstand", "member", "public"}),
@@ -72,7 +67,7 @@ EXPECTED_VISIBILITY: dict[str, frozenset[str]] = {
 
 
 def build_store() -> InMemoryObjectStore:
-    """The corpus, saved through the real repositories so ``rebuild`` reads canonical READMEs."""
+    """Saved through the real repositories so ``rebuild`` reads canonical READMEs."""
     store = InMemoryObjectStore()
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
@@ -121,7 +116,7 @@ def build_store() -> InMemoryObjectStore:
 
 
 # Each word appears nowhere else in the corpus, so a search for it probes only the caption channel
-# (ADR 0015); one article per visibility case.
+# (ADR 0015).
 CAPTION_WORDS: dict[str, str] = {
     "ART_PUBFOTO": "Zeltwiese",
     "ART_GRPPROT": "Tresornotiz",
@@ -130,8 +125,7 @@ CAPTION_WORDS: dict[str, str] = {
 
 
 def _with_captioned_media(articles: ArticleRepository, article: Article) -> Article:
-    """Attach one captioned media file to the articles named in ``CAPTION_WORDS``; the blob goes
-    through ``add_media`` because ``save`` refuses unstored media."""
+    """``save`` refuses unstored media, so the blob goes through ``add_media`` first."""
     word = CAPTION_WORDS.get(article.ulid)
     if word is None:
         return article
@@ -152,13 +146,9 @@ def build_index() -> indexer.RebuildReport:
 def indexed_corpus[T](
     django_db_blocker: pytest.FixtureRequest, build: Callable[[], T]
 ) -> Iterator[T]:
-    """The index-isolation mechanism for ``tests/index/``: build and index a corpus outside the
-    per-test transaction, wipe ``ArticleIndex`` at module teardown.
-
-    ``rebuild`` commits, so no test transaction rolls the rows back. Every module-scoped corpus
-    fixture yields from this and adds no wipe of its own; not autouse, so the directory's no-DB
-    tests stay DB-free. A test that needs one more row beside the corpus uses
-    ``index_beside_corpus``.
+    """``rebuild`` commits, so no test transaction rolls the rows back: this wipes ``ArticleIndex``
+    at teardown. Every module-scoped corpus fixture yields from it and adds no wipe of its own; not
+    autouse, so no-DB tests stay DB-free. One more row beside the corpus: ``index_beside_corpus``.
     """
     from bundesarchiv.index.models import ArticleIndex
 
@@ -168,8 +158,8 @@ def indexed_corpus[T](
 
 
 def index_beside_corpus(root: Collection, *articles: Article) -> None:
-    """Index ``articles`` (all under ``root``) beside the indexed corpus, without the rebuild wipe;
-    call inside a test's transaction so the rows roll back."""
+    """``articles`` all sit under ``root``. Call inside a test's transaction so the rows roll back:
+    unlike ``rebuild`` this wipes nothing."""
     store = InMemoryObjectStore()
     CollectionRepository(store).save(root, 0, changed_by="tester")
     repo = ArticleRepository(store)
@@ -179,8 +169,8 @@ def index_beside_corpus(root: Collection, *articles: Article) -> None:
 
 
 def _articles() -> tuple[Article, ...]:
-    """The corpus articles; the German text exercises ADR 0011 stemming and umlauts (Häuser/Haus,
-    Bäume, Fahrten, Lieder)."""
+    """The German text exercises ADR 0011 stemming and umlauts (Häuser/Haus, Bäume, Fahrten,
+    Lieder)."""
     return (
         # --- PUBLIC (via FOTOS / LAGER) ---
         Article(
@@ -237,7 +227,7 @@ def _articles() -> tuple[Article, ...]:
             media_type="Plakat",
             document_type="Plakat",
             tags=("lieder",),
-            # Open upper end: the indexed date_latest is NULL.
+            # the indexed date_latest is NULL
             date=EdtfDate("1970/.."),
         ),
         # --- MEMBERS (explicit AKTEN / inherited) ---
@@ -264,7 +254,6 @@ def _articles() -> tuple[Article, ...]:
             date=EdtfDate("1988"),
         ),
         Article(
-            # No audience on the chain: the MEMBERS default.
             ulid="ART_MEMBRIEF",
             title="Briefwechsel im Bund",
             collection_id="ROOT",

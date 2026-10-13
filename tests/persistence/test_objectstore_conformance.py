@@ -1,6 +1,5 @@
-"""The ObjectStore contract, run against every adapter (in-memory, local-FS, WebDAV in-process and
-opt-in live). Crash atomicity (ADR 0005) is stressed in ``test_localfs.py``; what a concurrent
-reader may see is raced here.
+"""The ObjectStore contract, run against every adapter. Crash atomicity (ADR 0005) lives in
+``test_localfs.py``.
 """
 
 import io
@@ -209,7 +208,6 @@ def test_list_excludes_reserved_keys(store: ObjectStore) -> None:
 
 
 def test_exists_includes_reserved_keys(store: ObjectStore) -> None:
-    # Reserved keys are hidden from list() but visible to exists().
     store.write_atomic("art/1/.lock", b"lock")
     store.write_atomic(".tmp/scratch", b"tmp")
     assert store.exists("art/1/.lock") is True
@@ -280,7 +278,6 @@ def test_open_stream_directory_prefix_key_raises_not_found(store: ObjectStore) -
 
 
 def test_read_directory_prefix_key_raises_not_found(store: ObjectStore) -> None:
-    # "art/1" names no blob although "art/1/README.md" does: absent, not a leaked backend error.
     store.write_atomic("art/1/README.md", b"body")
     with pytest.raises(NotFound):
         pytest.fail(f"read returned {store.read('art/1')[:80]!r}")

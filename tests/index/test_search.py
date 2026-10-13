@@ -1,6 +1,4 @@
-"""Viewer-scoped ``search`` over the shared corpus (``fixtures.EXPECTED_VISIBILITY`` is the ground
-truth): text, filters, facets, sort, pagination.
-"""
+"""Ground truth is ``fixtures.EXPECTED_VISIBILITY``."""
 
 import datetime
 from collections.abc import Iterator

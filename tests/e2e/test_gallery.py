@@ -1,6 +1,5 @@
-"""The state-gallery entry point (``mise run test:gallery``): one test per state, so ``-k <state>``
-renders one. A pytest test so it reuses the E2E stack: live server, real index, the per-test
-corpus, never the production database.
+"""Runs under pytest so it reuses the E2E stack: live server, real index, never the production
+database.
 """
 
 import pytest

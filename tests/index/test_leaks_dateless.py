@@ -1,6 +1,4 @@
-"""Per-tier leak guard for the "Ohne Datum" count and filter. Own corpus: the shared one dates
-every article, so it has no tier-exclusive dateless row.
-"""
+"""Own corpus: the shared one dates every article, so it has no tier-exclusive dateless row."""
 
 from collections.abc import Iterator
 

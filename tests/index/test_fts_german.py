@@ -1,7 +1,4 @@
-"""Behaviour lock for the ``bundesarchiv_german`` text-search configuration (ADR 0011).
-
-The ``de_numeric`` collation is proven where the user meets it: ``test_search``.
-"""
+"""Behaviour lock for the ``bundesarchiv_german`` text-search configuration (ADR 0011)."""
 
 from typing import TYPE_CHECKING
 
@@ -17,7 +14,6 @@ _CONFIG = "bundesarchiv_german"
 
 @pytest.fixture
 def cursor(db: None) -> Iterator[CursorWrapper]:
-    """A live cursor on the test database."""
     from django.db import connection
 
     with connection.cursor() as cur:
@@ -45,7 +41,7 @@ def _matches(cursor: CursorWrapper, doc: str, query: str) -> bool:
 
 
 def _matches_prefix(cursor: CursorWrapper, doc: str, query: str) -> bool:
-    """True if ``doc`` matches ``query`` with ``:*`` on the last token (ADR 0011 §6)."""
+    """``:*`` goes on the last token (ADR 0011 §6)."""
     cursor.execute(
         "SELECT to_tsvector(%s, %s) @@ (websearch_to_tsquery(%s, %s)::text || ':*')::tsquery",
         (_CONFIG, doc, _CONFIG, query),
