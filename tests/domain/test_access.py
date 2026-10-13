@@ -1,7 +1,5 @@
-"""Viewer-facing access predicate — `can_view` composes effective_audience + Viewer.
-
-Fail-closed (ADR 0001): a non-Published Article is Archivist-only; a chain resolved for a
-different Article denies everyone. Fixture-driven, no IO. Chains are `ResolvedChain`s.
+"""The viewer-facing access policy — ``can_view``, ``preview``, ``project``, ``visible`` —
+fail-closed (ADR 0001).
 """
 
 from dataclasses import fields, replace
@@ -55,7 +53,6 @@ def test_archivist_sees_a_members_article() -> None:
 
 
 def test_a_draft_is_archivist_only_regardless_of_viewer() -> None:
-    # The Lifecycle gate (via effective_audience -> ArchivistOnly) denies everyone but Archivist.
     draft = _article(audience=Audience(AudienceTier.PUBLIC), lifecycle=Lifecycle.DRAFT)
     assert can_view(Public(), draft, _chain()) is False
     assert can_view(Member(), draft, _chain()) is False
@@ -113,8 +110,7 @@ def test_can_view_narrows_a_member_against_an_inherited_groups_rung() -> None:
 
 
 def test_member_holding_several_groups_clears_a_rung_naming_only_one() -> None:
-    # OR over the FULL held set (not first-element, not AND): rung names vorstand+stamm-koeln,
-    # the Member holds three groups and only stamm-koeln matches -> True.
+    # OR over the full held set (not the first element, not AND).
     held = Member(("stamm-bonn", "stamm-koeln", "andere"))
     assert can_view(held, _groups_article(), _chain()) is True
 
@@ -125,7 +121,6 @@ def test_member_holding_several_unnamed_groups_cannot_view() -> None:
 
 
 def test_preview_surfaces_inherited_group_names() -> None:
-    # preview must surface the group names of an INHERITED GROUPS rung, not only an explicit one.
     article = _article(audience=None, collection_id="c-leaf", lifecycle=Lifecycle.DRAFT)
     p = preview(article, _inherited_groups_chain())
     assert p.public is False
@@ -134,9 +129,7 @@ def test_preview_surfaces_inherited_group_names() -> None:
 
 
 def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article() -> None:
-    # The chain is a valid ResolvedChain but its leaf is not this Article's Collection — a
-    # wiring bug. can_view catches the MisresolvedChain and denies (not raises). (An *empty*
-    # chain can no longer reach here at all — ResolvedChain(()) fails at construction.)
+    # The leaf is not this Article's Collection (a wiring bug): denied, never raised.
     article = _article(collection_id="c-leaf", audience=Audience(AudienceTier.PUBLIC))
     wrong_chain = ResolvedChain((Collection(ulid="c-other", name="c-other"),))
     assert can_view(Public(), article, wrong_chain) is False
@@ -276,7 +269,6 @@ _BOARD = Audience(AudienceTier.GROUPS, ("vorstand",))
 def test_can_view_matrix(
     viewer: Viewer, audience: Audience, lifecycle: Lifecycle, expected: bool
 ) -> None:
-    # The core regression net: Viewer kind x effective tier x Lifecycle, hand-verified.
     article = _article(audience=audience, lifecycle=lifecycle)
     assert can_view(viewer, article, _chain()) is expected
 
@@ -289,8 +281,7 @@ def test_can_view_matrix(
 def test_preview_who_sees_is_defined_by_can_view(
     audience: Audience | None, lifecycle: Lifecycle
 ) -> None:
-    # Single-source invariant: preview never re-derives visibility — its flags equal can_view
-    # on the published projection. If preview's logic drifted from the resolver, this fails.
+    # preview never re-derives visibility: its flags equal can_view on the published projection.
     article = _article(audience=audience, lifecycle=lifecycle)
     published = _article(audience=audience, lifecycle=Lifecycle.PUBLISHED)
     p = preview(article, _chain())
@@ -298,11 +289,10 @@ def test_preview_who_sees_is_defined_by_can_view(
     assert p.members == can_view(Member(), published, _chain())
 
 
-# --- visible(): the can_view + project combinator (Part 4.6 render path) ------------
+# --- visible(): can_view + project ---
 
 
 def test_visible_returns_none_when_denied() -> None:
-    # A member cannot see a groups-only article -> visible() denies (None), never a floored copy.
     article = _article(audience=Audience(AudienceTier.GROUPS, ("vorstand",)))
     assert visible(Member(()), article, _chain()) is None
     assert visible(Public(), _article(audience=Audience(AudienceTier.MEMBERS)), _chain()) is None
@@ -315,7 +305,6 @@ def test_visible_denies_a_draft_to_non_archivists() -> None:
 
 
 def test_visible_denies_everyone_on_a_broken_chain() -> None:
-    # A chain resolved for a DIFFERENT article yields no audience -> deny all, incl. the archivist.
     article = _article(audience=Audience(AudienceTier.PUBLIC), collection_id="c-leaf")
     wrong_chain = _chain(collection_id="c-other")
     assert visible(Archivist(), article, wrong_chain) is None
@@ -323,7 +312,6 @@ def test_visible_denies_everyone_on_a_broken_chain() -> None:
 
 
 def test_visible_gives_a_member_a_floored_copy() -> None:
-    # A member who CAN view gets the article with ARCHIVIST_ONLY_FIELDS floored.
     got = visible(Member(()), _physical_article(), _chain())
     assert got is not None
     assert got.physical_location is None
