@@ -1,10 +1,5 @@
-"""Shared persistence-test fixtures.
-
-One real, in-process WebDAV server (wsgidav on cheroot, ephemeral localhost port) is
-brought up ONCE per session; each test gets an isolated collection on it. Nothing is
-mocked — the adapter speaks real HTTP/WebDAV to a real server, exactly as the local-FS
-adapter speaks to a real filesystem. Sharing the server (vs one per test) keeps the
-suite fast even though many parametrized cases request a WebDAV store.
+"""One in-process WebDAV server (wsgidav on cheroot) per session; each test gets its own
+collection on it.
 
 The server is brought up to the backend semantics the adapter relies on
 (`docs/nextcloud-webdav-notes.md`), so a green run means the adapter maps them right, not
@@ -14,8 +9,8 @@ that change the tree run one at a time, so a `PUT` with `If-None-Match: *` is at
 wsgidav checks it and writes without a lock, so two creates could both win). Whether a real
 server gives the same is what the live run checks.
 
-`live_dav_store` points the same conformance suite at a real WebDAV server: the
-opt-in live run (`docs/nextcloud-webdav-notes.md`, "Probes").
+`live_dav_store` points the same conformance suite at a real WebDAV server
+(`docs/nextcloud-webdav-notes.md`, "Probes").
 """
 
 import contextlib
@@ -146,10 +141,10 @@ def webdav_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
 
 @pytest.fixture
 def webdav_root(webdav_server: str) -> str:
-    """A fresh, isolated collection on the shared server for one test; yields its URL."""
+    """A fresh, isolated collection on the shared server for one test; returns its URL."""
     base = f"{webdav_server}{uuid.uuid4().hex}/"
     with httpx2.Client(timeout=10) as setup:
-        setup.request("MKCOL", base).raise_for_status()  # fail loudly if setup didn't create it
+        setup.request("MKCOL", base).raise_for_status()
     return base
 
 
