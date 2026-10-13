@@ -1,16 +1,7 @@
-"""``viewer_of(request)`` — the request→Viewer trust boundary (Part 4.4), through the dev cookie.
-
-The seam under test is the ONE function the web layer calls to answer *who is asking*. The
-FAIL-CLOSED contract: only a cookie correctly signed with the DEDICATED dev key and salt,
-unexpired, and parsing to a known viewer shape yields a non-Public viewer — every other input
-(no cookie, wrong key or salt, tampered signature, expired, signed garbage, a cookie the app no
-longer reads) resolves to ``Public()`` and never raises. The payload codec's adversarial round trip
-lives here too. The token cookies have their own file (``test_token_viewer.py``).
-
-These tests are DB-free: they build requests with ``RequestFactory`` and drive the signer directly.
-They take no corpus fixture: the seam reads exactly one setting and never a store, so each test
-declares that key itself — and the last test declares its ABSENCE, which a shared settings block
-cannot express.
+"""``viewer_of`` through the dev cookie: only a cookie signed with the dedicated dev key and salt,
+unexpired, and parsing to a known viewer yields a non-Public viewer; everything else is ``Public()``,
+never an exception. No corpus fixture: each test declares the one setting the seam reads, or its
+absence.
 """
 
 import pytest
@@ -44,8 +35,7 @@ def _request_with_cookie(value: str | None) -> HttpRequest:
 
 
 def _sign(payload: str, *, key: str, salt: str = _DEV_VIEWER_SALT) -> str:
-    """Sign a raw payload the way the dev switcher does (same signer class, salt, and key handling),
-    so the test constructs cookies through the identical code path viewer_of verifies against."""
+    """Sign a raw payload as the dev switcher does."""
     return signing.TimestampSigner(key=key, salt=salt).sign(payload)
 
 
@@ -98,9 +88,7 @@ def test_tampered_signature_is_public() -> None:
 
 @override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
 def test_expired_cookie_is_public(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Force every cookie to read as expired by shrinking the seam's max_age to a negative window;
-    # TimestampSigner.unsign then raises SignatureExpired (a BadSignature) -> Public. This exercises
-    # viewer_of's real expiry branch without sleeping 12h or forging timestamp bytes.
+    # a negative max_age makes every cookie read as expired, without sleeping or forging timestamps
     monkeypatch.setattr("bundesarchiv.app.web.viewers._DEV_VIEWER_MAX_AGE", -1)
     cookie = _sign(encode_viewer(Archivist()), key=DEV_KEY)
     assert viewer_of(_request_with_cookie(cookie)) == Public()
@@ -116,7 +104,6 @@ def test_expired_cookie_is_public(monkeypatch: pytest.MonkeyPatch) -> None:
     ],
 )
 def test_signed_garbage_shape_is_public(payload: str) -> None:
-    # Correctly signed with the RIGHT key, but the payload is not a known viewer shape.
     assert viewer_of(_request_with_cookie(_sign(payload, key=DEV_KEY))) == Public()
 
 
@@ -128,15 +115,12 @@ def test_the_dev_key_under_another_salt_is_public() -> None:
 
 @override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
 def test_cookie_signed_with_prod_secret_key_is_public() -> None:
-    # THE key-confusion test: a cookie signed with the production SECRET_KEY must be worthless.
     cookie = _sign(encode_viewer(Archivist()), key=_PROD_SECRET_KEY)
     assert viewer_of(_request_with_cookie(cookie)) == Public()
 
 
 def test_no_dev_key_configured_is_public() -> None:
-    # Under production settings (no DEV_VIEWER_SIGNING_KEY) the seam falls closed even for a cookie
-    # that WOULD verify under a dev key — there is simply no key to verify against. No
-    # override_settings here: the default test settings are prod (settings.py), which defines none.
+    # no override: the test settings are prod's, which define no dev key
     cookie = _sign(encode_viewer(Archivist()), key=DEV_KEY)
     assert viewer_of(_request_with_cookie(cookie)) == Public()
 
@@ -223,9 +207,7 @@ def test_empty_group_segments_are_dropped() -> None:
 
 @override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
 def test_the_viewer_is_resolved_once_per_request() -> None:
-    # Four call sites ask viewer_of the same question per request. They must not be able to answer
-    # it differently: the first resolution fixes the request's identity, and a cookie swapped
-    # underneath it (which no real request can do — set and clear happen on responses) is ignored.
+    # every call site must get the same answer: the first resolution fixes the request's identity
     request = _request_with_cookie(_sign(encode_viewer(Archivist()), key=DEV_KEY))
     resolved = viewer_of(request)
     request.COOKIES[DEV_VIEWER_COOKIE] = _sign(encode_viewer(Member(groups=("v",))), key=DEV_KEY)

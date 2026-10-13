@@ -25,9 +25,9 @@ from bundesarchiv.domain.viewer import Archivist, Member
 _LAG_KEYS = ("index_lag", "drawer_index_lag", "bulk_index_lag")
 _DB = pytest.mark.django_db  # the landing page runs a search
 
+_NEEDS_DB = {"article-delete-permanently", "collection-edit"}
 #: Neither Bestand route syncs the index: a new Bestand holds no Article, and the rename route
 #: changes the name only, which moves no Article's visibility.
-_NEEDS_DB = {"article-delete-permanently", "collection-edit"}
 _NO_SYNC = {"collection-create", "collection-edit"}
 
 

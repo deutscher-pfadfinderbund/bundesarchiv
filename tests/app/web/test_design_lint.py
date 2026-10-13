@@ -1,34 +1,6 @@
-"""Design lint — the machine-checkable slice of the design-review law (section E).
-
-Source of the rules: ``docs/design/design-review-law.md`` — cue register B, cascade rules C, and
-the explicit lintable subset E. This test parses the PROD stylesheets under
-``src/bundesarchiv/app/web/static/`` (the whole styling surface — there are no other stylesheets)
-and enforces:
-
-1. no raw colors (hex/rgb/hsl/oklch literals) outside ``tokens.css`` — components consume roles
-   only (themability law: component CSS is mode- and theme-blind);
-2. square corners: no ``corner-shape`` anywhere, and ``border-radius`` only as the reset ``0``
-   (register row 1 retired);
-3. ``--error`` consumed only inside register row 5's licensed selectors (allowlisted below —
-   extending the allowlist means citing the register row);
-4. no ``margin`` on component root selectors (law C4 — compositions own the between);
-5. bare px/rem literals outside ``tokens.css`` flagged, except (a) a custom-property DEFINITION
-   (naming the dimension IS the C3/C5 mechanism) or (b) a line carrying a comment naming why no
-   token fits;
-6. no ``box-shadow`` (register rows 8 and 12: flat; a floating panel is ground with an edge) —
-   except the doubled edge of an invalid control (register row 5, law E);
-7. outside a component's own CSS section a rule only places its root and sets its public knobs,
-   and never selects past it (law C1/C3 — owned components); a family section may set anything
-   on its members and selects nothing else (component rule 4).
-8. a knob is resolved once (law C3): a ``var(--_x)`` needs a ``--_x:`` in the same section, and a
-   public knob with a fallback is read only on a ``--_`` line.
-
-The parser is a small brace tracker for OUR OWN formatting (ruff-format-style CSS: one ``{`` per
-block opener, selectors and values possibly wrapped over lines). It recurses into
-``@layer``/``@media``/``@container`` blocks and records each declaration with its full selector
-stack. Proven non-vacuous by mutation during the wave (a planted hex/corner-shape/margin turned
-it red).
-"""
+"""Design lint: the lintable subset (section E) of ``docs/design/design-review-law.md`` over the prod
+stylesheets. The parser is a brace tracker for our own CSS formatting: one ``{`` per block opener,
+selectors and values possibly wrapped."""
 
 import itertools
 import re
@@ -56,10 +28,8 @@ ERROR_LICENSED = (
 )
 
 Decl = tuple[str, str, str, int, bool]  # (selector stack, property, cleaned line, lineno, comment)
-#: One at-rule opener: (selector stack including it, the raw condition, lineno, has-comment). Kept
-#: SEPARATE from the declarations because an at-rule's CONDITION is not a property/value pair — and
-#: because it was invisible to every check while it was only a selector-stack prefix, which is how a
-#: hard-coded `@media (min-width: 80rem)` slipped past the px/rem literal rule three times over.
+#: One at-rule opener: (selector stack including it, raw condition, lineno, has-comment). Separate
+#: from Decl so the literal rules also see conditions.
 AtRule = tuple[str, str, int, bool]
 
 
@@ -84,10 +54,7 @@ def _resolve(parent: str | None, selectors: str) -> str:
 def _parse(css: str) -> tuple[list[Decl], list[AtRule], list[Rule]]:
     """Flatten a stylesheet into declarations, at-rule openers and style-rule openers.
 
-    Declarations are (selector-stack, property, line, lineno, has-comment); at-rules join the stack
-    like selectors do, so a rule inside @container still knows its owning selector, AND are returned
-    in their own right so the value rules can be run over their conditions. Comments are stripped
-    before parsing; whether the original line carried one is kept (the C5 comment exemption)."""
+    Comments are stripped; each line keeps whether it had one (the C5 exemption)."""
     decls: list[Decl] = []
     at_rules: list[AtRule] = []
     rules: list[Rule] = []
@@ -160,9 +127,7 @@ def _all_at_rules() -> dict[str, list[AtRule]]:
 
 
 def test_every_prod_stylesheet_is_linted() -> None:
-    # The list above is hand-written so it can be READ; this makes it a gate rather than a hope. An
-    # unlinted stylesheet is the cheapest way for every rule in this file to stop applying, and it
-    # arrives silently — a new file just is not in the tuple.
+    # hand-written so it reads; a new stylesheet would otherwise escape every rule silently
     on_disk = {path.name for path in STATIC.glob("*.css")}
     assert set(STYLESHEETS) == on_disk, (
         f"stylesheets on disk but not linted = {sorted(on_disk - set(STYLESHEETS))}, "
@@ -172,11 +137,8 @@ def test_every_prod_stylesheet_is_linted() -> None:
 
 _COLOR_LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(")
 
-#: The CSS named colors. `color: rebeccapurple`, `background: white` and `border-color: red` are raw
-#: colors exactly like `#fff` is — the themability law's "no raw hex" is about the token layer being
-#: the ONE lever, not about notation — and the hex/function pattern above matched none of them, so all
-#: three were green. Kept as data rather than as a "looks like a color word" heuristic: the set is
-#: closed and small, and guessing would flag `cover`, `solid` or `dashed`.
+#: Named colors are raw colors too (themability law). A closed list, not a "looks like a color word"
+#: heuristic, which would flag `cover`, `solid` or `dashed`.
 _CSS_NAMED_COLORS = frozenset(
     {
         "aliceblue",
@@ -435,10 +397,8 @@ def test_error_only_in_licensed_selectors() -> None:
 
 
 def test_no_margin_on_component_roots() -> None:
-    # Law C4: components own the inside; compositions own the between. A component ROOT (a rule in
-    # the components layer whose subject is one bare class) must not declare outer margins.
-    # .visually-hidden is exempt: its -1px margin is part of the off-screen sr-only clip
-    # technique, not surface spacing.
+    # Law C4. A root is a components-layer rule whose subject is one bare class. .visually-hidden is
+    # exempt: its -1px margin is the sr-only clip.
     offenders = []
     for name, decls in _all_declarations().items():
         for sel, prop, raw, lineno, _comment in decls:
@@ -456,17 +416,8 @@ _PX_REM = re.compile(r"\b(?:0*[1-9]\d*(?:\.\d+)?|0?\.\d+)(?:px|rem)\b")
 
 
 def test_bare_dimension_literals_are_named_or_commented() -> None:
-    # Law C5: --space-*/--touch-target/--touch-target-compact/--line-width/--state-border are the
-    # value sources. A bare px/rem literal outside tokens.css needs either a naming custom
-    # property (--foo: 3rem — the C3 component-API mechanism) or a same-line comment saying why
-    # no token fits.
-    #
-    # AT-RULE CONDITIONS COUNT. A width threshold is the most consequential literal in the file — C9
-    # makes it derive from measured content and carry its arithmetic — and it was the one kind this
-    # check could not see, because a condition is not a property/value line. That blind spot is how
-    # `@media (min-width: 80rem)` came to exist in three places across two files, one of them not the
-    # complement it claimed to be. Every surviving query needs the same C5 comment as any other
-    # structural literal: a sentence naming why no token fits.
+    # Law C5. At-rule conditions count too: a width threshold needs the same why-comment as any
+    # structural literal (C9).
     offenders = []
     for name, decls in _all_declarations().items():
         if name == "tokens.css":

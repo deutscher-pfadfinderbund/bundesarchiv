@@ -1,13 +1,5 @@
-"""The cataloging-form controlled vocabulary + the display spellings (Part 4.7, spec §3/§4).
-
-Pure presentation helpers:
-
-- ``MEDIA_TYPE_DOCUMENT_TYPES`` behind ``document_types_for`` / ``is_valid_pair`` — the archivists'
-  vocabulary. The legacy lists are pinned verbatim here (a silent edit to a Medienart the legacy
-  archive already uses would orphan records); the pair rule itself is proven against a NARROWED
-  vocabulary, because every Medienart currently offers the full Dokumenttyp list.
-- ``date_parts`` / ``human_size`` — how the article page spells a date and the edit form a
-  file size.
+"""The cataloging vocabulary and the display spellings. The legacy lists are pinned verbatim: a silent
+edit to a Medienart the legacy archive uses would orphan records.
 """
 
 import pytest
@@ -38,7 +30,7 @@ def narrowed_vocabulary(monkeypatch: pytest.MonkeyPatch) -> str:
 
 # --- the Medienart -> Dokumenttyp mapping ------------------------------------------
 
-#: The legacy archive's 17 Medienarten, verbatim and in legacy order.
+#: The legacy archive's Medienarten, verbatim and in legacy order.
 _LEGACY_MEDIA_TYPES = (
     "Audiodatei",
     "Buch",
@@ -59,7 +51,7 @@ _LEGACY_MEDIA_TYPES = (
     "Wappen und Zeichen",
 )
 
-#: The legacy archive's 16 Dokumenttypen, verbatim and in legacy (lookup-table) order.
+#: The legacy archive's Dokumenttypen, verbatim and in legacy (lookup-table) order.
 _LEGACY_DOCUMENT_TYPES = (
     "Adressverzeichnis",
     "Chronik / Dokumentation",
@@ -89,8 +81,8 @@ def test_document_types_are_the_legacy_vocabulary_verbatim() -> None:
 
 
 def test_every_media_type_offers_the_whole_document_type_list() -> None:
-    # Narrowing is the archivists' call, not ours (deliverable 1): until they make it, no Medienart
-    # hides a Dokumenttyp, so no legacy record can arrive at a pair the form would refuse.
+    # Narrowing is the archivists' call: until they make it, no Medienart hides a Dokumenttyp, so
+    # no legacy record can arrive at a pair the form would refuse.
     for media_type in vocab.media_types():
         assert vocab.document_types_for(media_type) == _LEGACY_DOCUMENT_TYPES
 
@@ -109,26 +101,22 @@ def test_is_valid_pair_accepts_a_type_belonging_to_its_media_type() -> None:
 def test_is_valid_pair_rejects_a_type_the_media_type_does_not_offer(
     narrowed_vocabulary: str,
 ) -> None:
-    # The pair rule is a real gate, not a vacuous True: against a narrowed Medienart a foreign
-    # Dokumenttyp is refused.
     offered = vocab.document_types_for(narrowed_vocabulary)
     foreign = next(t for t in vocab.DOCUMENT_TYPES if t not in offered)
     assert not vocab.is_valid_pair(narrowed_vocabulary, foreign)
 
 
 def test_is_valid_pair_allows_no_document_type() -> None:
-    # "kein Dokumenttyp" (None) is always valid — the field is optional.
     for media_type in vocab.media_types():
         assert vocab.is_valid_pair(media_type, None)
 
 
 def test_is_valid_pair_rejects_a_document_type_without_a_media_type() -> None:
-    # A Dokumenttyp with no Medienart is a mismatched pair (no media type owns it).
     assert not vocab.is_valid_pair(None, "Zeitschrift")
 
 
 def test_grouped_options_are_one_group_while_every_media_type_shares_one_list() -> None:
-    # 17 identical optgroups would be noise in the no-JS baseline; one group carries the same choices.
+    # identical optgroups would be noise in the no-JS baseline; one group carries the same choices
     groups = vocab.grouped_document_type_options()
     assert len(groups) == 1
     label, options = groups[0]

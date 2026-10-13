@@ -1,5 +1,5 @@
 """Every write route records the signed-in archivist as the ``changed_by`` of the version it writes
-(ADR 0019: the history is the audit trail)."""
+(ADR 0019)."""
 
 from collections.abc import Callable
 from urllib.parse import parse_qs, urlparse
@@ -36,8 +36,7 @@ def _chooser(_response: HttpResponse, corpus: Corpus) -> Change | None:
     return corpus.collections.load(PUB).change
 
 
-#: Per write route: the version it wrote. Hard delete leaves none; the route-list test is
-#: ``test_index_lag.py``'s.
+#: Per write route: the version it wrote (a hard delete writes none).
 _CHANGED: dict[str, Callable[[HttpResponse, Corpus], Change | None]] = {
     "article-create": _landed_article,
     "article-edit": _article(DRAFT_ULID),
