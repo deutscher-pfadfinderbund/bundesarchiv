@@ -1,4 +1,5 @@
-"""Selection query-string algebra for bulk edit (spec §2/§3): the multi-valued ?selection= survives pagination and the way back from the bulk pages, with no server-side session state."""
+"""Selection query-string algebra for bulk edit: the multi-valued ?selection= survives pagination
+and the way back from the bulk pages, with no server-side session state."""
 
 from urllib.parse import parse_qs
 

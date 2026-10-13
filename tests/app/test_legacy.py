@@ -1,4 +1,4 @@
-"""The legacy→Article mapping (`app.legacy`): the data-loss class of the testing razor — the old database is read once and thrown away.
+"""The data-loss class of the testing razor: the old database is read once and thrown away.
 
 The rows here are SYNTHETIC — shaped like the real export, never copied from it.
 """

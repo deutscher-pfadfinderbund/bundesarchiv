@@ -1,4 +1,5 @@
-"""apply_bulk's two write-time guards (spec §4): the pair re-checked against the freshly loaded Medienart, and a non-Conflict ArchiveError on save. Each buckets its ulid as conflicted, writes nothing to it, and the loop goes on."""
+"""apply_bulk's two write-time guards: the pair re-checked against the freshly loaded Medienart,
+and a non-Conflict ArchiveError on save."""
 
 import pytest
 
@@ -24,7 +25,7 @@ def _archive_with(*articles_: Article) -> Archive:
 
 
 def test_apply_bulk_document_type_rechecks_pair_against_fresh_media_type() -> None:
-    # 01A's Medienart was cleared after the confirm page validated against it: a concurrent-modification loss.
+    # 01A's Medienart was cleared after the confirm page validated against it.
     archive = _archive_with(
         _article(ulid="01A", media_type=None),
         _article(ulid="01B", media_type="Schrifttum"),
