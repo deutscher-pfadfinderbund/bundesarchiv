@@ -74,6 +74,10 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 extend-select = [
     "I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH", "RET", "BLE", "DTZ", "PGH", "S",
+    # Design signals: flag parameters, unused arguments, private access, size and branching.
+    "FBT", "ARG", "SLF", "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+    # Hygiene: commented-out code, deferral markers, prints, builtin shadowing, logging, Django.
+    "ERA", "FIX", "TD", "T20", "A", "G", "LOG", "PLE", "RSE", "FLY", "ISC", "DJ",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -81,9 +85,46 @@ extend-select = [
 "**/migrations/*.py" = ["RUF012"]
 # The README codecs reject corrupt file content with ValueError, a pinned contract.
 "src/bundesarchiv/persistence/readme.py" = ["TRY004"]
-"src/bundesarchiv/persistence/collection_readme.py" = ["TRY004"]
-# Tests assert, and their keys and passwords are fixtures.
-"tests/**" = ["S101", "S105", "S106"]
+"src/bundesarchiv/persistence/collection_readme.py" = ["TRY004", "ARG001"]
+# Tests assert, and their keys and passwords are fixtures. Fixtures are requested for their
+# effect and parametrized flags are data.
+"tests/**" = ["S101", "S105", "S106", "ARG", "FBT", "SLF"]
+# Django fixes the command signature; the scripts talk to a terminal.
+"src/bundesarchiv/app/management/commands/*.py" = ["ARG002"]
+"scripts/**" = ["T20"]
+# Offenders pinned when the design rules arrived (2026-10-13), plus ARG001 in collection_readme.py
+# above. Fix and remove, never add.
+"src/bundesarchiv/app/articles.py" = ["PLR0913"]
+"src/bundesarchiv/app/models.py" = ["DJ008"]
+"src/bundesarchiv/app/tasks.py" = ["ARG001"]
+"src/bundesarchiv/app/web/browse_views.py" = ["FBT001", "PLR0913"]
+"src/bundesarchiv/app/web/bulk.py" = ["FBT003", "PLR0911"]
+"src/bundesarchiv/app/web/bulk_views.py" = ["PLR0913"]
+"src/bundesarchiv/app/web/card.py" = ["PLR0913"]
+"src/bundesarchiv/app/web/catalog.py" = ["PLR0913"]
+"src/bundesarchiv/app/web/catalog_views.py" = ["PLR0913"]
+"src/bundesarchiv/app/web/dev.py" = ["ARG001"]
+"src/bundesarchiv/app/web/landing.py" = ["FBT001"]
+"src/bundesarchiv/app/web/ledger.py" = ["FBT001", "PLR0913"]
+"src/bundesarchiv/app/web/legacy_params.py" = ["SLF001"]
+"src/bundesarchiv/app/web/media.py" = ["ARG001"]
+"src/bundesarchiv/app/web/media_views.py" = ["ARG001"]
+"src/bundesarchiv/app/web/panels.py" = ["PLR0913"]
+"src/bundesarchiv/domain/identity.py" = ["PLR0913"]
+"src/bundesarchiv/index/models.py" = ["DJ001", "DJ008"]
+"src/bundesarchiv/index/query.py" = ["C901", "PLR0913"]
+"src/bundesarchiv/persistence/_writer.py" = ["PLR0913"]
+"src/bundesarchiv/persistence/adapters/localfs.py" = ["ARG001", "ARG002"]
+"src/bundesarchiv/persistence/adapters/memory.py" = ["ARG002"]
+"tests/app/test_rebuild_thumbnails.py" = ["A002"]
+"tests/app/web/_fixtures.py" = ["C901"]
+"tests/app/web/test_bulk_views.py" = ["PLR0913"]
+"tests/app/web/test_design_lint.py" = ["C901", "PLR0912", "PLR0915"]
+"tests/app/web/test_detail.py" = ["A002"]
+"tests/app/web/test_leak_matrix.py" = ["PLR0913"]
+"tests/e2e/_gallery.py" = ["PLR0913"]
+"tests/e2e/test_gallery.py" = ["T201"]
+"tests/e2e/test_journeys.py" = ["C901", "ERA001"]
 
 [tool.mypy]
 strict = true
