@@ -34,8 +34,6 @@ class PostgresPushRecord:
 
 
 class InMemoryPushRecord:
-    """The push record in a dict."""
-
     def __init__(self) -> None:
         self._entries: dict[str, Pushed] = {}
 

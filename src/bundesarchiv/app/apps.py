@@ -1,8 +1,5 @@
-"""App config for the application-service layer.
-
-Installed so Procrastinate autodiscovers ``bundesarchiv/app/tasks.py`` and Django discovers the
-``ensure_index_current`` management command. Its one model is the push record's row (ADR 0020).
-"""
+"""Installed so Procrastinate discovers ``tasks.py`` and Django the management commands; its one
+model is the push record (ADR 0020)."""
 
 from django.apps import AppConfig
 

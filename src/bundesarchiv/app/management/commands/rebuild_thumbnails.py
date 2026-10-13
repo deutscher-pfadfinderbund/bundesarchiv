@@ -1,11 +1,5 @@
-"""``manage.py rebuild_thumbnails`` — derive every missing tile from the canonical store.
-
-The import and a save derive tiles; this derives the rest, for a new host, a pruned cache or a
-format change, and removes the cache files of the retired WebP format and the temp files a
-crashed write left. A file whose thumbnail exists is skipped (an empty one is re-derived), so a
-second run derives nothing; a file no renderer reads (text, a broken or encrypted PDF) derives
-nothing and never stops the run (``thumbnails.generate_thumbnail``). Reads
-``BUNDESARCHIV_CANONICAL_ROOT`` and writes into ``BUNDESARCHIV_THUMBNAIL_ROOT``.
+"""``manage.py rebuild_thumbnails``: derive every missing tile (new host, pruned cache, format
+change), and remove retired ``*.webp`` cache files and temp files a crashed write left.
 """
 
 from pathlib import Path

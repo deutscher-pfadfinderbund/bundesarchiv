@@ -38,7 +38,6 @@ class Archive:
 
     @classmethod
     def canonical(cls) -> Archive:
-        """THE canonical archive, resolved from ``BUNDESARCHIV_CANONICAL_ROOT`` — the only place in
-        ``src/`` that builds a store from settings. Built per call, so a settings override (tests,
-        the e2e server) takes effect without a seam of its own."""
+        """The canonical archive from ``BUNDESARCHIV_CANONICAL_ROOT``, the one place that builds the
+        CANONICAL store. Built per call, so a settings override takes effect."""
         return cls.of(LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT)))

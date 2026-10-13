@@ -1,28 +1,12 @@
-"""``manage.py import_legacy`` — the one-time import of the legacy archive (owner ruling: deployment
-1 shows the real data).
+"""``manage.py import_legacy``: the one-time import of the legacy export (owner ruling).
 
-IO only: read the CSV export and the media root, write through the ``Archive`` handle, rebuild the
-index. Every mapping decision lives in ``app.legacy``, which is pure — so what can go wrong here is
-what IO can do (a header that moved, a blob that is not on disk, a root that already holds an
-archive), and each of those stops or is reported rather than guessed.
+IO only; every mapping decision is ``app.legacy``. Refuses a canonical root that already holds
+Articles (a re-run mints fresh ULIDs and doubles the archive).
 
-One-time by ruling, so it refuses a canonical root that already holds Articles: re-running it would
-mint fresh ULIDs for records that already exist and double the archive. It refuses an absent media
-root, or one that holds not a single exported file, for the same reason: a bad run leaves a
-complete, media-less archive that only a manual wipe can undo. ``--dry-run`` writes nothing and
-prints the same report the real run ends with.
-
-It writes through the repository, not the ``app.articles`` shell, so it owes that shell's after-steps
-itself (the ordering law in ``app/CLAUDE.md``): the per-article index sync becomes ONE
-``indexer.rebuild`` at the end, thumbnails are generated INLINE (a batch, and the local run that
-browses the result has no worker), and the mirror push is left to the periodic ``mirror.reconcile``
-— 2506 enqueues say no more than one sweep.
-
-The search index is one Postgres table for every canonical root, so the rebuild here hands it to the
-imported tree; ``manage.py rebuild_index`` hands it back (README, "Legacy import").
-
-It ends with ``manage.py verify`` over what it wrote (ADR 0019 "Fixity"), whose findings fail the
-run.
+It writes through the repository, not the ``app.articles`` shell, so it owes that shell's
+after-steps (app/CLAUDE.md): one ``indexer.rebuild`` at the end (which takes over the shared index;
+``rebuild_index`` hands it back), thumbnails inline (no worker drains the queue), the mirror push
+left to the periodic reconcile. Ends with ``manage.py verify``.
 """
 
 import csv
@@ -115,15 +99,10 @@ class Command(BaseCommand):
     def _write(
         self, archive: Archive, plan: legacy.Plan, media_root: Path
     ) -> tuple[list[str], int]:
-        """Store each Article's blobs, then the Article, then its thumbnails. Returns the paths that
-        were not on disk and how many thumbnails were derived.
-
-        Blobs first, because the repository refuses a README that references media it does not
-        hold. A blob missing from the media root, or one whose name cleans to nothing (ADR 0019),
-        costs its reference, never the record: the Article is saved without it and the path is
-        reported for the archivist to chase. Thumbnails last and inline: nothing else derives them,
-        and a 404 cover on every imported image is what enqueuing into a queue no worker is draining
-        would look like.
+        """Per Article: its blobs first (the repository refuses a README naming media it lacks), then
+        the Article, then its tiles. A blob that is missing or whose name cleans to nothing
+        (ADR 0019) costs its reference, never the record. Returns the missing paths and the tile
+        count.
         """
         thumbnail_root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
         thumbnail_count = 0
