@@ -25,8 +25,7 @@ class ScopeColumns:
 
 
 def _scope_columns(effective: EffectiveAudience) -> ScopeColumns:
-    """Write side: the columns an ``EffectiveAudience`` is stored as. Tier strings are
-    ``AudienceTier.name``, which ``_viewer_scope`` matches."""
+    """``_viewer_scope`` matches these ``AudienceTier.name`` strings as literals."""
     match effective:
         case ArchivistOnly():
             return ScopeColumns(archivist_only=True, tier=None, groups=())
@@ -37,8 +36,6 @@ def _scope_columns(effective: EffectiveAudience) -> ScopeColumns:
 
 
 def _viewer_scope(viewer: Viewer) -> Q:
-    """Read side: the ``Q`` selecting exactly the rows ``viewer`` may see, row-equivalent to
-    ``can_view``."""
     match viewer:
         case Archivist():
             return Q()

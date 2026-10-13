@@ -1,8 +1,7 @@
 """Materializes the canonical files into ``ArticleIndex`` rows.
 
 Fail-closed (ADR 0012): an Article that cannot be resolved or decoded gets an archivist-only row,
-never a guessed visibility. Every writer takes the index advisory lock before its first canonical
-read, in one transaction (ADR 0014).
+never a guessed visibility.
 """
 
 import logging
@@ -30,16 +29,15 @@ from bundesarchiv.persistence.repository import ArticleRepository
 
 logger = logging.getLogger(__name__)
 
-# Bump whenever build_row's output changes (a column or a tsvector feed); rows of another version
-# trigger a rebuild.
+# Bump on any change to build_row's output or to the ADR 0011 FTS config, collation or tsvector
+# wrappers; rows of another version trigger a rebuild.
 CONFIG_VERSION = 8
 
-# One fixed key for every index writer (ADR 0014): never change it, never reuse it for another lock.
-_INDEX_WRITER_LOCK_KEY = 0x42554E44  # "BUND"
+# Never change it, never reuse it for another lock (ADR 0014).
+_INDEX_WRITER_LOCK_KEY = 0x42554E44
 
 
-#: How long a save in the request waits for the lock before handing the reindex to its retry
-#: job; long enough to outwait a typical full rebuild.
+#: Long enough to outwait a typical full rebuild; on timeout the retry job reindexes.
 SYNC_LOCK_TIMEOUT_MS = 5000
 
 
@@ -78,22 +76,20 @@ class RebuildReport:
 
 
 def _archivist_text(article: Article) -> str:
-    """The physical location and the custom VALUES; keys are structure, not prose."""
+    """Custom keys are structure, not prose: only their values are indexed."""
     custom_values = [value for _key, value in article.custom]
     return " ".join([article.physical_location or "", *custom_values]).strip()
 
 
 def build_row(article: Article, chain: ResolvedChain, *, cap_year: int) -> dict[str, object]:
-    """Pure: the ``ArticleIndex`` columns of ``article`` under ``chain``. Visibility comes only
-    from ``effective_audience`` and ``_scope_columns``."""
     ancestors = [c.ulid for c in chain.collections]
     scope = _scope_columns(effective_audience(article, chain))
     return _content_columns(article, ancestors=ancestors, cap_year=cap_year) | _scope_dict(scope)
 
 
 def _body_text(article: Article) -> str:
-    """Body plus every caption in media order (ADR 0015). Captions are member-visible, so they
-    ride the body weight. FTS only: ``SearchHit`` never shows it."""
+    """Captions are member-visible (ADR 0015), so they ride the body weight, not
+    ``archivist_text``."""
     captions = [m.caption for m in article.media if m.caption]
     return " ".join([article.body, *captions]).strip()
 
@@ -124,7 +120,6 @@ def _file_counts(article: Article) -> dict[str, int]:
 
 
 def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -> dict[str, object]:
-    """Every non-scope column."""
     earliest, latest, decades = _date_columns(article, cap_year=cap_year)
     return {
         "ulid": article.ulid,
@@ -172,8 +167,7 @@ def _date_columns(article: Article, *, cap_year: int) -> tuple[object, object, t
 
 
 def _fail_closed_row(article: Article, *, cap_year: int) -> dict[str, object]:
-    """Archivist-only scope over the normal content columns, with no ancestors: an Archivist can
-    still find it, nobody else sees it."""
+    """Still indexed, so an Archivist can find and repair the source (ADR 0012)."""
     content = _content_columns(article, ancestors=[], cap_year=cap_year)
     return content | _scope_dict(_scope_columns(ARCHIVIST_ONLY))
 
@@ -181,8 +175,7 @@ def _fail_closed_row(article: Article, *, cap_year: int) -> dict[str, object]:
 def _row_for(
     article: Article, lookup: dict[Ulid, Collection], *, cap_year: int
 ) -> tuple[dict[str, object], bool]:
-    """One Article's row and whether it failed closed: the single resolve-or-fail-closed decision
-    (ADR 0012)."""
+    """The row, and whether it failed closed (ADR 0012)."""
     try:
         chain = resolve_chain(article.collection_id, lookup)
         return build_row(article, chain, cap_year=cap_year), False
@@ -246,9 +239,7 @@ def config_stale() -> bool:
 
 
 def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None = None) -> None:
-    """Upsert ``ulid``'s row from canonical as it is now, or drop the row when the Article is gone
-    (ADR 0014). ``lock_timeout_ms`` bounds the lock wait; a timeout raises ``OperationalError`` and
-    writes nothing."""
+    """A ``lock_timeout_ms`` timeout raises ``OperationalError`` with nothing written."""
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
@@ -270,9 +261,7 @@ def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None
 def index_subtree(
     store: ObjectStore, collection_ulid: Ulid, *, lock_timeout_ms: int | None = None
 ) -> None:
-    """Upsert every Article in ``collection_ulid``'s subtree (``_in_subtree``, ADR 0014). An
-    Article whose README does not decode is left to ``rebuild``. ``lock_timeout_ms`` works as in
-    ``index_article``."""
+    """An Article whose README does not decode is left to ``rebuild``."""
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
@@ -286,8 +275,6 @@ def index_subtree(
 
 
 def _in_subtree(article: Article, collection_ulid: Ulid, lookup: dict[Ulid, Collection]) -> bool:
-    """A chain that cannot resolve counts only when the Article's own collection is the
-    target."""
     try:
         chain = resolve_chain(article.collection_id, lookup)
     except DomainError:
@@ -330,7 +317,6 @@ def hashes_with_text(hashes: Iterable[str]) -> frozenset[str]:
 
 
 def _current_year() -> int:
-    """The current local year, for ``build_row``'s ``cap_year``."""
     import datetime
 
     return datetime.date.today().year  # noqa: DTZ011 — decade bucketing wants the LOCAL year

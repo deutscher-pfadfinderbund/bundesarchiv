@@ -1,7 +1,7 @@
 """Derived, disposable search rows, never the source of truth (ADR 0003, ADR 0004).
 
 Each tsvector is a generated column over an ``IMMUTABLE`` SQL wrapper (migrations 0001, 0009): the
-ADR 0011 expression is only ``STABLE``, and a config change rebuilds anyway.
+ADR 0011 expression is only ``STABLE``.
 """
 
 from typing import ClassVar
@@ -29,7 +29,6 @@ _ARCHIVIST_TSV_ARGS = ("archivist_text",)
 
 
 def _wrapper(function: str, *field_names: str) -> Func:
-    """A call to an ``IMMUTABLE`` tsvector wrapper (migrations 0001, 0009)."""
     return Func(
         *(F(name) for name in field_names),
         function=function,
@@ -38,8 +37,6 @@ def _wrapper(function: str, *field_names: str) -> Func:
 
 
 class ArticleIndex(models.Model):
-    """One denormalized, disposable search row per Article."""
-
     ulid = models.TextField(primary_key=True)
     title = models.TextField()
     body = models.TextField(blank=True, default="")
@@ -62,19 +59,18 @@ class ArticleIndex(models.Model):
     archivist_only = models.BooleanField()
     tier = models.TextField(null=True)  # "PUBLIC" | "MEMBERS" | "GROUPS"; None iff archivist_only
     groups = ArrayField(models.TextField(), default=list)
-    # Draft marker for archivist chrome (ENTWURF badge, drafts filter), not a scope column: a
-    # fail-closed row is archivist_only but not is_draft.
+    # Chrome, never scope: archivist_only also covers rows that are not drafts.
     is_draft = models.BooleanField(default=False)
-    is_template = models.BooleanField(default=False)  # a Vorlage; a draft, so archivist_only too
+    is_template = models.BooleanField(default=False)  # a Vorlage
     added_at = models.DateTimeField(null=True)  # None = unknown
-    # The Papierkorb mark (ADR 0022); None = not deleted. A marked row is also archivist_only.
+    # The Papierkorb mark (ADR 0022); a marked row is also archivist_only.
     deleted_at = models.DateTimeField(null=True)
     deleted_by = models.TextField(null=True)
     # {FileKind value: count} of the Article's media, zero kinds absent; {} = no files.
     file_counts = models.JSONField(default=dict)
     # The content hash of each file, in media order: how a row reaches its files' ``MediaText``.
     media_hashes = ArrayField(models.TextField(), default=list)
-    # indexer.CONFIG_VERSION at write time; a mismatch triggers a rebuild
+    # indexer.CONFIG_VERSION at write time
     config_version = models.IntegerField()
 
     general_tsv = models.GeneratedField(
@@ -89,7 +85,6 @@ class ArticleIndex(models.Model):
     )
 
     class Meta:
-        # GIN for FTS; btree for the date and added_at sorts and filters (ADR 0011).
         indexes: ClassVar[list[Index]] = [
             GinIndex(fields=["general_tsv"], name="index_general_tsv_gin"),
             GinIndex(fields=["archivist_tsv"], name="index_archivist_tsv_gin"),
