@@ -1,6 +1,4 @@
-"""CollectionRepository (ADR 0010, ADR 0013): Collections as `collections/<ulid>/` on an
-ObjectStore. Callers never touch ObjectStore keys.
-"""
+"""CollectionRepository (ADR 0010, ADR 0013). Callers never touch ObjectStore keys."""
 
 from dataclasses import dataclass
 
@@ -14,8 +12,7 @@ from bundesarchiv.persistence.objectstore import ObjectStore
 
 @dataclass(frozen=True, slots=True)
 class StoredCollection:
-    """A Collection as loaded, with the version to pass to the next `save` and that version's
-    change record."""
+    """`version` is what the next `save` expects."""
 
     collection: Collection
     version: Version

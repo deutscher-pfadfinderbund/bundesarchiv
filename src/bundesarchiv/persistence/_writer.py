@@ -37,10 +37,9 @@ def is_history_key(folder: str, key: str) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class StoredKey:
-    """One key of a saved record's folder, with its size. A save replaces
-    only the README; every other key is `write_once` (ADR 0019). `sha256` is the digest of the
-    bytes when the README states it, else None. `readable` is False only for a README its
-    repository cannot decode, which is never to be pushed (ADR 0020)."""
+    """One key of a saved record's folder. Every key but the README is `write_once` (ADR 0019);
+    `sha256` is set only when the README states the digest; `readable` is False only for a README
+    its repository cannot decode, which is never pushed (ADR 0020)."""
 
     key: str
     size: int

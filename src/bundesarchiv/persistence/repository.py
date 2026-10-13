@@ -1,4 +1,4 @@
-"""ArticleRepository (ADR 0005): Articles as `articles/<ulid>/` on an injected ObjectStore.
+"""ArticleRepository (ADR 0005).
 
 The codec is `readme`; README and history keys and the save order are `_writer`'s, folder and
 media keys `_layout`'s. This module owns media names (ADR 0019 "Media names") and the hard delete.
@@ -93,8 +93,7 @@ class ArticleRepository:
     ) -> MediaRef:
         """Store `source` (from its current position; must be seekable, because it is read twice,
         ADR 0019 "Streaming upload") as one of the Article's media files under its cleaned name
-        (ADR 0019 "Media names"), and return the ref to embed before `save`. Raises `ValueError`,
-        writing nothing, when nothing of `filename` survives cleaning."""
+        (ADR 0019 "Media names"), and return the ref to embed before `save`."""
         name = _clean(filename)
         if not name:
             raise ValueError(f"nothing is left of the media name {filename!r} once cleaned")

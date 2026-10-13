@@ -51,8 +51,6 @@ class LocalFsObjectStore(ObjectStore):
 
     @contextmanager
     def _backend(self, key: str) -> Generator[None]:
-        """Maps every `OSError` to the port: no blob at the key gives `NotFound`; anything else
-        gives `ArchiveError`."""
         try:
             yield
         except FileNotFoundError, IsADirectoryError, NotADirectoryError:
@@ -152,8 +150,7 @@ class LocalFsObjectStore(ObjectStore):
         )
 
     def _commit(self, key: str, write: Callable[[BinaryIO], None], *, replace: bool) -> str:
-        """Durably place `write`'s output at `key`. The temp sibling is reserved, so a crash
-        leftover never lists."""
+        """The temp sibling is a reserved key, so a crash leftover never lists."""
         with self._backend(key):
             target = self._path(key)
             created = _make_parents(target.parent)

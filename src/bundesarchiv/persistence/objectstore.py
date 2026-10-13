@@ -1,8 +1,6 @@
-"""The ObjectStore port: a minimal blob interface defined to the WebDAV/S3
-lowest common denominator — no append, no rename, no OS-level lock (ADR 0005).
-
-Backends vary (in-memory, local filesystem, WebDAV); every adapter satisfies
-this Protocol and the conformance suite. Keys are "/"-separated paths.
+"""The ObjectStore port: a minimal blob interface defined to the WebDAV/S3 lowest common
+denominator — no append, no rename, no OS-level lock (ADR 0005). Every adapter passes the
+conformance suite.
 """
 
 from collections.abc import Iterable
@@ -11,8 +9,8 @@ from typing import BinaryIO, Protocol
 
 from bundesarchiv.persistence.errors import ArchiveError
 
-# A key with a dot-led segment is reserved: storage-internal (temp siblings, prefix-delete
-# leftovers; `.lock` per ADR 0013). It is addressable by key but excluded from `list()`.
+# Dot-led segments are storage-internal: temp siblings, prefix-delete leftovers, ADR 0013's
+# `.lock`.
 _RESERVED_SEGMENT_PREFIX = "."
 
 

@@ -39,7 +39,7 @@ DEV_VIEWER_COOKIE = "dev_viewer"
 
 _DEV_VIEWER_SALT = "dev-viewer"
 
-#: A working day; an expired dev cookie is Public.
+#: A working day.
 _DEV_VIEWER_MAX_AGE = 12 * 60 * 60
 
 #: The two cookies an OIDC login leaves the browser holding (ADR 0018): Keycloak's access token and
@@ -186,8 +186,8 @@ class TokenCookieMiddleware:
 
 
 def viewer_of(request: HttpRequest) -> Viewer:
-    """The request's ``Viewer``: token cookies first, then the dev switcher, else ``Public()``; never
-    raises. Cached on the request so every reader agrees and the token is refreshed at most once."""
+    """Never raises. Cached on the request so every reader agrees and the token is refreshed at
+    most once."""
     cached: Viewer | None = getattr(request, _VIEWER_CACHE_ATTR, None)
     if cached is not None:
         return cached
@@ -203,9 +203,8 @@ def render_screen(
     *,
     chooser: CollectionChooser | None = None,
 ) -> HttpResponse:
-    """Render ``template`` with the viewer-derived chrome stamped over ``context`` — ``is_archivist``,
-    ``is_signed_in``, ``index_lag`` and the archivist's ``new`` panels — so no caller can grant chrome
-    the viewer has not earned."""
+    """The viewer-derived chrome is stamped over ``context``, so no caller can grant chrome the
+    viewer has not earned."""
     viewer = viewer_of(request)
     is_archivist = isinstance(viewer, Archivist)
     chrome: dict[str, object] = {
@@ -278,7 +277,6 @@ def htmx_redirect(location: str) -> HttpResponse:
 
 
 def redirect_to(request: HttpRequest, location: str) -> HttpResponseBase:
-    """A 302 to ``location``, or for an htmx swap the ``HX-Redirect`` equivalent."""
     if is_partial(request):
         return htmx_redirect(location)
     return HttpResponseRedirect(location)
