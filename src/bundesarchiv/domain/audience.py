@@ -1,11 +1,5 @@
-"""The effective-Audience resolver — the single, pure, leak-sensitive source (ADR 0001).
-
-Every visibility decision (list filters, detail authorization, the search-index filter,
-the publish-time preview) must route an Article through *this* function and nowhere else;
-duplicating the logic is the top data-leak risk. Pure: no IO, no framework; the Collection
-chain is injected as a `ResolvedChain` (already built + structurally validated by
-`collections.resolve_chain`), never fetched here.
-"""
+"""The effective-Audience resolver: the single source every visibility decision routes
+through (ADR 0001). Never duplicate it. Pure; the chain is injected."""
 
 from dataclasses import dataclass
 
@@ -23,29 +17,23 @@ class ArchivistOnly:
 
 type EffectiveAudience = Audience | ArchivistOnly
 
-ARCHIVIST_ONLY = ArchivistOnly()  # frozen + field-less, so this singleton is shareable
+ARCHIVIST_ONLY = ArchivistOnly()
 
 
 def effective_audience(article: Article, chain: ResolvedChain) -> EffectiveAudience:
-    """Resolve the one effective Audience for `article` given its resolved Collection chain.
-
-    `ResolvedChain` guarantees the chain is non-empty, parent-linked, and root-terminated, so
-    the only check left here is the *binding*: the chain's leaf must be the Article's own
-    Collection (a chain resolved for a different Article is a caller wiring bug → fail closed,
-    `MisresolvedChain`). Then the Lifecycle gate wins first (a non-Published Article is
-    Archivist-only, and so is one in the Papierkorb, ADR 0022); otherwise the nearest explicit
-    Audience walking Article → chain wins (it may *widen* an ancestor, not only narrow), falling
-    back to the root default Members.
-    """
+    """The one effective Audience of `article`: Archivist-only unless Published and not in the
+    Papierkorb (ADR 0022); otherwise the nearest explicit Audience, Article first, then leaf to
+    root (it may widen an ancestor's); otherwise Members. Raises `MisresolvedChain` if `chain`
+    is not this Article's."""
     if chain.leaf.ulid != article.collection_id:
         raise MisresolvedChain(
             f"chain is not rooted at Article {article.ulid!r}'s Collection "
             f"(collection_id={article.collection_id!r}, chain leaf={chain.leaf.ulid!r})"
         )
     if article.lifecycle is not Lifecycle.PUBLISHED or article.deleted is not None:
-        return ARCHIVIST_ONLY  # the Lifecycle gate overrides Audience entirely
+        return ARCHIVIST_ONLY
     if article.audience is not None:
-        return article.audience  # explicit Article-level Audience wins, and may widen
+        return article.audience
     for collection in chain.collections:  # leaf → root: nearest explicit ancestor Audience wins
         if collection.audience is not None:
             return collection.audience
