@@ -150,3 +150,7 @@ run = "uv run python -m scripts.quality.comments"
 [tasks."quality:churn"]
 description = "Report: function churn per session, hotspots, stale-docstring risk, change coupling. -- [--under PREFIX] [--top N] [--json]"
 run = "uv run python -m scripts.quality.churn"
+
+[tasks."quality:indicators"]
+description = "Report: pass-throughs, data clumps, repeated conditions and literals, argument mutation, module depth. -- [--top N] [--json]"
+run = "uv run python -m scripts.quality.indicators"
