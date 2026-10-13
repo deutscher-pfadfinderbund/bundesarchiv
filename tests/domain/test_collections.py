@@ -60,7 +60,6 @@ def test_resolved_chain_rejects_an_empty_chain() -> None:
 
 
 def test_resolved_chain_rejects_a_non_parent_linked_chain() -> None:
-    # A spliced chain: chain[1] is not chain[0]'s parent.
     leaf = Collection("leaf", "Fotos", parent_id="true-parent")
     unrelated = Collection("root", "Archiv", parent_id=None)
     with pytest.raises(MisresolvedChain):

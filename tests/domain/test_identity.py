@@ -1,5 +1,3 @@
-"""domain.identity: ULID validation and minting."""
-
 from datetime import UTC, datetime
 
 import pytest

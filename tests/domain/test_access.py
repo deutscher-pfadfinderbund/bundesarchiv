@@ -1,6 +1,4 @@
-"""The viewer-facing access policy — ``can_view``, ``preview``, ``project``, ``visible`` —
-fail-closed (ADR 0001).
-"""
+"""The viewer-facing access policy, fail-closed (ADR 0001)."""
 
 from dataclasses import fields, replace
 
@@ -129,7 +127,6 @@ def test_preview_surfaces_inherited_group_names() -> None:
 
 
 def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article() -> None:
-    # The leaf is not this Article's Collection (a wiring bug): denied, never raised.
     article = _article(collection_id="c-leaf", audience=Audience(AudienceTier.PUBLIC))
     wrong_chain = ResolvedChain((Collection(ulid="c-other", name="c-other"),))
     assert can_view(Public(), article, wrong_chain) is False
@@ -281,7 +278,6 @@ def test_can_view_matrix(
 def test_preview_who_sees_is_defined_by_can_view(
     audience: Audience | None, lifecycle: Lifecycle
 ) -> None:
-    # preview never re-derives visibility: its flags equal can_view on the published projection.
     article = _article(audience=audience, lifecycle=lifecycle)
     published = _article(audience=audience, lifecycle=Lifecycle.PUBLISHED)
     p = preview(article, _chain())

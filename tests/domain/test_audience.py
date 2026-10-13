@@ -1,6 +1,4 @@
-"""``effective_audience`` (ADR 0001): the binding check, the Lifecycle and Papierkorb gates, the
-nearest-explicit cascade, the root default. The chain's own invariant: ``test_collections.py``.
-"""
+"""``effective_audience``, fail-closed (ADR 0001)."""
 
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -111,7 +109,7 @@ def test_silent_chain_falls_back_to_the_root_default_members() -> None:
 
 
 def test_explicit_article_audience_may_widen_a_narrower_collection() -> None:
-    # ADR 0001: the Article's own Audience may widen.
+    # by design (ADR 0001)
     public = Audience(AudienceTier.PUBLIC)
     chain = _chain(_coll("c-leaf", audience=Audience(AudienceTier.MEMBERS)))
     assert effective_audience(_article(audience=public), chain) == public
