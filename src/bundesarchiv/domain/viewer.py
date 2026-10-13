@@ -1,5 +1,4 @@
-"""Who is asking (CONTEXT.md): per-request values. A Member's groups arrive resolved;
-nothing here reads Keycloak."""
+"""Who is asking (CONTEXT.md)."""
 
 from dataclasses import dataclass
 
@@ -14,7 +13,7 @@ class Archivist:
 
 @dataclass(frozen=True, slots=True)
 class Member:
-    """An authenticated DPB member; `groups` are their Keycloak group names."""
+    """`groups` are their Keycloak group names."""
 
     groups: tuple[str, ...] = ()
 

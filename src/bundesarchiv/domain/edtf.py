@@ -22,8 +22,6 @@ import datetime
 import re
 from dataclasses import dataclass
 
-# Order of application matters in _parse_single.
-
 # Qualifier suffix: ?, ~, %  (display-level uncertainty; does not affect bounds)
 _Q = r"[?~%]?"
 
@@ -60,7 +58,7 @@ def _last_day(year: int, month: int) -> int:
 
 
 def _parse_single(s: str) -> tuple[datetime.date, datetime.date]:
-    """One EDTF token (no ``/``) as (earliest, latest); ValueError if invalid."""
+    """One EDTF token, no ``/``."""
     m = _DATE_RE.match(s)
     if m:
         try:
@@ -137,8 +135,7 @@ class EdtfDate:
         return _bounds(self.value)
 
     def decades(self, *, cap_year: int) -> tuple[int, ...]:
-        """Decade-start years from earliest to latest. An open upper end runs to the decade of
-        ``cap_year - 1``; a closed range is not capped."""
+        """``cap_year`` caps only an open upper end, at the decade of ``cap_year - 1``."""
         lo, hi = self.bounds()
         if hi is None:
             hi = datetime.date(cap_year - 1, 12, 31)

@@ -1,5 +1,4 @@
-"""The effective-Audience resolver: the single source every visibility decision routes
-through (ADR 0001). Never duplicate it. Pure; the chain is injected."""
+"""The effective-Audience resolver, the single source of every visibility decision (ADR 0001)."""
 
 from dataclasses import dataclass
 
@@ -21,10 +20,7 @@ ARCHIVIST_ONLY = ArchivistOnly()
 
 
 def effective_audience(article: Article, chain: ResolvedChain) -> EffectiveAudience:
-    """The one effective Audience of `article`: Archivist-only unless Published and not in the
-    Papierkorb (ADR 0022); otherwise the nearest explicit Audience, Article first, then leaf to
-    root (it may widen an ancestor's); otherwise Members. Raises `MisresolvedChain` if `chain`
-    is not this Article's."""
+    """The nearest explicit Audience wins, even where it widens an ancestor's."""
     if chain.leaf.ulid != article.collection_id:
         raise MisresolvedChain(
             f"chain is not rooted at Article {article.ulid!r}'s Collection "
@@ -34,7 +30,7 @@ def effective_audience(article: Article, chain: ResolvedChain) -> EffectiveAudie
         return ARCHIVIST_ONLY
     if article.audience is not None:
         return article.audience
-    for collection in chain.collections:  # leaf → root: nearest explicit ancestor Audience wins
+    for collection in chain.collections:
         if collection.audience is not None:
             return collection.audience
     return Audience()  # whole chain silent → root default Members

@@ -1,5 +1,5 @@
-"""Viewer-facing access: the only place a Viewer meets an Article's resolved Audience,
-always through `effective_audience` (ADR 0001). Pure."""
+"""Viewer-facing access over `effective_audience` (ADR 0001); pure. `index.scope` must stay
+row-equivalent to `can_view`."""
 
 from dataclasses import dataclass, fields, replace
 from typing import assert_never
@@ -10,12 +10,10 @@ from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
-# Fields floored from every non-Archivist projection. `project` names them explicitly, and the
-# drift test in tests/domain/test_access.py keeps the two equal.
+# `project` must floor exactly these.
 ARCHIVIST_ONLY_FIELDS: frozenset[str] = frozenset({"physical_location", "custom"})
 
-# Fail at import on a name Article lacks (a typo or a renamed field). A raise, not an assert,
-# because `python -O` strips asserts.
+# A raise, not an assert: `python -O` strips asserts.
 if _unknown := ARCHIVIST_ONLY_FIELDS - {f.name for f in fields(Article)}:
     raise RuntimeError(f"ARCHIVIST_ONLY_FIELDS names unknown Article fields: {_unknown}")
 
@@ -59,27 +57,22 @@ def _viewer_clears_rung(viewer: Viewer, rung: Audience) -> bool:
 
 
 def _member_satisfies(held: tuple[str, ...], named: tuple[str, ...]) -> bool:
-    """OR-combined: the Member holds at least one named group."""
     return any(group in named for group in held)
 
 
 def project(viewer: Viewer, article: Article) -> Article:
-    """`article` with the Archivist-only fields floored for any non-Archivist. Not a visibility
-    gate: that is `can_view`."""
+    """Not a visibility gate: pair it with `can_view`, or use `visible`."""
     match viewer:
         case Archivist():
             return article
         case Public() | Member():
-            # Explicit kwargs keep each floored field type-checked; the drift test pins them to
-            # ARCHIVIST_ONLY_FIELDS.
+            # Explicit kwargs, not a loop over ARCHIVIST_ONLY_FIELDS, so each floor is type-checked.
             return replace(article, physical_location=None, custom=())
         case _ as unreachable:
             assert_never(unreachable)
 
 
 def visible(viewer: Viewer, article: Article, chain: ResolvedChain) -> Article | None:
-    """``can_view`` then ``project`` in one call: None on deny, else the floored copy, so no
-    call site can apply only one half."""
     if not can_view(viewer, article, chain):
         return None
     return project(viewer, article)
@@ -97,8 +90,6 @@ class VisibilityPreview:
 
 
 def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
-    """Who would see `article` if it were published now (ADR 0001 publish-time warning),
-    decided by `can_view`."""
     published = replace(article, lifecycle=Lifecycle.PUBLISHED, template=False)
     public = can_view(Public(), published, chain)
     members = can_view(Member(), published, chain)
@@ -108,7 +99,6 @@ def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
 
 
 def _would_be_groups(article: Article, chain: ResolvedChain) -> tuple[str, ...]:
-    """The effective rung's groups, for display; empty unless it is a GROUPS rung."""
     try:
         effective = effective_audience(article, chain)
     except DomainError:
