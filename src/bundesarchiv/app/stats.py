@@ -1,5 +1,4 @@
-"""Archive statistics for the operator's dashboard: archive-wide counts, never scoped to a viewer
-or a user."""
+"""Archive-wide counts for the operator's dashboard, never scoped to a viewer or a user."""
 
 import logging
 from collections import Counter

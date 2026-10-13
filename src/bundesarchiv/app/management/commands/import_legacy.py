@@ -1,12 +1,9 @@
-"""``manage.py import_legacy``: the one-time import of the legacy export (owner ruling).
-
-IO only; every mapping decision is ``app.legacy``. Refuses a canonical root that already holds
-Articles (a re-run mints fresh ULIDs and doubles the archive).
+"""IO only; every mapping decision is ``app.legacy``.
 
 It writes through the repository, not the ``app.articles`` shell, so it owes that shell's
 after-steps (app/CLAUDE.md): one ``indexer.rebuild`` at the end (which takes over the shared index;
 ``rebuild_index`` hands it back), thumbnails inline (no worker drains the queue), the mirror push
-left to the periodic reconcile. Ends with ``manage.py verify``.
+left to the periodic reconcile.
 """
 
 import csv
@@ -99,11 +96,8 @@ class Command(BaseCommand):
     def _write(
         self, archive: Archive, plan: legacy.Plan, media_root: Path
     ) -> tuple[list[str], int]:
-        """Per Article: its blobs first (the repository refuses a README naming media it lacks), then
-        the Article, then its tiles. A blob that is missing or whose name cleans to nothing
-        (ADR 0019) costs its reference, never the record. Returns the missing paths and the tile
-        count.
-        """
+        """Blobs before the Article: the repository refuses a README naming media it lacks.
+        Returns the missing paths and the tile count."""
         thumbnail_root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
         thumbnail_count = 0
         missing: list[str] = []

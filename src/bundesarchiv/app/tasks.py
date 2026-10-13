@@ -1,8 +1,5 @@
-"""Worker jobs (Procrastinate, ADR 0014).
-
-A job carries references (a ulid, a content hash) and recomputes from current canonical when it
-runs, so jobs are idempotent and commute. Procrastinate discovers this module as ``tasks`` of an
-installed app.
+"""A job carries references (a ulid, a content hash) and recomputes from current canonical when
+it runs, so jobs are idempotent and commute (ADR 0014).
 """
 
 import contextlib
@@ -50,14 +47,11 @@ def canonical_store() -> ObjectStore:
 
 
 def _mirror_configured() -> bool:
-    """Whether a system of record is configured, answered without building a client (and its eager
-    SSL-context load)."""
     return bool(settings.BUNDESARCHIV_MIRROR_DAV_URL)
 
 
 def mirror_store() -> ObjectStore | None:
-    """The system of record's WebDAV store from settings (ADR 0020), or None when none is
-    configured. Built per job: jobs carry references, never a store handle."""
+    """Built per job, since every job closes it (``_close_mirror``)."""
     url: str | None = settings.BUNDESARCHIV_MIRROR_DAV_URL
     if not url:
         return None
@@ -82,8 +76,6 @@ def reindex_subtree(collection_ulid: str) -> None:
 
 @app.task(name="generate_thumbnail")
 def generate_thumbnail(ulid: str, content_hash: str) -> None:
-    """The tile of Article ``ulid``'s file ``content_hash``, into the local thumbnail cache
-    (``thumbnails.generate_thumbnail``)."""
     thumbnails.generate_thumbnail(
         canonical_store(), ulid, content_hash, Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
     )
@@ -99,8 +91,7 @@ def extract_media_text(ulid: str) -> None:
 @app.periodic(cron=settings.BUNDESARCHIV_RECONCILE_CRON)
 @app.task(name="reconcile")
 def reconcile(timestamp: int) -> None:
-    """The scheduled full rebuild that bounds whatever an incremental path missed (ADR 0014), then
-    the archive stats and the page-text net."""
+    """The scheduled full rebuild that bounds whatever an incremental path missed (ADR 0014)."""
     store = canonical_store()
     rows_before = ArticleIndex.objects.count()  # the drift the rebuild is about to repair
     indexer.rebuild(store)
@@ -117,7 +108,7 @@ def reconcile(timestamp: int) -> None:
 @app.periodic(cron=_VERIFY_CRON)
 @app.task(name="verify")
 def verify(timestamp: int) -> None:
-    """The monthly fixity check (ADR 0019 "Fixity"); a finding fails the job."""
+    """A finding raises ``CommandError`` and so fails the job."""
     call_command("verify")
 
 
@@ -159,8 +150,6 @@ def mirror_delete_article(ulid: str) -> None:
 @app.periodic(cron=settings.BUNDESARCHIV_MIRROR_RECONCILE_CRON)
 @app.task(name="mirror_reconcile")
 def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
-    """The scheduled ``mirror.reconcile`` (ADR 0020). Returns how many keys each finding holds;
-    ``skipped=True`` when no system of record is configured."""
     remote = mirror_store()
     if remote is None:
         return {"skipped": True}
@@ -239,12 +228,9 @@ def enqueue_missing_text(archive: Archive) -> None:
 
 
 def enqueue_mirror_push(ulid: str) -> None:
-    """Enqueue a ``mirror_push`` for the saved Article or Collection ``ulid``; a no-op when no
-    system of record is configured. A push already queued for ``ulid`` stands in for this one: it
-    reads current truth when it runs.
-
-    Asks ``_mirror_configured()``, never ``mirror_store()``: building a client just to drop it is
-    costly (eager SSL-context load)."""
+    """A push already queued for ``ulid`` stands in for this one: it reads current truth when it
+    runs. ``_mirror_configured()``, not ``mirror_store()``: building a client to drop it costs an
+    eager SSL-context load."""
     if not _mirror_configured():
         return
     with contextlib.suppress(AlreadyEnqueued):

@@ -1,10 +1,3 @@
-"""The write services' result shapes.
-
-``index_updated`` False: the canonical write stood but the index lags, so the view shows the
-ADR 0014 warning. ``UpdateOutcome`` is a closed union, so the caller must match it exhaustively,
-not remember to catch ``Conflict``.
-"""
-
 from dataclasses import dataclass
 
 from bundesarchiv.domain.models import Article, Ulid, Version
@@ -12,7 +5,8 @@ from bundesarchiv.domain.models import Article, Ulid, Version
 
 @dataclass(frozen=True, slots=True)
 class SaveResult:
-    """``index_updated``: the synchronous index update took effect in-request (ADR 0014)."""
+    """``index_updated`` False: the write stood but the index lags, so the route must show the
+    ADR 0014 warning."""
 
     version: Version
     index_updated: bool
@@ -20,8 +14,6 @@ class SaveResult:
 
 @dataclass(frozen=True, slots=True)
 class CreateResult:
-    """A ``SaveResult`` plus the ``ulid`` a create service minted."""
-
     ulid: Ulid
     version: Version
     index_updated: bool
@@ -29,8 +21,7 @@ class CreateResult:
 
 @dataclass(frozen=True, slots=True)
 class Updated:
-    """``update_article`` committed: the SAVED ``article`` (after a retry, the mutation applied to
-    the winner) at ``version``."""
+    """The saved ``article``: after a retry, the mutation applied to the winner."""
 
     article: Article
     version: Version
@@ -45,8 +36,7 @@ class Conflicted:
 
 @dataclass(frozen=True, slots=True)
 class Missing:
-    """No live Article at that ulid: absent, in the Papierkorb, or hard-deleted underneath a retry.
-    Answer it with the plain 404 (existence-hiding)."""
+    """No live Article: absent, in the Papierkorb, or gone underneath a retry."""
 
 
 type UpdateOutcome = Updated | Conflicted | Missing

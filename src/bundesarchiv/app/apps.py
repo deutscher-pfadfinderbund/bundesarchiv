@@ -1,6 +1,3 @@
-"""Installed so Procrastinate discovers ``tasks.py`` and Django the management commands; its one
-model is the push record (ADR 0020)."""
-
 from django.apps import AppConfig
 
 

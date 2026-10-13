@@ -6,8 +6,6 @@ from bundesarchiv.persistence.objectstore import ObjectStore
 
 
 def ensure_index_current(store: ObjectStore) -> bool:
-    """Rebuild the index from ``store`` iff a row was written under another ``CONFIG_VERSION``;
-    True iff it rebuilt."""
     if not indexer.config_stale():
         return False
     indexer.rebuild(store)

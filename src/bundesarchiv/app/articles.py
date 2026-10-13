@@ -1,5 +1,4 @@
-"""Article write services: canonical CAS write, then ``after_write.run``, then the derived-file
-jobs (ordering law: app/CLAUDE.md; entry-point split: ADR 0013)."""
+"""Article write services (ordering law: app/CLAUDE.md; entry-point split: ADR 0013)."""
 
 import contextlib
 from collections.abc import Callable
@@ -33,8 +32,7 @@ from bundesarchiv.persistence.errors import ArchiveError, Conflict
 def save_article(
     archive: Archive, article: Article, expected_version: Version, *, changed_by: str
 ) -> SaveResult:
-    """Save ``article`` at ``expected_version`` (a stale one raises ``Conflict``), then
-    ``after_write.run``: the form path (ADR 0013)."""
+    """The form path (ADR 0013): a stale ``expected_version`` raises ``Conflict``."""
     new_version = archive.articles.save(article, expected_version, changed_by=changed_by)
     index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
     _enqueue_derived(article)
@@ -49,14 +47,8 @@ def update_article(
     changed_by: str,
     retries: int = 3,
 ) -> UpdateOutcome:
-    """Load, ``mutate``, save; on ``Conflict`` re-load and re-apply, ``retries`` more times.
-    ``Missing`` for an absent or Papierkorb Article (ADR 0022: restore first), ``Conflicted`` when
-    every attempt lost.
-
-    Never for form saves (ADR 0013). ``mutate`` must be a pure, idempotent transform of whatever it
-    is handed (a retry re-applies it to the winner) and must not add media (``add_media`` first).
-    Its exceptions propagate.
-    """
+    """Never for form saves (ADR 0013). ``mutate`` must be pure, since a retry re-applies it to
+    the winner: store new media with ``add_media`` before the call."""
     for _ in range(retries + 1):
         try:
             stored = archive.articles.load(ulid)
@@ -93,8 +85,6 @@ def create_article(
     subject_place: str | None = None,
     custom: tuple[tuple[str, str], ...] = (),
 ) -> CreateResult:
-    """Mint a new Article from ``identity.create_article``'s fields (ADR 0006), save it at version 0,
-    then ``after_write.run``."""
     article = identity.create_article(
         title=title,
         collection_id=collection_id,
@@ -119,8 +109,6 @@ def create_article(
 
 
 def copy_article(archive: Archive, ulid: Ulid, *, changed_by: str) -> CreateResult:
-    """Copy ``ulid``'s metadata into a new draft Article (spec §7 Kopieren); no Signatur, no media;
-    the source is untouched."""
     source = archive.articles.load(ulid).article
     return create_article(
         archive,
@@ -165,9 +153,8 @@ def restore_article(
 
 
 def hard_delete_article(archive: Archive, ulid: Ulid, expected_version: Version) -> SaveResult:
-    """Delete ``ulid`` from canonical for good (ADR 0020; a stale ``expected_version`` raises
-    ``Conflict``), then ``after_write.run``, which drops its index row and enqueues the delete on
-    the system of record. ``version`` is 0: the Article no longer exists."""
+    """Delete ``ulid`` from canonical for good (ADR 0020); a stale ``expected_version`` raises
+    ``Conflict``."""
     archive.articles.hard_delete(ulid, expected_version)
     index_updated = after_write.run(archive, after_write.RemovedArticle(ulid))
     return SaveResult(version=0, index_updated=index_updated)
