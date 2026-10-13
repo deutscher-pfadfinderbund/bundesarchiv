@@ -146,3 +146,7 @@ run = "uv run python -m scripts.quality.comments_only"
 [tasks."quality:comments"]
 description = "Report: comment blocks and docstrings ranked by smell flags. -- [--top N] [--json]"
 run = "uv run python -m scripts.quality.comments"
+
+[tasks."quality:churn"]
+description = "Report: function churn per session, hotspots, stale-docstring risk, change coupling. -- [--under PREFIX] [--top N] [--json]"
+run = "uv run python -m scripts.quality.churn"

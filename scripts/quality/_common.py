@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import IO, Self, cast
 
+import complexipy
+
 type DocOwner = ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
 type Def = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
 DOC_OWNERS = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
@@ -94,6 +96,17 @@ def defs(tree: ast.AST, prefix: str = "") -> Iterator[tuple[str, Def]]:
 def tracked_python(*roots: str) -> list[str]:
     """Tracked ``.py`` files under ``roots``, as repo-relative paths."""
     return git("ls-files", "-z", "--", *(f"{root}*.py" for root in roots)).split("\0")[:-1]
+
+
+def cognitive(source: str) -> dict[str, int]:
+    """Cognitive complexity per top-level function and method, by dotted qualname.
+
+    complexipy scores nested functions inside their parent and skips methods of nested classes.
+    """
+    return {
+        f.name.replace("::", "."): f.complexity
+        for f in complexipy.code_complexity(source).functions
+    }
 
 
 @dataclass(frozen=True)
