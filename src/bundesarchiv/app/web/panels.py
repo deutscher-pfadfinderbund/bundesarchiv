@@ -43,8 +43,7 @@ class FormPanel:
 
 
 def header_panels(chooser: CollectionChooser, *, active: str | None) -> tuple[FormPanel, ...]:
-    """The header's create panels, with the ``active`` Bestand preselected; while the list is
-    scoped to one, also its rename panel. Archivist chrome only."""
+    """Archivist chrome only: the caller gates."""
     panels = [
         new_article_panel(chooser, collection_id=active or ""),
         new_collection_panel(collection_rows(chooser, "", "", "", "", {})),
@@ -168,8 +167,7 @@ def edit_collection_panel(
     version: Version | None,
     conflict_name: str | None = None,
 ) -> FormPanel:
-    """The rename form: Name editable, parent and Sichtbarkeit as facts; ``conflict_name`` (the
-    winner's) shows the conflict notice (ADR 0013)."""
+    """``conflict_name`` is the winner's name after a lost save (ADR 0013)."""
     collection = stored.collection
     parent_id = collection.parent_id
     return FormPanel(

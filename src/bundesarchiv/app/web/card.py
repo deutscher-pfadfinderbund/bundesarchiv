@@ -50,47 +50,41 @@ LIFECYCLE_VALUES = frozenset(value for value, _ in LIFECYCLE_OPTIONS)
 
 @dataclass(frozen=True, slots=True)
 class _Field:
-    """One row of the form's field registry.
-
-    ``section`` is the part of the form that holds the field: ``lead`` (the heading field),
-    ``margin`` (the record's margin), a body section, or ``""`` for the rows that are not on the form
-    at all — a single string, so "a field lives in at most one section" is structural.
+    """``section`` is the part of the form that holds the field: ``lead`` (the heading field),
+    ``margin`` (the record's margin), a body section, or ``""`` for a row not on the form — a single
+    string, so "a field lives in at most one section" is structural.
 
     ``control`` is what ``_field.html`` renders for it (Titel and Beschreibung bring their own):
     ``text``, ``select`` (flat options), ``groups`` (optgrouped options), ``textarea``,
-    ``checkbox`` (ticked when its value is set), or ``""`` for a row that is no control. A row
-    with a control carries a scalar form value — it is seeded, re-rendered from the POST and
-    printed by that column alone.
+    ``checkbox`` (ticked when its value is set), or ``""`` for no control. A row with a control
+    carries a scalar form value: seeded, re-rendered from the POST and printed by that column alone.
 
-    ``scanned`` marks the cataloguing spine the GET autofocus walks for its first EMPTY field (spec
-    §5). Gruppen is deliberately NOT on it: it is empty on almost every record by design (it means
-    something only at the GROUPS rung), so "first empty field" would park the caret there on every
-    fully catalogued record.
+    ``scanned`` marks the cataloguing spine the GET autofocus walks for its first empty field (spec
+    §5). Not Gruppen: empty on almost every record by design (it means something only at the GROUPS
+    rung), it would park the caret on every fully catalogued record.
 
-    ``focusable`` marks every field with its own input, i.e. every field that can CARRY
-    ``autofocus`` — the spine plus Gruppen, since a validation re-render focuses whatever errored.
-    ``body`` is excluded (the prose is not an "empty field" in the field sense) and so are the custom
-    bag's inputs (the escape hatch).
+    ``focusable`` marks every field that can carry ``autofocus``: the spine plus Gruppen, since a
+    validation re-render focuses whatever errored. Not ``body`` (prose is no "empty field") nor the
+    custom bag's inputs (the escape hatch).
 
-    ``span`` gives the field the whole row of its section's grid (long values).
+    ``span`` gives the field the whole row of its section's grid.
 
     ``shows_with`` names the option value of a sibling select that makes the field meaningful
-    (Gruppen: ``groups``); the stylesheet hides the field otherwise, keyed on the data attribute.
+    (Gruppen: ``groups``); the stylesheet hides the field otherwise.
 
     ``required`` marks a field the save refuses blank; ``archivist_only`` one no viewer outside the
     archivists ever sees. Both put a marker after the label (the minority is marked). ``help`` is the
-    template of the popover the hint's ⓘ opens, or ``""`` for a hint without one.
+    template of the popover the hint's ⓘ opens.
 
     ``suggest`` names the route whose fragment offers the archive's own values for the line being
-    typed (catalog_form.js), or ``""`` for a field that suggests nothing.
+    typed (catalog_form.js).
 
-    ``diff`` is the German label the CAS conflict notice names the field by, or ``""`` when a
-    conflict never marks it.
+    ``diff`` is the German label the CAS conflict notice names the field by, ``""`` when a conflict
+    never marks it.
 
-    ``seed``/``shown`` are the two renderings of the field's value, reached through ``value_of`` and
-    ``diff_of``; both default to the Article attribute of the same name, so only a field that does not
-    simply print one — the joined tuples, the audience's two spellings, the lifecycle word — declares
-    anything here.
+    ``seed``/``shown`` are the two renderings of the field's value (``value_of``, ``diff_of``); both
+    default to the Article attribute of the same name, so only a field that does not simply print
+    one declares anything here.
     """
 
     name: str
@@ -116,7 +110,6 @@ class _Field:
     shown: Callable[[Article], str] | None = None
 
     def value_of(self, article: Article) -> str:
-        """The field's form value for a stored Article, ``""`` when unset (spec §8)."""
         if self.seed is not None:
             return self.seed(article)
         return str(getattr(article, self.name) or "")
@@ -232,7 +225,6 @@ FIELDS: tuple[_Field, ...] = (
         section="filing",
         required=True,
         options="media_type_options",
-        # no-JS: the full grouped list and the server's pair re-validation still stand
         hx_get="article-document-types",
         hx=(
             ("hx-trigger", "change"),
@@ -382,8 +374,7 @@ def card_fields(
     lifecycle_options: _Options = LIFECYCLE_OPTIONS,
     only: tuple[str, ...] | None = None,
 ) -> dict[str, tuple[CardRow, ...]]:
-    """The form's fields by section, in DOM order — the one list the template loops over; ``only``
-    keeps those names. Only a ``focusable`` row takes ``autofocus``."""
+    """The form's rows by section, in DOM order; ``only`` keeps those field names."""
     option_lists: dict[str, Callable[[], _Options]] = {
         "collection_options": chooser.options,
         "media_type_options": vocab.media_type_options,

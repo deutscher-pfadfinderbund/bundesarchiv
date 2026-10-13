@@ -1,6 +1,3 @@
-"""Authorization for rendering a full Article: one pipeline for the detail page and the preview
-pane, every failure the same ``None``."""
-
 from dataclasses import dataclass
 
 from django.http import HttpRequest
@@ -18,8 +15,8 @@ from bundesarchiv.persistence.errors import ArchiveError
 
 @dataclass(frozen=True, slots=True)
 class DetailResolution:
-    """A rendered Article: its ``visible`` projection, its chain (leaf first), and the stored
-    ``version`` the archivist's CAS writes expect."""
+    """``article`` is the ``visible`` projection; ``version`` the stored one the archivist's CAS
+    writes expect."""
 
     article: Article
     chain: ResolvedChain

@@ -1,5 +1,4 @@
-"""Dev-only viewer switcher: pick a viewer, signed into a cookie under the dev-only key. Mounted only
-by ``dev_urls``."""
+"""Dev-only viewer switcher, signed under the dev-only key and mounted only by ``dev_urls``."""
 
 from html import escape
 
@@ -23,7 +22,6 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 
 def favicon(request: HttpRequest) -> HttpResponse:
-    """An empty 404 for the browser's favicon probe; there is no favicon asset."""
     return HttpResponseNotFound()
 
 
@@ -42,7 +40,6 @@ def _viewer_from_post(request: HttpRequest) -> Viewer:
 
 
 def switch_viewer(request: HttpRequest) -> HttpResponse:
-    """GET shows the picker; POST signs the chosen viewer into the dev cookie."""
     if request.method == "POST":
         signer = _dev_signer()
         # only settings_dev mounts this, and it defines the key
@@ -69,8 +66,6 @@ def _describe(viewer: Viewer) -> str:
 
 
 def _render_form(current: Viewer, *, csrf_token: str) -> str:
-    """The switcher form, on the design-system stylesheets; it carries a CSRF token because
-    CsrfViewMiddleware runs in dev too."""
     return (
         "<!doctype html><html lang=de><head><meta charset=utf-8>"
         '<link rel="stylesheet" href="/static/tokens.css">'

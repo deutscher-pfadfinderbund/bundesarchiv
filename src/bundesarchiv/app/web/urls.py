@@ -1,5 +1,5 @@
-"""The app's whole HTTP surface (production ROOT_URLCONF; ``dev_urls`` adds the dev routes). Media is
-addressed by ulid and content hash, never by a store path."""
+"""Production ROOT_URLCONF; ``dev_urls`` adds the dev routes. Media is addressed by ulid and
+content hash, never by a store path."""
 
 from django.urls import URLPattern, path
 
@@ -112,8 +112,8 @@ _OLD_SEGMENTS = {
 
 
 def _alias(route: URLPattern) -> URLPattern:
-    """The old German path of ``route``, named ``alias-<name>``: with a shared name ``reverse`` would
-    prefer the later-registered German path."""
+    """Named ``alias-<name>``: with a shared name ``reverse`` would prefer the later-registered
+    German path."""
     old = "/".join(_OLD_SEGMENTS.get(part, part) for part in str(route.pattern).split("/"))
     return path(old, route.callback, name=f"alias-{route.name}")
 

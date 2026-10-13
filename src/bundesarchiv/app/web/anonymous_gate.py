@@ -1,6 +1,5 @@
 """An unauthenticated request gets the door, not an answer — on every path, so a real article and a
-made-up one look alike (ADR 0018). ``ANONYMOUS_GATE_ENABLED`` defaults on; only settings_dev turns
-it off."""
+made-up one look alike (ADR 0018)."""
 
 from collections.abc import Callable
 from functools import lru_cache
@@ -32,9 +31,8 @@ class AnonymousGateMiddleware:
 
 
 def _door(request: HttpRequest) -> HttpResponse:
-    """The door page — or, for htmx, ``HX-Redirect`` to the login: a swapped door lands inside the
-    target region, and a 302 to Keycloak's cross-origin URL is blocked, so htmx would silently swap
-    nothing."""
+    """For htmx, ``HX-Redirect``: a swapped door lands inside the target region, and a 302 to
+    Keycloak's cross-origin URL is blocked, so htmx would silently swap nothing."""
     if request_kind(request) is not RequestKind.PAGE:
         return htmx_redirect(login_redirect(request.get_full_path()))
     sign_in = login_redirect(safe_next(request.get_full_path()) or "/")
