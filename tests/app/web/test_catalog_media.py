@@ -379,7 +379,7 @@ def test_upload_memory_does_not_grow_with_the_file(corpus: _MediaCorpus, tmp_pat
 
 
 def test_upload_response_carries_per_row_forms_for_every_row(corpus: _MediaCorpus) -> None:
-    # only #media-drawer is swapped in (hx-select), so its forms must cover every row
+    # hx-select swaps in only the media drawer, so its forms must cover every row
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
     response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": upload})
     assert response.status_code == 200
