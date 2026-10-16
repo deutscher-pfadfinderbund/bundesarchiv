@@ -1,0 +1,2809 @@
+{
+  "links": [
+    {
+      "title": "Bundesarchiv",
+      "type": "link",
+      "url": "/d/bundesarchiv/bundesarchiv"
+    },
+    {
+      "title": "Nextcloud",
+      "type": "link",
+      "url": "/d/nextcloud/nextcloud"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#e6e7e8",
+            "mode": "fixed"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "req_min"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqpm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 3
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errors_1h"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "articles"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "media"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "jobs_todo"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 5
+                    },
+                    {
+                      "color": "red",
+                      "value": 20
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "remote"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rec_ok"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nc_free"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 10000000000
+                    },
+                    {
+                      "color": "green",
+                      "value": 50000000000
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nc_up"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "logins"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "saves"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sync_issues"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "green",
+                        "text": "in sync"
+                      }
+                    },
+                    "type": "value"
+                  },
+                  {
+                    "options": {
+                      "from": 1,
+                      "result": {
+                        "color": "red",
+                        "text": "out of sync"
+                      },
+                      "to": 1000000000000
+                    },
+                    "type": "range"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "remote_keys"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: keys"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "media_files"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "disk_free"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 0.08
+                    },
+                    {
+                      "color": "green",
+                      "value": 0.15
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 20,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "infinitePan": false,
+        "inlineEditing": false,
+        "panZoom": false,
+        "root": {
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "elements": [
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "left",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "EDGE",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:EDGE@20,46",
+              "placement": {
+                "height": 18,
+                "left": 20,
+                "top": 46,
+                "width": 100
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "left",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "WEB",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:WEB@20,196",
+              "placement": {
+                "height": 18,
+                "left": 20,
+                "top": 196,
+                "width": 100
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "left",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "APP",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:APP@20,346",
+              "placement": {
+                "height": 18,
+                "left": 20,
+                "top": 346,
+                "width": 100
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "left",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "DATA",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:DATA@20,496",
+              "placement": {
+                "height": 18,
+                "left": 20,
+                "top": 496,
+                "width": 100
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "fill": {
+                  "fixed": "#9aa0a6"
+                },
+                "path": {
+                  "fixed": "img/icons/unicons/globe.svg",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#5794f2"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": true,
+                    "style": "dashed"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "field": "req_min",
+                    "fixed": 2,
+                    "max": 8,
+                    "min": 2
+                  },
+                  "source": {
+                    "x": 1,
+                    "y": 0
+                  },
+                  "target": {
+                    "x": -1,
+                    "y": 0.014285714285714285
+                  },
+                  "targetName": "traefik"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "browser",
+              "placement": {
+                "height": 70,
+                "left": 255,
+                "top": 20,
+                "width": 70
+              },
+              "type": "icon"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "BROWSER",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:BROWSER@290,96",
+              "placement": {
+                "height": 18,
+                "left": 170,
+                "top": 96,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "blinkRate": {
+                  "field": "req_min",
+                  "fixed": 0,
+                  "max": 3,
+                  "min": 0
+                },
+                "bulbColor": {
+                  "fixed": "#73bf69"
+                },
+                "statusColor": {
+                  "fixed": "#3d434b"
+                },
+                "type": "Single"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "traefik",
+              "placement": {
+                "height": 70,
+                "left": 585,
+                "top": 20,
+                "width": 70
+              },
+              "type": "server"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "TRAEFIK",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:TRAEFIK@620,96",
+              "placement": {
+                "height": 18,
+                "left": 500,
+                "top": 96,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "req_min",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#5794f2"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": true,
+                    "style": "dashed"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "field": "req_min",
+                    "fixed": 2,
+                    "max": 8,
+                    "min": 2
+                  },
+                  "source": {
+                    "x": 0,
+                    "y": -1
+                  },
+                  "target": {
+                    "x": 0,
+                    "y": 1
+                  },
+                  "targetName": "nginx"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:Traefik",
+              "placement": {
+                "height": 30,
+                "left": 500,
+                "top": 114,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "blinkRate": {
+                  "field": "req_min",
+                  "fixed": 0,
+                  "max": 3,
+                  "min": 0
+                },
+                "bulbColor": {
+                  "fixed": "#73bf69"
+                },
+                "statusColor": {
+                  "fixed": "#3d434b"
+                },
+                "type": "Single"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "nginx",
+              "placement": {
+                "height": 70,
+                "left": 585,
+                "top": 170,
+                "width": 70
+              },
+              "type": "server"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "NGINX",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#5794f2"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": true,
+                    "style": "dashed"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "field": "req_min",
+                    "fixed": 2,
+                    "max": 8,
+                    "min": 2
+                  },
+                  "source": {
+                    "x": 0,
+                    "y": -1
+                  },
+                  "target": {
+                    "x": 0,
+                    "y": 1
+                  },
+                  "targetName": "app"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:NGINX@620,246",
+              "placement": {
+                "height": 18,
+                "left": 500,
+                "top": 246,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "blinkRate": {
+                  "field": "req_min",
+                  "fixed": 0,
+                  "max": 3,
+                  "min": 0
+                },
+                "bulbColor": {
+                  "field": "errors_1h",
+                  "fixed": "#73bf69"
+                },
+                "statusColor": {
+                  "fixed": "#3d434b"
+                },
+                "type": "Stack"
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#5794f2"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": true,
+                    "style": "dashed"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "fixed": 2,
+                    "max": 10,
+                    "min": 1
+                  },
+                  "source": {
+                    "x": 1,
+                    "y": 0
+                  },
+                  "target": {
+                    "x": -1,
+                    "y": 0.014285714285714285
+                  },
+                  "targetName": "keycloak"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "app",
+              "placement": {
+                "height": 70,
+                "left": 585,
+                "top": 320,
+                "width": 70
+              },
+              "type": "server"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "APP",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:APP@620,396",
+              "placement": {
+                "height": 18,
+                "left": 500,
+                "top": 396,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "p95",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#5794f2"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": true,
+                    "style": "dashed"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "field": "req_min",
+                    "fixed": 2,
+                    "max": 8,
+                    "min": 2
+                  },
+                  "source": {
+                    "x": 0,
+                    "y": -1
+                  },
+                  "target": {
+                    "x": 0,
+                    "y": 1
+                  },
+                  "targetName": "canonical"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:App",
+              "placement": {
+                "height": 30,
+                "left": 500,
+                "top": 414,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "fill": {
+                  "fixed": "#9aa0a6"
+                },
+                "path": {
+                  "fixed": "img/icons/unicons/key-skeleton.svg",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "keycloak",
+              "placement": {
+                "height": 70,
+                "left": 915,
+                "top": 320,
+                "width": 70
+              },
+              "type": "icon"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "LOGINS TODAY",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:LOGINS TODAY@950,396",
+              "placement": {
+                "height": 18,
+                "left": 830,
+                "top": 396,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "logins",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:Logins today",
+              "placement": {
+                "height": 30,
+                "left": 830,
+                "top": 414,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "blinkRate": {
+                  "fixed": 0,
+                  "max": 2,
+                  "min": 0
+                },
+                "bulbColor": {
+                  "fixed": "#73bf69"
+                },
+                "statusColor": {
+                  "fixed": "#3d434b"
+                },
+                "type": "Database"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "index",
+              "placement": {
+                "height": 70,
+                "left": 255,
+                "top": 470,
+                "width": 70
+              },
+              "type": "server"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "SEARCH INDEX",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:SEARCH INDEX@290,546",
+              "placement": {
+                "height": 18,
+                "left": 170,
+                "top": 546,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "articles",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:Search index",
+              "placement": {
+                "height": 30,
+                "left": 170,
+                "top": 564,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "fill": {
+                  "fixed": "#c7d0d9"
+                },
+                "path": {
+                  "fixed": "img/icons/unicons/folder-open.svg",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#3d434b"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": false,
+                    "style": "solid"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "fixed": 2,
+                    "max": 10,
+                    "min": 1
+                  },
+                  "source": {
+                    "x": -1,
+                    "y": 0
+                  },
+                  "target": {
+                    "x": 1,
+                    "y": 0.014285714285714285
+                  },
+                  "targetName": "index"
+                },
+                {
+                  "color": {
+                    "field": "sync_issues",
+                    "fixed": "#73bf69"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": true,
+                    "style": "dashed"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "fixed": 4,
+                    "max": 10,
+                    "min": 1
+                  },
+                  "source": {
+                    "x": 1,
+                    "y": 0
+                  },
+                  "target": {
+                    "x": -1,
+                    "y": 0.014285714285714285
+                  },
+                  "targetName": "worker"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "canonical",
+              "placement": {
+                "height": 70,
+                "left": 585,
+                "top": 470,
+                "width": 70
+              },
+              "type": "icon"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "CANONICAL",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:CANONICAL@620,546",
+              "placement": {
+                "height": 18,
+                "left": 500,
+                "top": 546,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "media",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:canonical",
+              "placement": {
+                "height": 30,
+                "left": 500,
+                "top": 564,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "fill": {
+                  "field": "sync_issues",
+                  "fixed": "#73bf69"
+                },
+                "path": {
+                  "fixed": "img/icons/unicons/sync.svg",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [
+                {
+                  "color": {
+                    "field": "sync_issues",
+                    "fixed": "#73bf69"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": true,
+                    "style": "dashed"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "fixed": 4,
+                    "max": 10,
+                    "min": 1
+                  },
+                  "source": {
+                    "x": 1,
+                    "y": 0
+                  },
+                  "target": {
+                    "x": -1,
+                    "y": 0.01282051282051282
+                  },
+                  "targetName": "storageshare"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "worker",
+              "placement": {
+                "height": 70,
+                "left": 915,
+                "top": 470,
+                "width": 70
+              },
+              "type": "icon"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "MIRROR",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:MIRROR@950,546",
+              "placement": {
+                "height": 18,
+                "left": 830,
+                "top": 546,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "field": "sync_issues",
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "sync_issues",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:Mirror",
+              "placement": {
+                "height": 30,
+                "left": 830,
+                "top": 564,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "#1d2b20"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#73bf69"
+                },
+                "width": 2
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#e6e7e8"
+                },
+                "size": 12,
+                "text": {
+                  "fixed": "",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "storageshare",
+              "placement": {
+                "height": 78,
+                "left": 1205,
+                "top": 466,
+                "width": 150
+              },
+              "type": "cloud"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "STORAGESHARE",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:STORAGESHARE@1280,546",
+              "placement": {
+                "height": 18,
+                "left": 1160,
+                "top": 546,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "remote",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:StorageShare",
+              "placement": {
+                "height": 30,
+                "left": 1160,
+                "top": 564,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "fill": {
+                  "field": "disk_free",
+                  "fixed": "#9aa0a6"
+                },
+                "path": {
+                  "fixed": "img/icons/unicons/hdd.svg",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "disk",
+              "placement": {
+                "height": 70,
+                "left": 1245,
+                "top": 20,
+                "width": 70
+              },
+              "type": "icon"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "DISK FREE",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:DISK FREE@1280,96",
+              "placement": {
+                "height": 18,
+                "left": 1160,
+                "top": 96,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "field": "disk_free",
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "disk_free",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:Disk free",
+              "placement": {
+                "height": 30,
+                "left": 1160,
+                "top": 114,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "fill": {
+                  "field": "errors_1h",
+                  "fixed": "#9aa0a6"
+                },
+                "path": {
+                  "fixed": "img/icons/unicons/exclamation-triangle.svg",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "errors",
+              "placement": {
+                "height": 70,
+                "left": 1245,
+                "top": 170,
+                "width": 70
+              },
+              "type": "icon"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "ERRORS 1 H",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:ERRORS 1 H@1280,246",
+              "placement": {
+                "height": 18,
+                "left": 1160,
+                "top": 246,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "field": "errors_1h",
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "errors_1h",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:Errors 1 h",
+              "placement": {
+                "height": 30,
+                "left": 1160,
+                "top": 264,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "fill": {
+                  "fixed": "#9aa0a6"
+                },
+                "path": {
+                  "fixed": "img/icons/unicons/save.svg",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "saves",
+              "placement": {
+                "height": 70,
+                "left": 1245,
+                "top": 320,
+                "width": 70
+              },
+              "type": "icon"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "SAVES TODAY",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:SAVES TODAY@1280,396",
+              "placement": {
+                "height": 18,
+                "left": 1160,
+                "top": 396,
+                "width": 240
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "center",
+                "color": {
+                  "fixed": "#e6e7e8"
+                },
+                "size": 22,
+                "text": {
+                  "field": "saves",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "v:Saves today",
+              "placement": {
+                "height": 30,
+                "left": 1160,
+                "top": 414,
+                "width": 240
+              },
+              "type": "metric-value"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "size": 1,
+                "text": {
+                  "fixed": "",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#25292e"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": false,
+                    "style": "solid"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "fixed": 1,
+                    "max": 10,
+                    "min": 1
+                  },
+                  "source": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "target": {
+                    "x": 0,
+                    "y": 0.08333333333333333
+                  },
+                  "targetName": "rule150:b"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "rule150:a",
+              "placement": {
+                "height": 2,
+                "left": 20,
+                "top": 150,
+                "width": 2
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "size": 1,
+                "text": {
+                  "fixed": "",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "rule150:b",
+              "placement": {
+                "height": 2,
+                "left": 1540,
+                "top": 150,
+                "width": 2
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "size": 1,
+                "text": {
+                  "fixed": "",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#25292e"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": false,
+                    "style": "solid"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "fixed": 1,
+                    "max": 10,
+                    "min": 1
+                  },
+                  "source": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "target": {
+                    "x": 0,
+                    "y": 0.08333333333333333
+                  },
+                  "targetName": "rule300:b"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "rule300:a",
+              "placement": {
+                "height": 2,
+                "left": 20,
+                "top": 300,
+                "width": 2
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "size": 1,
+                "text": {
+                  "fixed": "",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "rule300:b",
+              "placement": {
+                "height": 2,
+                "left": 1540,
+                "top": 300,
+                "width": 2
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "size": 1,
+                "text": {
+                  "fixed": "",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#25292e"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": false,
+                    "style": "solid"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "fixed": 1,
+                    "max": 10,
+                    "min": 1
+                  },
+                  "source": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "target": {
+                    "x": 0,
+                    "y": 0.08333333333333333
+                  },
+                  "targetName": "rule450:b"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "rule450:a",
+              "placement": {
+                "height": 2,
+                "left": 20,
+                "top": 450,
+                "width": 2
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "size": 1,
+                "text": {
+                  "fixed": "",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "rule450:b",
+              "placement": {
+                "height": 2,
+                "left": 1540,
+                "top": 450,
+                "width": 2
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "size": 1,
+                "text": {
+                  "fixed": "",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [
+                {
+                  "color": {
+                    "fixed": "#25292e"
+                  },
+                  "direction": "forward",
+                  "lineStyle": {
+                    "animate": false,
+                    "style": "solid"
+                  },
+                  "path": "straight",
+                  "size": {
+                    "fixed": 1,
+                    "max": 10,
+                    "min": 1
+                  },
+                  "source": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "target": {
+                    "x": 0,
+                    "y": 0.08333333333333333
+                  },
+                  "targetName": "offsite:b"
+                }
+              ],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "offsite:a",
+              "placement": {
+                "height": 2,
+                "left": 1135,
+                "top": 458,
+                "width": 2
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "size": 1,
+                "text": {
+                  "fixed": "",
+                  "mode": "fixed"
+                }
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "offsite:b",
+              "placement": {
+                "height": 2,
+                "left": 1135,
+                "top": 590,
+                "width": 2
+              },
+              "type": "text"
+            },
+            {
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                },
+                "width": 0
+              },
+              "config": {
+                "align": "left",
+                "color": {
+                  "fixed": "#7b8087"
+                },
+                "size": 10,
+                "text": {
+                  "fixed": "off-site",
+                  "mode": "fixed"
+                },
+                "valign": "middle"
+              },
+              "connections": [],
+              "constraint": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "name": "t:off-site@1143,461",
+              "placement": {
+                "height": 18,
+                "left": 1143,
+                "top": 461,
+                "width": 70
+              },
+              "type": "text"
+            }
+          ],
+          "name": "root",
+          "type": "frame"
+        },
+        "showAdvancedTypes": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "label_replace(sum(sum(rate(traefik_service_requests_total{service=\"bundesarchiv@docker\"}[5m])) * 60 or vector(0)), \"__name__\", \"req_min\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "req_min",
+          "queryType": "instant",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "label_replace(sum(histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=\"bundesarchiv@docker\"}[1h])))), \"__name__\", \"p95\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "p95",
+          "queryType": "instant",
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({container=~\"/bundesarchiv-(app|worker)-1\"} | json | __error__=\"\" | level=~\"ERROR|CRITICAL\" [1h])) or vector(0)",
+          "instant": true,
+          "legendFormat": "errors_1h",
+          "queryType": "instant",
+          "range": false,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap articles [2h]))",
+          "instant": true,
+          "legendFormat": "articles",
+          "queryType": "instant",
+          "range": false,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap media_bytes [2h]))",
+          "instant": true,
+          "legendFormat": "media",
+          "queryType": "instant",
+          "range": false,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap jobs_todo [2h]))",
+          "instant": true,
+          "legendFormat": "jobs_todo",
+          "queryType": "instant",
+          "range": false,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" | unwrap remote_bytes [26h]))",
+          "instant": true,
+          "legendFormat": "remote",
+          "queryType": "instant",
+          "range": false,
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" [26h])) or vector(0)",
+          "instant": true,
+          "legendFormat": "rec_ok",
+          "queryType": "instant",
+          "range": false,
+          "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "label_replace(sum(nextcloud_free_space_bytes), \"__name__\", \"nc_free\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "nc_free",
+          "queryType": "instant",
+          "range": false,
+          "refId": "I"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "label_replace(sum(max(nextcloud_up)), \"__name__\", \"nc_up\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "nc_up",
+          "queryType": "instant",
+          "range": false,
+          "refId": "J"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({service_name=\"traefik_access_log\"} | RouterName=\"bundesarchiv@docker\" | RequestPath=~\"/oidc/callback.*\" | OriginStatus=\"302\" [24h])) or vector(0)",
+          "instant": true,
+          "legendFormat": "logins",
+          "queryType": "instant",
+          "range": false,
+          "refId": "K"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_push\" | outcome=\"ok\" [24h])) or vector(0)",
+          "instant": true,
+          "legendFormat": "saves",
+          "queryType": "instant",
+          "range": false,
+          "refId": "L"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" | label_format issues=`{{ add .sent .changed .remote_only .mismatched .failed }}` | unwrap issues [26h]))",
+          "instant": true,
+          "legendFormat": "sync_issues",
+          "queryType": "instant",
+          "range": false,
+          "refId": "M"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" | unwrap remote_keys [26h]))",
+          "instant": true,
+          "legendFormat": "remote_keys",
+          "queryType": "instant",
+          "range": false,
+          "refId": "N"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap media_files [2h]))",
+          "instant": true,
+          "legendFormat": "media_files",
+          "queryType": "instant",
+          "range": false,
+          "refId": "O"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "label_replace(sum(node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}), \"__name__\", \"disk_free\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "disk_free",
+          "queryType": "instant",
+          "range": false,
+          "refId": "P"
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #A": "req_min",
+              "Value #B": "p95",
+              "Value #C": "errors_1h",
+              "Value #D": "articles",
+              "Value #E": "media",
+              "Value #F": "jobs_todo",
+              "Value #G": "remote",
+              "Value #H": "rec_ok",
+              "Value #I": "nc_free",
+              "Value #J": "nc_up",
+              "Value #K": "logins",
+              "Value #L": "saves",
+              "Value #M": "sync_issues",
+              "Value #N": "remote_keys",
+              "Value #O": "media_files",
+              "Value #P": "disk_free"
+            }
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "canvas"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": [
+    "bundesarchiv"
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Bundesarchiv map",
+  "uid": "bundesarchiv-map"
+}

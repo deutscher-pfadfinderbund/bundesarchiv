@@ -395,8 +395,8 @@ Always present: `timestamp` (ISO 8601 UTC), `level`, `logger`, `message`. Every 
   never the path), `method`, `status`, `duration_ms`, for requests over `BUNDESARCHIV_SLOW_REQUEST_MS`
   (default 1000). Media served through X-Accel is skipped.
 
-### Grafana dashboard
+### Grafana dashboards
 
-The dashboard lives in `deploy/grafana/bundesarchiv.json` (uid `bundesarchiv`). Grafana's Git Sync
-reads it from `main`; an edit saved in the Grafana UI comes back as a pull request. A log-field
-rename in `src/` changes the panels that read it in the same change.
+The Bundesarchiv dashboards live in `deploy/grafana/`. Grafana's Git Sync reads them from `main`; an
+edit saved in the Grafana UI comes back as a pull request. A log-field rename in `src/` changes the
+panels that read it in the same change.
