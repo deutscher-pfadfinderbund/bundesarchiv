@@ -56,6 +56,8 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > the current READMEs. The daily reconcile pushes the changed READMEs, since their SHA-256 no longer
 > matches the push record (ADR 0020). It runs with the app stopped and takes no lock:
 > `WRITER_LOCK` serializes the saves of one process only (ADR 0013).
+>
+> The re-encode ran on 2026-10-16 (2516 rewritten, none left); its code was removed afterwards.
 
 ## Context
 

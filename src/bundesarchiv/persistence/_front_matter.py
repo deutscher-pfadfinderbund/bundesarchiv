@@ -50,17 +50,14 @@ def dump(front_matter: dict[str, Any], title: str, body: str) -> str:
     (any an editor may break on), or a blank one, which reads as `#` once an editor trims it."""
     if not title.strip() or any(brk in title for brk in _LINE_BREAKS):
         raise ValueError(f"the title must be one non-empty line, got {title!r}")
-    return f"{HEAD}{_yaml(front_matter)}\n{FENCE}\n# {title}\n\n{body}"
-
-
-def _yaml(front_matter: dict[str, Any]) -> str:
-    return yaml.dump(
+    block = yaml.dump(
         front_matter,
         Dumper=_Dumper,
         sort_keys=False,
         allow_unicode=True,
         default_flow_style=False,
     ).rstrip("\n")
+    return f"{HEAD}{block}\n{FENCE}\n# {title}\n\n{body}"
 
 
 def split_title(ulid: Ulid, text: str, title_key: str) -> tuple[dict[str, Any], str | None, str]:
@@ -89,15 +86,6 @@ def _split(ulid: Ulid, text: str) -> tuple[list[str], str]:
     # The single separator newline `dump` added was already consumed by split;
     # lines[close + 1:] reconstructs the body verbatim (a body may open with blank lines).
     return lines[1:close], "\n".join(lines[close + 1 :])
-
-
-def is_dumped(ulid: Ulid, text: str) -> bool:
-    """Whether the front matter of README `text`, the marker aside, is exactly what `dump` writes
-    for the mapping it holds, so it holds nothing beside it: no comment, no duplicate key."""
-    block, _ = _split(ulid, text)
-    if block[:1] == [f"# {MARKER}"]:
-        block = block[1:]
-    return "\n".join(block) == _yaml(_load(ulid, block))
 
 
 def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:

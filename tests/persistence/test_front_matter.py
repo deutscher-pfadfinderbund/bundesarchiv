@@ -6,6 +6,8 @@ import pytest
 from bundesarchiv.persistence._front_matter import dump, parse, split_title
 from bundesarchiv.persistence.errors import UnreadableReadme
 
+_OLD_MARKER = "<!-- Managed by bundesarchiv — do not edit by hand. -->"
+
 _FRONT_MATTER = {"ulid": "01J0", "version": 1}
 
 
@@ -54,6 +56,12 @@ def test_a_front_matter_holding_the_title_key_is_the_old_layout_with_its_body_ve
 ) -> None:
     text = f"---\ntitle: t\n---\n{body}"
     assert split_title("01J0", text, "title") == ({"title": "t"}, None, body)
+
+
+@pytest.mark.parametrize("marker", [_OLD_MARKER, f"  {_OLD_MARKER} \t"])
+def test_the_old_marker_line_opens_an_old_layout_readme(marker: str) -> None:
+    text = f"{marker}\n---\ntitle: t\n---\nText"
+    assert split_title("01J0", text, "title") == ({"title": "t"}, None, "Text")
 
 
 @pytest.mark.parametrize(
