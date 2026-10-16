@@ -86,19 +86,20 @@ def commit(
 
     Raises ``Conflict`` and writes nothing when the stored version is not ``expected_version``
     (absent README: version 0), and ``ValueError`` before any write when ``changed_by`` is not a
-    valid name. ``precondition`` runs after the version check, under the lock, and refuses by
-    raising; nothing is written then either. A retry after a crash between the history write and
-    the commit finds its history file and goes on; a history file holding other bytes raises
-    ``ArchiveError`` and commits nothing."""
+    valid name or ``render`` refuses the record. ``precondition`` runs after the version check,
+    under the lock, and refuses by raising; nothing is written then either. A retry after a crash
+    between the history write and the commit finds its history file and goes on; a history file
+    holding other bytes raises ``ArchiveError`` and commits nothing."""
     change = Change(datetime.now(UTC).replace(microsecond=0), changed_by)
     with WRITER_LOCK:
         current = _read_readme(store, folder)
         version = 0 if current is None else version_of(text_of(folder, current))
         _check(folder, expected_version, version)
         precondition()
+        text = render(version + 1, change)
         if current is not None:
             _keep(store, history_key(folder, version), current)
-        store.write_atomic(readme_key(folder), render(version + 1, change).encode("utf-8"))
+        store.write_atomic(readme_key(folder), text.encode("utf-8"))
     return version + 1
 
 

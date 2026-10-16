@@ -27,7 +27,9 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > matter only when the fence is the very first line; under the old HTML-comment marker (ADR 0002)
 > it rendered the YAML as Markdown. The fields a person reads come first: the description (title
 > to custom), then placement and access, then the files, then record keeping (ulid, version and the
-> audit fields). Field order carries no meaning; the reader still accepts the old shape.
+> audit fields). Field order carries no meaning; the reader still accepts the old shape, whose
+> first line is exactly the old marker line. Any other line before the fence makes a README
+> unreadable.
 
 > **Amended 2026-10-16, again:** the title lives once, as the H1 of the body. Nextcloud Text shows
 > the front matter as a grey code block, so a folder whose Article has no description showed no
@@ -35,22 +37,23 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > then exactly one blank line, then the description verbatim. A Collection README does the same
 > with its `name` and an empty description. The rule is a plain line rule, not Markdown: any other
 > heading form (setext, an indent, `##`) is not a title, and a body that does not open this way
-> is an unreadable README. The writer therefore refuses a title or name with a line break, or an
-> empty one (`# ` reads as `#` once an editor trims it); spaces at either end round-trip, since
-> the title is the rest of the line. The reader adds no rule of its own, so no README that read
-> before stops reading. A front matter that holds `title` (`name`) is the old layout: the
-> title comes from the YAML and the body is read verbatim, so every `history/` file stays readable.
-> The presence of the key decides, never the body's text.
+> is an unreadable README. The writer therefore refuses a title or name with a line break (LF, CR,
+> NEL, LS, PS), or a blank one (`# ` reads as `#` once an editor trims it), before it writes
+> anything; spaces at either end round-trip, since the title is the rest of the line. The reader
+> adds no rule of its own, so no README that read before stops reading. A front matter that holds
+> `title` (`name`) is the old layout: the title comes from the YAML and the body is read verbatim,
+> so every `history/` file stays readable. The presence of the key decides, never the body's text.
 >
 > The one exception to "every replaced README goes to `history/`": `manage.py relayout_readmes`
 > re-encodes every current README with the current writer, run once (owner, 2026-10-16). It writes
 > a README only when the new text holds the same front matter (the title aside), title and body
-> as the old, so nothing a decoder ignores is lost; one with a YAML comment beyond the marker, one
-> without a change record and an unreadable one it leaves as they are and names. `--dry-run`
-> reports the same and writes nothing. The record is the same, so
-> there is no new version and no history file; `history/` keeps the old layouts. It brings the
-> marker, the field order and the title line of this amendment and the previous one to the
-> current READMEs. The daily reconcile pushes the changed READMEs, since their SHA-256 no longer
+> as the old, and the old front matter, the marker aside, is exactly what the writer dumps for the
+> mapping it holds, so nothing a decoder ignores is lost (a comment, a duplicate key, other
+> formatting). It leaves every other one, one without a change record and an unreadable one as
+> they are and names them. `--dry-run` reports the same and writes nothing. The record is the
+> same, so there is no new version and no history file; `history/` keeps the old layouts. It
+> brings the marker, the field order and the title line of this amendment and the previous one to
+> the current READMEs. The daily reconcile pushes the changed READMEs, since their SHA-256 no longer
 > matches the push record (ADR 0020). It runs with the app stopped and takes no lock:
 > `WRITER_LOCK` serializes the saves of one process only (ADR 0013).
 
