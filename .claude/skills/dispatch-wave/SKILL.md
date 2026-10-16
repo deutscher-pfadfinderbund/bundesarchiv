@@ -115,6 +115,10 @@ The architect thinks in modules and interfaces; writers implement one module eac
   file or where one consumes the other's seam. (Wave REST 2026-09-30 ran U2 and U3 in sequence
   though their fences were disjoint.)
 - A live-backend run gets a diagnostic budget and prints what it observed on failure. "Run once" plus a silent failing assert turned one finding into a guess.
+- A brief that relies on a lock names the processes that write the same data, and states whether the
+  lock reaches all of them: `WRITER_LOCK` is a `threading.Lock`, so a management command holding it
+  does not block gunicorn. The README marker-move brief (2026-10-16) put that guard to the owner
+  as a safeguard. The safe rule turned out to be "run with the app stopped".
 - Before treating a grilled or ADR-backed decision as settled, verify the load-bearing code-behaviour claim against source (today: "Bestand required" was traced to 24 sites before ruling).
 
 ## On failure
