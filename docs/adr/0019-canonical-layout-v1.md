@@ -22,6 +22,13 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > `template: true` beside `lifecycle: published`, or a value that is not a YAML boolean, is a
 > corrupt README.
 
+> **Amended 2026-10-16:** a README opens with the front-matter fence, and the managed-by marker
+> (same words) is the first line inside it, as a YAML comment. Nextcloud Text recognises front
+> matter only when the fence is the very first line; under the old HTML-comment marker (ADR 0002)
+> it rendered the YAML as Markdown. The fields a person reads come first: the description (title
+> to custom), then placement and access, then the files, then record keeping (ulid, version and the
+> audit fields). Field order carries no meaning; the reader still accepts the old shape.
+
 ## Context
 
 The canonical tree was compared with two preservation layouts (sources below). The

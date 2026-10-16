@@ -21,42 +21,32 @@ from bundesarchiv.persistence.errors import UnreadableReadme
 def encode(article: Article, version: Version, change: Change) -> str:
     """Empty optional fields are omitted (ADR 0015)."""
     front_matter = {
-        "ulid": article.ulid,
-        "version": version,
-        **_change.to_front_matter(change),
         "title": article.title,
-        "collection_id": article.collection_id,
-        "lifecycle": article.lifecycle.value,
-        **(_change.to_front_matter(article.deleted, "deleted") if article.deleted else {}),
-        # None = inherit (ADR 0001): omit the key entirely so absence reads as inherit.
-        **(
-            {
-                "audience": {
-                    "tier": article.audience.tier.value,
-                    "groups": list(article.audience.groups),
-                }
-            }
-            if article.audience is not None
-            else {}
-        ),
         **({"ref_code": article.ref_code} if article.ref_code is not None else {}),
+        **({"date": article.date.value} if article.date is not None else {}),
+        **({"creator": article.creator} if article.creator is not None else {}),
+        **({"subject_place": article.subject_place} if article.subject_place is not None else {}),
         **({"media_type": article.media_type} if article.media_type is not None else {}),
         **({"document_type": article.document_type} if article.document_type is not None else {}),
-        **({"tags": list(article.tags)} if article.tags else {}),
         **(
             {"physical_location": article.physical_location}
             if article.physical_location is not None
             else {}
         ),
-        **({"date": article.date.value} if article.date is not None else {}),
-        **({"creator": article.creator} if article.creator is not None else {}),
-        **({"subject_place": article.subject_place} if article.subject_place is not None else {}),
-        **({"media": [_media_entry(m) for m in article.media]} if article.media else {}),
+        **({"tags": list(article.tags)} if article.tags else {}),
         **({"custom": dict(article.custom)} if article.custom else {}),
+        "collection_id": article.collection_id,
+        "lifecycle": article.lifecycle.value,
+        **_front_matter.audience_to_front_matter(article.audience),
+        **({"template": True} if article.template else {}),
+        **({"media": [_media_entry(m) for m in article.media]} if article.media else {}),
+        "ulid": article.ulid,
+        "version": version,
         **(
             {"added_at": _change.utc_text(article.added_at)} if article.added_at is not None else {}
         ),
-        **({"template": True} if article.template else {}),
+        **_change.to_front_matter(change),
+        **(_change.to_front_matter(article.deleted, "deleted") if article.deleted else {}),
     }
     return _front_matter.dump(front_matter, article.body)
 
