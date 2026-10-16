@@ -329,6 +329,23 @@ def test_reserved_custom_key_is_a_field_error() -> None:
     assert result.errors["custom"] == "Bezeichnung ist reserviert."
 
 
+@pytest.mark.parametrize(
+    "keys",
+    [["Fotograf", "Auflage", "Fotograf"], ["Fotograf ", "Auflage", " Fotograf"]],
+    ids=["same", "same-after-trim"],
+)
+def test_a_repeated_custom_name_saves_nothing(keys: list[str]) -> None:
+    result = _parse(_post(custom_key=keys, custom_value=["Meyer", "500", "Schulze"]))
+    assert result.article is None
+    assert "Fotograf" in result.errors["custom"]
+
+
+def test_a_repeated_name_on_an_incomplete_row_is_no_repeat() -> None:
+    art = _parse(_post(custom_key=["Fotograf", "Fotograf"], custom_value=["", "Meyer"])).article
+    assert art is not None
+    assert dict(art.custom) == {"Fotograf": "Meyer"}
+
+
 # --- expected_version rides the form ------------------------------------------------
 
 

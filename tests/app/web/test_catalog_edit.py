@@ -820,6 +820,22 @@ def test_a_custom_bag_error_renders_its_message(corpus: _EditCorpus) -> None:
     assert "Bezeichnung ist reserviert." in response.content.decode()
 
 
+def test_a_repeated_custom_name_saves_nothing_and_keeps_both_rows(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/articles/{_ULID}/edit",
+        {
+            **_valid_post(corpus),
+            "custom_key": ["Fotograf", "Fotograf"],
+            "custom_value": ["Meyer", "Schulze"],
+        },
+    )
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert 'value="Meyer"' in body
+    assert 'value="Schulze"' in body
+    assert corpus.articles.load(_ULID).version == corpus.version
+
+
 # --- Status: one select in the margin, applied by Speichern ------------------------
 #
 # Saving is part of publishing (owner decision 2026-08-08): the Status the archivist chose rides the
