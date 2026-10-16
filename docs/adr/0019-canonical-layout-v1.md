@@ -27,7 +27,9 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > matter only when the fence is the very first line; under the old HTML-comment marker (ADR 0002)
 > it rendered the YAML as Markdown. The fields a person reads come first: the description (title
 > to custom), then placement and access, then the files, then record keeping (ulid, version and the
-> audit fields). Field order carries no meaning; the reader still accepts the old shape.
+> audit fields). Field order carries no meaning; the reader still accepts the old shape, whose
+> first line is exactly the old marker line. Any other line before the fence makes a README
+> unreadable.
 
 > **Amended 2026-10-16, again:** the title lives once, as the H1 of the body. Nextcloud Text shows
 > the front matter as a grey code block, so a folder whose Article has no description showed no

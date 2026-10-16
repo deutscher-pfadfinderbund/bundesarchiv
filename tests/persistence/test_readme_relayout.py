@@ -53,6 +53,9 @@ def test_a_hand_saved_readme_in_the_new_layout_gets_the_writers_bytes(
     [
         *UNREADABLE_README,
         pytest.param(b"---\nulid: 01J0\nversion: 1\n---\nBrief\n", id="new-layout-no-heading"),
+        pytest.param(
+            b"<!-- Notiz -->\n" + OLD_ARTICLE.encode().split(b"\n", 1)[1], id="foreign-html-comment"
+        ),
     ],
 )
 def test_an_unreadable_readme_is_left(data: bytes) -> None:
