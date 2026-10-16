@@ -84,7 +84,6 @@ _DRAFT = "lifecycle: draft\n"
     [
         pytest.param(OLD_ARTICLE, replace(ARTICLE, encode=_other_title), id="reads-differently"),
         pytest.param(OLD_ARTICLE, replace(ARTICLE, encode=_unreadable), id="reads-not-at-all"),
-        pytest.param(OLD_ARTICLE.replace("Zeltlager 1955: Fahrt", ""), ARTICLE, id="empty-title"),
         pytest.param(OLD_ARTICLE.replace(_DRAFT, f"{_DRAFT}zustand: gut\n"), ARTICLE, id="key"),
         pytest.param(OLD_ARTICLE.replace(_DRAFT, f"{_DRAFT}# Notiz\n"), ARTICLE, id="comment"),
         pytest.param(
@@ -97,3 +96,14 @@ _DRAFT = "lifecycle: draft\n"
 def test_a_readme_the_writer_cannot_reproduce_in_full_is_left(old: str, codec: Codec[Any]) -> None:
     ulid = _ULID[codec.title_key]
     assert relaid(ulid, old.encode(), codec) == "would not read the same"
+
+
+def test_a_title_the_writer_refuses_is_named_as_such() -> None:
+    old = OLD_ARTICLE.replace("Zeltlager 1955: Fahrt", "")
+    assert relaid(_ULID["title"], old.encode(), ARTICLE) == "title the writer refuses"
+
+
+def test_the_old_marker_reads_with_whitespace_around_it() -> None:
+    first, rest = OLD_ARTICLE.split("\n", 1)
+    old = f"  {first} \t\n{rest}"
+    assert isinstance(relaid(_ULID["title"], old.encode(), ARTICLE), bytes)

@@ -12,7 +12,9 @@ from bundesarchiv.persistence._layout import ARTICLES, COLLECTIONS, Records
 from bundesarchiv.persistence.errors import UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
 
-type Left = Literal["unreadable", "would not read the same", "no change record"]
+type Left = Literal[
+    "unreadable", "would not read the same", "no change record", "title the writer refuses"
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,8 +68,8 @@ def relaid[R](ulid: Ulid, data: bytes, codec: Codec[R]) -> bytes | Left | None:
         return "no change record"
     try:
         new = codec.encode(record, version, change)
-    except ValueError:  # a title the writer refuses
-        return "would not read the same"
+    except ValueError:
+        return "title the writer refuses"
     if (new_bytes := new.encode()) == data:
         return None
     try:

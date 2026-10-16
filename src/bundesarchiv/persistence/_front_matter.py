@@ -78,7 +78,7 @@ def split_title(ulid: Ulid, text: str, title_key: str) -> tuple[dict[str, Any], 
 def _split(ulid: Ulid, text: str) -> tuple[list[str], str]:
     """The front-matter lines between the fences, and the body verbatim."""
     lines = text.split("\n")
-    if lines[0] == f"<!-- {MARKER} -->":
+    if lines[0].strip() == f"<!-- {MARKER} -->":
         lines = lines[1:]  # the old marker (ADR 0019)
     if not lines or lines[0].strip() != FENCE:
         raise UnreadableReadme(f"{ulid}: README has no front-matter fence")
