@@ -21,7 +21,9 @@ governs new tests only.
   law's lintable subset over the prod stylesheets. A second exception: a structure gate
   is allowed when its failure names a finding class with bite evidence in
   `docs/tech-debt.md` or the review ledger; `tests/test_structure.py` and the
-  module-map gate are the instances.
+  module-map gate are the instances. A third: `tests/test_grafana_dashboard.py` checks the
+  dashboard against the log fields `src/` writes (bite: the `in_papierkorb` → `in_trash` rename
+  left a panel blank, 2026-10-16).
 - **Performance micro-pins** (load-count spies) — they pin implementation, not
   behavior. Not one: a wire pin that states an ADR's contract (the push order ADR 0020
   prescribes, `[PUT history, PUT README]`) is behaviour, even though it also fixes the count.

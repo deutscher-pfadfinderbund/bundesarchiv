@@ -1,0 +1,3664 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "datasource": {
+          "type": "loki",
+          "uid": "bdxp3z3b2hhc0e"
+        },
+        "enable": true,
+        "expr": "{container=\"/bundesarchiv-app-1\"} |= \"Starting gunicorn\"",
+        "iconColor": "purple",
+        "name": "Deploys",
+        "titleFormat": "app start (deploy)"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Nextcloud",
+      "type": "link",
+      "url": "/d/nextcloud/nextcloud"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "panels": [],
+      "title": "Is it up?",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "All requests to the archive in the selected range (Traefik).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "sum(increase(traefik_service_requests_total{service=\"bundesarchiv@docker\"}[$__range]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Requests",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "Share of server errors in the selected range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "(sum(increase(traefik_service_requests_total{service=\"bundesarchiv@docker\",code=~\"5..\"}[$__range])) or vector(0)) / sum(increase(traefik_service_requests_total{service=\"bundesarchiv@docker\"}[$__range]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "5xx share",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "Includes media downloads, so large PDFs pull it up.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=\"bundesarchiv@docker\"}[$__range])))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "p95 latency",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "Host disk. canonical, thumbnails and pgdata all live on it.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.08
+              },
+              {
+                "color": "green",
+                "value": 0.15
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Disk free",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "Host memory available (all stacks share it).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 500000000
+              },
+              {
+                "color": "green",
+                "value": 1000000000
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "node_memory_MemAvailable_bytes",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "RAM available",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "Let's Encrypt renews about 30 days before expiry.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1209600
+              },
+              {
+                "color": "green",
+                "value": 1814400
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "min(traefik_tls_certs_not_after{cn=\"archiv.deutscher-pfadfinderbund.de\"}) - time()",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "TLS cert expires",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "Requests per minute by HTTP status.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 40,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "reqpm"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "2.."
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "3.."
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "4.."
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "5.."
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "id": 8,
+      "interval": "5m",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "sum by (code) (rate(traefik_service_requests_total{service=\"bundesarchiv@docker\"}[$__rate_interval])) * 60",
+          "legendFormat": "{{code}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests by status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "id": 9,
+      "interval": "5m",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=\"bundesarchiv@docker\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=\"bundesarchiv@docker\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        }
+      ],
+      "title": "Latency",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "id": 10,
+      "panels": [],
+      "title": "Archive",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "All Articles in canonical, written by the hourly reconcile.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 14
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap articles [2h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Articles",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 14
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap media_files [2h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Media files",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 14
+      },
+      "id": 13,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap media_bytes [2h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Media size",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 14
+      },
+      "id": 14,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap collections [2h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Collections",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Articles in the trash (counted in Articles too).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 14
+      },
+      "id": 15,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap in_trash [2h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Trash",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Index rows before the hourly rebuild minus Articles. 0 = the incremental index kept up.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 14
+      },
+      "id": 16,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap index_drift [2h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Index drift",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Who may see each Article. Archivists only includes drafts, the trash and broken chains.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "min": 0,
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "public"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "members"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "groups"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "D"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "archivists only"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "id": 17,
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap audience_public [2h]))",
+          "instant": true,
+          "legendFormat": "public",
+          "queryType": "instant",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap audience_members [2h]))",
+          "instant": true,
+          "legendFormat": "members",
+          "queryType": "instant",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap audience_groups [2h]))",
+          "instant": true,
+          "legendFormat": "groups",
+          "queryType": "instant",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap audience_archivist_only [2h]))",
+          "instant": true,
+          "legendFormat": "archivists only",
+          "queryType": "instant",
+          "refId": "D"
+        }
+      ],
+      "title": "Audience",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "A to-do list for the archivists.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "min": 0,
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "date"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "description"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "tags"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "D"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "media"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "id": 18,
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap articles_without_date [2h]))",
+          "instant": true,
+          "legendFormat": "date",
+          "queryType": "instant",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap articles_without_description [2h]))",
+          "instant": true,
+          "legendFormat": "description",
+          "queryType": "instant",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap articles_without_tags [2h]))",
+          "instant": true,
+          "legendFormat": "tags",
+          "queryType": "instant",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap articles_without_media [2h]))",
+          "instant": true,
+          "legendFormat": "media",
+          "queryType": "instant",
+          "refId": "D"
+        }
+      ],
+      "title": "Articles without ...",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 18
+      },
+      "id": 19,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum by (media_type) (last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive media type\" | unwrap files [2h]))",
+          "instant": true,
+          "queryType": "instant",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum by (media_type) (last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive media type\" | unwrap bytes [2h]))",
+          "instant": true,
+          "queryType": "instant",
+          "refId": "B"
+        }
+      ],
+      "title": "Media by type",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #A": "files",
+              "Value #B": "size",
+              "media_type": "type"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "desc": true,
+                "field": "size"
+              }
+            ]
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "id": 20,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(max_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap articles [$__auto]))",
+          "legendFormat": "articles",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(max_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap media_files [$__auto]))",
+          "legendFormat": "media files",
+          "refId": "B"
+        }
+      ],
+      "title": "Articles and media",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 40,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum by (media_type) (max_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive media type\" | unwrap bytes [$__auto]))",
+          "legendFormat": "{{media_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Size by type",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 22,
+      "panels": [],
+      "title": "Errors",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "JSON records at level ERROR or CRITICAL. Markers = app starts (deploys).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 34
+      },
+      "id": 23,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({container=~\"/bundesarchiv-(app|worker)-1\"} | json | __error__=\"\" | level=~\"ERROR|CRITICAL\" [$__auto])) or vector(0)",
+          "legendFormat": "error lines",
+          "refId": "A"
+        }
+      ],
+      "title": "Error lines (app + worker)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 34
+      },
+      "id": 24,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "node_memory_MemAvailable_bytes",
+          "legendFormat": "RAM available",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes",
+          "legendFormat": "swap used",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "node_filesystem_avail_bytes{mountpoint=\"/\"}",
+          "legendFormat": "disk free",
+          "refId": "C"
+        }
+      ],
+      "title": "Host memory and disk",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
+      "id": 25,
+      "options": {
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "{container=~\"/bundesarchiv-(app|worker)-1\"} | json | __error__=\"\" | level=~\"ERROR|CRITICAL\"",
+          "refId": "A"
+        }
+      ],
+      "title": "Error lines",
+      "type": "logs"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 50
+      },
+      "id": 26,
+      "panels": [],
+      "title": "Traffic",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Article ids collapsed to <ulid>, query strings dropped.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 51
+      },
+      "id": 27,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "topk(15, sum by (path, OriginStatus) (count_over_time({service_name=\"traefik_access_log\"} | RouterName=\"bundesarchiv@docker\" | label_format path=`{{ regexReplaceAll \"\\\\?.*\" (regexReplaceAll \"[0-9A-HJKMNP-TV-Z]{26}\" .RequestPath \"<ulid>\") \"\" }}` [$__range])))",
+          "instant": true,
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Top paths",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "path": 2,
+              "requests": 0,
+              "status": 1
+            },
+            "renameByName": {
+              "OriginStatus": "status",
+              "Value #A": "requests"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "desc": true,
+                "field": "requests"
+              }
+            ]
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Requests for .env, .git, wp-, .php and similar. The archive answers them with the door page; this only shows how much probing happens.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 51
+      },
+      "id": 28,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({service_name=\"traefik_access_log\"} | RouterName=\"bundesarchiv@docker\" | RequestPath=~\"(?i).*(\\\\.env|\\\\.git|wp-|\\\\.php|phpmyadmin|cgi-bin|\\\\.aws|actuator|\\\\.sql|\\\\.bak).*\" [$__auto]))",
+          "legendFormat": "probes",
+          "refId": "A"
+        }
+      ],
+      "title": "Scanner hits",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
+      "id": 29,
+      "panels": [],
+      "title": "Activity (per day)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Every save of an Article or Collection pushes it to the mirror once.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 61
+      },
+      "id": 30,
+      "interval": "1d",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_push\" | outcome=\"ok\" [1d]))",
+          "legendFormat": "saves",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": "14d",
+      "title": "Saves",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Completed DPB logins (the OIDC callback).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 6,
+        "y": 61
+      },
+      "id": 31,
+      "interval": "1d",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({service_name=\"traefik_access_log\"} | RouterName=\"bundesarchiv@docker\" | RequestPath=~\"/oidc/callback.*\" | OriginStatus=\"302\" [1d]))",
+          "legendFormat": "logins",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": "14d",
+      "title": "Logins",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Requests with a search term, including each refinement (facets, typing).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 61
+      },
+      "id": 32,
+      "interval": "1d",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({service_name=\"traefik_access_log\"} | RouterName=\"bundesarchiv@docker\" | RequestPath=~\".*[?&]q=.+\" [1d]))",
+          "legendFormat": "searches",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": "14d",
+      "title": "Searches",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "The app's plain 404 on article and media paths: no such record, or not visible to that user. A burst means someone probes ids. Missing thumbnails are left out.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 61
+      },
+      "id": 33,
+      "interval": "1d",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({service_name=\"traefik_access_log\"} | RouterName=\"bundesarchiv@docker\" | OriginStatus=\"404\" | RequestPath=~\"/(articles|artikel|media)/.*\" | RequestPath!~\".*/thumb\" [1d]))",
+          "legendFormat": "denied",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": "14d",
+      "title": "Denied",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 68
+      },
+      "id": 34,
+      "panels": [],
+      "title": "Mirror (StorageShare)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "The reconcile runs daily at 03:00 UTC. 0 = the last one failed or never ran.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 69
+      },
+      "id": 35,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" [26h])) or vector(0)",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Reconciles OK (26 h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Every failed attempt counts; pushes retry up to 5 times.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 69
+      },
+      "id": 36,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=~\"mirror_.*\" | outcome=\"failed\" [$__range])) or vector(0)",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Failed mirror jobs",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Files the last reconcile had to send. Normally 0: saves push at once.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 69
+      },
+      "id": 37,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" | unwrap sent [26h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Last reconcile sent",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 69
+      },
+      "id": 38,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" | unwrap seconds [26h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Last reconcile took",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Keys on the StorageShare the archive does not have. The reconcile leaves them there.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 69
+      },
+      "id": 39,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" | unwrap remote_only [26h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Remote only",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Keys someone changed on the StorageShare after the app pushed them.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 69
+      },
+      "id": 40,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" | unwrap changed [26h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Changed remotely",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 73
+      },
+      "id": 41,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum by (task) (sum_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=~\"mirror_.*\" | stage=\"\" | unwrap sent_bytes [$__auto]))",
+          "legendFormat": "{{task}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Sent to the StorageShare",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Bytes per second of jobs that sent something.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 73
+      },
+      "id": 42,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "avg by (task) (avg_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=~\"mirror_.*\" | stage=\"\" | sent_bytes > 0 | label_format bps=`{{ divf .sent_bytes .seconds }}` | unwrap bps [$__auto]))",
+          "legendFormat": "{{task}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "oc:size of the mirror folder, read once per reconcile (daily).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 81
+      },
+      "id": 43,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(max_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" | unwrap remote_bytes [$__auto]))",
+          "legendFormat": "remote_bytes",
+          "refId": "A"
+        }
+      ],
+      "title": "Archive size on the StorageShare",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Entries in the mirror's listing before the reconcile pushed anything.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 81
+      },
+      "id": 44,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(max_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | outcome=\"ok\" | unwrap remote_keys [$__auto]))",
+          "legendFormat": "remote_keys",
+          "refId": "A"
+        }
+      ],
+      "title": "Keys on the StorageShare",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 89
+      },
+      "id": 45,
+      "options": {
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "{container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | stage=\"\" | logger=\"bundesarchiv.app.mirror\" or outcome=\"failed\"",
+          "refId": "A"
+        }
+      ],
+      "title": "Mirror findings and failures",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "The running sweep: records checked of all records (its last progress line, at most a minute old). Idle when no sweep runs.",
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "idle",
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 95
+      },
+      "id": 64,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | stage=\"progress\" | unwrap checked [5m]))",
+          "instant": true,
+          "legendFormat": "checked",
+          "queryType": "instant",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | stage=\"progress\" | unwrap records [5m]))",
+          "instant": true,
+          "legendFormat": "of",
+          "queryType": "instant",
+          "refId": "B"
+        }
+      ],
+      "title": "Sync progress",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Files and bytes the running sweep has sent, and its failures so far.",
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "idle",
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 8,
+        "y": 95
+      },
+      "id": 65,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | stage=\"progress\" | unwrap sent [5m]))",
+          "instant": true,
+          "legendFormat": "files",
+          "queryType": "instant",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | stage=\"progress\" | unwrap failed [5m]))",
+          "instant": true,
+          "legendFormat": "failed",
+          "queryType": "instant",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | stage=\"progress\" | unwrap sent_bytes [5m]))",
+          "instant": true,
+          "legendFormat": "bytes",
+          "queryType": "instant",
+          "refId": "C"
+        }
+      ],
+      "title": "Sync sent so far",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Start, progress and end lines of the Nextcloud sweeps.",
+      "gridPos": {
+        "h": 6,
+        "w": 10,
+        "x": 14,
+        "y": 95
+      },
+      "id": 66,
+      "options": {
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "{container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | task=\"mirror_reconcile\" | logger=~\"bundesarchiv[.]app[.](mirror|tasks)\" | line_format \"{{.message}}\"",
+          "refId": "A"
+        }
+      ],
+      "title": "Sync log",
+      "type": "logs"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 101
+      },
+      "id": 46,
+      "panels": [],
+      "title": "Nextcloud (StorageShare)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "1 = the exporter read serverinfo on its last scrape (every 5 min).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "no"
+                },
+                "1": {
+                  "text": "yes"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 102
+      },
+      "id": 47,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "max(nextcloud_up)",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Reachable",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "Free space for the whole DPB cloud. The archive mirror is about 5 GB.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 10000000000
+              },
+              {
+                "color": "green",
+                "value": 50000000000
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 102
+      },
+      "id": 48,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "nextcloud_free_space_bytes",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Free space",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "All files in the DPB cloud, not only the archive.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 102
+      },
+      "id": 49,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "nextcloud_files_total",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Files",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 102
+      },
+      "id": 50,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "nextcloud_active_users_daily_total",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Active users today",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 102
+      },
+      "id": 51,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "nextcloud_database_size_bytes",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Database",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eegx6huv9b4e8c"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 102
+      },
+      "id": 52,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eegx6huv9b4e8c"
+          },
+          "expr": "nextcloud_system_info",
+          "instant": true,
+          "legendFormat": "{{version}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Version",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 106
+      },
+      "id": 53,
+      "panels": [],
+      "title": "Worker",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "The fixity check runs monthly (1st, 04:00 UTC). 0 = it failed or has not run with structured logging yet. Loki queries reach back 30 days at most, so in 31-day months this can show 0 for a few hours before the next check.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 107
+      },
+      "id": 54,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum(count_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.management.commands.verify\" | outcome=\"ok\" [30d])) or vector(0)",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Fixity checks OK (30 d)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "From the last fixity check. Anything above 0 is a damaged archive file.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 107
+      },
+      "id": 55,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.management.commands.verify\" | unwrap checksum_mismatches [30d]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Checksum mismatches",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 107
+      },
+      "id": 56,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.management.commands.verify\" | unwrap unreadable_files [30d]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Unreadable files",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Hourly snapshot.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 107
+      },
+      "id": 57,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap jobs_todo [2h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Jobs waiting",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Jobs whose last attempt failed and that are still in the table.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 107
+      },
+      "id": 58,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap jobs_failed [2h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Jobs failed",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Images and PDFs without a cached thumbnail. The Post Deploy's rebuild_thumbnails fills them.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 107
+      },
+      "id": 59,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max(last_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.stats\" | message=\"archive stats\" | unwrap media_without_thumbnail [2h]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Thumbnails missing",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "spanNulls": 3600000,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 111
+      },
+      "id": 60,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum by (route) (count_over_time({container=\"/bundesarchiv-app-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.web.slow_requests\" [$__auto]))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Slow requests (over 1 s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "slowest"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 111
+      },
+      "id": 61,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "max by (route) (max_over_time({container=\"/bundesarchiv-app-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.web.slow_requests\" | unwrap duration_ms [$__range]))",
+          "instant": true,
+          "queryType": "instant",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum by (route) (count_over_time({container=\"/bundesarchiv-app-1\"} | json | __error__=\"\" | logger=\"bundesarchiv.app.web.slow_requests\" [$__range]))",
+          "instant": true,
+          "queryType": "instant",
+          "refId": "B"
+        }
+      ],
+      "title": "Slowest routes",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #A": "slowest",
+              "Value #B": "count"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "desc": true,
+                "field": "slowest"
+              }
+            ]
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "description": "Procrastinate's own records, one per finished attempt.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 119
+      },
+      "id": 62,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "sum by (job_task_name, action) (count_over_time({container=\"/bundesarchiv-worker-1\"} | json | __error__=\"\" | logger=\"procrastinate.worker\" | action=~\"job_.*\" [$__range]))",
+          "instant": true,
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Job outcomes",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "Value #A": 2,
+              "action": 1,
+              "job_task_name": 0
+            },
+            "renameByName": {
+              "Value #A": "attempts",
+              "action": "outcome",
+              "job_task_name": "job"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "bdxp3z3b2hhc0e"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 119
+      },
+      "id": 63,
+      "options": {
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "bdxp3z3b2hhc0e"
+          },
+          "expr": "{container=\"/bundesarchiv-worker-1\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Worker log",
+      "type": "logs"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "tags": [
+    "bundesarchiv"
+  ],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Bundesarchiv",
+  "uid": "bundesarchiv"
+}
