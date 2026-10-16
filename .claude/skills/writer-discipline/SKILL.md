@@ -63,7 +63,7 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 - Write the failing test first, watch it fail for the right reason, then make it pass (the `tdd` skill).
 - Prove a security or gate test non-vacuous by mutation: neuter the guard, watch it go red, restore. A gate that never bit is not a gate.
 - Ceremony follows the testing razor: mutation proofs for leak, deny, data-loss and security paths and for gates; a render diff only for a refactor you claim is neutral; a screenshot harness only when the brief asks for renders.
-- `mise run mutate -- FILE OLD NEW NODE_IDS` mutates, runs and always restores FILE; for an e2e node add `-m e2e`, and pass node ids as separate literal arguments (zsh does not word-split a `$VAR`).
+- `mise run mutate -- FILE OLD NEW NODE_IDS` mutates, runs and always restores FILE; for an e2e node add `-m e2e`, and pass node ids as separate literal arguments (zsh does not word-split a `$VAR`). One mutant per call, OLD and NEW as plain literals: the sandbox refuses a call that mixes shell variables with code text.
 - Restore a hand mutation by re-editing the exact lines (or commit first), never `git checkout <file>` — it wipes every uncommitted change in that file.
 - Run mutation checks with `PYTHONDONTWRITEBYTECODE=1`: a same-size edit and its restore within one second can otherwise run stale `.pyc`.
 - Render diff for a neutral refactor: dump representative states (GET, error, conflict, each overlay) before and after, normalize CSRF tokens, whitespace and static-file hashes (`/static/…<12 hex>.css`), diff, expect and report 0 lines.
