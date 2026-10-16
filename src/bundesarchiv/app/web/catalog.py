@@ -291,6 +291,10 @@ def _parse_custom(
         normalized = Article(ulid="X", title="x", collection_id="x", custom=tuple(rows)).custom
     except ValueError:
         return (), "Bezeichnung ist reserviert."
+    names = [name for name, _ in rows]
+    repeated = next((name for i, name in enumerate(names) if name in names[:i]), None)
+    if repeated is not None:
+        return (), f"Die Bezeichnung „{repeated}“ kommt doppelt vor."
     return normalized, None
 
 
