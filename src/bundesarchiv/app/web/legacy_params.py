@@ -4,13 +4,16 @@ The params and their fixed values were German before 2026-10-06 (English in code
 bookmarks from then keep working, as the old paths do. The redirect, not an in-request rewrite,
 makes the address bar, ``next`` and every link built from the request English. Only the query
 changes: same path, same param order, an English key already present wins over its old twin.
-Other methods pass untouched: a 301 would turn a POST into a GET.
+Other methods pass untouched, since a 301 would turn a POST into a GET. The path is escaped as
+Django's ``CommonMiddleware`` escapes it, so the target stays on the site in the path's own spelling.
 """
 
 from collections.abc import Callable
 from urllib.parse import parse_qsl, urlencode
 
 from django.http import HttpRequest, HttpResponseBase, HttpResponsePermanentRedirect
+from django.utils.encoding import escape_uri_path
+from django.utils.http import escape_leading_slashes
 
 from bundesarchiv.app.web import browse, browse_views, landing
 from bundesarchiv.index.query import SortOrder
@@ -75,5 +78,6 @@ class LegacyParamsMiddleware:
         if request.method in ("GET", "HEAD"):
             query = english_query(request.META.get("QUERY_STRING", ""))
             if query is not None:
-                return HttpResponsePermanentRedirect(f"{request.path}?{query}")
+                path = escape_leading_slashes(escape_uri_path(request.path))
+                return HttpResponsePermanentRedirect(f"{path}?{query}")
         return self.get_response(request)
