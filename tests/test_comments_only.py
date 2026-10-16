@@ -111,6 +111,10 @@ def _commit(repo: Path, files: dict[str, str]) -> str:
 def test_the_gate_exits_on_the_verdict_over_a_real_diff(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # a git hook (the pre-push gate) exports GIT_DIR & co., which outrank -C and the cwd: unset,
+    # this test and the gate it runs would write and read the pushing repo, not tmp_path
+    for name in _git(tmp_path, "rev-parse", "--local-env-vars").split():
+        monkeypatch.delenv(name, raising=False)
     for key in ("AUTHOR", "COMMITTER"):
         monkeypatch.setenv(f"GIT_{key}_NAME", "t")
         monkeypatch.setenv(f"GIT_{key}_EMAIL", "t@example.org")
