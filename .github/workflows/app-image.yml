@@ -61,6 +61,9 @@ jobs:
   # waits for Komodo's result, so a failed deploy turns the `production` Deployment red. The key
   # belongs to a Komodo service user with Execute on this one Stack, and only this environment holds
   # it. Only stage names are printed: this repository's run logs are public; the full log is in Komodo.
+  # After a green Deploy the job uploads deploy/grafana/bundesarchiv.json to Grafana when it differs
+  # from the live dashboard, with a service account that can edit only that folder, so the dashboard
+  # matches the deployed app; only the HTTP status and Grafana's status/version are printed.
   deploy:
     needs: build
     if: github.event_name == 'workflow_run'
@@ -104,3 +107,32 @@ jobs:
           for log in update["logs"]:
               print(f"{'ok    ' if log['success'] else 'FAILED'} {log['stage']}")
           sys.exit(0 if update["success"] else 1)
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+          sparse-checkout: deploy/grafana
+          persist-credentials: false
+
+      - name: Upload the Grafana dashboard
+        continue-on-error: true  # a Grafana problem never turns a good app deploy red
+        env:
+          GRAFANA_TOKEN: ${{ secrets.GRAFANA_BUNDESARCHIV_EDITOR_TOKEN }}
+        run: |
+          grafana=https://grafana.deutscher-pfadfinderbund.de
+          live=$(curl -sS --max-time 30 -o live.json -w '%{http_code}' \
+            -H "Authorization: Bearer $GRAFANA_TOKEN" "$grafana/api/dashboards/uid/bundesarchiv")
+          if [ "$live" = 200 ] && jq -e --slurpfile repo deploy/grafana/bundesarchiv.json \
+            '(.dashboard | del(.id, .version)) == ($repo[0] | del(.id, .version))' live.json > /dev/null; then
+            echo "unchanged"
+            exit 0
+          fi
+          jq -n --slurpfile dashboard deploy/grafana/bundesarchiv.json --arg message "deploy $SHA" \
+            '{dashboard: $dashboard[0], folderUid: "efzydnzf66hhcd", overwrite: true, message: $message}' \
+            > body.json
+          status=$(curl -sS --max-time 30 -o response.json -w '%{http_code}' \
+            -H "Authorization: Bearer $GRAFANA_TOKEN" -H 'Content-Type: application/json' \
+            --data @body.json "$grafana/api/dashboards/db")
+          echo "HTTP $status"
+          jq -r '"\(.status) version \(.version)"' response.json || true
+          test "$status" -lt 300
