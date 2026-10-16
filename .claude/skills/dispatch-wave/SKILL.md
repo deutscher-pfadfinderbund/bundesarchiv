@@ -115,6 +115,11 @@ The architect thinks in modules and interfaces; writers implement one module eac
   file or where one consumes the other's seam. (Wave REST 2026-09-30 ran U2 and U3 in sequence
   though their fences were disjoint.)
 - A live-backend run gets a diagnostic budget and prints what it observed on failure. "Run once" plus a silent failing assert turned one finding into a guess.
+- A brief for a data migration states its safety check at the raw level it rewrites: raw keys, body
+  bytes and comments, not only "decodes to the same record". A decoder drops what it does not model,
+  so a record-level check let a rewrite delete unknown keys (README relayout, 2026-10-16). A brief that
+  adds a validation rule names which paths it runs on. A rule on new writes must not run on the
+  decode of stored data, or old files stop loading.
 - A brief that relies on a lock names the processes that write the same data, and states whether the
   lock reaches all of them: `WRITER_LOCK` is a `threading.Lock`, so a management command holding it
   does not block gunicorn. The README marker-move brief (2026-10-16) put that guard to the owner
