@@ -7,7 +7,8 @@ only the storage port and an injected ``PushRecord``.
 
 import hashlib
 import logging
-from collections.abc import Iterable, Mapping
+import time
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -21,6 +22,12 @@ logger = logging.getLogger(__name__)
 
 #: How many keys of one finding a reconcile warning names.
 _SAMPLE = 20
+
+#: The `task` field of the reconcile's log lines, as the job summary in `tasks.py` has it.
+_TASK = "mirror_reconcile"
+
+#: Seconds between the progress lines of a reconcile.
+_PROGRESS_INTERVAL = 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,24 +117,67 @@ def delete_article(archive: Archive, remote: ObjectStore, record: PushRecord, ul
     record.forget_prefix(folder)
 
 
-def reconcile(archive: Archive, remote: ObjectStore, record: PushRecord) -> ReconcileReport:
+def reconcile(
+    archive: Archive,
+    remote: ObjectStore,
+    record: PushRecord,
+    *,
+    clock: Callable[[], float] = time.monotonic,
+) -> ReconcileReport:
     """Push every saved Article and Collection to `remote` as `push` does, checking against one
     listing of `remote` instead of trusting `record`: a key missing there is sent even when the
     record holds it, and a key there that the record lacks is recorded, a README after one download.
     A record whose push fails is reported and the sweep goes on. Logs a warning for each kind of
-    finding (`changed`, `remote_only`, `failed`)."""
+    finding (`changed`, `remote_only`, `failed`), a start line once `remote` is listed and, on
+    `clock`, a progress line when `_PROGRESS_INTERVAL` seconds have passed since the last."""
+    records = [
+        (repository, ulid)
+        for repository in (archive.collections, archive.articles)
+        for ulid in repository.list_ulids()
+    ]
+    started = clock()
     sweep = _Sweep({entry.key: entry for entry in remote.list_entries()}, record.entries())
+    last = clock()
+    logger.info(
+        "reconcile: %d records to check, %d keys on the system of record",
+        len(records),
+        len(sweep.listed),
+        extra={
+            "task": _TASK,
+            "stage": "start",
+            "records": len(records),
+            "remote_keys": len(sweep.listed),
+            "listing_seconds": round(last - started, 3),
+        },
+    )
     run = _Push(archive.store, remote, record, sweep)
     failed: list[Ulid] = []
-    for repository in (archive.collections, archive.articles):
-        for ulid in repository.list_ulids():
-            try:
-                run.folder(repository, ulid)
-            except ArchiveError as exc:
-                failed.append(ulid)
-                logger.warning(
-                    "reconcile: the push of %s broke off: %s", ulid, exc, extra={"ulid": ulid}
-                )
+    for checked, (repository, ulid) in enumerate(records, start=1):
+        try:
+            run.folder(repository, ulid)
+        except ArchiveError as exc:
+            failed.append(ulid)
+            logger.warning(
+                "reconcile: the push of %s broke off: %s", ulid, exc, extra={"ulid": ulid}
+            )
+        if (now := clock()) - last >= _PROGRESS_INTERVAL:
+            last = now
+            logger.info(
+                "reconcile: %d of %d records checked, %d keys sent",
+                checked,
+                len(records),
+                len(run.sent),
+                extra={
+                    "task": _TASK,
+                    "stage": "progress",
+                    "checked": checked,
+                    "records": len(records),
+                    "sent": len(run.sent),
+                    "sent_bytes": run.sent_bytes,
+                    "failed": len(failed),
+                    "seconds": round(now - started, 3),
+                },
+            )
     report = ReconcileReport(
         sent=tuple(run.sent),
         sent_bytes=run.sent_bytes,
