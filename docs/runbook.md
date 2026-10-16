@@ -397,11 +397,6 @@ Always present: `timestamp` (ISO 8601 UTC), `level`, `logger`, `message`. Every 
 
 ### Grafana dashboard
 
-The dashboard lives in `deploy/grafana/bundesarchiv.json` (uid `bundesarchiv`). After a green Deploy
-the `deploy` job uploads it to Grafana when it differs from the live one, overwriting that; a failed
-upload does not fail the deploy. Edit it in Grafana, then export the JSON back into the repo, or the
-next deploy undoes the edit: Share, Export with "Export for sharing externally" off, or the
-`.dashboard` part of `GET /api/dashboards/uid/bundesarchiv`, either without `id` and `version`. A
-log-field rename in `src/` changes the dashboard in the same change: `tests/test_grafana_dashboard.py`
-fails when a panel reads a field, `task`, `message`, `stage`, `outcome` or `logger` that `src/` no
-longer writes.
+The dashboard lives in `deploy/grafana/bundesarchiv.json` (uid `bundesarchiv`). Grafana's Git Sync
+reads it from `main`; an edit saved in the Grafana UI comes back as a pull request. A log-field
+rename in `src/` changes the panels that read it in the same change.
