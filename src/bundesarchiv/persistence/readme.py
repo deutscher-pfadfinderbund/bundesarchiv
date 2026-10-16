@@ -21,7 +21,6 @@ from bundesarchiv.persistence.errors import UnreadableReadme
 def encode(article: Article, version: Version, change: Change) -> str:
     """Empty optional fields are omitted (ADR 0015)."""
     front_matter = {
-        "title": article.title,
         **({"ref_code": article.ref_code} if article.ref_code is not None else {}),
         **({"date": article.date.value} if article.date is not None else {}),
         **({"creator": article.creator} if article.creator is not None else {}),
@@ -48,7 +47,7 @@ def encode(article: Article, version: Version, change: Change) -> str:
         **_change.to_front_matter(change),
         **(_change.to_front_matter(article.deleted, "deleted") if article.deleted else {}),
     }
-    return _front_matter.dump(front_matter, article.body)
+    return _front_matter.dump(front_matter, article.title, article.body)
 
 
 def _media_entry(media: MediaRef) -> dict[str, Any]:
@@ -70,10 +69,10 @@ def _media_entry(media: MediaRef) -> dict[str, Any]:
 def decode(ulid: Ulid, text: str) -> tuple[Article, Version, Change | None]:
     """Parse README.md text back to its Article, stored version and change record (None for a
     README written before ADR 0019)."""
-    front_matter, body = _front_matter.parse(ulid, text)
+    front_matter, title, body = _front_matter.split_title(ulid, text, "title")
     try:
         return (
-            _article_from_front_matter(front_matter, body),
+            _article_from_front_matter(front_matter, title, body),
             _front_matter.version_of(front_matter),
             _change.from_front_matter(front_matter),
         )
@@ -175,13 +174,13 @@ def audience_from_front_matter(fm: dict[str, Any]) -> Audience | None:
     )
 
 
-def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
+def _article_from_front_matter(fm: dict[str, Any], title: str | None, body: str) -> Article:
     media = fm.get("media") or []
     if not isinstance(media, list | tuple):
         raise ValueError(f"media: expected a list, got {type(media).__name__}")
     return Article(
         ulid=str(fm["ulid"]),
-        title=str(fm["title"]),
+        title=str(fm["title"]) if title is None else title,
         collection_id=str(fm["collection_id"]),
         body=body,
         lifecycle=Lifecycle(fm["lifecycle"]),

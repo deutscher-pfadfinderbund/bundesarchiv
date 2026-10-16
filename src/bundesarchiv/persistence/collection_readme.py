@@ -9,23 +9,22 @@ from bundesarchiv.persistence.errors import UnreadableReadme
 
 def encode_collection(collection: Collection, version: Version, change: Change) -> str:
     front_matter: dict[str, Any] = {
-        "name": collection.name,
         **({"parent_id": collection.parent_id} if collection.parent_id is not None else {}),
         **_front_matter.audience_to_front_matter(collection.audience),
         "ulid": collection.ulid,
         "version": version,
         **_change.to_front_matter(change),
     }
-    return _front_matter.dump(front_matter, "")
+    return _front_matter.dump(front_matter, collection.name, "")
 
 
 def decode_collection(text: str, *, ulid: Ulid) -> tuple[Collection, Version, Change | None]:
     """Parse README.md text back to its Collection, stored version (absent -> 0) and change record
     (absent -> None)."""
-    front_matter, _ = _front_matter.parse(ulid, text)
+    front_matter, name, _ = _front_matter.split_title(ulid, text, "name")
     try:
         return (
-            _collection_from_front_matter(front_matter, ulid),
+            _collection_from_front_matter(front_matter, name, ulid),
             _front_matter.version_of(front_matter, absent=0),
             _change.from_front_matter(front_matter),
         )
@@ -33,10 +32,10 @@ def decode_collection(text: str, *, ulid: Ulid) -> tuple[Collection, Version, Ch
         raise UnreadableReadme(f"{ulid}: README front-matter is malformed: {exc}") from exc
 
 
-def _collection_from_front_matter(fm: dict[str, Any], ulid: Ulid) -> Collection:
+def _collection_from_front_matter(fm: dict[str, Any], name: str | None, ulid: Ulid) -> Collection:
     return Collection(
         ulid=str(fm["ulid"]),
-        name=str(fm["name"]),
+        name=str(fm["name"]) if name is None else name,
         parent_id=str(fm["parent_id"]) if fm.get("parent_id") is not None else None,
         audience=readme.audience_from_front_matter(fm),
     )

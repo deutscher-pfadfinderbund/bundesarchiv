@@ -95,6 +95,16 @@ def test_post_blank_name_re_renders_with_error_unchanged(archive: Corpus) -> Non
 
 
 @pytest.mark.django_db
+def test_a_pasted_line_break_in_the_name_becomes_a_space(archive: Corpus) -> None:
+    """The name is the README's H1 line (ADR 0019)."""
+    client_as(Archivist()).post(
+        f"/collections/{FOTOS}/edit",
+        {"name": "Licht\N{LINE SEPARATOR}bilder\r\n", "expected_version": "1"},
+    )
+    assert _name_of(archive, FOTOS) == "Licht bilder"
+
+
+@pytest.mark.django_db
 def test_rename_shows_new_name_in_workbench_facets(archive: Corpus) -> None:
     client = client_as(Archivist())
     client.post(f"/collections/{FOTOS}/edit", {"name": "Lichtbilder", "expected_version": "1"})
