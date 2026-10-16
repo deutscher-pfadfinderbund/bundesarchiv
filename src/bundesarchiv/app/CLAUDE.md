@@ -25,4 +25,4 @@ Every write service that writes a version takes `changed_by`, who is acting; the
 - `legacy.py` — the legacy CSV → Article mapping for the one-time import; pure · interface: `ITEM_COLUMNS`, `collection_names`, `map_item`, `plan`, `unknown_vocabulary`, `Report` · tests: `tests/app/test_legacy.py`
 - `result.py` — the write services' result shapes · interface: `SaveResult`, `CreateResult`, `UpdateOutcome` (`Updated` | `Conflicted` | `Missing`) · tests: `tests/app/test_services.py`
 
-Internal: `models.py`, `management/commands/ensure_index_current.py`, `management/commands/import_legacy.py`, `management/commands/rebuild_index.py`, `management/commands/rebuild_thumbnails.py`, `management/commands/relayout_readmes.py`, `management/commands/verify.py`
+Internal: `models.py`, `management/commands/ensure_index_current.py`, `management/commands/import_legacy.py`, `management/commands/rebuild_index.py`, `management/commands/rebuild_thumbnails.py`, `management/commands/verify.py`
