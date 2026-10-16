@@ -407,6 +407,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** a test runs the real shell over `Archive.of(...)` and the in-memory queue; a renamed function no longer leaves a patch passing vacuously
 - **Sketch:** removed when the module is touched; a later wave may sweep the rest
 
+### 57. `client_as` without the corpus settings runs as anonymous — Worth exploring
+- **Indicator:** 0 web test modules call `client_as(` without `corpus`/`settings_for` (2026-10-17); 1 found and fixed (`test_legacy_params`, `d836debf`)
+- **Evidence:** `tests/app/web/_fixtures.py::client_as` signs with `DEV_KEY`, but the key and the gate-off switch come only from the corpus settings; without them the cookie is ignored and the test sees the 200 door page
+- **Sketch:** `client_as(viewer)` fails loudly when the dev-viewer key is not configured, so a viewer-less run cannot pass vacuously
+
 ### 52. German FTS ranking is untuned — Speculative
 - **Indicator:** 0 relevance judgements on real queries; config `german` fixed by ADR 0011 (2026-10-06)
 - **Evidence:** `index/query.py` ranking; parked on GH #19 until real data exists. Trigger: the archivists' first real searches
