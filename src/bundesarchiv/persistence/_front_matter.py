@@ -50,14 +50,17 @@ def dump(front_matter: dict[str, Any], title: str, body: str) -> str:
     (any an editor may break on), or a blank one, which reads as `#` once an editor trims it."""
     if not title.strip() or any(brk in title for brk in _LINE_BREAKS):
         raise ValueError(f"the title must be one non-empty line, got {title!r}")
-    yaml_block = yaml.dump(
+    return f"{HEAD}{_yaml(front_matter)}\n{FENCE}\n# {title}\n\n{body}"
+
+
+def _yaml(front_matter: dict[str, Any]) -> str:
+    return yaml.dump(
         front_matter,
         Dumper=_Dumper,
         sort_keys=False,
         allow_unicode=True,
         default_flow_style=False,
     ).rstrip("\n")
-    return f"{HEAD}{yaml_block}\n{FENCE}\n# {title}\n\n{body}"
 
 
 def split_title(ulid: Ulid, text: str, title_key: str) -> tuple[dict[str, Any], str | None, str]:
@@ -88,15 +91,22 @@ def _split(ulid: Ulid, text: str) -> tuple[list[str], str]:
     return lines[1:close], "\n".join(lines[close + 1 :])
 
 
-def comments(ulid: Ulid, text: str) -> list[str]:
-    """The comment lines of the front matter other than the managed-by marker."""
+def is_dumped(ulid: Ulid, text: str) -> bool:
+    """Whether the front matter of README `text`, the marker aside, is exactly what `dump` writes
+    for the mapping it holds, so it holds nothing beside it: no comment, no duplicate key."""
     block, _ = _split(ulid, text)
-    return [line for line in block if line.lstrip().startswith("#") and line != f"# {MARKER}"]
+    if block[:1] == [f"# {MARKER}"]:
+        block = block[1:]
+    return "\n".join(block) == _yaml(_load(ulid, block))
 
 
 def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
     """The front matter and the body of README `text`, the body verbatim."""
     block, body = _split(ulid, text)
+    return _load(ulid, block), body
+
+
+def _load(ulid: Ulid, block: list[str]) -> dict[str, Any]:
     try:
         front_matter = yaml.load("\n".join(block), Loader=yaml.CSafeLoader)
     except (yaml.YAMLError, RecursionError) as exc:
@@ -105,7 +115,7 @@ def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
         raise UnreadableReadme(f"{ulid}: README front-matter is not valid YAML: {exc}") from exc
     if not isinstance(front_matter, dict):
         raise UnreadableReadme(f"{ulid}: README front-matter is not a mapping")
-    return front_matter, body
+    return front_matter
 
 
 def version_of(fm: dict[str, Any], *, absent: Version | None = None) -> Version:

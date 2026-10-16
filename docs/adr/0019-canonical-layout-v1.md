@@ -45,12 +45,13 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > The one exception to "every replaced README goes to `history/`": `manage.py relayout_readmes`
 > re-encodes every current README with the current writer, run once (owner, 2026-10-16). It writes
 > a README only when the new text holds the same front matter (the title aside), title and body
-> as the old, so nothing a decoder ignores is lost; one with a YAML comment beyond the marker, one
-> without a change record and an unreadable one it leaves as they are and names. `--dry-run`
-> reports the same and writes nothing. The record is the same, so
-> there is no new version and no history file; `history/` keeps the old layouts. It brings the
-> marker, the field order and the title line of this amendment and the previous one to the
-> current READMEs. The daily reconcile pushes the changed READMEs, since their SHA-256 no longer
+> as the old, and the old front matter, the marker aside, is exactly what the writer dumps for the
+> mapping it holds, so nothing a decoder ignores is lost (a comment, a duplicate key, other
+> formatting). It leaves every other one, one without a change record and an unreadable one as
+> they are and names them. `--dry-run` reports the same and writes nothing. The record is the
+> same, so there is no new version and no history file; `history/` keeps the old layouts. It
+> brings the marker, the field order and the title line of this amendment and the previous one to
+> the current READMEs. The daily reconcile pushes the changed READMEs, since their SHA-256 no longer
 > matches the push record (ADR 0020). It runs with the app stopped and takes no lock:
 > `WRITER_LOCK` serializes the saves of one process only (ADR 0013).
 

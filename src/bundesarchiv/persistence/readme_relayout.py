@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from bundesarchiv.domain.models import Change, Collection, Ulid, Version
 from bundesarchiv.persistence import collection_readme, readme
-from bundesarchiv.persistence._front_matter import comments, split_title, text_of
+from bundesarchiv.persistence._front_matter import is_dumped, split_title, text_of
 from bundesarchiv.persistence._layout import ARTICLES, COLLECTIONS, Records
 from bundesarchiv.persistence.errors import UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
@@ -53,13 +53,13 @@ def _held(ulid: Ulid, text: str, title_key: str) -> tuple[dict[str, Any], str]:
 
 def relaid[R](ulid: Ulid, data: bytes, codec: Codec[R]) -> bytes | Left | None:
     """The current writer's bytes for README `data`, or None when `data` already is them. They must
-    hold the same front matter, title and body, and `data` no comment but the marker; otherwise
-    the reason the README is left as it is."""
+    hold the same front matter, title and body, and `data`'s front matter must be what the writer
+    dumps for its mapping; otherwise the reason the README is left as it is."""
     try:
         old = text_of(ulid, data)
         record, version, change = codec.decode(ulid, old)
         held = _held(ulid, old, codec.title_key)
-        commented = bool(comments(ulid, old))
+        dumped = is_dumped(ulid, old)
     except UnreadableReadme:
         return "unreadable"
     if change is None:
@@ -75,7 +75,7 @@ def relaid[R](ulid: Ulid, data: bytes, codec: Codec[R]) -> bytes | Left | None:
         same = _held(ulid, new, codec.title_key) == held
     except UnreadableReadme:
         same = False
-    return new_bytes if same and not commented else "would not read the same"
+    return new_bytes if same and dumped else "would not read the same"
 
 
 def relayout(store: ObjectStore, *, dry_run: bool = False) -> Report:

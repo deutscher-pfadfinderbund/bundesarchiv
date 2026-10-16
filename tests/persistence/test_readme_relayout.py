@@ -84,6 +84,10 @@ _DRAFT = "lifecycle: draft\n"
         pytest.param(OLD_ARTICLE.replace("Zeltlager 1955: Fahrt", ""), ARTICLE, id="empty-title"),
         pytest.param(OLD_ARTICLE.replace(_DRAFT, f"{_DRAFT}zustand: gut\n"), ARTICLE, id="key"),
         pytest.param(OLD_ARTICLE.replace(_DRAFT, f"{_DRAFT}# Notiz\n"), ARTICLE, id="comment"),
+        pytest.param(
+            OLD_ARTICLE.replace(_DRAFT, "lifecycle: draft  # Notiz\n"), ARTICLE, id="inline"
+        ),
+        pytest.param(OLD_ARTICLE.replace(_DRAFT, _DRAFT * 2), ARTICLE, id="duplicate-key"),
         pytest.param(OLD_COLLECTION + "Notiz\n", COLLECTION, id="collection-body"),
     ],
 )
