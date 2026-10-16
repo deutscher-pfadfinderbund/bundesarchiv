@@ -9,18 +9,13 @@ from bundesarchiv.persistence.errors import UnreadableReadme
 
 def encode_collection(collection: Collection, version: Version, change: Change) -> str:
     front_matter: dict[str, Any] = {
-        "ulid": collection.ulid,
         "name": collection.name,
+        **({"parent_id": collection.parent_id} if collection.parent_id is not None else {}),
+        **_front_matter.audience_to_front_matter(collection.audience),
+        "ulid": collection.ulid,
         "version": version,
         **_change.to_front_matter(change),
     }
-    if collection.parent_id is not None:
-        front_matter["parent_id"] = collection.parent_id
-    if collection.audience is not None:
-        front_matter["audience"] = {
-            "tier": collection.audience.tier.value,
-            "groups": list(collection.audience.groups),
-        }
     return _front_matter.dump(front_matter, "")
 
 

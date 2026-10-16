@@ -9,8 +9,8 @@ from tests._readmes import HAND_SAVED
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle, MediaRef
-from bundesarchiv.persistence import readme
-from bundesarchiv.persistence._front_matter import text_of
+from bundesarchiv.persistence import _front_matter, readme
+from bundesarchiv.persistence._front_matter import HEAD, text_of
 from bundesarchiv.persistence.errors import ArchiveError
 
 _CHANGE = Change(datetime(2026, 9, 25, 10, 30, tzinfo=UTC), "anna")
@@ -110,10 +110,13 @@ def test_read_version_reads_without_rebuilding_the_article() -> None:
     assert readme.read_version("01J0", readme.encode(_article(), 7, _CHANGE)) == 7
 
 
-def test_encode_starts_with_marker_then_fence() -> None:
+def test_the_readme_opens_with_the_fence_and_the_fields_a_person_reads_come_first() -> None:
     text = readme.encode(_article(), 1, _CHANGE)
-    assert text.startswith("<!-- Managed by bundesarchiv")
-    assert "\n---\n" in text
+    assert text.startswith(HEAD)
+    assert text.split("\n")[0] == "---"
+    keys = list(_front_matter.parse("01J0", text)[0])
+    assert set(keys[:3]) == {"title", "ref_code", "tags"}
+    assert set(keys[-5:]) == {"ulid", "version", "added_at", "changed_at", "changed_by"}
 
 
 @pytest.mark.parametrize(

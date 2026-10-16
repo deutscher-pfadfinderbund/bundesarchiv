@@ -1,5 +1,5 @@
-"""The README shape both codecs share (ADR 0005, ADR 0010): the managed-by marker, then the YAML
-front matter between two fences, then the body.
+"""The README shape both codecs share (ADR 0005, ADR 0010, ADR 0019): the YAML front matter
+between two fences, the managed-by marker its first line as a comment, then the body.
 
 Only `UnreadableReadme` crosses out of `text_of` and `parse`; a raw decode or `yaml` error never does.
 """
@@ -8,11 +8,13 @@ from typing import Any
 
 import yaml
 
-from bundesarchiv.domain.models import Ulid, Version
+from bundesarchiv.domain.models import Audience, Ulid, Version
 from bundesarchiv.persistence.errors import UnreadableReadme
 
-MARKER = "<!-- Managed by bundesarchiv — do not edit by hand. -->"
+MARKER = "Managed by bundesarchiv — do not edit by hand."
 FENCE = "---"
+#: Nextcloud Text shows front matter as such only when the fence is the very first line.
+HEAD = f"{FENCE}\n# {MARKER}\n"
 
 
 def text_of(name: str, data: bytes) -> str:
@@ -39,7 +41,7 @@ _Dumper.add_representer(str, _represent_str)
 
 
 def dump(front_matter: dict[str, Any], body: str) -> str:
-    """README text: the marker, `front_matter` in key order between the fences, then `body`."""
+    """README text: `front_matter` in key order between the fences, then `body`."""
     yaml_block = yaml.dump(
         front_matter,
         Dumper=_Dumper,
@@ -47,14 +49,14 @@ def dump(front_matter: dict[str, Any], body: str) -> str:
         allow_unicode=True,
         default_flow_style=False,
     ).rstrip("\n")
-    return f"{MARKER}\n{FENCE}\n{yaml_block}\n{FENCE}\n{body}"
+    return f"{HEAD}{yaml_block}\n{FENCE}\n{body}"
 
 
 def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
     """The front matter and the body of README `text`, the body verbatim."""
     lines = text.split("\n")
     if lines and lines[0].lstrip().startswith("<!--"):
-        lines = lines[1:]  # the managed-by marker (any leading HTML comment)
+        lines = lines[1:]  # the old marker, an HTML comment (ADR 0019)
     if not lines or lines[0].strip() != FENCE:
         raise UnreadableReadme(f"{ulid}: README has no front-matter fence")
     try:
@@ -83,3 +85,10 @@ def version_of(fm: dict[str, Any], *, absent: Version | None = None) -> Version:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError(f"version must be a non-negative integer, got {value!r}")
     return value
+
+
+def audience_to_front_matter(audience: Audience | None) -> dict[str, Any]:
+    """No key for inherit (ADR 0001): absence reads as inherit."""
+    if audience is None:
+        return {}
+    return {"audience": {"tier": audience.tier.value, "groups": list(audience.groups)}}

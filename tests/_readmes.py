@@ -2,6 +2,9 @@
 
 import pytest
 
+#: How the app opened a README before ADR 0019's amendment of 2026-10-16.
+OLD_MARKER = "<!-- Managed by bundesarchiv — do not edit by hand. -->\n"
+
 UNREADABLE_README = [
     pytest.param(b"---\ntitle: [unclosed\n---\n", id="not-yaml"),
     pytest.param("---\ntitle: Größe\n---\n".encode("cp1252"), id="not-utf8"),
