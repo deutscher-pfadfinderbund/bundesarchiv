@@ -389,3 +389,14 @@ def test_an_unreadable_readme_fails_load_and_save(repo: ArticleRepository, data:
     with pytest.raises(UnreadableReadme):
         repo.save(_article(), expected_version=1, changed_by="tester")
     assert {key: repo._store.read(key) for key in repo._store.list()} == before
+
+
+def test_a_title_the_writer_refuses_fails_the_save_and_writes_nothing(
+    repo: ArticleRepository,
+) -> None:
+    """An old README may hold a title the H1 line cannot hold (ADR 0019, amended 2026-10-16)."""
+    repo.save(_article(), expected_version=0, changed_by="tester")
+    before = {key: repo._store.read(key) for key in repo._store.list()}
+    with pytest.raises(ValueError):
+        repo.save(_article(title=""), expected_version=1, changed_by="tester")
+    assert {key: repo._store.read(key) for key in repo._store.list()} == before
