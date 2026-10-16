@@ -69,8 +69,8 @@ def split_title(ulid: Ulid, text: str, title_key: str) -> tuple[dict[str, Any], 
     return front_matter, heading.removeprefix("# "), rest.removeprefix("\n")
 
 
-def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
-    """The front matter and the body of README `text`, the body verbatim."""
+def _split(ulid: Ulid, text: str) -> tuple[list[str], str]:
+    """The front-matter lines between the fences, and the body verbatim."""
     lines = text.split("\n")
     if lines and lines[0].lstrip().startswith("<!--"):
         lines = lines[1:]  # the old marker, an HTML comment (ADR 0019)
@@ -82,9 +82,20 @@ def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
         raise UnreadableReadme(f"{ulid}: README front-matter is unterminated") from None
     # The single separator newline `dump` added was already consumed by split;
     # lines[close + 1:] reconstructs the body verbatim (a body may open with blank lines).
-    body = "\n".join(lines[close + 1 :])
+    return lines[1:close], "\n".join(lines[close + 1 :])
+
+
+def comments(ulid: Ulid, text: str) -> list[str]:
+    """The comment lines of the front matter other than the managed-by marker."""
+    block, _ = _split(ulid, text)
+    return [line for line in block if line.lstrip().startswith("#") and line != f"# {MARKER}"]
+
+
+def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
+    """The front matter and the body of README `text`, the body verbatim."""
+    block, body = _split(ulid, text)
     try:
-        front_matter = yaml.load("\n".join(lines[1:close]), Loader=yaml.CSafeLoader)
+        front_matter = yaml.load("\n".join(block), Loader=yaml.CSafeLoader)
     except (yaml.YAMLError, RecursionError) as exc:
         # RecursionError is NOT a yaml.YAMLError subclass: deeply-nested flow collections
         # (a corrupt/hostile README) blow the stack inside the loader — contain it too.
