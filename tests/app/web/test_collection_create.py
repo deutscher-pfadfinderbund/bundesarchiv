@@ -120,6 +120,15 @@ def test_post_creates_under_parent_with_members_audience(fotos: Corpus) -> None:
 
 
 @pytest.mark.django_db
+def test_a_pasted_line_break_in_the_name_becomes_a_space(corpus: Corpus) -> None:
+    """The name is the README's H1 line (ADR 0019)."""
+    client_as(Archivist()).post(
+        "/collections/new", {"name": " Karten\r\n  alt\n", "parent_id": "", "audience": ""}
+    )
+    assert "Karten alt" in {c.name for c in corpus.collections.load_all()}
+
+
+@pytest.mark.django_db
 def test_post_creates_groups_audience_with_groups(corpus: Corpus) -> None:
     client_as(Archivist()).post(
         "/collections/new",

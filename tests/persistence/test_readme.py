@@ -115,8 +115,29 @@ def test_the_readme_opens_with_the_fence_and_the_fields_a_person_reads_come_firs
     assert text.startswith(HEAD)
     assert text.split("\n")[0] == "---"
     keys = list(_front_matter.parse("01J0", text)[0])
-    assert set(keys[:3]) == {"title", "ref_code", "tags"}
+    assert set(keys[:2]) == {"ref_code", "tags"}
     assert set(keys[-5:]) == {"ulid", "version", "added_at", "changed_at", "changed_by"}
+
+
+def test_an_old_layout_title_with_padding_still_reads() -> None:
+    text = '---\nulid: x\nversion: 1\ntitle: "Foo "\ncollection_id: c\nlifecycle: draft\n---\n'
+    assert readme.decode("x", text)[0].title == "Foo "
+
+
+@pytest.mark.parametrize(
+    ("title", "body"),
+    [
+        ("C# Kurs", "# Auch ein Titel\n\nText"),
+        (" führend und endend ", ""),
+        ("Zeltlager", "\n\nZeltlager\n"),
+        ("title: x", "Text"),
+    ],
+)
+def test_the_title_lives_only_in_the_heading_and_round_trips(title: str, body: str) -> None:
+    article = _article(title=title, body=body)
+    text = readme.encode(article, 1, _CHANGE)
+    assert "title" not in _front_matter.parse("01J0", text)[0]
+    assert readme.decode("01J0", text)[0] == article
 
 
 @pytest.mark.parametrize(

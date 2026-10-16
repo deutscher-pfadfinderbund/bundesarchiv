@@ -37,6 +37,19 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > SHA-256 no longer matches the push record (ADR 0020). It runs with the app stopped and takes no
 > lock: `WRITER_LOCK` serializes the saves of one process only (ADR 0013).
 
+> **Amended 2026-10-16, again:** the title lives once, as the H1 of the body. Nextcloud Text shows
+> the front matter as a grey code block, so a folder whose Article has no description showed no
+> title. The front matter no longer holds `title`; the body's first line is `# ` and the title,
+> then exactly one blank line, then the description verbatim. A Collection README does the same
+> with its `name` and an empty description. The rule is a plain line rule, not Markdown: any other
+> heading form (setext, an indent, `##`) is not a title, and a body that does not open this way
+> is an unreadable README. The writer therefore refuses a title or name with a line break, or an
+> empty one (`# ` reads as `#` once an editor trims it); spaces at either end round-trip, since
+> the title is the rest of the line. The reader adds no rule of its own, so no README that read
+> before stops reading. A front matter that holds `title` (`name`) is the old layout: the
+> title comes from the YAML and the body is read verbatim, so every `history/` file stays readable.
+> The presence of the key decides, never the body's text.
+
 ## Context
 
 The canonical tree was compared with two preservation layouts (sources below). The

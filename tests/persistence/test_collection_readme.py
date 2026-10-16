@@ -68,12 +68,13 @@ def test_encode_carries_the_version_in_front_matter() -> None:
     assert "version: 7" in text
 
 
-def test_the_readme_opens_with_the_fence_and_the_name_comes_first() -> None:
-    text = collection_readme.encode_collection(_collection(), 1, _CHANGE)
+@pytest.mark.parametrize("name", ["C# Kurs", " Fotos ", "name: x"])
+def test_the_name_lives_only_in_the_heading_and_round_trips(name: str) -> None:
+    collection = _collection(name=name)
+    text = collection_readme.encode_collection(collection, 1, _CHANGE)
     assert text.startswith(HEAD)
-    keys = list(_front_matter.parse("01J0", text)[0])
-    assert keys[0] == "name"
-    assert set(keys[-4:]) == {"ulid", "version", "changed_at", "changed_by"}
+    assert "name" not in _front_matter.parse("01J0", text)[0]
+    assert collection_readme.decode_collection(text, ulid="01J0")[0] == collection
 
 
 def test_empty_audience_mapping_decodes_to_inherit() -> None:

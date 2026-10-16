@@ -14,6 +14,7 @@ from bundesarchiv.app.web.browse_views import collection_crumbs, preset_url
 from bundesarchiv.app.web.catalog import (
     FormErrors,
     audience_choice,
+    one_line,
     parse_audience,
     parse_version,
 )
@@ -52,7 +53,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
         if choice is None:
             # no rung named: the form always posts one, and none is narrow enough to assume
             return not_found()
-        name = request.POST.get("name", "").strip()
+        name = one_line(request.POST.get("name", ""))
         parent_id = request.POST.get("parent_id", "").strip()
         groups_text = request.POST.get("groups", "")
         audience, audience_error = parse_audience(request.POST, keep=None)
@@ -109,7 +110,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     archive, stored, archivist = gated
     chooser = CollectionChooser.of(archive)
     if request.method == "POST":
-        name = request.POST.get("name", "").strip()
+        name = one_line(request.POST.get("name", ""))
         expected_version = parse_version(request.POST.get("expected_version", ""))
         if not name:
             return _render_edit(

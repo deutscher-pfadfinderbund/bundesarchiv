@@ -1,5 +1,6 @@
 """The README shape both codecs share (ADR 0005, ADR 0010, ADR 0019): the YAML front matter
-between two fences, the managed-by marker its first line as a comment, then the body.
+between two fences, the managed-by marker its first line as a comment, then the body, which opens
+with the title as its H1 line.
 
 Only `UnreadableReadme` crosses out of `text_of` and `parse`; a raw decode or `yaml` error never does.
 """
@@ -40,8 +41,12 @@ def _represent_str(dumper: yaml.SafeDumper, value: str) -> yaml.ScalarNode:
 _Dumper.add_representer(str, _represent_str)
 
 
-def dump(front_matter: dict[str, Any], body: str) -> str:
-    """README text: `front_matter` in key order between the fences, then `body`."""
+def dump(front_matter: dict[str, Any], title: str, body: str) -> str:
+    """README text: `front_matter` in key order between the fences, then `title` as the H1 line,
+    one blank line and `body`. Raises `ValueError` for a title the line cannot hold: a line break,
+    or an empty one, which reads as `#` once an editor trims the trailing space."""
+    if not title or "\n" in title or "\r" in title:
+        raise ValueError(f"the title must be one non-empty line, got {title!r}")
     yaml_block = yaml.dump(
         front_matter,
         Dumper=_Dumper,
@@ -49,7 +54,19 @@ def dump(front_matter: dict[str, Any], body: str) -> str:
         allow_unicode=True,
         default_flow_style=False,
     ).rstrip("\n")
-    return f"{HEAD}{yaml_block}\n{FENCE}\n{body}"
+    return f"{HEAD}{yaml_block}\n{FENCE}\n# {title}\n\n{body}"
+
+
+def split_title(ulid: Ulid, text: str, title_key: str) -> tuple[dict[str, Any], str | None, str]:
+    """The mirror of `dump`: the front matter, the title and the body after it. A front matter that
+    holds `title_key` is the old layout (ADR 0019): no title, the body verbatim."""
+    front_matter, body = parse(ulid, text)
+    if title_key in front_matter:
+        return front_matter, None, body
+    heading, _, rest = body.partition("\n")
+    if not heading.startswith("# ") or not rest.startswith("\n"):
+        raise UnreadableReadme(f"{ulid}: README body does not open with its title line")
+    return front_matter, heading.removeprefix("# "), rest.removeprefix("\n")
 
 
 def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
