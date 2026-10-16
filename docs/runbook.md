@@ -371,6 +371,11 @@ Always present: `timestamp` (ISO 8601 UTC), `level`, `logger`, `message`. Every 
 - **Mirror findings** (logger `bundesarchiv.app.mirror`, WARNING): `key` + `finding` for one key;
   `finding` (`changed` | `remote_only`) + `count` + `keys` (first 20) for a reconcile finding;
   `ulid` for a record whose push broke off.
+- **Mirror sweep progress** (logger `bundesarchiv.app.mirror`, INFO, `task` = `mirror_reconcile`): a
+  `stage` = `start` line once the mirror is listed (`records` to check, `remote_keys`,
+  `listing_seconds`), then a `stage` = `progress` line at most every 60 s (`checked` of `records`,
+  `sent`, `sent_bytes`, `failed`, `seconds` since the start); a sweep shorter than that logs none.
+  The summary line above ends the sweep.
 - **Job outcomes of every job** come from Procrastinate (logger `procrastinate.worker`, INFO; ERROR
   when the last attempt fails): `action` (`job_success`, `job_error_retry`, `job_error`, ...), `job` (object with
   `task_name`, `attempts`), `duration`.

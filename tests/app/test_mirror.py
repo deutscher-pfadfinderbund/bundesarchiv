@@ -3,12 +3,19 @@
 import io
 from collections.abc import Callable, Iterable
 from dataclasses import replace
-from typing import BinaryIO
+from itertools import pairwise
+from typing import Any, BinaryIO
 
 import pytest
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.mirror import Pushed, PushRecord, delete_article, push, reconcile
+from bundesarchiv.app.mirror import (
+    Pushed,
+    PushRecord,
+    delete_article,
+    push,
+    reconcile,
+)
 from bundesarchiv.app.push_record import InMemoryPushRecord
 from bundesarchiv.domain.models import Article, Collection
 from bundesarchiv.persistence._writer import history_key
@@ -292,6 +299,60 @@ def test_a_record_whose_push_breaks_off_is_reported_and_the_sweep_goes_on(
     assert report.failed == ("01A",)
     assert list(remote.store.list()) == [key.key for key in archive.articles.keys_for("01B")]
     assert "01A" in caplog.text
+
+
+class _Clock:
+    """A clock that moves ``step`` seconds on every reading."""
+
+    def __init__(self, step: float) -> None:
+        self.step = step
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        self.now += self.step
+        return self.now
+
+
+def _sweep_logs(
+    clock: _Clock, caplog: pytest.LogCaptureFixture, *titles: str
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """The start line and the progress lines of a reconcile of one Article per title in ``titles``
+    plus one Collection, read on ``clock``."""
+    archive, remote = Archive.of(InMemoryObjectStore()), _Remote()
+    _saved_collection(archive)
+    for number, title in enumerate(titles):
+        archive.articles.save(Article(f"01A{number}", title, "FOTOS"), 0, changed_by="tester")
+    with caplog.at_level("INFO", logger="bundesarchiv.app.mirror"):
+        reconcile(archive, remote, InMemoryPushRecord(), clock=clock)
+    lines = [vars(record) for record in caplog.records if record.name == "bundesarchiv.app.mirror"]
+    start = [line for line in lines if line.get("stage") == "start"]
+    assert len(start) == 1
+    return start[0], [line for line in lines if line.get("stage") == "progress"]
+
+
+def test_a_reconcile_logs_its_start_once_the_remote_listing_is_read(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    start, _ = _sweep_logs(_Clock(1), caplog, "Eins", "Zwei")
+    assert (start["task"], start["records"], start["remote_keys"]) == ("mirror_reconcile", 3, 0)
+    assert start["listing_seconds"] == 1
+
+
+def test_a_short_reconcile_logs_no_progress(caplog: pytest.LogCaptureFixture) -> None:
+    _, progress = _sweep_logs(_Clock(1), caplog, "Eins", "Zwei", "Drei")
+    assert progress == []
+
+
+def test_progress_is_logged_at_most_once_a_minute_and_counts_the_work_so_far(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _, progress = _sweep_logs(_Clock(40), caplog, *(f"Foto {n}" for n in range(6)))
+    assert len(progress) == 3  # readings every 40 s: lines at 160, 240 and 320 s
+    assert {line["task"] for line in progress} == {"mirror_reconcile"}
+    times = [line["seconds"] for line in progress]
+    assert all(later - earlier >= 60 for earlier, later in pairwise(times))
+    assert all(line["records"] == 7 and line["failed"] == 0 for line in progress)
+    assert all(line["sent"] == line["checked"] for line in progress)  # each record is one README
 
 
 def test_a_file_the_system_of_record_lost_is_pushed_again_though_the_record_holds_it() -> None:
