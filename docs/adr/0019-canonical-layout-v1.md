@@ -28,6 +28,14 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > it rendered the YAML as Markdown. The fields a person reads come first: the description (title
 > to custom), then placement and access, then the files, then record keeping (ulid, version and the
 > audit fields). Field order carries no meaning; the reader still accepts the old shape.
+>
+> The one exception to "every replaced README goes to `history/`": `manage.py move_readme_marker`
+> moves the marker of every current README still in the old shape, run once (owner, 2026-10-16).
+> Only the marker line changes, so the record is the same: no new version, no history file. It
+> leaves any README not in exactly the old shape as it is and names it.
+> `history/` keeps the old shape. The daily reconcile pushes the changed READMEs, since their
+> SHA-256 no longer matches the push record (ADR 0020). It runs with the app stopped and takes no
+> lock: `WRITER_LOCK` serializes the saves of one process only (ADR 0013).
 
 ## Context
 
