@@ -41,11 +41,14 @@ def _represent_str(dumper: yaml.SafeDumper, value: str) -> yaml.ScalarNode:
 _Dumper.add_representer(str, _represent_str)
 
 
+_LINE_BREAKS = "\n\r\x85\u2028\u2029"
+
+
 def dump(front_matter: dict[str, Any], title: str, body: str) -> str:
     """README text: `front_matter` in key order between the fences, then `title` as the H1 line,
-    one blank line and `body`. Raises `ValueError` for a title the line cannot hold: a line break,
-    or an empty one, which reads as `#` once an editor trims the trailing space."""
-    if not title or "\n" in title or "\r" in title:
+    one blank line and `body`. Raises `ValueError` for a title the line cannot hold: a line break
+    (any an editor may break on), or a blank one, which reads as `#` once an editor trims it."""
+    if not title.strip() or any(brk in title for brk in _LINE_BREAKS):
         raise ValueError(f"the title must be one non-empty line, got {title!r}")
     yaml_block = yaml.dump(
         front_matter,

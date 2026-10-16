@@ -35,12 +35,12 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > then exactly one blank line, then the description verbatim. A Collection README does the same
 > with its `name` and an empty description. The rule is a plain line rule, not Markdown: any other
 > heading form (setext, an indent, `##`) is not a title, and a body that does not open this way
-> is an unreadable README. The writer therefore refuses a title or name with a line break, or an
-> empty one (`# ` reads as `#` once an editor trims it); spaces at either end round-trip, since
-> the title is the rest of the line. The reader adds no rule of its own, so no README that read
-> before stops reading. A front matter that holds `title` (`name`) is the old layout: the
-> title comes from the YAML and the body is read verbatim, so every `history/` file stays readable.
-> The presence of the key decides, never the body's text.
+> is an unreadable README. The writer therefore refuses a title or name with a line break (LF, CR,
+> NEL, LS, PS), or a blank one (`# ` reads as `#` once an editor trims it), before it writes
+> anything; spaces at either end round-trip, since the title is the rest of the line. The reader
+> adds no rule of its own, so no README that read before stops reading. A front matter that holds
+> `title` (`name`) is the old layout: the title comes from the YAML and the body is read verbatim,
+> so every `history/` file stays readable. The presence of the key decides, never the body's text.
 >
 > The one exception to "every replaced README goes to `history/`": `manage.py relayout_readmes`
 > re-encodes every current README with the current writer, run once (owner, 2026-10-16). It writes
