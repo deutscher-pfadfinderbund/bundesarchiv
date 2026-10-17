@@ -15,6 +15,11 @@ The architect thinks in modules and interfaces; writers implement one module eac
 
 ## Brief mechanics (each brief is a file on disk)
 
+- **Before every dispatch run `python3 .claude/skills/dispatch-wave/scripts/check_brief.py BRIEF.md`.**
+  It flags a referenced path or `path::symbol` that does not exist, a line-number anchor (anchor on
+  symbol names), and a missing fence or report heading. Mark a path the task creates `path` (new);
+  a branch on the brief's `Worktree:` line is skipped. Fix every finding; a referenced test or
+  function the script cannot see (a bare name in prose) is still yours to verify.
 - **Dispatch by agent type**: `subagent_type: writer` (code), `writer-ui` (templates/CSS/JS),
   `reviewer` (read-only code review) or `design-gate` (UI review). Each preloads its standing
   skills (`.claude/agents/`); the task brief names any topic skill to load beyond them
@@ -48,8 +53,6 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - A unit that changes a return type or signature: its fence lists every caller from `git grep`,
   `tests/e2e/_corpus.py` included (the browser corpus calls app code), and it runs `test:e2e`. R1R5
   (2026-10-11) changed `media_text.fill` to return a dict, skipped e2e, and broke every browser test.
-- Anchor on **symbol names, never line numbers** — they drift between brief-writing and dispatch.
-- **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.
 - When naming a library call, ask for a **signature check**, not just an import check.
 - A claim about a framework's DEFAULT behaviour ("Django needs setting X for Y") gets checked in the
@@ -137,6 +140,10 @@ The architect thinks in modules and interfaces; writers implement one module eac
 Any rule breach or unexpected red stops the wave line. Investigate the cause chain first — brief error, law gap, missing seam, wrong decomposition — and fix at that level. Only then consider a mechanical gate, and only for a failure class that is mechanically checkable; a gate added without a named systemic cause is itself a debt entry. Blindly adding tests or gates treats symptoms.
 
 ## Close the wave
+
+Merge a finished branch with `.claude/skills/dispatch-wave/scripts/merge.sh <branch> -- mise run check`,
+from the main checkout. It runs the check on the merge result in a throwaway worktree, merges only
+on green, then removes the branch's worktree and the branch; on red nothing changes.
 
 After each merged unit (or 2–3 tiny ones together): run the `simplify` skill on that diff, then the
 `code-review` skill; fix confirmed findings before the next unit (owner rule 2026-10-01). Pass both an
