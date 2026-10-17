@@ -218,7 +218,9 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ### 17. Single-writer assumption fails silently — Speculative
 - **Indicator:** 0 boot-time checks (2026-10-01, stable; the index writer has its own advisory lock)
 - **Evidence:** ADR 0013 states the deploy rule only; source `ARCHITECTURE-REVIEW.md.local` R7
-  (2026-07-19, clean review).
+  (2026-07-19, clean review). A management command that writes canonical data is a second process
+  too: `WRITER_LOCK` is a `threading.Lock`, so it does not serialize against gunicorn; the README
+  relayout (2026-10-16) ran with the app stopped.
 - **Sketch:** a boot-time assertion or store-level advisory lock so a second app process fails loud.
 
 ### 18. The upload path buffers whole files in RAM — done
