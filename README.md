@@ -107,7 +107,7 @@ source of what each one does.
 
 ```sh
 mise run gate                # lint, types and the full suite (needs the database from Setup)
-mise run check               # the fast subset: no database, no mypy
+mise run check               # the fast subset: no database
 mise run test:nodb           # only the tests that run without a database
 mise run test:db             # only the Postgres-backed tests
 pre-commit install           # run the checks on every commit

@@ -5,12 +5,13 @@
 biome = "2.5.15"
 
 [tasks.check]
-description = "Fast commit check (no Postgres): ruff, format, import contracts, pyrefly, biome, pytest"
+description = "Fast commit check (no Postgres): ruff, format, import contracts, pyrefly, mypy, biome, pytest"
 run = [
   "uv run ruff check",
   "uv run ruff format --check .",
   "uv run lint-imports",
   "uv run pyrefly check src tests scripts --output-format=min-text",
+  "uv run mypy",
   "biome check --error-on-warnings",
   "uv run pytest -m \"not requires_pg\"",
 ]

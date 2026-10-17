@@ -1,6 +1,6 @@
 # Hooks run through `uv run` so they use the project env (no duplicate dep envs,
 # no rev pinning to drift). Install once with: pre-commit install
-# Two stages: commit = fast (uv-lock, ruff, pyrefly ~1s); push = the full gate
+# Two stages: commit = fast (uv-lock, ruff, pyrefly, mypy ~1-3s); push = the full gate
 # via `mise run gate`, which starts the dev Postgres itself.
 default_install_hook_types: [pre-commit, pre-push]
 repos:
@@ -28,6 +28,13 @@ repos:
         entry: uv run pyrefly check src tests scripts
         language: system
         pass_filenames: false
+      # The canonical checker (strict, Django plugin); its incremental cache keeps it ~0.3s warm.
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        types: [python]
       - id: biome
         name: biome check
         # Lint + format check, scope in biome.jsonc; mise exec because mise.toml pins the version.
