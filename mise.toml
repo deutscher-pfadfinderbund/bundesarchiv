@@ -160,3 +160,7 @@ run = "uv run python -m scripts.quality.churn"
 [tasks."quality:indicators"]
 description = "Report: pass-throughs, data clumps, repeated conditions and literals, argument mutation, module depth. -- [--top N] [--json]"
 run = "uv run python -m scripts.quality.indicators"
+
+[tasks."quality:trend"]
+description = "Report: per week over main, fix escapes and what they escaped from, debt counters, diff mix. -- [--since DATE] [--per week|merge] [--top N] [--json]"
+run = "uv run python -m scripts.quality.trend"
