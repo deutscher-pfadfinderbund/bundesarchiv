@@ -2,14 +2,16 @@
 
 Contract: every Python module under ``src/bundesarchiv`` is accounted for — either as a row in its
 package's ``CLAUDE.md`` (a module with an interface worth knowing) or on that file's ``Internal:``
-line (deliberate glue). ``MODULES.md`` at the root lists exactly the row names, per package. A new
-module without a row, a deleted module with a stale row, or a root list out of step with the
-package files all fail here, loudly.
+line (deliberate glue). The root ``CLAUDE.md`` "Module map" section points at every package's map,
+and every ``tests:`` pointer in a row names something that exists. A new module without a row, a
+deleted module with a stale row, a package the root does not point at, or a dead ``tests:`` path
+all fail here, loudly, with the line to paste or the entry to delete.
 
 The prose budgets below are the second half of the contract: an index that grows stops being an
 index. They are mechanical on purpose — a busted budget is compressed, never raised.
 """
 
+import ast
 import importlib
 import re
 from pathlib import Path
@@ -18,14 +20,13 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src" / "bundesarchiv"
 
 #: The packages the map covers; a .py file outside these fails the sweep below, which is the
-#: prompt to add the package (a new package needs a CLAUDE.md and a MODULES.md section).
+#: prompt to add the package (a new package needs a CLAUDE.md and a line in the root "Module map").
 PACKAGES = ("domain", "persistence", "index", "app", "app/web")
 
 #: Modules no package row needs to account for anywhere: package markers and Django app configs.
 #: Migrations are excluded by path — they are generated, and the schema is derived (ADR 0003).
 _ALWAYS_INTERNAL = {"__init__.py", "apps.py"}
 
-MODULES_MD_MAX_LINES = 40
 PACKAGE_MAP_MAX_LINES = 45
 ROW_MAX_CHARS = 220
 
@@ -62,6 +63,17 @@ def _package_files(pkg: str) -> set[str]:
     }
 
 
+def _row_template(pkg: str, name: str) -> str:
+    """A row in the grammar, the module docstring's first sentence as the responsibility."""
+    docstring = ast.get_docstring(ast.parse((SRC / pkg / name).read_text()))
+    first = (
+        " ".join(docstring.split("\n\n")[0].split()).split(". ")[0].rstrip(".")
+        if docstring
+        else "<responsibility, one line>"
+    )
+    return f"- `{name}` — {first} · interface: <up to ~4 names> · tests: <test home>"
+
+
 def _rows(pkg: str) -> set[str]:
     return set(_ROW.findall(_map_path(pkg).read_text()))
 
@@ -77,8 +89,14 @@ def test_every_module_is_accounted_for() -> None:
         assert not rows & internals, f"{pkg}: listed as both row and internal: {rows & internals}"
         unlisted = files - rows - internals
         stale = (rows | internals) - files
-        assert not unlisted, f"{pkg}: modules with no row and no Internal entry: {sorted(unlisted)}"
-        assert not stale, f"{pkg}: map entries for files that no longer exist: {sorted(stale)}"
+        assert not unlisted, (
+            f"{pkg}: modules with no row and no Internal entry. Add to {_map_path(pkg).relative_to(ROOT)}"
+            f" a row per module (or list it on the `Internal:` line):\n"
+            + "\n".join(_row_template(pkg, name) for name in sorted(unlisted))
+        )
+        assert not stale, (
+            f"{pkg}: delete these map entries, their files no longer exist: {sorted(stale)}"
+        )
 
 
 def test_no_module_outside_the_mapped_packages() -> None:
@@ -93,26 +111,26 @@ def test_no_module_outside_the_mapped_packages() -> None:
     assert not strays, f"modules outside every mapped package (new package? add it): {strays}"
 
 
-def test_root_toc_matches_the_package_rows() -> None:
-    toc = (ROOT / "MODULES.md").read_text()
-    for pkg in PACKAGES:
-        pattern = rf"^## {re.escape(pkg)} — .*?(?=^## |\Z)"
-        section = re.search(pattern, toc, re.MULTILINE | re.DOTALL)
-        assert section, f"MODULES.md lacks a `## {pkg} — …` section"
-        toc_names, rows = set(_BACKTICKED.findall(section.group(0))), _rows(pkg)
-        assert toc_names == rows, (
-            f"{pkg}: MODULES.md names != package rows; "
-            f"only in TOC: {sorted(toc_names - rows)}, only in package map: {sorted(rows - toc_names)}"
-        )
+def test_root_module_map_points_at_every_package() -> None:
+    root = (ROOT / "CLAUDE.md").read_text()
+    section = re.search(r"^## Module map\n(.*?)(?=^## |\Z)", root, re.MULTILINE | re.DOTALL)
+    assert section, "CLAUDE.md lacks a `## Module map` section"
+    missing = [
+        f"- `{pkg}` — <one-liner> · `{_map_path(pkg).relative_to(ROOT)}`"
+        for pkg in PACKAGES
+        if f"`{_map_path(pkg).relative_to(ROOT)}`" not in section.group(1)
+    ]
+    assert not missing, "root CLAUDE.md Module map does not point at these packages; add:\n" + (
+        "\n".join(missing)
+    )
 
 
 def test_the_index_files_stay_within_their_prose_budget() -> None:
-    budgets = [((ROOT / "MODULES.md"), MODULES_MD_MAX_LINES)]
-    budgets += [(_map_path(pkg), PACKAGE_MAP_MAX_LINES) for pkg in PACKAGES]
-    for path, budget in budgets:
-        lines = len(path.read_text().splitlines())
-        assert lines <= budget, (
-            f"{path.relative_to(ROOT)}: {lines} lines, budget {budget} — {_COMPRESS}"
+    for pkg in PACKAGES:
+        lines = len(_map_path(pkg).read_text().splitlines())
+        assert lines <= PACKAGE_MAP_MAX_LINES, (
+            f"{_map_path(pkg).relative_to(ROOT)}: {lines} lines, "
+            f"budget {PACKAGE_MAP_MAX_LINES} — {_COMPRESS}"
         )
 
 
@@ -122,6 +140,39 @@ def test_every_row_is_one_line_within_budget() -> None:
             assert len(row) <= ROW_MAX_CHARS, (
                 f"{pkg}: row {len(row)} chars, budget {ROW_MAX_CHARS} — {_COMPRESS}\n{row}"
             )
+
+
+_TESTS_SEGMENT = re.compile(r" · tests: (.*)$")
+
+
+def _dead_test_pointers(pkg: str) -> list[tuple[str, str]]:
+    """``(row, pointer)`` for every backticked pointer in a row's ``tests:`` segment that matches
+    nothing. A full path (``tests/...``) resolves from the repo root; a bare name resolves in the
+    directory of the last full path before it in the segment, or in the package's own test directory
+    (``tests/<pkg>/``) when there is none. A pointer may be a glob or a directory; prose outside
+    backticks is ignored."""
+    pointers = []
+    for row in _ROW_LINE.findall(_map_path(pkg).read_text()):
+        segment = _TESTS_SEGMENT.search(row)
+        directory = ROOT / "tests" / pkg
+        for pointer in re.findall(r"`([^`]+)`", segment.group(1) if segment else ""):
+            if pointer.startswith("tests/"):
+                matches = list(ROOT.glob(pointer.rstrip("/")))
+                path = ROOT / pointer.rstrip("/")
+                directory = path if path.is_dir() else path.parent
+            else:
+                matches = list(directory.glob(pointer))
+            if not matches:
+                pointers.append((row, pointer))
+    return pointers
+
+
+def test_every_tests_pointer_in_a_row_exists() -> None:
+    dead = [(row, pointer) for pkg in PACKAGES for row, pointer in _dead_test_pointers(pkg)]
+    assert not dead, (
+        "tests: pointers that match no file or directory — fix or delete:\n"
+        + "\n".join(f"  `{pointer}` in {row[:60]}…" for row, pointer in dead)
+    )
 
 
 _PREFIX = "interface spelling that is not a name: "

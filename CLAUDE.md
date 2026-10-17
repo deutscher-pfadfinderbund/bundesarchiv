@@ -1,10 +1,17 @@
 ## Module map
 
-- `MODULES.md` — which modules exist, per package (the table of contents).
-- `src/bundesarchiv/<pkg>/CLAUDE.md` — that package's law + one row per module
-  (responsibility, interface, tests).
+Each package has a `CLAUDE.md` with its law and one row per module (responsibility, interface,
+tests); pick the package(s) a task touches:
+
+- `domain` — pure core: values, access decisions; no IO, no Django · `src/bundesarchiv/domain/CLAUDE.md`
+- `persistence` — files-canonical storage: README codecs, repositories, the ObjectStore port; no Django · `src/bundesarchiv/persistence/CLAUDE.md`
+- `index` — derived, disposable Postgres search index · `src/bundesarchiv/index/CLAUDE.md`
+- `app` — application services: the write shell, background jobs, the Archive handle · `src/bundesarchiv/app/CLAUDE.md`
+- `app/web` — Django+HTMX surface: views, auth seam, form parsing, media serving · `src/bundesarchiv/app/web/CLAUDE.md`
+
 - Update procedure: the `update-module-map` skill. Gate: `tests/test_module_map.py`
-  (exhaustiveness + prose budgets), part of `mise run check`.
+  (every module has a row or an `Internal:` entry, every `tests:` pointer exists, this section
+  points at every package, prose budgets), part of `mise run check`.
 - Open architecture and process debt: `docs/tech-debt.md` (map rows cite it as `debt #n`).
 
 ## Dev environment
