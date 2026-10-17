@@ -109,8 +109,7 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 
 ## Before you report
 
-- Run the suites your change could break, in the foreground (each is under a minute; a backgrounded suite stalls the writer): `test:index` / `test:db` for index, search, schema or a new Postgres-backed test.
-- A UI change (CSS, template, JS, position or overlay) runs `test:gallery` and `test:e2e` once per wave, not per commit; a non-UI wave never runs them, and an e2e failure outside your scope is the coordinator's.
+- Run `mise run test:affected` in the foreground, once per wave (not per commit): it picks the suites your diff needs from its paths, browser suites included (each is under a minute; a backgrounded suite stalls the writer). An e2e failure outside your scope is the coordinator's.
 - The full `mise run gate` runs once, in the pre-push hook, never per commit or task; `check` has no mypy, so a typing error surfaces at the push and is fixed forward. `mise.toml` is the single source of what each task runs.
 - An unexpected red (gate, test or rule) stops the line: find how it came to be and what would have prevented it, fix the cause, report both. A new test or gate is the last resort, never the reflex.
 - Before the final commit, simplify your own new code (`/simplify`: reuse, simplification, efficiency, altitude); zero behavior change, skip silently if it finds nothing.

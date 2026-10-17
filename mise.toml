@@ -107,6 +107,10 @@ description = "Service layer + HTTP surface incl. leak matrix (needs Postgres)"
 depends = ["pg:wait"]
 run = "uv run pytest tests/app"
 
+[tasks."test:affected"]
+description = "Run the suites a diff needs (BASE...HEAD + uncommitted; not check). -- [BASE] [--dry-run]"
+run = "uv run python scripts/affected.py"
+
 [tasks."legacy:import"]
 description = "One-time import of the legacy CSV export (pass -- --dry-run first)"
 depends = ["pg:wait"]
