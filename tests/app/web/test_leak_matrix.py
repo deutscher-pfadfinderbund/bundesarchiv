@@ -13,7 +13,6 @@ from PIL import Image
 from tests.app.web._asserts import assert_denied, assert_door
 from tests.app.web._fixtures import ROOT, Corpus, client_as, make_article, make_collection
 
-from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
@@ -30,72 +29,71 @@ def _png_bytes(color: tuple[int, int, int]) -> bytes:
     return buf.getvalue()
 
 
-class _MatrixCorpus:
+# Real ULIDs: ``collection_edit`` validates the ulid in-view (a literal like "GRP" would 404 as
+# malformed), and the article routes do the same.
+_COLLECTION = "01M553AGABD8F8ZVQV43GRE7TN"
+_ARTICLE = "01M553AGABD8F8ZVQV43GRE7TP"
+_MARKED = "01M553AGABD8F8ZVQV43GRE7TQ"
+
+
+def _fill(base: Corpus) -> None:
     """The matrix's own content: the frozen standard corpus is PUBLIC and media-free."""
+    base.add_collection(
+        make_collection(_COLLECTION, "Gruppen", ROOT, Audience(AudienceTier.GROUPS, ("vorstand",)))
+    )
+    ref = base.articles.add_media(
+        _ARTICLE, "cover.png", io.BytesIO(_png_bytes((30, 60, 90))), media_type="image/png"
+    )
+    base.add_article(
+        make_article(
+            _ARTICLE,
+            collection_id=_COLLECTION,
+            lifecycle=Lifecycle.PUBLISHED,
+            title="Matrix Artikel",
+            media=(ref,),
+        )
+    )
+    # A Public article in the Papierkorb (ADR 0022): every tier would see it but for the mark.
+    marked_ref = base.articles.add_media(
+        _MARKED, "cover.png", io.BytesIO(_png_bytes((90, 60, 30))), media_type="image/png"
+    )
+    marked = make_article(
+        _MARKED,
+        collection_id=_COLLECTION,
+        audience=Audience(AudienceTier.PUBLIC),
+        media=(marked_ref,),
+    )
+    base.articles.mark_deleted(marked, base.add_article(marked), changed_by="tester")
+
+
+class _MatrixCorpus:
+    """The ``_fill`` content of ``base``, read back."""
+
+    collection_ulid = _COLLECTION
+    article_ulid = _ARTICLE
+    marked_ulid = _MARKED
 
     def __init__(self, base: Corpus) -> None:
         self.base = base
-        self._build()
-
-    def _build(self) -> None:
-        # The editable collection carries a REAL ULID — ``collection_edit`` validates the ulid in-view
-        # (a literal like "GRP" would 404 as malformed), so ``collection-edit`` needs a valid one.
-        self.collection_ulid = new_ulid()
-        self.base.add_collection(
-            make_collection(
-                self.collection_ulid,
-                "Gruppen",
-                ROOT,
-                Audience(AudienceTier.GROUPS, ("vorstand",)),
-            )
-        )
-        self.article_ulid = new_ulid()
-        ref = self.base.articles.add_media(
-            self.article_ulid,
-            "cover.png",
-            io.BytesIO(_png_bytes((30, 60, 90))),
-            media_type="image/png",
-        )
-        self.base.add_article(
-            make_article(
-                self.article_ulid,
-                collection_id=self.collection_ulid,
-                lifecycle=Lifecycle.PUBLISHED,
-                title="Matrix Artikel",
-                media=(ref,),
-            )
-        )
-        self.content_hash = ref.content_hash
-        self.article_version = self.base.articles.load(self.article_ulid).version
-        # A Public article in the Papierkorb (ADR 0022): every tier would see it but for the mark.
-        self.marked_ulid = new_ulid()
-        marked_ref = self.base.articles.add_media(
-            self.marked_ulid,
-            "cover.png",
-            io.BytesIO(_png_bytes((90, 60, 30))),
-            media_type="image/png",
-        )
-        marked = make_article(
-            self.marked_ulid,
-            collection_id=self.collection_ulid,
-            audience=Audience(AudienceTier.PUBLIC),
-            media=(marked_ref,),
-        )
-        self.marked_version = self.base.articles.mark_deleted(
-            marked, self.base.add_article(marked), changed_by="tester"
-        )
-        self.marked_hash = marked_ref.content_hash
+        article = base.articles.load(_ARTICLE)
+        self.content_hash = article.article.media[0].content_hash
+        self.article_version = article.version
+        marked = base.articles.load(_MARKED)
+        self.marked_hash = marked.article.media[0].content_hash
+        self.marked_version = marked.version
 
 
 @pytest.fixture
-def matrix_corpus(make_corpus: Callable[[], Corpus], tmp_path: Path) -> Iterator[_MatrixCorpus]:
+def matrix_corpus(
+    copy_of: Callable[[Callable[[Corpus], None]], Corpus], tmp_path: Path
+) -> Iterator[_MatrixCorpus]:
     # The two settings ``settings_for`` does not carry stay local: the thumbnail root (per-test tmp
     # dir) and the X-Accel prefix (None = Django serves the bytes, so the media probes read a body).
     # No version is generated here: an allowed probe of a version route derives it on the miss.
     # Build BEFORE entering the override — ``make_corpus`` enters a settings context of its own that
     # tears down last, so this one has to nest inside it to unwind in order.
     thumbnail_root = tmp_path / "thumbnails"
-    built = _MatrixCorpus(make_corpus())
+    built = _MatrixCorpus(copy_of(_fill))
     with override_settings(
         BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbnail_root), BUNDESARCHIV_X_ACCEL_PREFIX=None
     ):

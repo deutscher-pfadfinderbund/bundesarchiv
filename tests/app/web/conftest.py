@@ -25,19 +25,43 @@ def corpus(tmp_path: Path) -> Iterator[Corpus]:
 
 
 @pytest.fixture
-def make_corpus(tmp_path: Path) -> Iterator[Callable[[], Corpus]]:
-    """Build a fresh ROOT-only corpus to fill with bespoke content. Each call gets its own store
-    and becomes the canonical root, so a test that needs two archives builds them in the order it
-    wants to query them."""
+def make_corpus(tmp_path: Path) -> Iterator[Callable[..., Corpus]]:
+    """Build a fresh ROOT-only corpus to fill with bespoke content, or with ``template`` a copy of
+    that corpus's files. Each call gets its own store and becomes the canonical root, so a test
+    that needs two archives builds them in the order it wants to query them."""
     roots = count()
     with ExitStack() as stack:
 
-        def build() -> Corpus:
-            built = Corpus(tmp_path / f"canonical-{next(roots)}")
+        def build(template: Corpus | None = None) -> Corpus:
+            root = tmp_path / f"canonical-{next(roots)}"
+            built = Corpus(root) if template is None else template.copy(root)
             stack.enter_context(override_settings(**settings_for(built)))
             return built
 
         yield build
+
+
+@pytest.fixture(scope="session")
+def _templates() -> dict[Callable[[Corpus], None], Corpus]:
+    return {}
+
+
+@pytest.fixture
+def copy_of(
+    make_corpus: Callable[..., Corpus],
+    tmp_path_factory: pytest.TempPathFactory,
+    _templates: dict[Callable[[Corpus], None], Corpus],
+) -> Callable[[Callable[[Corpus], None]], Corpus]:
+    """``copy_of(fill)``: ``fill`` writes its content once per session into a template archive no
+    test receives; each call returns a ``make_corpus`` copy of the template's files."""
+
+    def build(fill: Callable[[Corpus], None]) -> Corpus:
+        if fill not in _templates:
+            _templates[fill] = Corpus(tmp_path_factory.mktemp("template") / "canonical")
+            fill(_templates[fill])
+        return make_corpus(_templates[fill])
+
+    return build
 
 
 @pytest.fixture

@@ -44,56 +44,62 @@ def _jpeg_bytes() -> bytes:
     return buf.getvalue()
 
 
-class _TierCorpus:
+# tier -> (its article's ulid, collection, lifecycle, colour). Distinct colours: the wrong-hash
+# deny needs another article's real hash.
+_TIERS = {
+    "public": ("01M553AGABD8F8ZVQV43GRE7TR", "PUB", Lifecycle.PUBLISHED, (200, 40, 60)),
+    "members": ("01M553AGABD8F8ZVQV43GRE7TS", "MEM", Lifecycle.PUBLISHED, (40, 200, 60)),
+    "groups": ("01M553AGABD8F8ZVQV43GRE7TT", "GRP", Lifecycle.PUBLISHED, (40, 60, 200)),
+    "draft": ("01M553AGABD8F8ZVQV43GRE7TV", "PUB", Lifecycle.DRAFT, (200, 200, 40)),
+    "archivist": ("01M553AGABD8F8ZVQV43GRE7TW", "GRP", Lifecycle.DRAFT, (200, 40, 200)),
+    "orphan": (
+        "01M553AGABD8F8ZVQV43GRE7TX",
+        "NOPE",
+        Lifecycle.PUBLISHED,
+        (40, 200, 200),
+    ),  # no such Bestand
+}
+
+
+def _fill(base: Corpus) -> None:
     """The tier grid's own content: the frozen standard corpus is PUBLIC and media-free."""
+    # ROOT (Members default, saved by ``Corpus``) → tier collections.
+    base.add_collection(make_collection("PUB", "Public", audience=Audience(AudienceTier.PUBLIC)))
+    base.add_collection(make_collection("MEM", "Members", audience=Audience(AudienceTier.MEMBERS)))
+    base.add_collection(
+        make_collection("GRP", "Groups", audience=Audience(AudienceTier.GROUPS, ("vorstand",)))
+    )
+    for tier, (ulid, coll, lifecycle, color) in _TIERS.items():
+        ref = base.articles.add_media(
+            ulid, f"{tier}.png", io.BytesIO(_png_bytes(color)), media_type="image/png"
+        )
+        base.add_article(
+            make_article(
+                ulid, collection_id=coll, lifecycle=lifecycle, title=f"{tier} article", media=(ref,)
+            )
+        )
+
+
+class _TierCorpus:
+    """The ``_fill`` content of ``base``, read back."""
 
     def __init__(self, base: Corpus, thumbnail_root: Path) -> None:
+        self.base = base
         self.thumbnail_root = thumbnail_root
-        self.store = base.store
-        self.articles = base.articles
-        self.hash_by_tier: dict[str, str] = {}
-        self.ulid_by_tier: dict[str, str] = {}
-        self.ref_by_tier: dict[str, MediaRef] = {}
-        self._base = base
-        self._build(base)
+        self.ulid_by_tier = {tier: ulid for tier, (ulid, *_) in _TIERS.items()}
+        self.ref_by_tier = {
+            tier: base.articles.load(ulid).article.media[0]
+            for tier, ulid in self.ulid_by_tier.items()
+        }
+        self.hash_by_tier = {tier: ref.content_hash for tier, ref in self.ref_by_tier.items()}
 
-    def _build(self, base: Corpus) -> None:
-        # ROOT (Members default, saved by ``Corpus``) → tier collections.
-        base.add_collection(
-            make_collection("PUB", "Public", audience=Audience(AudienceTier.PUBLIC))
-        )
-        base.add_collection(
-            make_collection("MEM", "Members", audience=Audience(AudienceTier.MEMBERS))
-        )
-        base.add_collection(
-            make_collection("GRP", "Groups", audience=Audience(AudienceTier.GROUPS, ("vorstand",)))
-        )
-        # distinct colours: the wrong-hash deny needs another article's real hash
-        specs = [
-            ("public", "PUB", Lifecycle.PUBLISHED, (200, 40, 60)),
-            ("members", "MEM", Lifecycle.PUBLISHED, (40, 200, 60)),
-            ("groups", "GRP", Lifecycle.PUBLISHED, (40, 60, 200)),
-            ("draft", "PUB", Lifecycle.DRAFT, (200, 200, 40)),
-            ("archivist", "GRP", Lifecycle.DRAFT, (200, 40, 200)),
-            ("orphan", "NOPE", Lifecycle.PUBLISHED, (40, 200, 200)),  # no such Bestand
-        ]
-        for tier, coll, lifecycle, color in specs:
-            ulid = new_ulid()
-            ref = base.articles.add_media(
-                ulid, f"{tier}.png", io.BytesIO(_png_bytes(color)), media_type="image/png"
-            )
-            base.add_article(
-                make_article(
-                    ulid,
-                    collection_id=coll,
-                    lifecycle=lifecycle,
-                    title=f"{tier} article",
-                    media=(ref,),
-                )
-            )
-            self.hash_by_tier[tier] = ref.content_hash
-            self.ulid_by_tier[tier] = ulid
-            self.ref_by_tier[tier] = ref
+    @property
+    def store(self) -> LocalFsObjectStore:
+        return self.base.store
+
+    @property
+    def articles(self) -> ArticleRepository:
+        return self.base.articles
 
     def url(self, tier: str, version: str = "") -> str:
         """The original's URL, or with ``version`` (``thumb``, ``display``) that version's."""
@@ -104,7 +110,7 @@ class _TierCorpus:
         """A new public Article carrying one file; that file's URL."""
         ulid = new_ulid()
         ref = self.articles.add_media(ulid, filename, io.BytesIO(data), media_type=media_type)
-        self._base.add_article(make_article(ulid, collection_id="PUB", media=(ref,)))
+        self.base.add_article(make_article(ulid, collection_id="PUB", media=(ref,)))
         return f"/media/{ulid}/{ref.content_hash}"
 
     def blob_key(self, tier: str) -> str:
@@ -114,7 +120,9 @@ class _TierCorpus:
 
 
 @pytest.fixture
-def corpus(make_corpus: Callable[[], Corpus], tmp_path: Path) -> Iterator[_TierCorpus]:
+def corpus(
+    copy_of: Callable[[Callable[[Corpus], None]], Corpus], tmp_path: Path
+) -> Iterator[_TierCorpus]:
     """The tier archive — this module's ``corpus``, deliberately in place of the frozen standard one.
 
     The two settings ``settings_for`` does not carry stay here: the thumbnail root and the X-Accel
@@ -123,7 +131,7 @@ def corpus(make_corpus: Callable[[], Corpus], tmp_path: Path) -> Iterator[_TierC
     this one has to nest inside it to unwind in order.
     """
     thumbnail_root = tmp_path / "thumbnails"
-    built = _TierCorpus(make_corpus(), thumbnail_root)
+    built = _TierCorpus(copy_of(_fill), thumbnail_root)
     with override_settings(
         BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbnail_root), BUNDESARCHIV_X_ACCEL_PREFIX=None
     ):

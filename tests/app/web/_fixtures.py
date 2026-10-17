@@ -12,6 +12,7 @@ another file's expectations. Such a test builds its own content with ``make_corp
 
 import io
 import re
+import shutil
 from collections.abc import Callable
 from dataclasses import replace
 from functools import partial
@@ -188,15 +189,26 @@ class KeyRecordingStore:
 
 
 class Corpus:
-    """A local-FS archive rooted at ``root``, holding only the ROOT collection, with its store and
-    both repositories ready for a test to add content through."""
+    """A local-FS archive rooted at ``root``, with its store and both repositories ready for a test
+    to add content through. It starts with only the ROOT collection."""
 
     def __init__(self, root: Path) -> None:
+        self._open(root)
+        self.collections.save(Collection(ROOT, "Wurzel", None), 0, changed_by="tester")
+
+    def _open(self, root: Path) -> None:
         self.root = root
         self.store = LocalFsObjectStore(root)
         self.collections = CollectionRepository(self.store)
         self.articles = ArticleRepository(self.store)
-        self.collections.save(Collection(ROOT, "Wurzel", None), 0, changed_by="tester")
+
+    def copy(self, root: Path) -> Corpus:
+        """An independent copy of this archive's files at ``root``: a write to one never reaches
+        the other."""
+        shutil.copytree(self.root, root)
+        copied = Corpus.__new__(Corpus)
+        copied._open(root)
+        return copied
 
     def add_collection(self, collection: Collection) -> Version:
         return self.collections.save(collection, 0, changed_by="tester")
