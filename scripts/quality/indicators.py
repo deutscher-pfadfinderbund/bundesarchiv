@@ -159,10 +159,12 @@ def module_depth(
     return sorted(rows, key=lambda r: r[5])
 
 
-def main(argv: list[str]) -> int:
-    args = report_parser(__doc__.splitlines()[0]).parse_args(argv)
-    sources = {p: Path(p).read_text() for p in tracked_python("src/") if "/migrations/" not in p}
-    trees = {path: ast.parse(src) for path, src in sources.items()}
+def in_scope(path: str) -> bool:
+    return path.startswith("src/") and path.endswith(".py") and "/migrations/" not in path
+
+
+def findings(trees: dict[str, ast.Module]) -> list[Table]:
+    """Every table but module depth: each row is one finding."""
     functions = [
         (f"{path}::{name}", node)
         for path, tree in trees.items()
@@ -173,38 +175,47 @@ def main(argv: list[str]) -> int:
     mutations = [
         (key, " ".join(sorted(hits)[:3])) for key, fn in functions if (hits := _mutated(fn))
     ]
+    return [
+        Table(
+            "Pass-throughs",
+            "One statement forwarding every parameter: a layer that may add nothing.",
+            ("function", "calls"),
+            pass_throughs(functions),
+        ),
+        Table(
+            "Data clumps",
+            "Parameters that travel together: a missing value object, or a shared vocabulary.",
+            ("parameters", "signatures", "files"),
+            data_clumps(functions),
+        ),
+        Table(
+            "Repeated conditions",
+            "The same test in several modules: a decision without one owner.",
+            ("condition", "modules", "first modules"),
+            conditions,
+        ),
+        Table(
+            "Repeated literals",
+            "Word-like strings in 4+ modules: a name or key without a constant, or plain vocabulary.",
+            ("literal", "modules"),
+            literals,
+        ),
+        Table(
+            "Argument mutation",
+            "Writes through a parameter: hidden output, unless the parameter is a builder.",
+            ("function", "mutated"),
+            mutations,
+        ),
+    ]
+
+
+def main(argv: list[str]) -> int:
+    args = report_parser(__doc__.splitlines()[0]).parse_args(argv)
+    sources = {p: Path(p).read_text() for p in tracked_python("src/") if in_scope(p)}
+    trees = {path: ast.parse(src) for path, src in sources.items()}
     emit(
         [
-            Table(
-                "Pass-throughs",
-                "One statement forwarding every parameter: a layer that may add nothing.",
-                ("function", "calls"),
-                pass_throughs(functions),
-            ),
-            Table(
-                "Data clumps",
-                "Parameters that travel together: a missing value object, or a shared vocabulary.",
-                ("parameters", "signatures", "files"),
-                data_clumps(functions),
-            ),
-            Table(
-                "Repeated conditions",
-                "The same test in several modules: a decision without one owner.",
-                ("condition", "modules", "first modules"),
-                conditions,
-            ),
-            Table(
-                "Repeated literals",
-                "Word-like strings in 4+ modules: a name or key without a constant, or plain vocabulary.",
-                ("literal", "modules"),
-                literals,
-            ),
-            Table(
-                "Argument mutation",
-                "Writes through a parameter: hidden output, unless the parameter is a builder.",
-                ("function", "mutated"),
-                mutations,
-            ),
+            *findings(trees),
             Table(
                 "Module depth",
                 "Code lines per unit of public interface (names + parameters), shallowest first.",
