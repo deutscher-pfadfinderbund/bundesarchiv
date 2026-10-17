@@ -67,7 +67,7 @@ Any rule breach or unexpected red stops the wave line. Find the cause chain firs
 
 ## Close the wave
 
-- Before merging each unit (or 2–3 tiny ones together): run `simplify`, then `code-review` at `medium` or above (`low` reads the diff once, skips tests and verifies nothing), both on the explicit range `git diff main...<branch>` (given a bare branch name, a review reads code already on main). Fix confirmed findings first.
+- Before merging each unit (or 2–3 tiny ones together): `ponytail-review` (what to delete), then `code-review` at `medium` or above (`low` reads the diff once, skips tests and verifies nothing), both on the explicit range `git diff main...<branch>` (given a bare branch name, a review reads code already on main). Bugs come last because cuts change code; the writer already ran `simplify`. Fix confirmed findings first; no second review round.
 - Merge from the main checkout with `.claude/skills/dispatch-wave/scripts/merge.sh <branch> -- mise run check`. The writer ran `test:affected`; the full gate runs once, in the pre-push hook — never per unit or per merge.
 - Land commits that append to a doc after the branches that append to the same file.
 - A rename merged while other writers run: at their merge, grep each branch's new test lines for the old spelling (a negative check passes vacuously, aliases keep old GETs green).
