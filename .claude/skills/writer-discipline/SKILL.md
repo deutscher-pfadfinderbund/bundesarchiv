@@ -15,7 +15,7 @@ How the code gets built, one rule per line, grouped by the moment it applies.
 - Read the sections of other docs the brief names, not the whole files.
 - Exactly one writer holds the tree per task; reviews are fresh one-shot subagents. Never write to the tree while another writer's wave is open.
 - A tree-touching instruction mid-wave: ACK it and hold — do not silently continue on a changed spec.
-- In a worktree, prefix every bash command with `cd <worktree> && `: the cwd does not persist between calls, and a relative path then reads the main checkout.
+- In an isolated worktree the cwd already is the worktree: run commands plainly, never `cd` into it first (the worktree guard refuses `cd … && git …` as too complex to verify). Without isolation, use absolute paths and `git -C <worktree>`.
 - The scratchpad is shared: prefix your log names with the task (`wf-e2e.log`); a generic log may hold another agent's result.
 
 ### Build for what happens
@@ -33,7 +33,7 @@ Before writing code, stop at the first step that holds:
 
 ## While you write
 
-**Pace.** Model turns are the main cost, not tools: batch related edits into one logical step.
+**Pace.** Model turns are the main cost, not tools: every turn re-reads your whole context. Batch related edits into one logical step; issue independent reads and searches in one turn (parallel calls); read the ranges you need, all at once, not one range per turn; never re-read what is already in your context.
 
 ### One owner per decision
 
@@ -100,7 +100,7 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 
 - One commit per logical step, `mise run check` green (ruff, format, pyrefly, Biome, the no-DB tests).
 - pyrefly is always `uv run pyrefly check src tests scripts`; a bare `pyrefly check` resolves zero files in a worktree and passes vacuously.
-- In an isolated worktree a compound shell command containing git (`cmd; git …`) is refused, and the destructive-git hook greps whole commands, heredoc text included: write files and commit messages with the Write tool, then `git commit -F <file>`.
+- One git command per call: in an isolated worktree a compound containing git is refused, and the destructive-git hook greps whole commands, heredoc text included. Write files and commit messages with the Write tool, then `git commit -F <file>`.
 - ruff's RUF001/RUF002 reject confusables (en dash, bullet) that German legacy text needs: write `"\N{EN DASH}"` / `"\N{BULLET}"` in code.
 - The commit hook runs uv-lock, ruff and pyrefly; no `--no-verify` except on a docs-only commit right after a code commit whose gates ran clean — never on a fixup.
 - Trim noisy hook output with `| tail` under `set -o pipefail` (a pipe returns `tail`'s status), or confirm with `git log -1` that the commit landed; the baseline is what the ledger records — never let it drop.
