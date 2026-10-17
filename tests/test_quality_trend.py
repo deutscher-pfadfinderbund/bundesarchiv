@@ -2,13 +2,16 @@
 
 from collections import Counter
 from datetime import date
+from pathlib import Path
 
 import pytest
 from scripts.quality._common import sessions
 from scripts.quality.trend import (
+    Cache,
     Commit,
     FileDelta,
     allow_lists,
+    any_count,
     blamed,
     buckets,
     comment_lines,
@@ -195,3 +198,21 @@ def test_ratios_are_over_added_lines_and_absent_without_a_base() -> None:
     assert ratios(Counter({"code+": 2, "test+": 2, "comment+": 1})) == (1.0, 0.25)
     assert ratios(Counter({"test+": 4, "comment+": 2})) == (None, 0.5)
     assert ratios(Counter({"comment+": 2})) == (None, None)
+
+
+def test_any_count_reads_n_any_from_a_coverage_report() -> None:
+    assert any_count('{"summary": {"n_any": 10, "n_untyped": 28}}') == 10
+    assert any_count('{"summary": {"n_any": 0}}') == 0
+
+
+@pytest.mark.parametrize("report", ["", "{}", '{"summary": []}'])
+def test_any_count_is_absent_when_the_report_has_no_count(report: str) -> None:
+    assert any_count(report) is None
+
+
+def test_the_cache_keeps_a_value_and_retries_a_failure(tmp_path: Path) -> None:
+    cache = Cache(tmp_path)
+    assert cache.get("k", lambda: 3) == 3
+    assert cache.get("k", lambda: 4) == 3
+    assert cache.get("failed", lambda: None) is None
+    assert cache.get("failed", lambda: 5) == 5

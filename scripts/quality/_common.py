@@ -26,6 +26,14 @@ _PRAGMA = re.compile(
 )
 
 
+def git_bytes(*args: str) -> bytes:
+    return subprocess.run(  # noqa: S603 — git with the tool's own arguments
+        ["git", *args],  # noqa: S607 — git from PATH
+        capture_output=True,
+        check=True,
+    ).stdout
+
+
 def git(*args: str) -> str:
     return subprocess.run(  # noqa: S603 — git with the tool's own arguments
         ["git", *args],  # noqa: S607 — git from PATH

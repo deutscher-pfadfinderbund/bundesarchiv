@@ -12,7 +12,9 @@ touch a line, which may be a move or a reformat rather than the cause.
 
 Debt, at each bucket's last commit: entries of the allow-lists (public module-level dicts) in the
 structure and module-map gates, finding rows of quality:indicators (module depth left out), items
-flagged by quality:comments, and test patches of ``bundesarchiv`` names.
+flagged by quality:comments, test patches of ``bundesarchiv`` names, and ``Any`` (pyrefly's
+``n_any`` over src/ in a tree of the commit's src/ and pyproject.toml, typed against the current
+interpreter; - where pyrefly fails).
 
 Diff mix, over the net diff between bucket ends: non-blank lines added (+) and removed (-) in code
 (src/, scripts/), tests (tests/), full-line Python comments and docstrings (taken out of code and
@@ -28,12 +30,16 @@ import hashlib
 import json
 import math
 import re
+import subprocess
 import sys
+import tarfile
+import tempfile
 from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
-from functools import partial
+from functools import lru_cache, partial
+from io import BytesIO
 from itertools import groupby
 from pathlib import Path
 from typing import Any
@@ -47,6 +53,7 @@ from scripts.quality._common import (
     emit,
     first_parents,
     git,
+    git_bytes,
     report_parser,
     sessions,
     tree_paths,
@@ -210,6 +217,15 @@ def debt(sources: dict[str, str]) -> dict[str, Any]:
     }
 
 
+def any_count(report: str) -> int | None:
+    """``summary.n_any`` of a ``pyrefly coverage report``, or None when the output has no count."""
+    try:
+        n = json.loads(report)["summary"]["n_any"]
+    except ValueError, KeyError, TypeError:
+        return None
+    return n if isinstance(n, int) else None
+
+
 def line_ranges(numbers: Iterable[int]) -> list[tuple[int, int]]:
     """Runs of consecutive numbers as (first, last)."""
     runs = groupby(enumerate(sorted(numbers)), key=lambda pair: pair[1] - pair[0])
@@ -276,19 +292,27 @@ def _diff(base: str, head: str) -> str:
     )
 
 
+def cache_dir() -> Path:
+    here = Path(__file__).parent
+    version = hashlib.sha256(b"".join((here / f).read_bytes() for f in _TOOL_FILES))
+    root = Path(git("rev-parse", "--git-common-dir").strip()) / "quality-trend-cache"
+    return root / version.hexdigest()[:12]
+
+
 class Cache:
-    def __init__(self) -> None:
-        here = Path(__file__).parent
-        version = hashlib.sha256(b"".join((here / f).read_bytes() for f in _TOOL_FILES))
-        root = Path(git("rev-parse", "--git-common-dir").strip()) / "quality-trend-cache"
-        self.dir = root / version.hexdigest()[:12]
+    def __init__(self, directory: Path) -> None:
+        self.dir = directory
         self.dir.mkdir(parents=True, exist_ok=True)
 
     def get(self, key: str, compute: Callable[[], Any]) -> Any:
+        """The cached value of ``key``, else ``compute()``, stored unless it is None (a failure
+        is retried on the next run)."""
         path = self.dir / f"{key}.json"
         if path.exists():
             return json.loads(path.read_text())
         value = compute()
+        if value is None:
+            return None
         tmp = path.with_suffix(".tmp")
         tmp.write_text(json.dumps(value))
         tmp.replace(path)
@@ -301,6 +325,51 @@ def _snapshot(blobs: Blobs, sha: str) -> dict[str, str]:
         for p in tree_paths(sha)
         if p.endswith(".py") and p.startswith(ROOTS)
     }
+
+
+@lru_cache(maxsize=1)
+def _pyrefly_version() -> str:
+    out = subprocess.run(
+        [sys.executable, "-m", "pyrefly", "--version"], capture_output=True, text=True, check=True
+    )
+    return out.stdout.strip().replace(" ", "-")
+
+
+def _warn_any(sha: str, reason: str) -> None:
+    print(f"any: {sha[:8]}: {reason}", file=sys.stderr)
+
+
+def _any_at(sha: str) -> int | None:
+    """``Any`` in the commit's src/: pyrefly runs on an extract of src/ and pyproject.toml, against
+    the running interpreter's packages (without one it reads unresolved imports as ``Any``).
+    Limit: historic commits are checked against today's installed packages. None, with a line on
+    stderr, when the extract or pyrefly fails."""
+    try:
+        tree = git_bytes("archive", sha, "src", "pyproject.toml")
+    except subprocess.CalledProcessError:
+        return None
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            with tarfile.open(fileobj=BytesIO(tree)) as archive:
+                archive.extractall(tmp, filter="data")
+        except tarfile.TarError as error:
+            _warn_any(sha, f"extract failed: {error}")
+            return None
+        report = subprocess.run(  # noqa: S603 — the running interpreter, the tool's own arguments
+            [
+                sys.executable,
+                *("-m", "pyrefly", "coverage", "report"),
+                *("--python-interpreter-path", sys.executable, "src"),
+            ],
+            cwd=tmp,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    n = any_count(report.stdout)
+    if n is None:
+        _warn_any(sha, next(iter(report.stderr.splitlines()), "no n_any in the report"))
+    return n
 
 
 def _python(blobs: Blobs, sha: str, path: str | None) -> str | None:
@@ -365,6 +434,7 @@ class Rows:
 def _bucket(bucket: Bucket, base: str, cache: Cache, blobs: Blobs, main: Main) -> Rows:
     head = bucket.commits[-1].sha
     counters = cache.get(f"debt-{head}", lambda: debt(_snapshot(blobs, head)))
+    any_n = cache.get(f"any-{_pyrefly_version()}-{head}", partial(_any_at, head))
     lines = Counter(cache.get(f"mix-{base}-{head}", lambda: _mix(blobs, base, head)))
     arrived = [
         (fp, sha) for fp in bucket.commits for sha, merge in main.arrivals[fp.sha] if not merge
@@ -396,6 +466,7 @@ def _bucket(bucket: Bucket, base: str, cache: Cache, blobs: Blobs, main: Main) -
             len(fixes) - blamed_fixes,
             sum(n for n in counters["allow"].values() if n is not None),
             *(counters[k] for k in _COUNTERS),
+            any_n,
         ),
         (
             bucket.label,
@@ -447,7 +518,7 @@ def main(argv: list[str]) -> int:
         arrivals,
         {sha: c.session for c in log for sha, _ in arrivals[c.sha]},
     )
-    cache = Cache()
+    cache = Cache(cache_dir())
     every = buckets(log, args.per)
     bases = [_EMPTY_TREE, *(b.commits[-1].sha for b in every[:-1])]
     with Blobs() as blobs:
@@ -472,6 +543,7 @@ def main(argv: list[str]) -> int:
                     "unblamed",
                     "allow",
                     *_COUNTERS,
+                    "any",
                 ),
                 [row.debt for row in rows],
             ),
