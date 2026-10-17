@@ -30,7 +30,7 @@ Unintentional + has bitten = rethink candidate. Intentional (ADR-backed) + repea
 
 ## Procedure
 
-1. Read first: `CONTEXT.md`, `MODULES.md`, the package `CLAUDE.md`s in scope, ADRs touching the area, and `docs/tech-debt.md` (open entries — do not re-derive them).
+1. Read first: `CONTEXT.md`, the package `CLAUDE.md`s in scope, ADRs touching the area, and `docs/tech-debt.md` (open entries — do not re-derive them).
 2. Spawn read-only explorer subagents to walk the scope organically. Give them the vocabulary and this friction checklist:
    - Understanding one concept requires bouncing between many small modules?
    - Shallow modules — interface nearly as complex as the implementation?

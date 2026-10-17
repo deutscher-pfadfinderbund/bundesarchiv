@@ -12,12 +12,12 @@ The map is the navigation layer for everyone (humans, architects, writers, revie
 | Level | File | Holds | Never holds |
 | --- | --- | --- | --- |
 | L0 | `CONTEXT.md` | domain language | code structure |
-| L1 | `MODULES.md` (root) | package TOC: module names + one-line hooks | signatures, behavior, rules |
+| L1 | `CLAUDE.md` (root), "Module map" | one line per package + the path of its map | module names, signatures, behavior, rules |
 | L1.5 | `src/bundesarchiv/<pkg>/CLAUDE.md` | the package's module rows + package law | other packages' content, implementation detail |
 | L2 | the module's docstring | the full interface contract (invariants, error modes, ordering) | implementation narration |
 | L3 | code + `docs/adr/` | implementation; why decisions were made | — |
 
-Detail that wants into a higher level gets **bounced down**, not copied up. Indices hold addresses, not facts. The one permitted duplication is module *names* appearing in both MODULES.md and a package row — the gate pins that equality.
+Detail that wants into a higher level gets **bounced down**, not copied up. Indices hold addresses, not facts.
 
 ## Row grammar (package CLAUDE.md)
 
@@ -32,6 +32,8 @@ Naming a new seam does not grow the list — it displaces a less-central name (t
 in the module's `__all__`/docstring, one level down). This is what keeps rows inside the char budget
 as modules deepen; a row fighting the budget usually means the list turned into an inventory.
 
+`tests:` holds backticked pointers that must exist: a full path (`tests/app/test_x.py`, a directory, a glob), or a bare name that resolves in the directory of the last full path before it, or in `tests/<pkg>/` when there is none. Words outside backticks are free.
+
 The module name is its path inside the package, so a sub-package module is one entry: `` `adapters/localfs.py` ``.
 
 Modules that are deliberate internals (helpers, glue that fails the deletion test) go on the package's single `Internal:` line instead:
@@ -42,18 +44,9 @@ Internal: `_writer.py`, `errors.py`
 
 Every `.py` module in the package must appear in exactly one of the two — the gate checks.
 
-## MODULES.md grammar (root)
-
-Per package, names + hooks only:
-
-```
-## <package> — <package one-liner>
-`<module>`, `<module>`, `<module>` · rows + law: `src/bundesarchiv/<pkg>/CLAUDE.md`
-```
-
 ## Prose budgets (enforced)
 
-`MODULES.md` ≤ 40 lines; each package `CLAUDE.md` ≤ 45 lines; every row one line ≤ 220 chars. A busted budget is **compressed, never raised** — the detail belongs a level down (docstring, ADR). Growth in an index is a finding.
+Each package `CLAUDE.md` ≤ 45 lines; every row one line ≤ 220 chars. A busted budget is **compressed, never raised** — the detail belongs a level down (docstring, ADR). Growth in an index is a finding.
 
 ## The procedure
 
@@ -62,8 +55,8 @@ Per package, names + hooks only:
    A new method on a class the row already names is a row change only if it changes what the
    row *says* — the row lists what a caller learns, not every def. When in doubt: does the hook
    or the interface list become wrong? No → no edit.
-3. Otherwise edit the package row (and `MODULES.md` if a name appeared or vanished) **in the same commit** as the code change. This is writer law, not courtesy.
+3. Otherwise edit the package row **in the same commit** as the code change. This is writer law, not courtesy.
 4. New module: apply the deletion test before granting a row; internals go on the `Internal:` line.
 5. Keep the hook honest: if you can't write the responsibility in one line, the module may be the problem — note it as a debt entry (`docs/tech-debt.md`), don't write a two-line hook.
-6. Verify what you wrote against the tree, never from memory: the interface names against the module's public defs, the `tests:` pointer against a file that exists.
-7. Run the gate: `uv run pytest tests/test_module_map.py` (also part of `mise run check` via the no-DB suite).
+6. The gate checks that interface names and `tests:` pointers exist; you check they are the right ones — the names a caller reaches for, the tests that pin the contract.
+7. Run the gate (its failure message prints the row to paste or the entry to delete): `uv run pytest tests/test_module_map.py` (also part of `mise run check` via the no-DB suite).

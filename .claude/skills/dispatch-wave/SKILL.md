@@ -9,7 +9,7 @@ The architect thinks in modules and interfaces; writers implement one module eac
 
 ## Decompose
 
-1. Read `MODULES.md` and the relevant package `CLAUDE.md`s. A task maps to modules; a task that maps to no module means the module is missing — design its seam first (interface: signature + invariants + error modes + who calls it), or record an architecture candidate instead of dispatching.
+1. Read the relevant package `CLAUDE.md`s (the root `CLAUDE.md` "Module map" names them). A task maps to modules; a task that maps to no module means the module is missing — design its seam first (interface: signature + invariants + error modes + who calls it), or record an architecture candidate instead of dispatching.
 2. **Interface-first**: for cross-module features, the brief ships the seam; the writer fills in behind it. Seam consumers dispatch after seam owners. If you cannot state the seam crisply, you are not ready to dispatch.
 3. One writer per task. Writers sharing a worktree run **sequentially** (git index races); parallel writers need disjoint worktrees.
 
