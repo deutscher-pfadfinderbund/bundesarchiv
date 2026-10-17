@@ -31,6 +31,7 @@ tests); pick the package(s) a task touches:
 | --- | --- |
 | Inner loop | `mise run test:nodb` (~5s, no container), or path-scoped `uv run pytest tests/<suite>/...` |
 | One suite | `mise run test:domain` / `test:persistence` / `test:index` / `test:app` |
+| Suites a diff needs | `mise run test:affected [-- BASE] [--dry-run]` — runs the suites `BASE...HEAD` plus uncommitted changes need, stops at the first red; not `check`. |
 | Before a commit | `mise run check` — ruff, format, import contracts, pyrefly, Biome (static CSS/JS: lint + format), no-DB tests. The pre-commit hook runs the same class of checks. |
 | Change touches index, search or schema (`src/bundesarchiv/index/`, migrations, search-relevant persistence) | `mise run test:index` and `mise run test:db` — the full gate runs once, at the push |
 | Before a push | `mise run gate`. The pre-push hook runs it and starts Postgres itself. |
