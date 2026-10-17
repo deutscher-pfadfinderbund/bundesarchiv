@@ -24,7 +24,7 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - **Onboarding is a cost**: name the exact sections to read (file + heading), not whole files.
 - Sketch **interface invariants and the indicator, not field lists**: on a branch others are reshaping, a concrete signature is a guess that reads as an instruction.
 - Name **contracts to pin, not test instruments**: the writer picks the instrument under `tests/CLAUDE.md`.
-- **Verify at the source** every load-bearing claim before it enters a brief or a ruling: a library call's signature, a framework's default behaviour, the code-behaviour premise of a grilled or ADR-backed decision, and that a guard you ask to pin is load-bearing. A wrong claim widens a fence for nothing.
+- **Verify at the source** every load-bearing claim before it enters a brief or a ruling: a library call's signature, a framework's default behaviour, the code-behaviour premise of a grilled or ADR-backed decision, that a guard you ask to pin is load-bearing, and the measured cause behind any option the brief rules out. A wrong claim widens a fence for nothing, or closes the right route.
 - A brief built on a ruling greps `docs/requirements/` for every later ruling on the same subject.
 - Two items that touch the same lines: name the item that owns them.
 - Review findings handed to a writer come grouped per file, each anchored on its symbol with its covering test.
