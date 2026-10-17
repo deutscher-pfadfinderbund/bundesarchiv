@@ -13,7 +13,7 @@ run = [
   "uv run pyrefly check src tests scripts --output-format=min-text",
   "uv run mypy",
   "biome check --error-on-warnings",
-  "uv run pytest -m \"not requires_pg\"",
+  "uv run pytest -m \"not requires_pg\" -n 4",
 ]
 
 [tasks.gate]
@@ -82,7 +82,7 @@ run = "uv run pytest"
 
 [tasks."test:nodb"]
 description = "Everything that runs without Postgres (derived requires_pg marker)"
-run = "uv run pytest -m \"not requires_pg\""
+run = "uv run pytest -m \"not requires_pg\" -n 4"
 
 [tasks."test:db"]
 description = "Only the Postgres-backed tests"
