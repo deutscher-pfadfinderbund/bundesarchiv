@@ -8,21 +8,18 @@ args-block (an Args:/Returns: section) and doc>=body (a docstring as long as its
 """
 
 import ast
-import io
 import re
 import sys
-import tokenize
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 from scripts.quality._common import (
     ROOTS,
-    DocOwner,
     Table,
-    defs,
+    comments,
+    docstrings,
     emit,
-    is_pragma,
     report_parser,
     tracked_python,
 )
@@ -60,9 +57,8 @@ def _text_flags(text: str, lines: int) -> list[str]:
 
 
 def _docstrings(path: str, tree: ast.Module) -> list[Item]:
-    owners: list[tuple[str, DocOwner]] = [("<module>", tree), *defs(tree)]
     items = []
-    for owner, node in owners:
+    for owner, node, _ in docstrings(tree):
         doc = ast.get_docstring(node, clean=False)
         if not doc:
             continue
@@ -83,9 +79,7 @@ def _docstrings(path: str, tree: ast.Module) -> list[Item]:
 def _comments(path: str, source: str) -> list[Item]:
     """Contiguous ``#`` lines form one block."""
     blocks: list[list[tuple[int, str]]] = []
-    for tok in tokenize.generate_tokens(io.StringIO(source).readline):
-        if tok.type != tokenize.COMMENT or is_pragma(tok):
-            continue
+    for tok in comments(source):
         if blocks and tok.start[0] == blocks[-1][-1][0] + 1:
             blocks[-1].append((tok.start[0], tok.string))
         else:

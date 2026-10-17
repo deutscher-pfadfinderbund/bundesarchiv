@@ -29,11 +29,13 @@ from scripts.quality._common import (
     cognitive,
     defs,
     emit,
+    first_parents,
     git,
     report_parser,
+    sessions,
+    tree_paths,
 )
 
-_GAP_SECONDS = 3600
 _PRIOR_SESSIONS = 5
 _COUPLING_MAX_FILES = 25
 _COUPLING_MIN_SUPPORT = 4
@@ -126,23 +128,19 @@ class Walk:
 
 def session_boundaries() -> list[str]:
     """The last first-parent commit of each session, oldest first."""
-    rows = [
-        line.split()
-        for line in git("log", "--first-parent", "--reverse", "--format=%H %ct").splitlines()
-    ]
+    rows = first_parents("HEAD")
+    ids = sessions([time for _, time, _ in rows])
     return [
         sha
-        for (sha, time), following in zip(rows, [*rows[1:], None], strict=True)
-        if following is None or int(following[1]) - int(time) > _GAP_SECONDS
+        for (sha, _, _), here, following in zip(rows, ids, [*ids[1:], None], strict=True)
+        if here != following
     ]
 
 
 def _changed(prev: str | None, commit: str) -> list[tuple[str, str, str]]:
     """(status, old path, new path) of every file that differs between the two snapshots."""
     if prev is None:
-        return [
-            ("A", p, p) for p in git("ls-tree", "-r", "-z", "--name-only", commit).split("\0")[:-1]
-        ]
+        return [("A", p, p) for p in tree_paths(commit)]
     fields = git("diff-tree", "-r", "-M", "-z", "--name-status", prev, commit).split("\0")[:-1]
     out, i = [], 0
     while i < len(fields):
@@ -165,8 +163,7 @@ def walk(bounds: list[str]) -> Walk:
                 if status == "D":
                     state.delete(old)
                     continue
-                blob = blobs.get(f"{commit}:{new}") or b""
-                ids.add(state.update(session, status, old, new, blob.decode(errors="replace")))
+                ids.add(state.update(session, status, old, new, blobs.text(f"{commit}:{new}")))
             state.touched.append(ids if len(changed) <= _COUPLING_MAX_FILES else set())
             prev = commit
     return state
@@ -307,10 +304,7 @@ def main(argv: list[str]) -> int:
     bounds = session_boundaries()
     state = walk(bounds)
     with Blobs() as blobs:
-        sources = {
-            path: (blobs.get(f"{bounds[-1]}:{path}") or b"").decode(errors="replace")
-            for path in state.ident
-        }
+        sources = {path: blobs.text(f"{bounds[-1]}:{path}") for path in state.ident}
     print(f"{len(bounds)} sessions, {len(state.history)} functions", file=sys.stderr)
     emit(_tables(state, len(bounds), sources, args.under), args)
     return 0

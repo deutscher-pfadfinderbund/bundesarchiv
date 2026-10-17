@@ -2,12 +2,14 @@
 
 import argparse
 import ast
+import io
 import json
 import re
 import subprocess
 import tokenize
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from itertools import accumulate, pairwise
 from types import TracebackType
 from typing import IO, Self, cast
 
@@ -18,6 +20,7 @@ type Def = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
 DOC_OWNERS = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
 FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
 ROOTS = ("src/", "tests/", "scripts/")
+_GAP_SECONDS = 3600
 _PRAGMA = re.compile(
     r"#\s*(noqa|type:|pyrefly:|pyright:|mypy:|ruff:|fmt:|isort:|pragma)", re.IGNORECASE
 )
@@ -28,6 +31,7 @@ def git(*args: str) -> str:
         ["git", *args],  # noqa: S607 — git from PATH
         capture_output=True,
         text=True,
+        errors="replace",
         check=True,
     ).stdout
 
@@ -67,6 +71,27 @@ class Blobs:
         self._out.read(1)
         return data
 
+    def text(self, spec: str) -> str:
+        """The blob decoded with bad bytes replaced; empty when ``spec`` names nothing."""
+        return (self.get(spec) or b"").decode(errors="replace")
+
+
+def tree_paths(sha: str) -> list[str]:
+    """Every file path in the commit's tree."""
+    return git("ls-tree", "-r", "-z", "--name-only", sha).split("\0")[:-1]
+
+
+def first_parents(rev: str) -> list[tuple[str, int, int]]:
+    """(sha, committer time, parent count) of each first-parent commit of ``rev``, oldest first."""
+    rows = git("log", "--first-parent", "--reverse", "--format=%H %ct %P", rev).splitlines()
+    return [(sha, int(time), len(parents)) for sha, time, *parents in map(str.split, rows)]
+
+
+def sessions(times: list[int]) -> list[int]:
+    """The work session of each commit, given committer times oldest first: a new one starts after
+    a gap of more than an hour."""
+    return list(accumulate((int(b - a > _GAP_SECONDS) for a, b in pairwise(times)), initial=0))
+
 
 def body_without_docstring(node: DocOwner) -> list[ast.stmt]:
     body = node.body
@@ -80,6 +105,24 @@ def is_pragma(comment: tokenize.TokenInfo) -> bool:
     """A comment a tool reads: a lint, type or format directive, or the shebang."""
     shebang = comment.start[0] == 1 and comment.string.startswith("#!")
     return shebang or bool(_PRAGMA.search(comment.string))
+
+
+def comments(source: str) -> list[tokenize.TokenInfo]:
+    """Every comment token but the pragmas."""
+    return [
+        tok
+        for tok in tokenize.generate_tokens(io.StringIO(source).readline)
+        if tok.type == tokenize.COMMENT and not is_pragma(tok)
+    ]
+
+
+def docstrings(tree: ast.Module) -> Iterator[tuple[str, DocOwner, ast.Expr]]:
+    """Each docstring: its owner's qualname (``<module>`` for the module), the owner, the statement."""
+    owners: list[tuple[str, DocOwner]] = [("<module>", tree), *defs(tree)]
+    for owner, node in owners:
+        match node.body:
+            case [ast.Expr(value=ast.Constant(value=str())) as statement, *_]:
+                yield owner, node, statement
 
 
 def defs(tree: ast.AST, prefix: str = "") -> Iterator[tuple[str, Def]]:
@@ -125,6 +168,8 @@ def report_parser(description: str) -> argparse.ArgumentParser:
 
 
 def _cell(value: object) -> str:
+    if value is None:
+        return "-"
     if isinstance(value, tuple):
         return " ".join(map(_cell, value))
     return f"{value:.2f}" if isinstance(value, float) else str(value)
