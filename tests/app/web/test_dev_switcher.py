@@ -154,12 +154,12 @@ def test_prod_root_urlconf_is_the_media_surface_not_the_dev_urls() -> None:
 
 def test_prod_media_urlconf_exposes_no_dev_login_page() -> None:
     prod_urls = importlib.import_module("bundesarchiv.app.web.urls")
-    assert not any(getattr(p, "name", None) == "dev-switch-viewer" for p in prod_urls.urlpatterns)
+    assert not any(getattr(p, "name", None) == "dev-authorize" for p in prod_urls.urlpatterns)
 
 
 def test_the_dev_login_page_lives_only_in_the_dev_urlconf() -> None:
     dev_urls = importlib.import_module("bundesarchiv.app.web.dev_urls")
-    assert any(getattr(p, "name", None) == "dev-switch-viewer" for p in dev_urls.urlpatterns)
+    assert any(getattr(p, "name", None) == "dev-authorize" for p in dev_urls.urlpatterns)
 
 
 @override_settings(ROOT_URLCONF="tests.app.web._empty_urls")
@@ -167,7 +167,7 @@ def test_the_page_neither_resolves_nor_reverses_without_the_dev_urlconf() -> Non
     with pytest.raises(Resolver404):
         resolve(_PAGE)
     with pytest.raises(NoReverseMatch):
-        reverse("dev-switch-viewer")
+        reverse("dev-authorize")
 
 
 # Explicit: the subprocess connects to Postgres out of band, so no DB fixture appears in this

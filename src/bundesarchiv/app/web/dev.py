@@ -95,7 +95,7 @@ def _render_form(current: Viewer, flow: dict[str, str], *, csrf_token: str) -> s
         '<main class="stub">'
         "<h1>Anmelden als (nur Entwicklung)</h1>"
         f"<p>Aktuell: <strong>{escape(_describe(current))}</strong></p>"
-        f'<form method=post action="{reverse("dev-switch-viewer")}">'
+        f'<form method=post action="{reverse("dev-authorize")}">'
         f'<input type=hidden name=csrfmiddlewaretoken value="{escape(csrf_token)}">{hidden}'
         "<p><label><input type=radio name=kind value=archivist> Archivar</label>"
         " Benutzername: <input type=text name=username></p>"
