@@ -11,7 +11,7 @@ How code in this repo is written. Binds human contributors and AI agents alike.
 - **pyrefly** = a fast **blocking** second opinion, zero-error policy: commit-stage pre-commit hook plus an agent Stop hook (Django ORM typing is immature in pyrefly / ty as of 2026, so mypy stays canonical; see `docs/django6-notes.md`).
 - Editor LSP: Pylance / pyright / ty — any; not the gate.
 - **pytest** + **TDD** (red → green → refactor). Test *through* interfaces (replace-don't-layer; in-memory fakes).
-- **pre-commit**, two stages (all via `uv run`): commit = uv-lock → ruff → import contracts → pyrefly → mypy → Biome → the no-DB tests (what `mise run check` runs); push = the full gate (adds pytest with Postgres).
+- **pre-commit**, two stages (all via `uv run`): commit = uv-lock → ruff → import contracts → pyrefly → mypy → Biome → the no-DB tests (what `mise run check` runs); push = the full gate (adds pytest with Postgres). A hook change lands only after a real commit that triggers each changed hook: hooks run with git's own variables (`GIT_INDEX_FILE`) exported, which `uv run pre-commit run` does not reproduce.
 
 ## Why sync (not async)
 
