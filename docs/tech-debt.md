@@ -404,8 +404,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Still open:** `mise run mutate` runs plain pytest, so it cannot prove an e2e pin (a `menu.js` mutation was done by hand).
 
 ### 55. Tests monkeypatch our own code — Strong
-- **Indicator:** `monkeypatch.setattr` on a `bundesarchiv` name: `tests/app` 56, `tests/app/web` 48, `tests/persistence` 2, `tests/e2e` 0 (2026-10-11, AST count); `tests/app` 48 once the page-text shells moved, then `tests/app` 47 and `tests/app/web` 47 once the page-text tests dropped theirs (2026-10-11); `tests/app` 25, `tests/app/web` 53, `tests/persistence` 2 once the jobs received their dependencies, 0 `_DEBT` patches on `app.tasks` left (2026-10-18)
-- **Evidence:** `writer-discipline` skill, "Functional core, imperative shell"; most are `tasks.canonical_store` (14 on 2026-10-11) and the web conftest's index/enqueue stubs
+- **Indicator:** `monkeypatch.setattr` on a `bundesarchiv` name: `tests/app` 56, `tests/app/web` 48, `tests/persistence` 2, `tests/e2e` 0 (2026-10-11, AST count); `tests/app` 48 once the page-text shells moved, then `tests/app` 47 and `tests/app/web` 47 once the page-text tests dropped theirs (2026-10-11); `tests/app` 25, `tests/app/web` 53, `tests/persistence` 2 once the jobs received their dependencies, 0 `_DEBT` patches on `app.tasks` left (2026-10-18); `tests/app` 11, `tests/app/web` 48, `tests/persistence` 2 once the tests read the in-memory queue, 0 patches of an `enqueue_*` name left (2026-10-18)
+- **Evidence:** `writer-discipline` skill, "Functional core, imperative shell"; what is left (2026-10-18): 11 on `after_write` (the `index_article`/`index_subtree`/`SYNC_LOCK_TIMEOUT_MS` names, the web conftest's index stubs among them), then `ArticleRepository`, the web auth seam (`viewers`, `keycloak`, `auth_views`), `browse` and `articles`
 - **Deletion test:** a test runs the real shell over `Archive.of(...)` and the in-memory queue; a renamed function no longer leaves a patch passing vacuously
 - **Sketch:** removed when the module is touched; a later wave may sweep the rest
 

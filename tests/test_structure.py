@@ -47,7 +47,6 @@ UNREFERENCED: dict[str, str] = {
     "bundesarchiv/index/apps.py:IndexConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/app/push_record.py:InMemoryPushRecord": "test fake",
     "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore": "test fake",
-    "bundesarchiv/app/tasks.py:run_worker_once_in_test": "test hook, called from tests only",
 }
 
 
@@ -163,23 +162,11 @@ _RACE = "race"
 #: never patch our own code"); the rest is ``docs/tech-debt.md`` #55. A patch no static read can
 #: resolve counts under ``<unresolved>``.
 TEST_PATCHES: dict[str, tuple[int, str]] = {
-    "app/test_services.py:test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued:bundesarchiv.app.after_write.enqueue_mirror_delete_article": (
-        1,
-        _CRASH,
-    ),
     "app/test_services.py:test_save_article_index_failure_stands_canonical_and_enqueues:bundesarchiv.app.after_write.index_article": (
         1,
         _CRASH,
     ),
-    "app/test_services.py:test_save_article_index_failure_stands_canonical_and_enqueues:bundesarchiv.app.after_write.enqueue_reindex_article": (
-        1,
-        _DEBT,
-    ),
     "app/test_services.py:test_save_article_swallows_enqueue_failure_after_index_failure:bundesarchiv.app.after_write.index_article": (
-        1,
-        _CRASH,
-    ),
-    "app/test_services.py:test_save_article_swallows_enqueue_failure_after_index_failure:bundesarchiv.app.after_write.enqueue_reindex_article": (
         1,
         _CRASH,
     ),
@@ -187,55 +174,11 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _CRASH,
     ),
-    "app/test_services.py:test_save_collection_swallows_enqueue_failure_after_index_failure:bundesarchiv.app.after_write.enqueue_reindex_subtree": (
-        1,
-        _CRASH,
-    ),
-    "app/test_services.py:test_save_article_gives_up_on_a_held_index_lock_and_enqueues:bundesarchiv.app.after_write.enqueue_reindex_article": (
-        1,
-        _DEBT,
-    ),
     "app/test_services.py:test_save_article_gives_up_on_a_held_index_lock_and_enqueues:bundesarchiv.app.after_write.SYNC_LOCK_TIMEOUT_MS": (
         1,
         _DEBT,
     ),
-    "app/test_services.py:test_save_article_enqueues_one_push_of_the_article:bundesarchiv.app.after_write.enqueue_mirror_push": (
-        1,
-        _DEBT,
-    ),
-    "app/test_services.py:test_delete_article_enqueues_one_push_of_the_mark:bundesarchiv.app.after_write.enqueue_mirror_push": (
-        1,
-        _DEBT,
-    ),
-    "app/test_services.py:test_hard_delete_article_enqueues_the_delete_and_no_push:bundesarchiv.app.after_write.enqueue_mirror_push": (
-        1,
-        _DEBT,
-    ),
-    "app/test_services.py:test_hard_delete_article_enqueues_the_delete_and_no_push:bundesarchiv.app.after_write.enqueue_mirror_delete_article": (
-        1,
-        _DEBT,
-    ),
-    "app/test_services.py:test_create_article_enqueues_the_push_of_the_new_article:bundesarchiv.app.after_write.enqueue_mirror_push": (
-        1,
-        _DEBT,
-    ),
-    "app/test_services.py:test_save_collection_enqueues_one_push_of_the_collection:bundesarchiv.app.after_write.enqueue_mirror_push": (
-        1,
-        _DEBT,
-    ),
-    "app/test_services.py:test_save_article_mirror_enqueue_failure_does_not_break_save:bundesarchiv.app.after_write.enqueue_mirror_push": (
-        1,
-        _CRASH,
-    ),
-    "app/test_services.py:test_save_collection_gives_up_on_a_held_index_lock_and_enqueues:bundesarchiv.app.after_write.enqueue_reindex_subtree": (
-        1,
-        _DEBT,
-    ),
     "app/test_services.py:test_save_collection_gives_up_on_a_held_index_lock_and_enqueues:bundesarchiv.app.after_write.SYNC_LOCK_TIMEOUT_MS": (
-        1,
-        _DEBT,
-    ),
-    "app/test_services.py:test_a_rename_and_a_new_collection_leave_the_index_as_it_is:bundesarchiv.app.after_write.enqueue_reindex_subtree": (
         1,
         _DEBT,
     ),
@@ -265,26 +208,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         _DEBT,
     ),
     "app/web/conftest.py:_stub_service_boundaries:bundesarchiv.app.after_write.index_subtree": (
-        1,
-        _DEBT,
-    ),
-    "app/web/conftest.py:_stub_service_boundaries:bundesarchiv.app.after_write.enqueue_mirror_push": (
-        1,
-        _DEBT,
-    ),
-    "app/web/conftest.py:_stub_service_boundaries:bundesarchiv.app.after_write.enqueue_mirror_delete_article": (
-        1,
-        _DEBT,
-    ),
-    "app/web/conftest.py:_stub_service_boundaries:bundesarchiv.app.after_write.enqueue_reindex_article": (
-        1,
-        _DEBT,
-    ),
-    "app/web/conftest.py:_stub_service_boundaries:bundesarchiv.app.after_write.enqueue_reindex_subtree": (
-        1,
-        _DEBT,
-    ),
-    "app/web/conftest.py:_stub_service_boundaries:bundesarchiv.app.articles.enqueue_generate_thumbnail": (
         1,
         _DEBT,
     ),

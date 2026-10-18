@@ -103,20 +103,12 @@ def _collect_static_assets(request: pytest.FixtureRequest) -> None:
 
 @pytest.fixture(autouse=True)
 def _stub_service_boundaries(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """No-op the index writes and the worker enqueues for the duration of a web test; a job that
-    still reaches the queue lands in Procrastinate's in-memory connector. The canonical write
-    (repository + README + CAS) stays real."""
-    from bundesarchiv.app import after_write, articles
+    """No-op the index writes for the duration of a web test; a job that reaches the queue lands
+    in Procrastinate's in-memory connector. The canonical write (repository + README + CAS) stays
+    real."""
+    from bundesarchiv.app import after_write
 
-    for name in (
-        "index_article",
-        "index_subtree",
-        "enqueue_mirror_push",
-        "enqueue_mirror_delete_article",
-        "enqueue_reindex_article",
-        "enqueue_reindex_subtree",
-    ):
+    for name in ("index_article", "index_subtree"):
         monkeypatch.setattr(after_write, name, lambda *a, **k: None)
-    monkeypatch.setattr(articles, "enqueue_generate_thumbnail", lambda *a, **k: None)
     with app.replace_connector(InMemoryConnector()):
         yield

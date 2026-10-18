@@ -5,8 +5,8 @@ The write services name what they wrote; this module decides what that means for
 the mirror. Nothing here raises: the canonical write already stood. ``run`` answers whether the
 index caught up in-request — the bit every write route must show when it is False.
 
-``index_article``, ``index_subtree`` and the ``enqueue_*`` jobs are module-level names so tests can
-monkeypatch these genuine boundaries (the index adapter, the worker queue).
+``index_article`` and ``index_subtree`` are module-level names so tests can monkeypatch the index
+adapter.
 """
 
 import contextlib

@@ -3,7 +3,6 @@ it runs, so jobs are idempotent and commute (ADR 0014).
 """
 
 import contextlib
-from collections.abc import Callable
 from pathlib import Path
 
 import httpx2  # noqa: TID251
@@ -164,24 +163,3 @@ def enqueue_mirror_delete_article(ulid: str) -> None:
     if not _mirror_configured():
         return
     mirror_delete_article.defer(ulid=ulid)
-
-
-# --- in-test worker harness ------------------------------------------------------
-
-
-def run_worker_once_in_test(defer: Callable[[], None]) -> int:
-    """Deterministic worker-loop smoke for tests: swap in Procrastinate's InMemoryConnector, run
-    the ``defer`` callback to enqueue job(s) onto it, then drain the worker ONCE (one-shot, no
-    wait, no signal handlers, no LISTEN/NOTIFY). Returns the number of jobs processed.
-
-    The InMemoryConnector holds only the queue; the tasks still write the real index DB, so this
-    exercises the true task functions end-to-end without a live worker process or broker."""
-    from procrastinate.testing import InMemoryConnector  # noqa: TID251
-
-    connector = InMemoryConnector()
-    with app.replace_connector(connector):
-        defer()
-        app.run_worker(
-            wait=False, install_signal_handlers=False, listen_notify=False, delete_jobs="never"
-        )
-    return len(connector.finished_jobs)
