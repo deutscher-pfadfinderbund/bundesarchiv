@@ -1,15 +1,16 @@
 # app — package map
 
-Law: `Archive.canonical()` is the ONLY place in `src/` that builds the CANONICAL store from settings
-— new code takes an `Archive`, never constructs a store. (`tasks.mirror_store()` builds the system of
-record's WebDAV store from settings too, ADR 0020; it is never a read path.) The write shell's
+Law: `Archive.canonical()` is the ONLY place in `src/` that builds the CANONICAL store and its index
+from settings (ADR 0024) — new code takes an `Archive`, never constructs a store or an index.
+(`tasks.mirror_store()` builds the system of record's WebDAV store from settings too, ADR 0020; it
+is never a read path.) The write shell's
 ordering is a contract (ADR 0013/0014): canonical CAS write, then `after_write.run` (index sync whose
 failure must NOT re-raise, then the mirror enqueue), then the derived-file enqueues (all swallowing).
 ADR 0013's split is which entry point you call: form saves carry the form's expected version straight to `save_article`, never
 through the retrying `update_article` (which owns the load-mutate-save cycle for internal mutations).
 Every write service that writes a version takes `changed_by`, who is acting; the version it writes records it (ADR 0019).
 
-- `archive.py` — the one construction site for the canonical store + its repositories · interface: `Archive` (`.canonical()`, `.of()`, `.articles`, `.collections`, `.store`) · tests: `tests/app/test_archive.py`
+- `archive.py` — the canonical store, its repositories, its index (ADR 0024) · interface: `Archive` (`.canonical()`, `.of()`, `.store`, `.articles`, `.collections`, `.index`), `IndexOver` · tests: `test_archive.py`
 - `after_write.py` — after a canonical write: index sync + retry, mirror job · interface: `run`, `Written` (`SavedArticle` | `RemovedArticle` | `SavedCollection` | `MovedCollection`) · tests: `test_services.py`
 - `articles.py` — Article writes, then derived jobs · interface: `save_article`, `update_article`, `create_article`, `copy_article`, `delete_`/`restore_`/`hard_delete_article`, `derived_jobs` · tests: `test_services.py`
 - `collections.py` — Collection write service: canonical-then-subtree-index shell · interface: `create_collection`, `save_collection` · tests: `tests/app/test_services.py`

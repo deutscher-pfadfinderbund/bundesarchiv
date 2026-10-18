@@ -231,11 +231,12 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   hashes it in 1 MiB chunks and stores it with `create_large`; the view hands it the upload file.
   Pinned by `test_catalog_media.test_upload_memory_does_not_grow_with_the_file`.
 
-### 56. The index writer has no seam — Worth exploring
-- **Indicator:** shell tests that need Postgres only for the index write (`save_article` and the other write services); the web suite's autouse stubs of `after_write.index_article` and the enqueue functions (#55) (2026-10-11)
+### 56. The index writer has no seam — done (2026-10-18: `index/refresh.py`, ADR 0024)
+- **Indicator:** shell tests that need Postgres only for the index write (`save_article` and the other write services); the web suite's autouse stubs of `after_write.index_article` and the enqueue functions (#55) (2026-10-11); `tests/app/test_services.py` 36 Postgres-backed tests → 15: 14 assert index rows or hold the real lock, 1 is the Postgres case of the adapters' shared contract; 0 web index stubs (2026-10-18)
 - **Evidence:** `index/indexer.py` is reached through the Django ORM directly; the mirror's push record already has the pattern (`PostgresPushRecord` / `InMemoryPushRecord`)
 - **Deletion test:** an index-writer port with a Postgres and an in-memory adapter lets shell tests run without Postgres and retires the web stubs; shared contract tests run against both adapters so the fake cannot accept what Postgres refuses
 - **Sketch:** write side only (`index_article`, `rebuild`, `store_media_text`, `hashes_with_text`); the read side (`search`, facets) stays Postgres — a fake would be a second search engine and the leak tests prove only the real SQL. Owner 2026-10-11: build it when it pays, not for pluggability alone
+- **Outcome:** the port holds the two in-request refreshes only; `rebuild`, `store_media_text` and `hashes_with_text` stay direct on purpose (ADR 0024, Consequences)
 
 ## Implementation patterns
 
@@ -404,8 +405,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Still open:** `mise run mutate` runs plain pytest, so it cannot prove an e2e pin (a `menu.js` mutation was done by hand).
 
 ### 55. Tests monkeypatch our own code — Strong
-- **Indicator:** `monkeypatch.setattr` on a `bundesarchiv` name: `tests/app` 56, `tests/app/web` 48, `tests/persistence` 2, `tests/e2e` 0 (2026-10-11, AST count); `tests/app` 48 once the page-text shells moved, then `tests/app` 47 and `tests/app/web` 47 once the page-text tests dropped theirs (2026-10-11); `tests/app` 25, `tests/app/web` 53, `tests/persistence` 2 once the jobs received their dependencies, 0 `_DEBT` patches on `app.tasks` left (2026-10-18); `tests/app` 11, `tests/app/web` 48, `tests/persistence` 2 once the tests read the in-memory queue, 0 patches of an `enqueue_*` name left (2026-10-18)
-- **Evidence:** `writer-discipline` skill, "Functional core, imperative shell"; what is left (2026-10-18): 11 on `after_write` (the `index_article`/`index_subtree`/`SYNC_LOCK_TIMEOUT_MS` names, the web conftest's index stubs among them), then `ArticleRepository`, the web auth seam (`viewers`, `keycloak`, `auth_views`), `browse` and `articles`
+- **Indicator:** `monkeypatch.setattr` on a `bundesarchiv` name: `tests/app` 56, `tests/app/web` 48, `tests/persistence` 2, `tests/e2e` 0 (2026-10-11, AST count); `tests/app` 48 once the page-text shells moved, then `tests/app` 47 and `tests/app/web` 47 once the page-text tests dropped theirs (2026-10-11); `tests/app` 25, `tests/app/web` 53, `tests/persistence` 2 once the jobs received their dependencies, 0 `_DEBT` patches on `app.tasks` left (2026-10-18); `tests/app` 11, `tests/app/web` 48, `tests/persistence` 2 once the tests read the in-memory queue, 0 patches of an `enqueue_*` name left (2026-10-18); `tests/app` 5, `tests/app/web` 43, `tests/persistence` 2 once the index sits behind a port, 0 patches on `after_write` left (2026-10-18)
+- **Evidence:** `writer-discipline` skill, "Functional core, imperative shell"; what is left (2026-10-18): `ArticleRepository`, the web auth seam (`viewers`, `keycloak`, `auth_views`), `browse` and `articles`
 - **Deletion test:** a test runs the real shell over `Archive.of(...)` and the in-memory queue; a renamed function no longer leaves a patch passing vacuously
 - **Sketch:** removed when the module is touched; a later wave may sweep the rest
 

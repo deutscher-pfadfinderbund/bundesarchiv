@@ -11,12 +11,12 @@ from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime
+from functools import partial
 
 import pytest
 from tests._queue import queued
 
-from bundesarchiv.app import after_write
-from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.archive import Archive, IndexOver
 from bundesarchiv.app.articles import (
     PageText,
     Thumbnail,
@@ -42,6 +42,7 @@ from bundesarchiv.domain.models import (
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public
 from bundesarchiv.index.query import SearchFilters, search
+from bundesarchiv.index.refresh import InMemoryIndex, PostgresIndex, Refresh
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import StoredCollection
 
@@ -50,10 +51,33 @@ PUBLIC = Public()
 
 
 @pytest.fixture
-def archive() -> Archive:
+def refreshed() -> list[Refresh]:
+    return []
+
+
+@pytest.fixture
+def archive(refreshed: list[Refresh]) -> Archive:
+    """The fixture archive over an in-memory index that records into ``refreshed``."""
+    return _filled(Archive.of(InMemoryObjectStore(), partial(InMemoryIndex, refreshed=refreshed)))
+
+
+@pytest.fixture
+def pg_archive() -> Archive:
+    """The fixture archive over the index ``Archive.of`` builds by default, Postgres."""
+    return _filled(Archive.of(InMemoryObjectStore()))
+
+
+def _with_lock_timeout(archive: Archive) -> Archive:
+    return Archive.of(archive.store, partial(PostgresIndex, lock_timeout_ms=100))
+
+
+def _failing(archive: Archive) -> Archive:
+    return Archive.of(archive.store, partial(InMemoryIndex, failing=True))
+
+
+def _filled(archive: Archive) -> Archive:
     """ROOT (Members) -> FOTOS (PUBLIC); one published article under FOTOS, saved through the
     repositories but NOT yet indexed (services own the indexing)."""
-    archive = Archive.of(InMemoryObjectStore())
     collections = archive.collections
     articles = archive.articles
     collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester")
@@ -88,12 +112,12 @@ def _pub_titles(viewer: object) -> set[str]:
 
 
 @pytest.mark.django_db
-def test_save_article_writes_canonical_and_indexes(archive: Archive) -> None:
+def test_save_article_writes_canonical_and_indexes(pg_archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    articles = archive.articles
+    articles = pg_archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(archive, stored.article, stored.version, changed_by="tester")
+    result = save_article(pg_archive, stored.article, stored.version, changed_by="tester")
 
     assert isinstance(result, SaveResult)
     assert result.index_updated is True
@@ -103,14 +127,14 @@ def test_save_article_writes_canonical_and_indexes(archive: Archive) -> None:
 
 
 @pytest.mark.django_db
-def test_save_article_conflict_propagates_without_indexing(archive: Archive) -> None:
+def test_save_article_conflict_propagates_without_indexing(pg_archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
     from bundesarchiv.persistence.errors import Conflict
 
-    articles = archive.articles
+    articles = pg_archive.articles
     stored = articles.load("01FOTO")
     with pytest.raises(Conflict):
-        save_article(archive, stored.article, stored.version - 1, changed_by="tester")  # stale
+        save_article(pg_archive, stored.article, stored.version - 1, changed_by="tester")  # stale
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()  # no index write on failure
 
 
@@ -120,22 +144,21 @@ def test_save_article_conflict_propagates_without_indexing(archive: Archive) -> 
 
 
 @pytest.mark.django_db
-def test_update_article_applies_the_mutation_and_indexes(archive: Archive) -> None:
+def test_update_article_applies_the_mutation_and_indexes(pg_archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
     outcome = update_article(
-        archive, "01FOTO", lambda a: replace(a, title="Umbenannt"), changed_by="tester"
+        pg_archive, "01FOTO", lambda a: replace(a, title="Umbenannt"), changed_by="tester"
     )
 
     assert isinstance(outcome, Updated)
     assert outcome.article.title == "Umbenannt"
     assert outcome.version == 2  # the fixture stored it at v1
     assert outcome.index_updated is True
-    assert archive.articles.load("01FOTO").article.title == "Umbenannt"
+    assert pg_archive.articles.load("01FOTO").article.title == "Umbenannt"
     assert ArticleIndex.objects.get(ulid="01FOTO").title == "Umbenannt"
 
 
-@pytest.mark.django_db
 def test_update_article_retries_onto_the_winner_of_a_concurrent_write(archive: Archive) -> None:
     calls = 0
 
@@ -158,7 +181,6 @@ def test_update_article_retries_onto_the_winner_of_a_concurrent_write(archive: A
     assert (final.title, final.creator) == ("Umbenannt", "Konkurrenz")
 
 
-@pytest.mark.django_db
 def test_update_article_reports_conflicted_when_every_attempt_loses(archive: Archive) -> None:
     """A mutate that loses every race gets ``Conflicted`` — never a silent no-op and never a 500.
     Nothing of ours is committed; the concurrent writer's state stands."""
@@ -184,7 +206,6 @@ def test_update_article_reports_conflicted_when_every_attempt_loses(archive: Arc
     assert final.creator == "Konkurrenz 2"
 
 
-@pytest.mark.django_db
 def test_update_article_without_retries_gives_up_on_the_first_loss(archive: Archive) -> None:
     calls = 0
 
@@ -204,7 +225,6 @@ def test_update_article_without_retries_gives_up_on_the_first_loss(archive: Arch
     assert archive.articles.load("01FOTO").article.title == "Öffentliches Foto"
 
 
-@pytest.mark.django_db
 def test_update_article_reports_missing_for_an_absent_article(archive: Archive) -> None:
     outcome = update_article(
         archive, "01NOSUCH", lambda a: replace(a, title="Egal"), changed_by="tester"
@@ -214,7 +234,6 @@ def test_update_article_reports_missing_for_an_absent_article(archive: Archive) 
     assert not [key for key in archive.store.list() if "01NOSUCH" in key]  # nothing minted
 
 
-@pytest.mark.django_db
 def test_update_article_reports_missing_when_the_article_vanishes_mid_retry(
     archive: Archive,
 ) -> None:
@@ -256,22 +275,22 @@ def _archivist_titles(*, deleted: bool) -> set[str]:
 
 @pytest.mark.django_db
 def test_delete_and_restore_move_the_article_between_the_list_and_the_trash(
-    archive: Archive,
+    pg_archive: Archive,
 ) -> None:
-    stored = archive.articles.load("01FOTO")
-    save_article(archive, stored.article, stored.version, changed_by="tester")
+    stored = pg_archive.articles.load("01FOTO")
+    save_article(pg_archive, stored.article, stored.version, changed_by="tester")
     assert _archivist_titles(deleted=False) == {"Öffentliches Foto"}
 
-    stored = archive.articles.load("01FOTO")
-    deleted = delete_article(archive, stored.article, stored.version, changed_by="bert")
+    stored = pg_archive.articles.load("01FOTO")
+    deleted = delete_article(pg_archive, stored.article, stored.version, changed_by="bert")
     assert deleted.index_updated
     assert (_archivist_titles(deleted=False), _archivist_titles(deleted=True)) == (
         set(),
         {"Öffentliches Foto"},
     )
 
-    marked = archive.articles.load("01FOTO").article
-    restored = restore_article(archive, marked, deleted.version, changed_by="anna")
+    marked = pg_archive.articles.load("01FOTO").article
+    restored = restore_article(pg_archive, marked, deleted.version, changed_by="anna")
     assert restored.index_updated
     assert (_archivist_titles(deleted=False), _archivist_titles(deleted=True)) == (
         {"Öffentliches Foto"},
@@ -285,11 +304,11 @@ def test_delete_and_restore_move_the_article_between_the_list_and_the_trash(
 
 
 @pytest.mark.django_db
-def test_create_article_mints_ulid_and_indexes(archive: Archive) -> None:
+def test_create_article_mints_ulid_and_indexes(pg_archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
     result = create_article(
-        archive,
+        pg_archive,
         title="Neuer Artikel",
         collection_id="FOTOS",
         lifecycle=Lifecycle.PUBLISHED,
@@ -307,7 +326,6 @@ def test_create_article_mints_ulid_and_indexes(archive: Archive) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.django_db
 def test_create_collection_mints_ulid_and_saves_top_level(archive: Archive) -> None:
     result = create_collection(archive, name="Neuer Bestand", parent_id=None, changed_by="tester")
     assert result.version == 1
@@ -317,7 +335,6 @@ def test_create_collection_mints_ulid_and_saves_top_level(archive: Archive) -> N
     assert stored.collection.audience is None  # inherit by default
 
 
-@pytest.mark.django_db
 def test_create_collection_under_parent_with_audience(archive: Archive) -> None:
     result = create_collection(
         archive,
@@ -331,7 +348,6 @@ def test_create_collection_under_parent_with_audience(archive: Archive) -> None:
     assert stored.collection.audience == Audience(AudienceTier.MEMBERS)
 
 
-@pytest.mark.django_db
 def test_create_collection_rejects_absent_parent(archive: Archive) -> None:
     # a parent that does not exist must be refused (no oracle, fail closed) — nothing created.
     from bundesarchiv.persistence.errors import NotFound
@@ -350,11 +366,11 @@ def test_create_collection_rejects_absent_parent(archive: Archive) -> None:
 
 @pytest.mark.django_db
 def test_copy_article_copies_metadata_clears_ref_code_and_media(
-    archive: Archive,
+    pg_archive: Archive,
 ) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    articles = archive.articles
+    articles = pg_archive.articles
     # store a real blob so the source can reference it (repository refuses an unstored ref)
     ref = articles.add_media("01SOURCE", "bild.jpg", io.BytesIO(b"pixels"), "image/jpeg", "Am See")
     source = Article(
@@ -374,7 +390,7 @@ def test_copy_article_copies_metadata_clears_ref_code_and_media(
     )
     articles.save(source, 0, changed_by="tester")
 
-    result = copy_article(archive, "01SOURCE", changed_by="tester")
+    result = copy_article(pg_archive, "01SOURCE", changed_by="tester")
 
     copy = articles.load(result.ulid).article
     assert copy.ulid != "01SOURCE"  # a fresh identity
@@ -395,7 +411,6 @@ def test_copy_article_copies_metadata_clears_ref_code_and_media(
     assert ArticleIndex.objects.filter(ulid=result.ulid).exists()
 
 
-@pytest.mark.django_db
 def test_copy_article_source_untouched(archive: Archive) -> None:
     articles = archive.articles
     articles.save(
@@ -415,24 +430,23 @@ def test_copy_article_source_untouched(archive: Archive) -> None:
 
 
 @pytest.mark.django_db
-def test_hard_delete_article_removes_index_row(archive: Archive) -> None:
+def test_hard_delete_article_removes_index_row(pg_archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    articles = archive.articles
+    articles = pg_archive.articles
     save_article(
-        archive,
+        pg_archive,
         articles.load("01FOTO").article,
         articles.load("01FOTO").version,
         changed_by="tester",
     )
     assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
-    result = hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
+    result = hard_delete_article(pg_archive, "01FOTO", pg_archive.articles.load("01FOTO").version)
     assert result.index_updated is True
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
 
-@pytest.mark.django_db
 def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
     archive: Archive,
 ) -> None:
@@ -454,15 +468,10 @@ def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.django_db
 def test_save_article_index_failure_stands_canonical_and_enqueues(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
+    archive: Archive,
 ) -> None:
-    def boom(*_args: object, **_kwargs: object) -> None:
-        raise RuntimeError("index down")
-
-    monkeypatch.setattr(after_write, "index_article", boom)
-
+    archive = _failing(archive)
     articles = archive.articles
     stored = articles.load("01FOTO")
     results: list[SaveResult] = []
@@ -480,15 +489,10 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
     assert archive.articles.load("01FOTO").version == 2
 
 
-@pytest.mark.django_db
 def test_save_article_swallows_enqueue_failure_after_index_failure(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
+    archive: Archive,
 ) -> None:
-    def boom(*_args: object, **_kwargs: object) -> None:
-        raise RuntimeError("index down")
-
-    monkeypatch.setattr(after_write, "index_article", boom)
-
+    archive = _failing(archive)
     articles = archive.articles
     stored = articles.load("01FOTO")
     results: list[SaveResult] = []
@@ -505,15 +509,10 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
     assert archive.articles.load("01FOTO").version == 2
 
 
-@pytest.mark.django_db
 def test_save_collection_swallows_enqueue_failure_after_index_failure(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
+    archive: Archive,
 ) -> None:
-    def boom(*_args: object, **_kwargs: object) -> None:
-        raise RuntimeError("index down")
-
-    monkeypatch.setattr(after_write, "index_subtree", boom)
-
+    archive = _failing(archive)
     stored = archive.collections.load("FOTOS")
     results: list[SaveResult] = []
     queued(
@@ -530,32 +529,48 @@ def test_save_collection_swallows_enqueue_failure_after_index_failure(
     assert archive.collections.load("FOTOS").version == 2
 
 
-@pytest.mark.django_db(transaction=True)
-def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
+def test_a_write_refreshes_the_index_once_the_store_holds_it(
+    archive: Archive, refreshed: list[Refresh]
 ) -> None:
-    """A save whose index update cannot get the index-writer lock within the sync bound (a rebuild
-    holds it) returns index_updated=False and queues the retry instead of waiting the holder out."""
-    from django.db import connection, transaction
-
-    from bundesarchiv.index.indexer import _take_writer_lock
-
-    monkeypatch.setattr(after_write, "SYNC_LOCK_TIMEOUT_MS", 100)
-    held, release = threading.Event(), threading.Event()
-
-    def hold_lock() -> None:
-        try:
-            with transaction.atomic():
-                _take_writer_lock()
-                held.set()
-                release.wait(timeout=5)
-        finally:
-            connection.close()
-
+    """A refresh re-reads the store, so it runs after the canonical write (ADR 0014)."""
     stored = archive.articles.load("01FOTO")
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        holder = pool.submit(hold_lock)
-        assert held.wait(timeout=5)
+    saved = save_article(archive, stored.article, stored.version, changed_by="t")
+    marked = delete_article(archive, stored.article, saved.version, changed_by="t")
+    hard_delete_article(archive, "01FOTO", marked.version)
+    fotos = archive.collections.load("FOTOS")
+    save_collection(archive, _narrowed(fotos.collection), fotos.version, changed_by="t")
+
+    assert refreshed == [
+        ("article", "01FOTO", 2),
+        ("article", "01FOTO", 3),
+        ("article", "01FOTO", None),
+        ("subtree", "FOTOS", 2),
+    ]
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        pytest.param(InMemoryIndex, id="in-memory"),
+        pytest.param(PostgresIndex, id="postgres", marks=pytest.mark.django_db),
+    ],
+)
+def test_refreshing_what_the_store_does_not_hold_is_not_an_error(index: IndexOver) -> None:
+    over_empty = index(InMemoryObjectStore())
+    over_empty.refresh_article("01NEVER")
+    over_empty.refresh_subtree("NOSUCH")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: Archive) -> None:
+    """A save whose index update cannot get the index-writer lock within the sync bound (a rebuild
+    holds it) returns index_updated=False, writes no row and queues the retry instead of waiting
+    the holder out."""
+    from bundesarchiv.index.models import ArticleIndex
+
+    archive = _with_lock_timeout(pg_archive)
+    stored = archive.articles.load("01FOTO")
+    with _index_lock_held():
         started = time.monotonic()
         results: list[SaveResult] = []
         jobs = queued(
@@ -564,13 +579,12 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(
             )
         )
         elapsed = time.monotonic() - started
-        release.set()
-        holder.result()
     (result,) = results
 
     assert result.index_updated is False
     assert jobs == [("reindex_article", {"ulid": "01FOTO"})]
     assert elapsed < 2
+    assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -580,11 +594,11 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(
 
 @pytest.mark.django_db
 def test_gate_unpublishing_article_via_service_hides_it_next_search(
-    archive: Archive,
+    pg_archive: Archive,
 ) -> None:
-    articles = archive.articles
+    articles = pg_archive.articles
     save_article(
-        archive,
+        pg_archive,
         articles.load("01FOTO").article,
         articles.load("01FOTO").version,
         changed_by="tester",
@@ -599,7 +613,7 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
         lifecycle=Lifecycle.DRAFT,  # unpublished -> archivist-only
         date=EdtfDate("1965"),
     )
-    save_article(archive, unpublished, stored.version, changed_by="tester")
+    save_article(pg_archive, unpublished, stored.version, changed_by="tester")
 
     assert "Öffentliches Foto" not in _pub_titles(PUBLIC)  # gone for Public
     assert "Öffentliches Foto" not in _pub_titles(PLAIN_MEMBER)  # gone for Members too
@@ -612,21 +626,21 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
 
 @pytest.mark.django_db
 def test_gate_narrowing_collection_audience_via_service_hides_descendants(
-    archive: Archive,
+    pg_archive: Archive,
 ) -> None:
-    articles = archive.articles
+    articles = pg_archive.articles
     save_article(
-        archive,
+        pg_archive,
         articles.load("01FOTO").article,
         articles.load("01FOTO").version,
         changed_by="tester",
     )
     assert "Öffentliches Foto" in _pub_titles(PUBLIC)  # visible to Public via FOTOS=PUBLIC
 
-    collections = archive.collections
+    collections = pg_archive.collections
     stored = collections.load("FOTOS")
     result = save_collection(
-        archive,
+        pg_archive,
         Collection(
             ulid="FOTOS",
             name="Fotos",
@@ -689,7 +703,6 @@ def _save_scan_and_pdf(archive: Archive) -> None:
     )
 
 
-@pytest.mark.django_db
 def test_a_save_queues_the_jobs_its_files_derive(archive: Archive) -> None:
     jobs = queued(lambda: _save_scan_and_pdf(archive))
 
@@ -701,7 +714,6 @@ def test_a_save_queues_the_jobs_its_files_derive(archive: Archive) -> None:
     ]
 
 
-@pytest.mark.django_db
 def test_a_failed_thumbnail_enqueue_neither_breaks_the_save_nor_skips_the_page_text(
     archive: Archive,
 ) -> None:
@@ -717,7 +729,6 @@ def test_a_failed_thumbnail_enqueue_neither_breaks_the_save_nor_skips_the_page_t
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.django_db
 def test_save_article_enqueues_one_push_of_the_article(archive: Archive) -> None:
     stored = archive.articles.load("01FOTO")
     jobs = queued(
@@ -728,7 +739,6 @@ def test_save_article_enqueues_one_push_of_the_article(archive: Archive) -> None
     assert jobs == [("mirror_push", {"ulid": "01FOTO"})]
 
 
-@pytest.mark.django_db
 def test_a_write_enqueues_nothing_without_a_mirror(archive: Archive) -> None:
     stored = archive.articles.load("01FOTO")
     jobs = queued(
@@ -738,7 +748,6 @@ def test_a_write_enqueues_nothing_without_a_mirror(archive: Archive) -> None:
     assert jobs == []
 
 
-@pytest.mark.django_db
 def test_delete_article_enqueues_one_push_of_the_mark(archive: Archive) -> None:
     stored = archive.articles.load("01FOTO")
     jobs = queued(
@@ -749,7 +758,6 @@ def test_delete_article_enqueues_one_push_of_the_mark(archive: Archive) -> None:
     assert jobs == [("mirror_push", {"ulid": "01FOTO"})]
 
 
-@pytest.mark.django_db
 def test_hard_delete_article_enqueues_the_delete_and_no_push(archive: Archive) -> None:
     version = archive.articles.load("01FOTO").version
     jobs = queued(lambda: hard_delete_article(archive, "01FOTO", version), mirror=True)
@@ -757,7 +765,6 @@ def test_hard_delete_article_enqueues_the_delete_and_no_push(archive: Archive) -
     assert jobs == [("mirror_delete_article", {"ulid": "01FOTO"})]
 
 
-@pytest.mark.django_db
 def test_create_article_enqueues_the_push_of_the_new_article(archive: Archive) -> None:
     created: list[CreateResult] = []
     jobs = queued(
@@ -770,7 +777,6 @@ def test_create_article_enqueues_the_push_of_the_new_article(archive: Archive) -
     assert jobs == [("mirror_push", {"ulid": created[0].ulid})]
 
 
-@pytest.mark.django_db
 def test_save_collection_enqueues_one_push_of_the_collection(archive: Archive) -> None:
     stored = archive.collections.load("FOTOS")
     jobs = queued(
@@ -781,7 +787,6 @@ def test_save_collection_enqueues_one_push_of_the_collection(archive: Archive) -
     assert jobs == [("mirror_push", {"ulid": "FOTOS"})]
 
 
-@pytest.mark.django_db
 def test_save_article_mirror_enqueue_failure_does_not_break_save(archive: Archive) -> None:
     """The reconcile heals a lost push (ADR 0020)."""
     articles = archive.articles
@@ -833,12 +838,9 @@ def _narrowed(collection: Collection) -> Collection:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: Archive) -> None:
     """The Bestand save path has the same bound as the Article save path."""
-    monkeypatch.setattr(after_write, "SYNC_LOCK_TIMEOUT_MS", 100)
-
+    archive = _with_lock_timeout(pg_archive)
     stored = archive.collections.load("FOTOS")
     with _index_lock_held():
         started = time.monotonic()
@@ -859,14 +861,12 @@ def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(pg_archive: Archive) -> None:
     """The index holds no Bestand name and a new Bestand holds no Articles, so neither waits on the
     index lock nor queues a reindex, and the renamed Bestand still finds its Article."""
-    stored_article = archive.articles.load("01FOTO")
-    save_article(archive, stored_article.article, stored_article.version, changed_by="tester")
-    monkeypatch.setattr(after_write, "SYNC_LOCK_TIMEOUT_MS", 100)
+    stored_article = pg_archive.articles.load("01FOTO")
+    save_article(pg_archive, stored_article.article, stored_article.version, changed_by="tester")
+    archive = _with_lock_timeout(pg_archive)
 
     stored = archive.collections.load("FOTOS")
     with _index_lock_held():
@@ -893,49 +893,49 @@ def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(
 
 @pytest.mark.django_db
 def test_gate_a_rename_at_a_version_it_did_not_read_still_reindexes(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
+    pg_archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A rename whose ``expected_version`` is ahead of the version the service read wins the CAS
     against a concurrent widening edit that lands in between, and writes the older, narrower
     audience back. Its reindex must run, or the index keeps the widened audience."""
-    save_article(archive, archive.articles.load("01FOTO").article, 1, changed_by="t")
-    fotos = archive.collections.load("FOTOS")
-    save_collection(archive, _narrowed(fotos.collection), fotos.version, changed_by="t")
-    narrow = archive.collections.load("FOTOS")
-    load = archive.collections.load
+    save_article(pg_archive, pg_archive.articles.load("01FOTO").article, 1, changed_by="t")
+    fotos = pg_archive.collections.load("FOTOS")
+    save_collection(pg_archive, _narrowed(fotos.collection), fotos.version, changed_by="t")
+    narrow = pg_archive.collections.load("FOTOS")
+    load = pg_archive.collections.load
 
     def load_then_widen(ulid: str) -> StoredCollection:
         stored = load(ulid)
-        monkeypatch.setattr(archive.collections, "load", load)
-        save_collection(archive, fotos.collection, stored.version, changed_by="concurrent")
+        monkeypatch.setattr(pg_archive.collections, "load", load)
+        save_collection(pg_archive, fotos.collection, stored.version, changed_by="concurrent")
         return stored
 
-    monkeypatch.setattr(archive.collections, "load", load_then_widen)
+    monkeypatch.setattr(pg_archive.collections, "load", load_then_widen)
     rename = replace(narrow.collection, name="Lichtbilder")
-    save_collection(archive, rename, narrow.version + 1, changed_by="t")
+    save_collection(pg_archive, rename, narrow.version + 1, changed_by="t")
 
-    assert archive.collections.load("FOTOS").collection == rename
+    assert pg_archive.collections.load("FOTOS").collection == rename
     assert "Öffentliches Foto" not in _pub_titles(PUBLIC)
 
 
 @pytest.mark.django_db
 def test_gate_moving_a_collection_under_a_narrower_parent_hides_its_articles(
-    archive: Archive,
+    pg_archive: Archive,
 ) -> None:
     """A parent edit moves the effective audience of an inheriting subtree, like an audience edit."""
-    archive.collections.save(
+    pg_archive.collections.save(
         Collection(ulid="KIND", name="Kind", parent_id="FOTOS"), 0, changed_by="t"
     )
     article = Article(
         ulid="01KIND", title="Geerbt", collection_id="KIND", lifecycle=Lifecycle.PUBLISHED
     )
-    archive.articles.save(article, 0, changed_by="t")
-    save_article(archive, article, 1, changed_by="t")
+    pg_archive.articles.save(article, 0, changed_by="t")
+    save_article(pg_archive, article, 1, changed_by="t")
     assert "Geerbt" in _pub_titles(PUBLIC)  # inherits PUBLIC from FOTOS
 
-    stored = archive.collections.load("KIND")
+    stored = pg_archive.collections.load("KIND")
     save_collection(
-        archive, replace(stored.collection, parent_id="ROOT"), stored.version, changed_by="t"
+        pg_archive, replace(stored.collection, parent_id="ROOT"), stored.version, changed_by="t"
     )
 
     assert "Geerbt" not in _pub_titles(PUBLIC)  # now inherits the root default, Members

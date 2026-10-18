@@ -46,6 +46,7 @@ UNREFERENCED: dict[str, str] = {
     "bundesarchiv/app/apps.py:AppServicesConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/index/apps.py:IndexConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/app/push_record.py:InMemoryPushRecord": "test fake",
+    "bundesarchiv/index/refresh.py:InMemoryIndex": "test fake",
     "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore": "test fake",
 }
 
@@ -162,30 +163,6 @@ _RACE = "race"
 #: never patch our own code"); the rest is ``docs/tech-debt.md`` #55. A patch no static read can
 #: resolve counts under ``<unresolved>``.
 TEST_PATCHES: dict[str, tuple[int, str]] = {
-    "app/test_services.py:test_save_article_index_failure_stands_canonical_and_enqueues:bundesarchiv.app.after_write.index_article": (
-        1,
-        _CRASH,
-    ),
-    "app/test_services.py:test_save_article_swallows_enqueue_failure_after_index_failure:bundesarchiv.app.after_write.index_article": (
-        1,
-        _CRASH,
-    ),
-    "app/test_services.py:test_save_collection_swallows_enqueue_failure_after_index_failure:bundesarchiv.app.after_write.index_subtree": (
-        1,
-        _CRASH,
-    ),
-    "app/test_services.py:test_save_article_gives_up_on_a_held_index_lock_and_enqueues:bundesarchiv.app.after_write.SYNC_LOCK_TIMEOUT_MS": (
-        1,
-        _DEBT,
-    ),
-    "app/test_services.py:test_save_collection_gives_up_on_a_held_index_lock_and_enqueues:bundesarchiv.app.after_write.SYNC_LOCK_TIMEOUT_MS": (
-        1,
-        _DEBT,
-    ),
-    "app/test_services.py:test_a_rename_and_a_new_collection_leave_the_index_as_it_is:bundesarchiv.app.after_write.SYNC_LOCK_TIMEOUT_MS": (
-        1,
-        _DEBT,
-    ),
     "app/test_services.py:test_gate_a_rename_at_a_version_it_did_not_read_still_reindexes:bundesarchiv.app.archive.Archive.collections.load": (
         2,
         _RACE,
@@ -203,14 +180,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         _DEBT,
     ),
     "app/web/conftest.py:recording_store:bundesarchiv.app.archive.Archive.canonical": (1, _DEBT),
-    "app/web/conftest.py:_stub_service_boundaries:bundesarchiv.app.after_write.index_article": (
-        1,
-        _DEBT,
-    ),
-    "app/web/conftest.py:_stub_service_boundaries:bundesarchiv.app.after_write.index_subtree": (
-        1,
-        _DEBT,
-    ),
     "app/web/test_auth_views.py:keycloak:bundesarchiv.app.web.auth_views.authorization_url": (
         1,
         _DEBT,
@@ -247,10 +216,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         2,
         _RACE,
     ),
-    "app/web/test_catalog_actions.py:test_delete_with_index_lag_says_so:bundesarchiv.app.after_write.index_article": (
-        1,
-        _CRASH,
-    ),
     "app/web/test_catalog_actions.py:test_a_save_landing_while_the_restore_runs_survives:bundesarchiv.persistence.repository.ArticleRepository.load": (
         2,
         _RACE,
@@ -272,14 +237,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         _RACE,
     ),
     "app/web/test_error_pages.py:test_an_uncaught_error_gets_the_error_page_and_repeats_nothing:bundesarchiv.app.archive.Archive.canonical": (
-        1,
-        _CRASH,
-    ),
-    "app/web/test_index_lag.py:failing_index:bundesarchiv.app.after_write.index_article": (
-        1,
-        _CRASH,
-    ),
-    "app/web/test_index_lag.py:failing_index:bundesarchiv.app.after_write.index_subtree": (
         1,
         _CRASH,
     ),

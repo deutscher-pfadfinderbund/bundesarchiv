@@ -29,7 +29,7 @@ The identifier an Archivist assigns to an Article and writes on the physical obj
 _Avoid_: signature (false friend — means autograph in English), ref_id (implies identity — the ULID is the identity), call number, ID, key.
 
 **Archive** (code term, no UI label):
-One archive as one value: the canonical files-store (the `ObjectStore` port) together with the repositories over it. Built per request or job and passed down — the seam the application layer reads and writes the archive through, so a service takes an Archive and never a bare store. `Archive.canonical()` is the one place the canonical store is built from settings.
+One archive as one value: the canonical files-store (the `ObjectStore` port) together with the repositories over it and the search index built from it (ADR 0024). Built per request or job and passed down — the seam the application layer reads and writes the archive through, so a service takes an Archive and never a bare store. `Archive.canonical()` is the one place the canonical store and its index are built from settings.
 _Avoid_: context (template context), session (DB session), store (the persistence port it holds).
 
 ### People & audience

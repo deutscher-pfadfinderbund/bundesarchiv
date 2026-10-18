@@ -14,6 +14,7 @@ from tests.app.web._fixtures import PUBLISHED_ULID, client_as
 from bundesarchiv.domain.viewer import Public
 from bundesarchiv.index import settings as prod_settings
 from bundesarchiv.index import settings_dev
+from bundesarchiv.index.refresh import InMemoryIndex
 
 _WSGI = "bundesarchiv.index.wsgi"
 
@@ -46,6 +47,19 @@ def test_wsgi_entry_refuses_to_serve_without_a_required_env_var(
         monkeypatch.setenv(name, "set-for-this-test")
     monkeypatch.delenv(missing)
     with pytest.raises(ImproperlyConfigured, match=missing):
+        _boot_wsgi()
+
+
+def test_wsgi_entry_refuses_to_serve_over_an_index_other_than_postgres(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A save over the in-memory index would claim the index current and queue no retry."""
+    for name in prod_settings.REQUIRED_SERVING_ENV:
+        monkeypatch.setenv(name, "set-for-this-test")
+    with (
+        override_settings(BUNDESARCHIV_INDEX=InMemoryIndex),
+        pytest.raises(ImproperlyConfigured, match="BUNDESARCHIV_INDEX"),
+    ):
         _boot_wsgi()
 
 
