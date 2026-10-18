@@ -7,6 +7,7 @@ from tests.index import fixtures
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -24,11 +25,15 @@ PUBLIC = Public()
 PLAIN_MEMBER = Member(())
 ARCHIVIST = Archivist()
 
-_DL_ROOT = "DL_ROOT"
-_DL_PUBLIC_DATED = "DL_PUBLIC_DATED"  # PUBLIC, has a date (the "index isn't empty" anchor)
-_DL_PUBLIC_NODATE = "DL_PUBLIC_NODATE"  # PUBLIC, no date (a Public dateless row DOES count for all)
-_DL_MEMBER_NODATE = "DL_MEMBER_NODATE"  # MEMBERS, no date (must NOT count for Public)
-_DL_DRAFT_NODATE = "DL_DRAFT_NODATE"  # DRAFT (archivist-only), no date (must NOT count for anyone)
+_DL_ROOT = ULID("DL_ROOT")
+_DL_PUBLIC_DATED = ULID("DL_PUBLIC_DATED")  # PUBLIC, has a date (the "index isn't empty" anchor)
+_DL_PUBLIC_NODATE = ULID(
+    "DL_PUBLIC_NODATE"
+)  # PUBLIC, no date (a Public dateless row DOES count for all)
+_DL_MEMBER_NODATE = ULID("DL_MEMBER_NODATE")  # MEMBERS, no date (must NOT count for Public)
+_DL_DRAFT_NODATE = ULID(
+    "DL_DRAFT_NODATE"
+)  # DRAFT (archivist-only), no date (must NOT count for anyone)
 
 
 def _build_dateless_store() -> InMemoryObjectStore:

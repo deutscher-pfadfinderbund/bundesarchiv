@@ -5,7 +5,7 @@ import io
 import pytest
 
 from bundesarchiv.app import stats
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
@@ -19,16 +19,16 @@ def test_the_stats_record_and_one_record_per_media_type(
     settings.BUNDESARCHIV_THUMBNAIL_ROOT = str(tmp_path)  # type: ignore[attr-defined]
     store = InMemoryObjectStore()
     CollectionRepository(store).save(
-        Collection("PUB", "Offen", audience=Audience(AudienceTier.PUBLIC)), 0, changed_by="t"
+        Collection(ULID("PUB"), "Offen", audience=Audience(AudienceTier.PUBLIC)), 0, changed_by="t"
     )
     articles = ArticleRepository(store)
-    pdf = articles.add_media("01A", "a.pdf", io.BytesIO(b"%PDF 1"))
-    pdf2 = articles.add_media("01A", "b.pdf", io.BytesIO(b"%PDF 22"))
+    pdf = articles.add_media(ULID("01A"), "a.pdf", io.BytesIO(b"%PDF 1"))
+    pdf2 = articles.add_media(ULID("01A"), "b.pdf", io.BytesIO(b"%PDF 22"))
     articles.save(
         Article(
-            "01A",
+            ULID("01A"),
             "Mit",
-            "PUB",
+            ULID("PUB"),
             lifecycle=Lifecycle.PUBLISHED,
             body="Text",
             tags=("x",),
@@ -37,7 +37,7 @@ def test_the_stats_record_and_one_record_per_media_type(
         0,
         changed_by="t",
     )
-    articles.save(Article("01B", "Ohne", "PUB"), 0, changed_by="t")  # a draft, no media
+    articles.save(Article(ULID("01B"), "Ohne", ULID("PUB")), 0, changed_by="t")  # a draft, no media
     indexer.rebuild(store)
 
     with caplog.at_level("INFO", logger=stats.__name__):

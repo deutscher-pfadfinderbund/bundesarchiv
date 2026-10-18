@@ -26,13 +26,13 @@ from bundesarchiv.app.web import browse, ledger, vocab
 from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
 from bundesarchiv.app.web.media_urls import media_url
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
 
 # Valid ULIDs for the preview-pane articles (the pane resolves via is_valid_ulid, which the corpus's
 # mnemonic ids like "PUBFOTO" fail). PANE_PUB is public; PANE_MEM is members-only + floored fields.
-PANE_PUB_ULID = "01KX6RHVHG90WHP1PZWP0GSKQQ"
+PANE_PUB_ULID = ULID("01KX6RHVHG90WHP1PZWP0GSKQQ")
 PANE_MEM_ULID = "01KX6RHVHG90WHP1PZWP0GSKQR"
 # A valid ULID that is NOT in the corpus — the "absent" pane case (must render no pane, like denied).
 PANE_ABSENT_ULID = "01KX6RHVHG90WHP1PZWP0GSKZZ"
@@ -525,7 +525,7 @@ def test_the_drafts_filter_answers_the_archivist_and_nobody_else(indexed_corpus:
 
 
 def test_the_templates_filter_answers_the_archivist_and_nobody_else(indexed_corpus: Corpus) -> None:
-    stored = indexed_corpus.articles.load("DRAFT")
+    stored = indexed_corpus.articles.load(ULID("DRAFT"))
     template = replace(stored.article, template=True)
     indexed_corpus.articles.save(template, stored.version, changed_by="tester")
     indexer.rebuild(indexed_corpus.store)

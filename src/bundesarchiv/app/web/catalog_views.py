@@ -44,10 +44,10 @@ from bundesarchiv.app.web.viewers import (
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Lifecycle,
     MediaRef,
-    Ulid,
     Version,
 )
 from bundesarchiv.domain.viewer import Archivist
@@ -63,16 +63,16 @@ _PUBLISH_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffentl
 
 def _load_gated(
     request: HttpRequest, ulid: str, *, marked: bool = False
-) -> tuple[Archive, Stored, Archivist] | None:
+) -> tuple[Archive, ULID, Stored, Archivist] | None:
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or not is_valid_ulid(ulid):
         return None
     archive = Archive.canonical()
     stored = _load(archive, ulid, marked=marked)
-    return None if stored is None else (archive, stored, archivist)
+    return None if stored is None else (archive, ulid, stored, archivist)
 
 
-def _load(archive: Archive, ulid: Ulid, *, marked: bool) -> Stored | None:
+def _load(archive: Archive, ulid: ULID, *, marked: bool) -> Stored | None:
     """The Article, or ``None`` when it is absent, unreadable or not on the ``marked`` side."""
     try:
         stored = archive.articles.load(ulid)
@@ -92,9 +92,9 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
         title = catalog.one_line(request.POST.get("title", ""))
         collection_id = request.POST.get("collection_id", "").strip()
         errors = _create_errors(title, collection_id, chooser)
-        if not errors:
+        if not errors and (target := chooser.resolve(collection_id)) is not None:
             created = article_services.create_article(
-                archive, changed_by=archivist.username, title=title, collection_id=collection_id
+                archive, changed_by=archivist.username, title=title, collection_id=target
             )
             edit = reverse("article-edit", args=[created.ulid])
             return redirect_to(request, landing.noting_lag(edit, created.index_updated))
@@ -159,7 +159,7 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None:
         return not_found()
-    archive, stored, archivist = gated
+    archive, ulid, stored, archivist = gated
     chooser = CollectionChooser.of(archive)
     if request.method == "POST":
         return _handle_edit_post(request, archive, ulid, stored, chooser, archivist.username)
@@ -172,7 +172,7 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
 def _handle_edit_post(
     request: HttpRequest,
     archive: Archive,
-    ulid: Ulid,
+    ulid: ULID,
     stored: Stored,
     chooser: CollectionChooser,
     changed_by: str,
@@ -437,7 +437,7 @@ class _MediaRow:
     confirm_remove: bool
 
 
-def _media_rows(ulid: str, media: tuple[MediaRef, ...], remove_hash: str) -> tuple[_MediaRow, ...]:
+def _media_rows(ulid: ULID, media: tuple[MediaRef, ...], remove_hash: str) -> tuple[_MediaRow, ...]:
     """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015)."""
     last = len(media) - 1
     return tuple(
@@ -532,7 +532,7 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
-    archive, stored, archivist = gated
+    archive, ulid, stored, archivist = gated
     page = reverse("article-detail", args=[ulid])
     if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
         return redirect_to(request, page)
@@ -569,7 +569,7 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
-    archive, _, archivist = gated
+    archive, ulid, _, archivist = gated
     copy = article_services.copy_article(archive, ulid, changed_by=archivist.username)
     return redirect_to(request, landing.noting_lag(landing.copy_url(copy.ulid), copy.index_updated))
 
@@ -620,7 +620,7 @@ def _confirmed_delete(
     gated = _load_gated(request, ulid, marked=marked)
     if gated is None:
         return not_found()
-    archive, stored, archivist = gated
+    archive, ulid, stored, archivist = gated
     stale = ""
     if request.method == "POST":
         # The gate's load is what was checked, so it must be the version the CAS bets on.
@@ -681,7 +681,7 @@ def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid, marked=True)
     if gated is None or request.method != "POST":
         return not_found()
-    archive, stored, archivist = gated
+    archive, ulid, stored, archivist = gated
     page = reverse("article-detail", args=[ulid])
     if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
         return redirect_to(request, page)
@@ -733,7 +733,7 @@ def article_media_move(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
-    archive, _, archivist = gated
+    archive, ulid, _, archivist = gated
     content_hash = request.POST.get("hash", "")
     direction = request.POST.get("direction", "")
     return _structural_change(
@@ -753,7 +753,7 @@ def article_media_remove(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
-    archive, stored, archivist = gated
+    archive, ulid, stored, archivist = gated
     content_hash = request.POST.get("remove", "")
     if request.POST.get("confirmed") == "1":
         return _structural_change(
@@ -776,7 +776,7 @@ def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
-    archive, stored, archivist = gated
+    archive, ulid, stored, archivist = gated
     files = request.FILES.getlist("files")
     ceiling = settings.BUNDESARCHIV_MAX_UPLOAD_BYTES
     oversize = any(f.size is not None and f.size > ceiling for f in files)
@@ -829,7 +829,7 @@ def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
 def _structural_change(
     request: HttpRequest,
     archive: Archive,
-    ulid: Ulid,
+    ulid: ULID,
     transform: Callable[[tuple[MediaRef, ...]], tuple[MediaRef, ...]],
     *,
     changed_by: str,

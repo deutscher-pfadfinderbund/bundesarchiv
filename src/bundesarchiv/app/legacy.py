@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.domain.models import Article, Lifecycle, Ulid
+from bundesarchiv.domain.models import ULID, Article, Lifecycle
 from bundesarchiv.persistence.repository import cleaned_name
 
 #: One of the edit form's two value lists, as this module sees it: a membership test, nothing
@@ -225,7 +225,7 @@ def map_item(
     row: Mapping[str, str],
     media_rows: Iterable[Mapping[str, str]],
     *,
-    collection_id: Ulid,
+    collection_id: ULID,
 ) -> MappedItem:
     """Map one legacy row (plus its `files.csv` rows, any order) onto a fresh Article.
 
@@ -268,7 +268,7 @@ def map_item(
 def plan(
     rows: Sequence[Mapping[str, str]],
     media_rows: Iterable[Mapping[str, str]],
-    collection_ids: Mapping[str, Ulid],
+    collection_ids: Mapping[str, ULID],
 ) -> Plan:
     """Map every row against the already-created Bestände and report over the result.
 

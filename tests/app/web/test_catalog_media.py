@@ -27,10 +27,10 @@ from tests.app.web._fixtures import (
 from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.app.web.browse_views import media_tiles
 from bundesarchiv.app.web.media_urls import media_url, thumbnail_url
-from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
-_ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
+_ULID = ULID("01KX7YT9E3VX0CP3A5Q49RZMVH")
 _ADDED_AT = datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC)
 
 
@@ -143,7 +143,9 @@ def test_move_against_deleted_article_is_404(
 
     real_gated = catalog_views._load_gated
 
-    def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object, object] | None:
+    def _delete_then_gate(
+        request: HttpRequest, ulid: str
+    ) -> tuple[object, object, object, object] | None:
         gated = real_gated(request, ulid)
         corpus.articles.hard_delete(_ULID, corpus.articles.load(_ULID).version)
         return gated

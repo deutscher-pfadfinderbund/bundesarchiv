@@ -10,7 +10,7 @@ import pytest
 from tests._articles import make_article
 from tests.index import fixtures
 
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Archivist, Public, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import search
@@ -19,8 +19,8 @@ from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
 _PUBLIC = Public()
-_OPEN = "SG_OPEN"
-_CLOSED = "SG_CLOSED"
+_OPEN = ULID("SG_OPEN")
+_CLOSED = ULID("SG_CLOSED")
 
 
 def _articles() -> tuple[Article, ...]:

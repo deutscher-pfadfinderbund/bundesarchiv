@@ -6,7 +6,7 @@ import pytest
 
 from bundesarchiv.app.web import catalog
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.domain.models import Audience, AudienceTier, Change, Collection
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Change, Collection
 
 
 def _post(**overrides: object) -> dict[str, list[str]]:
@@ -36,14 +36,17 @@ def _post(**overrides: object) -> dict[str, list[str]]:
 
 #: The two Bestände the form offered; the parse layer accepts these and nothing else.
 _COLLECTION = CollectionChooser(
-    lambda: (Collection(ulid="COLL1", name="Eins"), Collection(ulid="COLL2", name="Zwei"))
+    lambda: (
+        Collection(ulid=ULID("COLL1"), name="Eins"),
+        Collection(ulid=ULID("COLL2"), name="Zwei"),
+    )
 )
 
 
 def _parse(post: dict[str, list[str]], *, stored: Audience | None = None) -> catalog.ParseResult:
     return catalog.parse_edit_form(
         post,
-        ulid="01ARTICLEULID0000000000000",
+        ulid=ULID("01ARTICLEULID0000000000000"),
         chooser=_COLLECTION,
         current_audience=stored,
         added_at=None,
@@ -67,7 +70,7 @@ def test_an_edit_keeps_the_trash_mark() -> None:
     mark = Change(at=datetime(2026, 9, 30, 12, 0, tzinfo=UTC), by="bert")
     result = catalog.parse_edit_form(
         _post(),
-        ulid="01ARTICLEULID0000000000000",
+        ulid=ULID("01ARTICLEULID0000000000000"),
         chooser=_COLLECTION,
         current_audience=None,
         added_at=None,

@@ -6,9 +6,12 @@ import pytest
 from bundesarchiv.app import articles
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import bulk
-from bundesarchiv.domain.models import Article
+from bundesarchiv.domain.models import ULID, Article
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import ArchiveError
+
+ID_01A = ULID("01A")
+ID_01B = ULID("01B")
 
 
 def _article(**over: object) -> Article:
@@ -31,13 +34,13 @@ def test_apply_bulk_document_type_rechecks_pair_against_fresh_media_type() -> No
         _article(ulid="01B", media_type="Schrifttum"),
     )
     outcome = bulk.apply_bulk(
-        archive, ["01A", "01B"], "document_type", "Schriftwechsel", changed_by="tester"
+        archive, [ID_01A, ID_01B], "document_type", "Schriftwechsel", changed_by="tester"
     )
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.saved == 1
-    a = archive.articles.load("01A").article
+    a = archive.articles.load(ID_01A).article
     assert a.document_type is None  # nothing written — pair stayed valid
-    assert archive.articles.load("01B").article.document_type == "Schriftwechsel"
+    assert archive.articles.load(ID_01B).article.document_type == "Schriftwechsel"
 
 
 def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
@@ -54,11 +57,11 @@ def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
         return real_save(archive_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
 
     monkeypatch.setattr(articles, "save_article", _save_error_first)
-    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "Y", changed_by="tester")
+    outcome = bulk.apply_bulk(archive, [ID_01A, ID_01B], "creator", "Y", changed_by="tester")
     assert outcome.saved == 1  # 01B saved
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.conflicted[0].ref_code == "F1"
-    assert archive.articles.load("01B").article.creator == "Y"
+    assert archive.articles.load(ID_01B).article.creator == "Y"
 
 
 def test_apply_bulk_property_holds_across_pair_mismatch_and_archive_error(
@@ -84,7 +87,7 @@ def test_apply_bulk_property_holds_across_pair_mismatch_and_archive_error(
     monkeypatch.setattr(articles_mod, "save_article", _save_error_for_c)
     outcome = bulk.apply_bulk(
         archive,
-        ["01A", "01B", "01C", "01GONE"],
+        [ID_01A, ID_01B, ULID("01C"), ULID("01GONE")],
         "document_type",
         "Schriftwechsel",
         changed_by="tester",

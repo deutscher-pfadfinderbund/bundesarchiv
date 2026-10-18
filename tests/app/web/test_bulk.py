@@ -3,9 +3,12 @@ import pytest
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import bulk
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.domain.models import Article, Collection
+from bundesarchiv.domain.models import ULID, Article, Collection
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import Conflict
+
+ID_01A = ULID("01A")
+ID_01B = ULID("01B")
 
 # --- the field allowlist (spec §0.7, §6.3) -----------------------------------------
 
@@ -37,6 +40,9 @@ def test_allowed_field_accepted() -> None:
 # --- applying one field to one article (pure) --------------------------------------
 
 
+_NO_BESTAND = CollectionChooser(lambda: ())
+
+
 def _article(**over: object) -> Article:
     base: dict[str, object] = {"ulid": "01A", "title": "T", "collection_id": "C1"}
     base.update(over)
@@ -44,24 +50,28 @@ def _article(**over: object) -> Article:
 
 
 def test_apply_scalar_empty_to_none() -> None:
-    art = bulk.apply_field(_article(physical_location="Regal 4"), "physical_location", "")
+    art = bulk.apply_field(
+        _article(physical_location="Regal 4"), "physical_location", "", chooser=_NO_BESTAND
+    )
     assert art.physical_location is None
 
 
 def test_apply_custom_empty_removes_key() -> None:
-    art = bulk.apply_field(_article(custom=(("Quelle", "alt"),)), "Quelle", "")
+    art = bulk.apply_field(_article(custom=(("Quelle", "alt"),)), "Quelle", "", chooser=_NO_BESTAND)
     assert "Quelle" not in dict(art.custom)
 
 
 def test_apply_custom_preserves_other_keys() -> None:
-    art = bulk.apply_field(_article(custom=(("Besitzer", "X"),)), "Quelle", "neu")
+    art = bulk.apply_field(
+        _article(custom=(("Besitzer", "X"),)), "Quelle", "neu", chooser=_NO_BESTAND
+    )
     got = dict(art.custom)
     assert got == {"Besitzer": "X", "Quelle": "neu"}
 
 
 def test_apply_media_type_keeps_valid_document_type() -> None:
     art = _article(media_type="Foto(s)", document_type="Zeitschrift")
-    out = bulk.apply_field(art, "media_type", "Foto(s)")
+    out = bulk.apply_field(art, "media_type", "Foto(s)", chooser=_NO_BESTAND)
     assert out.document_type == "Zeitschrift"  # still valid → kept
 
 
@@ -74,7 +84,9 @@ def _chooser(*collections: Collection) -> CollectionChooser:
 
 def test_field_display_value_collection_uses_name() -> None:
     # the confirm page shows the collection NAME, not the ulid (spec §2 D)
-    label = bulk.field_display("collection_id", "C1", _chooser(Collection(ulid="C1", name="Fotos")))
+    label = bulk.field_display(
+        "collection_id", "C1", _chooser(Collection(ulid=ULID("C1"), name="Fotos"))
+    )
     assert label == "Fotos"
 
 
@@ -114,17 +126,19 @@ def _archive_with(*articles_: Article) -> Archive:
 
 def test_apply_bulk_all_saved() -> None:
     archive = _archive_with(_article(ulid="01A"), _article(ulid="01B"))
-    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "K. Meyer", changed_by="tester")
+    outcome = bulk.apply_bulk(archive, [ID_01A, ID_01B], "creator", "K. Meyer", changed_by="tester")
     assert outcome.saved == 2
     assert outcome.conflicted == ()
     assert outcome.missing == ()
     # the write actually landed
-    assert archive.articles.load("01A").article.creator == "K. Meyer"
+    assert archive.articles.load(ID_01A).article.creator == "K. Meyer"
 
 
 def test_apply_bulk_missing_ulid_buckets() -> None:
     archive = _archive_with(_article(ulid="01A"))
-    outcome = bulk.apply_bulk(archive, ["01A", "01GONE"], "creator", "X", changed_by="tester")
+    outcome = bulk.apply_bulk(
+        archive, [ID_01A, ULID("01GONE")], "creator", "X", changed_by="tester"
+    )
     assert outcome.saved == 1
     assert outcome.missing == ("01GONE",)
 
@@ -143,18 +157,22 @@ def test_apply_bulk_conflict_buckets_and_does_not_abort(monkeypatch: pytest.Monk
         return real_save(archive_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
 
     monkeypatch.setattr(articles, "save_article", _save_conflict_first)
-    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "Y", changed_by="tester")
+    outcome = bulk.apply_bulk(archive, [ID_01A, ID_01B], "creator", "Y", changed_by="tester")
     assert outcome.saved == 1  # 01B saved
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.conflicted[0].ref_code == "F1"  # the .c-sig mark rides the row
-    assert archive.articles.load("01B").article.creator == "Y"  # 01B not aborted
+    assert archive.articles.load(ID_01B).article.creator == "Y"  # 01B not aborted
 
 
 def test_apply_bulk_property_every_ulid_in_exactly_one_bucket() -> None:
     # saved + conflicted + missing == distinct selection (spec §4 property). Duplicates collapse.
     archive = _archive_with(_article(ulid="01A"), _article(ulid="01B"))
     outcome = bulk.apply_bulk(
-        archive, ["01A", "01B", "01A", "01GONE"], "subject_place", "Kassel", changed_by="tester"
+        archive,
+        [ID_01A, ID_01B, ID_01A, ULID("01GONE")],
+        "subject_place",
+        "Kassel",
+        changed_by="tester",
     )
     distinct = len({"01A", "01B", "01GONE"})
     assert outcome.saved + len(outcome.conflicted) + len(outcome.missing) == distinct
@@ -162,9 +180,9 @@ def test_apply_bulk_property_every_ulid_in_exactly_one_bucket() -> None:
 
 def test_apply_bulk_media_type_reports_doctype_cleared() -> None:
     archive = _archive_with(_article(ulid="01A", media_type="Schrifttum", document_type="Brief"))
-    outcome = bulk.apply_bulk(archive, ["01A"], "media_type", "Foto(s)", changed_by="tester")
+    outcome = bulk.apply_bulk(archive, [ID_01A], "media_type", "Foto(s)", changed_by="tester")
     assert outcome.saved == 1
     assert [r.ulid for r in outcome.doctype_cleared] == ["01A"]
-    stored = archive.articles.load("01A").article
+    stored = archive.articles.load(ID_01A).article
     assert stored.media_type == "Foto(s)"
     assert stored.document_type is None

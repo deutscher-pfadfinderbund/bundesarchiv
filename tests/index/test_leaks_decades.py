@@ -9,6 +9,7 @@ from tests.index import fixtures
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -25,9 +26,9 @@ from bundesarchiv.persistence.repository import ArticleRepository
 PUBLIC = Public()
 PLAIN_MEMBER = Member(())
 
-_DEC_ROOT = "DEC_ROOT"
-_DEC_MEMBER_ULID = "DEC_MEMBER_1810"  # MEMBERS-tier, decade 1810 (tier-exclusive)
-_DEC_PUBLIC_ULID = "DEC_PUBLIC_1820"  # PUBLIC-tier, decade 1820
+_DEC_ROOT = ULID("DEC_ROOT")
+_DEC_MEMBER_ULID = ULID("DEC_MEMBER_1810")  # MEMBERS-tier, decade 1810 (tier-exclusive)
+_DEC_PUBLIC_ULID = ULID("DEC_PUBLIC_1820")  # PUBLIC-tier, decade 1820
 
 
 def _build_decade_store() -> InMemoryObjectStore:

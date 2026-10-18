@@ -183,7 +183,16 @@ INTERFACE_ALLOW: dict[str, str] = {
     "app/articles.py:restore_": _PREFIX + "`delete_`/`restore_`/`hard_delete_article` prefixes",
     **{
         f"app/web/collection_chooser.py:{m}": _COLLECTION
-        for m in ("options", "accepts", "error", "name_of", "names", "by_ulid", "chain_of")
+        for m in (
+            "options",
+            "resolve",
+            "accepts",
+            "error",
+            "name_of",
+            "names",
+            "by_ulid",
+            "chain_of",
+        )
     },
     **{
         f"app/web/catalog_views.py:{m}": _PREFIX + "`article_create`/`_edit`/... suffix shorthand"

@@ -10,10 +10,21 @@ import pytest
 from tests._readmes import HAND_SAVED
 
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle, MediaRef
+from bundesarchiv.domain.models import (
+    ULID,
+    Article,
+    Audience,
+    AudienceTier,
+    Change,
+    Lifecycle,
+    MediaRef,
+)
 from bundesarchiv.persistence import _front_matter, readme
 from bundesarchiv.persistence._front_matter import HEAD, text_of
 from bundesarchiv.persistence.errors import ArchiveError
+
+ID_01J0 = ULID("01J0")
+ID_X = ULID("x")
 
 _CHANGE = Change(datetime(2026, 9, 25, 10, 30, tzinfo=UTC), "anna")
 
@@ -37,14 +48,14 @@ def _article(**overrides: object) -> Article:
 
 def test_encode_decode_round_trips_every_field() -> None:
     article = _article()
-    article2, version, _ = readme.decode("01J0", readme.encode(article, 3, _CHANGE))
+    article2, version, _ = readme.decode(ID_01J0, readme.encode(article, 3, _CHANGE))
     assert article2 == article  # incl. German body with a --- rule, audience, media
     assert version == 3
 
 
 def test_a_template_round_trips_and_a_plain_article_writes_no_mark() -> None:
     template = _article(lifecycle=Lifecycle.DRAFT, template=True)
-    assert readme.decode("01J0", readme.encode(template, 1, _CHANGE))[0] == template
+    assert readme.decode(ID_01J0, readme.encode(template, 1, _CHANGE))[0] == template
     assert "template" not in readme.encode(replace(template, template=False), 1, _CHANGE)
 
 
@@ -52,7 +63,7 @@ _HEAD = "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\n"
 
 
 def test_a_readme_without_the_template_mark_reads_as_no_template() -> None:
-    assert readme.decode("x", f"{_HEAD}lifecycle: draft\n---\nbody")[0].template is False
+    assert readme.decode(ID_X, f"{_HEAD}lifecycle: draft\n---\nbody")[0].template is False
 
 
 @pytest.mark.parametrize(
@@ -66,26 +77,26 @@ def test_a_readme_without_the_template_mark_reads_as_no_template() -> None:
 )
 def test_a_broken_template_mark_is_corrupt(mark: str) -> None:
     with pytest.raises(ArchiveError):
-        readme.decode("x", f"{_HEAD}{mark}---\nbody")
+        readme.decode(ID_X, f"{_HEAD}{mark}---\nbody")
 
 
 def test_custom_metadata_round_trips() -> None:
     article = _article(custom=(("herkunft", "Familie Müller"), ("zustand", "gut")))
-    decoded, _, _ = readme.decode("01J0", readme.encode(article, 1, _CHANGE))
+    decoded, _, _ = readme.decode(ID_01J0, readme.encode(article, 1, _CHANGE))
     assert decoded.custom == (("herkunft", "Familie Müller"), ("zustand", "gut"))
 
 
 def test_empty_custom_is_omitted_from_the_wire() -> None:
     text = readme.encode(_article(custom=()), 1, _CHANGE)
     assert "custom:" not in text
-    assert readme.decode("01J0", text)[0].custom == ()
+    assert readme.decode(ID_01J0, text)[0].custom == ()
 
 
 def test_inherit_audience_omits_the_key_and_round_trips_as_none() -> None:
     article = _article(audience=None)
     text = readme.encode(article, 1, _CHANGE)
     assert "audience:" not in text
-    decoded, _, _ = readme.decode("01J0", text)
+    decoded, _, _ = readme.decode(ID_01J0, text)
     assert decoded.audience is None
     assert decoded == article
 
@@ -94,7 +105,7 @@ def test_empty_audience_mapping_decodes_to_inherit() -> None:
     # A content-less `audience: {}` names no rung, so it is inherit (None) — same as an
     # absent key — not a surprising explicit Members rung that would block a wider ancestor.
     decoded, _, _ = readme.decode(
-        "x",
+        ID_X,
         "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience: {}\n---\nbody",
     )
     assert decoded.audience is None
@@ -104,26 +115,26 @@ def test_empty_audience_mapping_decodes_to_inherit() -> None:
     "body", ["", "\n", "\n\nopens blank", "no trailing newline", "ends with a fence\n---"]
 )
 def test_body_round_trips_exactly(body: str) -> None:
-    decoded, _, _ = readme.decode("x", readme.encode(_article(body=body), 1, _CHANGE))
+    decoded, _, _ = readme.decode(ID_X, readme.encode(_article(body=body), 1, _CHANGE))
     assert decoded.body == body
 
 
 def test_read_version_reads_without_rebuilding_the_article() -> None:
-    assert readme.read_version("01J0", readme.encode(_article(), 7, _CHANGE)) == 7
+    assert readme.read_version(ID_01J0, readme.encode(_article(), 7, _CHANGE)) == 7
 
 
 def test_the_readme_opens_with_the_fence_and_the_fields_a_person_reads_come_first() -> None:
     text = readme.encode(_article(), 1, _CHANGE)
     assert text.startswith(HEAD)
     assert text.split("\n")[0] == "---"
-    keys = list(_front_matter.parse("01J0", text)[0])
+    keys = list(_front_matter.parse(ID_01J0, text)[0])
     assert set(keys[:2]) == {"ref_code", "tags"}
     assert set(keys[-5:]) == {"ulid", "version", "added_at", "changed_at", "changed_by"}
 
 
 def test_an_old_layout_title_with_padding_still_reads() -> None:
     text = '---\nulid: x\nversion: 1\ntitle: "Foo "\ncollection_id: c\nlifecycle: draft\n---\n'
-    assert readme.decode("x", text)[0].title == "Foo "
+    assert readme.decode(ID_X, text)[0].title == "Foo "
 
 
 @pytest.mark.parametrize(
@@ -138,8 +149,8 @@ def test_an_old_layout_title_with_padding_still_reads() -> None:
 def test_the_title_lives_only_in_the_heading_and_round_trips(title: str, body: str) -> None:
     article = _article(title=title, body=body)
     text = readme.encode(article, 1, _CHANGE)
-    assert "title" not in _front_matter.parse("01J0", text)[0]
-    assert readme.decode("01J0", text)[0] == article
+    assert "title" not in _front_matter.parse(ID_01J0, text)[0]
+    assert readme.decode(ID_01J0, text)[0] == article
 
 
 @pytest.mark.parametrize(
@@ -266,19 +277,19 @@ def test_the_title_lives_only_in_the_heading_and_round_trips(title: str, body: s
 )
 def test_decode_rejects_corrupt_readme_as_archive_error(text: str, why: str) -> None:
     with pytest.raises(ArchiveError):
-        readme.decode("x", text)
+        readme.decode(ID_X, text)
 
 
 def test_read_version_rejects_corrupt_as_archive_error() -> None:
     with pytest.raises(ArchiveError):
-        readme.read_version("x", "---\ntags: [unclosed\n---\n")
+        readme.read_version(ID_X, "---\ntags: [unclosed\n---\n")
 
 
 def test_read_version_rejects_a_non_integer_version() -> None:
     # Valid YAML, corrupt version routed specifically through read_version's own catch.
     text = "---\nulid: x\nversion: 1.5\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
     with pytest.raises(ArchiveError):
-        readme.read_version("x", text)
+        readme.read_version(ID_X, text)
 
 
 #: Decodes stdin's README on a thread with a 512 KiB stack and prints what it raised.
@@ -308,9 +319,9 @@ def test_deeply_nested_front_matter_surfaces_as_archive_error() -> None:
     # so a crash on that stack fails this test and never the test process.
     nested = "---\nkey: " + "{" * 600 + "\n---\nbody"
     with pytest.raises(ArchiveError):
-        readme.decode("x", nested)
+        readme.decode(ID_X, nested)
     with pytest.raises(ArchiveError):
-        readme.read_version("x", nested)
+        readme.read_version(ID_X, nested)
     too_deep = "---\nkey: " + "[" * 100_000 + "\n---\nbody"
     result = subprocess.run(  # noqa: S603 — fixed arguments
         [sys.executable, "-c", _DECODE_ON_A_SMALL_STACK],
@@ -333,7 +344,7 @@ def test_date_creator_subject_place_round_trip() -> None:
         creator="Max Mustermann",
         subject_place="Köln",
     )
-    decoded, _, _ = readme.decode("01J0", readme.encode(article, 1, _CHANGE))
+    decoded, _, _ = readme.decode(ID_01J0, readme.encode(article, 1, _CHANGE))
     assert decoded.date == EdtfDate("1955-07")
     assert decoded.creator == "Max Mustermann"
     assert decoded.subject_place == "Köln"
@@ -354,7 +365,7 @@ def test_invalid_edtf_date_on_wire_raises_archive_error() -> None:
         "lifecycle: draft\ndate: not-a-date\n---\nbody"
     )
     with pytest.raises(ArchiveError):
-        readme.decode("x", text)
+        readme.decode(ID_X, text)
 
 
 # --- media captions (ADR 0015) ----------------------------------------------------------------
@@ -367,7 +378,7 @@ def test_media_caption_round_trips() -> None:
             MediaRef("huelle.jpg", "c" * 64, "image/jpeg", 2011458),  # uncaptioned
         )
     )
-    decoded, _, _ = readme.decode("01J0", readme.encode(article, 1, _CHANGE))
+    decoded, _, _ = readme.decode(ID_01J0, readme.encode(article, 1, _CHANGE))
     assert decoded.media[0].caption == "Seite A — Bericht"
     assert decoded.media[1].caption is None
     assert decoded == article
@@ -400,13 +411,13 @@ def test_uncaptioned_media_omits_caption_key_from_wire() -> None:
 )
 def test_the_stored_name_round_trips_any_name(name: str) -> None:
     article = _article(media=(MediaRef("Scan.pdf", "a" * 64, stored_name=name),))
-    assert readme.decode("01J0", readme.encode(article, 1, _CHANGE))[0] == article
+    assert readme.decode(ID_01J0, readme.encode(article, 1, _CHANGE))[0] == article
 
 
 def test_a_media_entry_without_a_stored_name_omits_the_key() -> None:
     text = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64),)), 1, _CHANGE)
     assert "stored_name:" not in text
-    assert readme.decode("01J0", text)[0].media[0].stored_name is None
+    assert readme.decode(ID_01J0, text)[0].media[0].stored_name is None
 
 
 def test_non_scalar_media_caption_rejected_as_archive_error() -> None:
@@ -415,7 +426,7 @@ def test_non_scalar_media_caption_rejected_as_archive_error() -> None:
         "media:\n- filename: a.jpg\n  content_hash: abc\n  caption:\n  - a\n  - b\n---\nbody"
     )
     with pytest.raises(ArchiveError):
-        readme.decode("x", text)
+        readme.decode(ID_X, text)
 
 
 # --- omit-empty front-matter fields (ADR 0015 write rule) -------------------------------------
@@ -423,7 +434,9 @@ def test_non_scalar_media_caption_rejected_as_archive_error() -> None:
 
 def test_empty_optional_fields_omitted_from_wire() -> None:
     text = readme.encode(
-        Article(ulid="x", title="t", collection_id="c", lifecycle=Lifecycle.DRAFT), 1, _CHANGE
+        Article(ulid=ID_X, title="t", collection_id=ULID("c"), lifecycle=Lifecycle.DRAFT),
+        1,
+        _CHANGE,
     )
     assert ": null" not in text
     assert "null" not in text  # no bare null value anywhere in the front matter
@@ -449,7 +462,7 @@ def test_media_entry_omits_empty_media_type_and_byte_size() -> None:
     text = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64),)), 1, _CHANGE)
     assert "media_type:" not in text
     assert "byte_size:" not in text
-    decoded, _, _ = readme.decode("01J0", text)
+    decoded, _, _ = readme.decode(ID_01J0, text)
     assert decoded.media[0].media_type is None
     assert decoded.media[0].byte_size is None
 
@@ -479,9 +492,9 @@ def test_old_style_readme_with_explicit_nulls_loads_identically() -> None:
     )
     new_style = readme.encode(
         Article(
-            ulid="01J0",
+            ulid=ID_01J0,
             title="Zeltlager 1955",
-            collection_id="c",
+            collection_id=ULID("c"),
             body="Ein Foto.",
             lifecycle=Lifecycle.PUBLISHED,
             media=(MediaRef("photo.jpg", "abc"),),
@@ -489,8 +502,8 @@ def test_old_style_readme_with_explicit_nulls_loads_identically() -> None:
         1,
         _CHANGE,
     )
-    old_article, old_version, _ = readme.decode("01J0", old_style)
-    new_article, new_version, _ = readme.decode("01J0", new_style)
+    old_article, old_version, _ = readme.decode(ID_01J0, old_style)
+    new_article, new_version, _ = readme.decode(ID_01J0, new_style)
     assert old_article == new_article  # explicit-null old style ≡ omit-empty new style
     assert old_version == new_version == 1
 
@@ -527,7 +540,7 @@ def test_the_front_matter_carries_changed_at_in_utc_and_changed_by() -> None:
 )
 def test_the_change_record_round_trips_any_name(by: str) -> None:
     change = Change(_CHANGE.at, by)
-    assert readme.decode("01J0", readme.encode(_article(), 2, change))[2] == change
+    assert readme.decode(ID_01J0, readme.encode(_article(), 2, change))[2] == change
 
 
 @pytest.mark.parametrize(
@@ -540,12 +553,12 @@ def test_the_change_record_round_trips_any_name(by: str) -> None:
 )
 def test_the_change_record_round_trips_any_instant(at: datetime) -> None:
     change = Change(at, "anna")
-    assert readme.decode("01J0", readme.encode(_article(), 2, change))[2] == change
+    assert readme.decode(ID_01J0, readme.encode(_article(), 2, change))[2] == change
 
 
 def test_a_readme_written_before_the_change_record_loads_without_one() -> None:
     text = "---\nulid: x\nversion: 3\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
-    article, version, change = readme.decode("x", text)
+    article, version, change = readme.decode(ID_X, text)
     assert (article.title, version, change) == ("t", 3, None)
 
 
@@ -560,7 +573,7 @@ def test_an_unknown_date_added_is_omitted_and_reads_back_as_unknown() -> None:
     article = _article(added_at=None)
     text = readme.encode(article, 1, _CHANGE)
     assert "added_at" not in text
-    assert readme.decode("01J0", text)[0] == article
+    assert readme.decode(ID_01J0, text)[0] == article
 
 
 @pytest.mark.parametrize(
@@ -569,7 +582,7 @@ def test_an_unknown_date_added_is_omitted_and_reads_back_as_unknown() -> None:
 )
 def test_the_date_added_round_trips_any_instant(added_at: datetime) -> None:
     article = _article(added_at=added_at)
-    assert readme.decode("01J0", readme.encode(article, 1, _CHANGE))[0] == article
+    assert readme.decode(ID_01J0, readme.encode(article, 1, _CHANGE))[0] == article
 
 
 # --- the Papierkorb mark (ADR 0022) -----------------------------------------------------------
@@ -578,12 +591,12 @@ def test_the_date_added_round_trips_any_instant(added_at: datetime) -> None:
 @pytest.mark.parametrize("by", ["anna", " anna ", "Jürgen", "100%", "a: b", "---", "null", "it's"])
 def test_the_mark_round_trips(by: str) -> None:
     article = _article(deleted=Change(datetime(2026, 9, 30, 8, 15, tzinfo=UTC), by))
-    assert readme.decode("01J0", readme.encode(article, 4, _CHANGE))[0] == article
+    assert readme.decode(ID_01J0, readme.encode(article, 4, _CHANGE))[0] == article
 
 
 def test_a_readme_without_the_mark_reads_as_not_deleted() -> None:
     text = "---\nulid: x\nversion: 3\ntitle: t\ncollection_id: c\nlifecycle: published\n---\nbody"
-    assert readme.decode("x", text)[0].deleted is None
+    assert readme.decode(ID_X, text)[0].deleted is None
     assert "deleted" not in readme.encode(_article(), 1, _CHANGE)
 
 
@@ -602,13 +615,13 @@ _MARK_HEAD = "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: p
 )
 def test_a_half_or_broken_mark_is_corrupt(mark: str, why: str) -> None:
     with pytest.raises(ArchiveError):
-        readme.decode("x", f"{_MARK_HEAD}{mark}---\nbody")
+        readme.decode(ID_X, f"{_MARK_HEAD}{mark}---\nbody")
 
 
 @pytest.mark.parametrize("saved", HAND_SAVED)
 def test_a_hand_saved_readme_decodes_like_its_lf_twin(saved: Callable[[str], bytes]) -> None:
     text = readme.encode(_article(body="\n\nAbsatz eins\n\n---\n\nzwei\n"), 1, _CHANGE)
-    assert readme.decode("01J0", text_of("01J0", saved(text))) == readme.decode("01J0", text)
+    assert readme.decode(ID_01J0, text_of("01J0", saved(text))) == readme.decode(ID_01J0, text)
 
 
 # --- media alt text (additive key beside the caption) -----------------------------------------
@@ -635,14 +648,14 @@ def test_a_hand_saved_readme_decodes_like_its_lf_twin(saved: Callable[[str], byt
 )
 def test_media_alt_round_trips_any_text(alt: str) -> None:
     article = _article(media=(MediaRef("a.jpg", "a" * 64, caption="Unterschrift", alt=alt),))
-    decoded = readme.decode("01J0", readme.encode(article, 1, _CHANGE))[0]
+    decoded = readme.decode(ID_01J0, readme.encode(article, 1, _CHANGE))[0]
     assert decoded == article
 
 
 def test_media_without_alt_omits_the_key_and_is_byte_identical_to_before() -> None:
     plain = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64, caption="c"),)), 1, _CHANGE)
     assert "alt:" not in plain
-    article = readme.decode("01J0", plain)[0]
+    article = readme.decode(ID_01J0, plain)[0]
     assert article.media[0].alt is None
     assert readme.encode(article, 1, _CHANGE) == plain
 
@@ -660,4 +673,4 @@ def test_non_scalar_media_alt_rejected_as_archive_error() -> None:
         "media:\n- filename: a.jpg\n  content_hash: abc\n  alt:\n  - a\n---\nbody"
     )
     with pytest.raises(ArchiveError):
-        readme.decode("x", text)
+        readme.decode(ID_X, text)

@@ -33,6 +33,7 @@ from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.result import Conflicted, CreateResult, Missing, SaveResult, Updated
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -45,6 +46,10 @@ from bundesarchiv.index.query import SearchFilters, search
 from bundesarchiv.index.refresh import InMemoryIndex, PostgresIndex, Refresh
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import StoredCollection
+
+ID_01FOTO = ULID("01FOTO")
+ID_FOTOS = ULID("FOTOS")
+ID_ROOT = ULID("ROOT")
 
 PLAIN_MEMBER = Member(())
 PUBLIC = Public()
@@ -80,19 +85,24 @@ def _filled(archive: Archive) -> Archive:
     repositories but NOT yet indexed (services own the indexing)."""
     collections = archive.collections
     articles = archive.articles
-    collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester")
+    collections.save(
+        Collection(ulid=ID_ROOT, name="Wurzel", parent_id=None), 0, changed_by="tester"
+    )
     collections.save(
         Collection(
-            ulid="FOTOS", name="Fotos", parent_id="ROOT", audience=Audience(AudienceTier.PUBLIC)
+            ulid=ID_FOTOS,
+            name="Fotos",
+            parent_id=ID_ROOT,
+            audience=Audience(AudienceTier.PUBLIC),
         ),
         0,
         changed_by="tester",
     )
     articles.save(
         Article(
-            ulid="01FOTO",
+            ulid=ID_01FOTO,
             title="Öffentliches Foto",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.PUBLISHED,
             date=EdtfDate("1965"),
         ),
@@ -116,7 +126,7 @@ def test_save_article_writes_canonical_and_indexes(pg_archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
     articles = pg_archive.articles
-    stored = articles.load("01FOTO")
+    stored = articles.load(ID_01FOTO)
     result = save_article(pg_archive, stored.article, stored.version, changed_by="tester")
 
     assert isinstance(result, SaveResult)
@@ -132,7 +142,7 @@ def test_save_article_conflict_propagates_without_indexing(pg_archive: Archive) 
     from bundesarchiv.persistence.errors import Conflict
 
     articles = pg_archive.articles
-    stored = articles.load("01FOTO")
+    stored = articles.load(ID_01FOTO)
     with pytest.raises(Conflict):
         save_article(pg_archive, stored.article, stored.version - 1, changed_by="tester")  # stale
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()  # no index write on failure
@@ -148,14 +158,14 @@ def test_update_article_applies_the_mutation_and_indexes(pg_archive: Archive) ->
     from bundesarchiv.index.models import ArticleIndex
 
     outcome = update_article(
-        pg_archive, "01FOTO", lambda a: replace(a, title="Umbenannt"), changed_by="tester"
+        pg_archive, ID_01FOTO, lambda a: replace(a, title="Umbenannt"), changed_by="tester"
     )
 
     assert isinstance(outcome, Updated)
     assert outcome.article.title == "Umbenannt"
     assert outcome.version == 2  # the fixture stored it at v1
     assert outcome.index_updated is True
-    assert pg_archive.articles.load("01FOTO").article.title == "Umbenannt"
+    assert pg_archive.articles.load(ID_01FOTO).article.title == "Umbenannt"
     assert ArticleIndex.objects.get(ulid="01FOTO").title == "Umbenannt"
 
 
@@ -166,18 +176,18 @@ def test_update_article_retries_onto_the_winner_of_a_concurrent_write(archive: A
         nonlocal calls
         calls += 1
         if calls == 1:
-            stored = archive.articles.load("01FOTO")
+            stored = archive.articles.load(ID_01FOTO)
             archive.articles.save(
                 replace(stored.article, creator="Konkurrenz"), stored.version, changed_by="tester"
             )
         return replace(article, title="Umbenannt")
 
-    outcome = update_article(archive, "01FOTO", mutate, changed_by="tester")
+    outcome = update_article(archive, ID_01FOTO, mutate, changed_by="tester")
 
     assert isinstance(outcome, Updated)
     assert calls == 2  # one loss, one retry
     assert outcome.version == 3  # v1 -> the concurrent write -> ours
-    final = archive.articles.load("01FOTO").article
+    final = archive.articles.load(ID_01FOTO).article
     assert (final.title, final.creator) == ("Umbenannt", "Konkurrenz")
 
 
@@ -189,7 +199,7 @@ def test_update_article_reports_conflicted_when_every_attempt_loses(archive: Arc
     def mutate(article: Article) -> Article:
         nonlocal calls
         calls += 1
-        stored = archive.articles.load("01FOTO")
+        stored = archive.articles.load(ID_01FOTO)
         archive.articles.save(
             replace(stored.article, creator=f"Konkurrenz {calls}"),
             stored.version,
@@ -197,11 +207,11 @@ def test_update_article_reports_conflicted_when_every_attempt_loses(archive: Arc
         )
         return replace(article, title="Nie gespeichert")
 
-    outcome = update_article(archive, "01FOTO", mutate, retries=1, changed_by="tester")
+    outcome = update_article(archive, ID_01FOTO, mutate, retries=1, changed_by="tester")
 
     assert isinstance(outcome, Conflicted)
     assert calls == 2  # the first attempt plus exactly one retry
-    final = archive.articles.load("01FOTO").article
+    final = archive.articles.load(ID_01FOTO).article
     assert final.title == "Öffentliches Foto"  # our mutation never landed
     assert final.creator == "Konkurrenz 2"
 
@@ -212,22 +222,22 @@ def test_update_article_without_retries_gives_up_on_the_first_loss(archive: Arch
     def mutate(article: Article) -> Article:
         nonlocal calls
         calls += 1
-        stored = archive.articles.load("01FOTO")
+        stored = archive.articles.load(ID_01FOTO)
         archive.articles.save(
             replace(stored.article, creator="Konkurrenz"), stored.version, changed_by="tester"
         )
         return replace(article, title="Nie gespeichert")
 
-    outcome = update_article(archive, "01FOTO", mutate, retries=0, changed_by="tester")
+    outcome = update_article(archive, ID_01FOTO, mutate, retries=0, changed_by="tester")
 
     assert isinstance(outcome, Conflicted)
     assert calls == 1
-    assert archive.articles.load("01FOTO").article.title == "Öffentliches Foto"
+    assert archive.articles.load(ID_01FOTO).article.title == "Öffentliches Foto"
 
 
 def test_update_article_reports_missing_for_an_absent_article(archive: Archive) -> None:
     outcome = update_article(
-        archive, "01NOSUCH", lambda a: replace(a, title="Egal"), changed_by="tester"
+        archive, ULID("01NOSUCH"), lambda a: replace(a, title="Egal"), changed_by="tester"
     )
 
     assert isinstance(outcome, Missing)
@@ -242,25 +252,25 @@ def test_update_article_reports_missing_when_the_article_vanishes_mid_retry(
 
     def mutate(article: Article) -> Article:
         # after the load, before our save -> Conflict
-        archive.articles.hard_delete("01FOTO", archive.articles.load("01FOTO").version)
+        archive.articles.hard_delete(ID_01FOTO, archive.articles.load(ID_01FOTO).version)
         return replace(article, title="Nie gespeichert")
 
-    outcome = update_article(archive, "01FOTO", mutate, changed_by="tester")
+    outcome = update_article(archive, ID_01FOTO, mutate, changed_by="tester")
 
     assert isinstance(outcome, Missing)
 
 
 def test_update_article_leaves_an_article_in_the_trash_alone(archive: Archive) -> None:
     """ADR 0022: restore it first."""
-    stored = archive.articles.load("01FOTO")
+    stored = archive.articles.load(ID_01FOTO)
     archive.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
-    before = archive.articles.load("01FOTO")
+    before = archive.articles.load(ID_01FOTO)
 
     outcome = update_article(
-        archive, "01FOTO", lambda a: replace(a, title="Nie gespeichert"), changed_by="tester"
+        archive, ID_01FOTO, lambda a: replace(a, title="Nie gespeichert"), changed_by="tester"
     )
 
-    assert (outcome, archive.articles.load("01FOTO")) == (Missing(), before)
+    assert (outcome, archive.articles.load(ID_01FOTO)) == (Missing(), before)
 
 
 # ---------------------------------------------------------------------------
@@ -277,11 +287,11 @@ def _archivist_titles(*, deleted: bool) -> set[str]:
 def test_delete_and_restore_move_the_article_between_the_list_and_the_trash(
     pg_archive: Archive,
 ) -> None:
-    stored = pg_archive.articles.load("01FOTO")
+    stored = pg_archive.articles.load(ID_01FOTO)
     save_article(pg_archive, stored.article, stored.version, changed_by="tester")
     assert _archivist_titles(deleted=False) == {"Öffentliches Foto"}
 
-    stored = pg_archive.articles.load("01FOTO")
+    stored = pg_archive.articles.load(ID_01FOTO)
     deleted = delete_article(pg_archive, stored.article, stored.version, changed_by="bert")
     assert deleted.index_updated
     assert (_archivist_titles(deleted=False), _archivist_titles(deleted=True)) == (
@@ -289,7 +299,7 @@ def test_delete_and_restore_move_the_article_between_the_list_and_the_trash(
         {"Öffentliches Foto"},
     )
 
-    marked = pg_archive.articles.load("01FOTO").article
+    marked = pg_archive.articles.load(ID_01FOTO).article
     restored = restore_article(pg_archive, marked, deleted.version, changed_by="anna")
     assert restored.index_updated
     assert (_archivist_titles(deleted=False), _archivist_titles(deleted=True)) == (
@@ -310,7 +320,7 @@ def test_create_article_mints_ulid_and_indexes(pg_archive: Archive) -> None:
     result = create_article(
         pg_archive,
         title="Neuer Artikel",
-        collection_id="FOTOS",
+        collection_id=ID_FOTOS,
         lifecycle=Lifecycle.PUBLISHED,
         changed_by="tester",
     )
@@ -339,7 +349,7 @@ def test_create_collection_under_parent_with_audience(archive: Archive) -> None:
     result = create_collection(
         archive,
         name="Unterbestand",
-        parent_id="FOTOS",
+        parent_id=ID_FOTOS,
         audience=Audience(AudienceTier.MEMBERS),
         changed_by="tester",
     )
@@ -353,7 +363,7 @@ def test_create_collection_rejects_absent_parent(archive: Archive) -> None:
     from bundesarchiv.persistence.errors import NotFound
 
     with pytest.raises(NotFound):
-        create_collection(archive, name="Waise", parent_id="NOSUCH", changed_by="tester")
+        create_collection(archive, name="Waise", parent_id=ULID("NOSUCH"), changed_by="tester")
     # the collection set is unchanged (only the fixture's ROOT + FOTOS)
     ulids = {c.ulid for c in archive.collections.load_all()}
     assert ulids == {"ROOT", "FOTOS"}
@@ -372,11 +382,13 @@ def test_copy_article_copies_metadata_clears_ref_code_and_media(
 
     articles = pg_archive.articles
     # store a real blob so the source can reference it (repository refuses an unstored ref)
-    ref = articles.add_media("01SOURCE", "bild.jpg", io.BytesIO(b"pixels"), "image/jpeg", "Am See")
+    ref = articles.add_media(
+        ULID("01SOURCE"), "bild.jpg", io.BytesIO(b"pixels"), "image/jpeg", "Am See"
+    )
     source = Article(
-        ulid="01SOURCE",
+        ulid=ULID("01SOURCE"),
         title="Sommerfahrt 1962",
-        collection_id="FOTOS",
+        collection_id=ID_FOTOS,
         lifecycle=Lifecycle.PUBLISHED,
         ref_code="F12/3",
         media_type="Foto",
@@ -390,7 +402,7 @@ def test_copy_article_copies_metadata_clears_ref_code_and_media(
     )
     articles.save(source, 0, changed_by="tester")
 
-    result = copy_article(pg_archive, "01SOURCE", changed_by="tester")
+    result = copy_article(pg_archive, ULID("01SOURCE"), changed_by="tester")
 
     copy = articles.load(result.ulid).article
     assert copy.ulid != "01SOURCE"  # a fresh identity
@@ -414,12 +426,12 @@ def test_copy_article_copies_metadata_clears_ref_code_and_media(
 def test_copy_article_source_untouched(archive: Archive) -> None:
     articles = archive.articles
     articles.save(
-        Article(ulid="01SRC", title="Original", collection_id="FOTOS", ref_code="F1"),
+        Article(ulid=ULID("01SRC"), title="Original", collection_id=ID_FOTOS, ref_code="F1"),
         0,
         changed_by="tester",
     )
-    copy_article(archive, "01SRC", changed_by="tester")
-    original = articles.load("01SRC").article
+    copy_article(archive, ULID("01SRC"), changed_by="tester")
+    original = articles.load(ULID("01SRC")).article
     assert original.ref_code == "F1"  # source Signatur intact
     assert original.title == "Original"
 
@@ -436,13 +448,13 @@ def test_hard_delete_article_removes_index_row(pg_archive: Archive) -> None:
     articles = pg_archive.articles
     save_article(
         pg_archive,
-        articles.load("01FOTO").article,
-        articles.load("01FOTO").version,
+        articles.load(ID_01FOTO).article,
+        articles.load(ID_01FOTO).version,
         changed_by="tester",
     )
     assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
-    result = hard_delete_article(pg_archive, "01FOTO", pg_archive.articles.load("01FOTO").version)
+    result = hard_delete_article(pg_archive, ID_01FOTO, pg_archive.articles.load(ID_01FOTO).version)
     assert result.index_updated is True
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
@@ -450,10 +462,10 @@ def test_hard_delete_article_removes_index_row(pg_archive: Archive) -> None:
 def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
     archive: Archive,
 ) -> None:
-    version = archive.articles.load("01FOTO").version
+    version = archive.articles.load(ID_01FOTO).version
     results: list[SaveResult] = []
     jobs = queued(
-        lambda: results.append(hard_delete_article(archive, "01FOTO", version)),
+        lambda: results.append(hard_delete_article(archive, ID_01FOTO, version)),
         mirror=True,
         refuse=frozenset({"mirror_delete_article"}),
     )
@@ -473,7 +485,7 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
 ) -> None:
     archive = _failing(archive)
     articles = archive.articles
-    stored = articles.load("01FOTO")
+    stored = articles.load(ID_01FOTO)
     results: list[SaveResult] = []
     jobs = queued(
         lambda: results.append(
@@ -486,7 +498,7 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
     assert result.version == 2  # canonical write STOOD despite the index failure
     assert jobs == [("reindex_article", {"ulid": "01FOTO"})]  # the retry, and no push: no mirror
     # canonical truth is durable at the new version:
-    assert archive.articles.load("01FOTO").version == 2
+    assert archive.articles.load(ID_01FOTO).version == 2
 
 
 def test_save_article_swallows_enqueue_failure_after_index_failure(
@@ -494,7 +506,7 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
 ) -> None:
     archive = _failing(archive)
     articles = archive.articles
-    stored = articles.load("01FOTO")
+    stored = articles.load(ID_01FOTO)
     results: list[SaveResult] = []
     queued(
         lambda: results.append(
@@ -506,14 +518,14 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
 
     assert result.index_updated is False
     assert result.version == 2  # canonical write STOOD despite both failures
-    assert archive.articles.load("01FOTO").version == 2
+    assert archive.articles.load(ID_01FOTO).version == 2
 
 
 def test_save_collection_swallows_enqueue_failure_after_index_failure(
     archive: Archive,
 ) -> None:
     archive = _failing(archive)
-    stored = archive.collections.load("FOTOS")
+    stored = archive.collections.load(ID_FOTOS)
     results: list[SaveResult] = []
     queued(
         lambda: results.append(
@@ -526,18 +538,18 @@ def test_save_collection_swallows_enqueue_failure_after_index_failure(
     (result,) = results
 
     assert (result.version, result.index_updated) == (2, False)
-    assert archive.collections.load("FOTOS").version == 2
+    assert archive.collections.load(ID_FOTOS).version == 2
 
 
 def test_a_write_refreshes_the_index_once_the_store_holds_it(
     archive: Archive, refreshed: list[Refresh]
 ) -> None:
     """A refresh re-reads the store, so it runs after the canonical write (ADR 0014)."""
-    stored = archive.articles.load("01FOTO")
+    stored = archive.articles.load(ID_01FOTO)
     saved = save_article(archive, stored.article, stored.version, changed_by="t")
     marked = delete_article(archive, stored.article, saved.version, changed_by="t")
-    hard_delete_article(archive, "01FOTO", marked.version)
-    fotos = archive.collections.load("FOTOS")
+    hard_delete_article(archive, ID_01FOTO, marked.version)
+    fotos = archive.collections.load(ID_FOTOS)
     save_collection(archive, _narrowed(fotos.collection), fotos.version, changed_by="t")
 
     assert refreshed == [
@@ -557,8 +569,8 @@ def test_a_write_refreshes_the_index_once_the_store_holds_it(
 )
 def test_refreshing_what_the_store_does_not_hold_is_not_an_error(index: IndexOver) -> None:
     over_empty = index(InMemoryObjectStore())
-    over_empty.refresh_article("01NEVER")
-    over_empty.refresh_subtree("NOSUCH")
+    over_empty.refresh_article(ULID("01NEVER"))
+    over_empty.refresh_subtree(ULID("NOSUCH"))
 
 
 @pytest.mark.django_db(transaction=True)
@@ -569,7 +581,7 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: Arc
     from bundesarchiv.index.models import ArticleIndex
 
     archive = _with_lock_timeout(pg_archive)
-    stored = archive.articles.load("01FOTO")
+    stored = archive.articles.load(ID_01FOTO)
     with _index_lock_held():
         started = time.monotonic()
         results: list[SaveResult] = []
@@ -599,17 +611,17 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
     articles = pg_archive.articles
     save_article(
         pg_archive,
-        articles.load("01FOTO").article,
-        articles.load("01FOTO").version,
+        articles.load(ID_01FOTO).article,
+        articles.load(ID_01FOTO).version,
         changed_by="tester",
     )
     assert "Öffentliches Foto" in _pub_titles(PUBLIC)
 
-    stored = articles.load("01FOTO")
+    stored = articles.load(ID_01FOTO)
     unpublished = Article(
-        ulid="01FOTO",
+        ulid=ID_01FOTO,
         title="Öffentliches Foto",
-        collection_id="FOTOS",
+        collection_id=ID_FOTOS,
         lifecycle=Lifecycle.DRAFT,  # unpublished -> archivist-only
         date=EdtfDate("1965"),
     )
@@ -631,20 +643,20 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
     articles = pg_archive.articles
     save_article(
         pg_archive,
-        articles.load("01FOTO").article,
-        articles.load("01FOTO").version,
+        articles.load(ID_01FOTO).article,
+        articles.load(ID_01FOTO).version,
         changed_by="tester",
     )
     assert "Öffentliches Foto" in _pub_titles(PUBLIC)  # visible to Public via FOTOS=PUBLIC
 
     collections = pg_archive.collections
-    stored = collections.load("FOTOS")
+    stored = collections.load(ID_FOTOS)
     result = save_collection(
         pg_archive,
         Collection(
-            ulid="FOTOS",
+            ulid=ID_FOTOS,
             name="Fotos",
-            parent_id="ROOT",
+            parent_id=ID_ROOT,
             audience=Audience(AudienceTier.MEMBERS),  # narrow PUBLIC -> MEMBERS
         ),
         stored.version,
@@ -665,9 +677,9 @@ def test_derived_jobs_render_image_and_pdf_files_and_read_pdfs_once() -> None:
     """A file renders by its media type, or by its extension when the type is absent; any PDF
     gives the one page-text job."""
     article = Article(
-        ulid="01FOTO",
+        ulid=ID_01FOTO,
         title="Mixed media",
-        collection_id="FOTOS",
+        collection_id=ID_FOTOS,
         media=(
             MediaRef("a.jpg", "hash-typed-image", media_type="image/jpeg"),
             MediaRef("b.png", "hash-untyped-image", media_type=None),
@@ -679,25 +691,25 @@ def test_derived_jobs_render_image_and_pdf_files_and_read_pdfs_once() -> None:
     )
 
     assert derived_jobs(article) == (
-        Thumbnail("01FOTO", "hash-typed-image"),
-        Thumbnail("01FOTO", "hash-untyped-image"),
-        Thumbnail("01FOTO", "hash-doc"),
-        Thumbnail("01FOTO", "hash-untyped-doc"),
-        PageText("01FOTO"),
+        Thumbnail(ID_01FOTO, "hash-typed-image"),
+        Thumbnail(ID_01FOTO, "hash-untyped-image"),
+        Thumbnail(ID_01FOTO, "hash-doc"),
+        Thumbnail(ID_01FOTO, "hash-untyped-doc"),
+        PageText(ID_01FOTO),
     )
     assert derived_jobs(replace(article, media=article.media[:2])) == (
-        Thumbnail("01FOTO", "hash-typed-image"),
-        Thumbnail("01FOTO", "hash-untyped-image"),
+        Thumbnail(ID_01FOTO, "hash-typed-image"),
+        Thumbnail(ID_01FOTO, "hash-untyped-image"),
     )
 
 
 def _save_scan_and_pdf(archive: Archive) -> None:
     articles = archive.articles
     image = articles.add_media(
-        "01FOTO", "scan.jpg", io.BytesIO(b"\xff\xd8\xff-fake"), media_type="image/jpeg"
+        ID_01FOTO, "scan.jpg", io.BytesIO(b"\xff\xd8\xff-fake"), media_type="image/jpeg"
     )
-    doc = articles.add_media("01FOTO", "notes.pdf", io.BytesIO(b"%PDF-1.7"))
-    stored = articles.load("01FOTO")
+    doc = articles.add_media(ID_01FOTO, "notes.pdf", io.BytesIO(b"%PDF-1.7"))
+    stored = articles.load(ID_01FOTO)
     save_article(
         archive, replace(stored.article, media=(image, doc)), stored.version, changed_by="tester"
     )
@@ -706,7 +718,7 @@ def _save_scan_and_pdf(archive: Archive) -> None:
 def test_a_save_queues_the_jobs_its_files_derive(archive: Archive) -> None:
     jobs = queued(lambda: _save_scan_and_pdf(archive))
 
-    image, doc = archive.articles.load("01FOTO").article.media
+    image, doc = archive.articles.load(ID_01FOTO).article.media
     assert jobs == [
         ("generate_thumbnail", {"ulid": "01FOTO", "content_hash": image.content_hash}),
         ("generate_thumbnail", {"ulid": "01FOTO", "content_hash": doc.content_hash}),
@@ -719,7 +731,7 @@ def test_a_failed_thumbnail_enqueue_neither_breaks_the_save_nor_skips_the_page_t
 ) -> None:
     jobs = queued(lambda: _save_scan_and_pdf(archive), refuse=frozenset({"generate_thumbnail"}))
 
-    saved = archive.articles.load("01FOTO").article
+    saved = archive.articles.load(ID_01FOTO).article
     assert [ref.filename for ref in saved.media] == ["scan.jpg", "notes.pdf"]
     assert jobs == [("extract_media_text", {"ulid": "01FOTO"})]
 
@@ -730,7 +742,7 @@ def test_a_failed_thumbnail_enqueue_neither_breaks_the_save_nor_skips_the_page_t
 
 
 def test_save_article_enqueues_one_push_of_the_article(archive: Archive) -> None:
-    stored = archive.articles.load("01FOTO")
+    stored = archive.articles.load(ID_01FOTO)
     jobs = queued(
         lambda: save_article(archive, stored.article, stored.version, changed_by="tester"),
         mirror=True,
@@ -740,7 +752,7 @@ def test_save_article_enqueues_one_push_of_the_article(archive: Archive) -> None
 
 
 def test_a_write_enqueues_nothing_without_a_mirror(archive: Archive) -> None:
-    stored = archive.articles.load("01FOTO")
+    stored = archive.articles.load(ID_01FOTO)
     jobs = queued(
         lambda: save_article(archive, stored.article, stored.version, changed_by="tester")
     )
@@ -749,7 +761,7 @@ def test_a_write_enqueues_nothing_without_a_mirror(archive: Archive) -> None:
 
 
 def test_delete_article_enqueues_one_push_of_the_mark(archive: Archive) -> None:
-    stored = archive.articles.load("01FOTO")
+    stored = archive.articles.load(ID_01FOTO)
     jobs = queued(
         lambda: delete_article(archive, stored.article, stored.version, changed_by="tester"),
         mirror=True,
@@ -759,8 +771,8 @@ def test_delete_article_enqueues_one_push_of_the_mark(archive: Archive) -> None:
 
 
 def test_hard_delete_article_enqueues_the_delete_and_no_push(archive: Archive) -> None:
-    version = archive.articles.load("01FOTO").version
-    jobs = queued(lambda: hard_delete_article(archive, "01FOTO", version), mirror=True)
+    version = archive.articles.load(ID_01FOTO).version
+    jobs = queued(lambda: hard_delete_article(archive, ID_01FOTO, version), mirror=True)
 
     assert jobs == [("mirror_delete_article", {"ulid": "01FOTO"})]
 
@@ -769,7 +781,7 @@ def test_create_article_enqueues_the_push_of_the_new_article(archive: Archive) -
     created: list[CreateResult] = []
     jobs = queued(
         lambda: created.append(
-            create_article(archive, title="Neu", collection_id="FOTOS", changed_by="tester")
+            create_article(archive, title="Neu", collection_id=ID_FOTOS, changed_by="tester")
         ),
         mirror=True,
     )
@@ -778,7 +790,7 @@ def test_create_article_enqueues_the_push_of_the_new_article(archive: Archive) -
 
 
 def test_save_collection_enqueues_one_push_of_the_collection(archive: Archive) -> None:
-    stored = archive.collections.load("FOTOS")
+    stored = archive.collections.load(ID_FOTOS)
     jobs = queued(
         lambda: save_collection(archive, stored.collection, stored.version, changed_by="tester"),
         mirror=True,
@@ -790,7 +802,7 @@ def test_save_collection_enqueues_one_push_of_the_collection(archive: Archive) -
 def test_save_article_mirror_enqueue_failure_does_not_break_save(archive: Archive) -> None:
     """The reconcile heals a lost push (ADR 0020)."""
     articles = archive.articles
-    stored = articles.load("01FOTO")
+    stored = articles.load(ID_01FOTO)
     results: list[SaveResult] = []
     queued(
         lambda: results.append(
@@ -802,7 +814,7 @@ def test_save_article_mirror_enqueue_failure_does_not_break_save(archive: Archiv
     (result,) = results
 
     assert result.version == 2  # save succeeded despite the mirror-enqueue failure
-    assert archive.articles.load("01FOTO").version == 2
+    assert archive.articles.load(ID_01FOTO).version == 2
 
 
 @contextlib.contextmanager
@@ -841,7 +853,7 @@ def _narrowed(collection: Collection) -> Collection:
 def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: Archive) -> None:
     """The Bestand save path has the same bound as the Article save path."""
     archive = _with_lock_timeout(pg_archive)
-    stored = archive.collections.load("FOTOS")
+    stored = archive.collections.load(ID_FOTOS)
     with _index_lock_held():
         started = time.monotonic()
         results: list[SaveResult] = []
@@ -864,11 +876,11 @@ def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: 
 def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(pg_archive: Archive) -> None:
     """The index holds no Bestand name and a new Bestand holds no Articles, so neither waits on the
     index lock nor queues a reindex, and the renamed Bestand still finds its Article."""
-    stored_article = pg_archive.articles.load("01FOTO")
+    stored_article = pg_archive.articles.load(ID_01FOTO)
     save_article(pg_archive, stored_article.article, stored_article.version, changed_by="tester")
     archive = _with_lock_timeout(pg_archive)
 
-    stored = archive.collections.load("FOTOS")
+    stored = archive.collections.load(ID_FOTOS)
     with _index_lock_held():
         results: list[SaveResult | CreateResult] = []
         jobs = queued(
@@ -880,7 +892,7 @@ def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(pg_archive: Arch
                         stored.version,
                         changed_by="t",
                     ),
-                    create_collection(archive, name="Neu", parent_id="FOTOS", changed_by="t"),
+                    create_collection(archive, name="Neu", parent_id=ID_FOTOS, changed_by="t"),
                 )
             )
         )
@@ -898,14 +910,14 @@ def test_gate_a_rename_at_a_version_it_did_not_read_still_reindexes(
     """A rename whose ``expected_version`` is ahead of the version the service read wins the CAS
     against a concurrent widening edit that lands in between, and writes the older, narrower
     audience back. Its reindex must run, or the index keeps the widened audience."""
-    save_article(pg_archive, pg_archive.articles.load("01FOTO").article, 1, changed_by="t")
-    fotos = pg_archive.collections.load("FOTOS")
+    save_article(pg_archive, pg_archive.articles.load(ID_01FOTO).article, 1, changed_by="t")
+    fotos = pg_archive.collections.load(ID_FOTOS)
     save_collection(pg_archive, _narrowed(fotos.collection), fotos.version, changed_by="t")
-    narrow = pg_archive.collections.load("FOTOS")
+    narrow = pg_archive.collections.load(ID_FOTOS)
     load = pg_archive.collections.load
 
     def load_then_widen(ulid: str) -> StoredCollection:
-        stored = load(ulid)
+        stored = load(ULID(ulid))
         monkeypatch.setattr(pg_archive.collections, "load", load)
         save_collection(pg_archive, fotos.collection, stored.version, changed_by="concurrent")
         return stored
@@ -914,7 +926,7 @@ def test_gate_a_rename_at_a_version_it_did_not_read_still_reindexes(
     rename = replace(narrow.collection, name="Lichtbilder")
     save_collection(pg_archive, rename, narrow.version + 1, changed_by="t")
 
-    assert pg_archive.collections.load("FOTOS").collection == rename
+    assert pg_archive.collections.load(ID_FOTOS).collection == rename
     assert "Öffentliches Foto" not in _pub_titles(PUBLIC)
 
 
@@ -924,18 +936,24 @@ def test_gate_moving_a_collection_under_a_narrower_parent_hides_its_articles(
 ) -> None:
     """A parent edit moves the effective audience of an inheriting subtree, like an audience edit."""
     pg_archive.collections.save(
-        Collection(ulid="KIND", name="Kind", parent_id="FOTOS"), 0, changed_by="t"
+        Collection(ulid=ULID("KIND"), name="Kind", parent_id=ID_FOTOS), 0, changed_by="t"
     )
     article = Article(
-        ulid="01KIND", title="Geerbt", collection_id="KIND", lifecycle=Lifecycle.PUBLISHED
+        ulid=ULID("01KIND"),
+        title="Geerbt",
+        collection_id=ULID("KIND"),
+        lifecycle=Lifecycle.PUBLISHED,
     )
     pg_archive.articles.save(article, 0, changed_by="t")
     save_article(pg_archive, article, 1, changed_by="t")
     assert "Geerbt" in _pub_titles(PUBLIC)  # inherits PUBLIC from FOTOS
 
-    stored = pg_archive.collections.load("KIND")
+    stored = pg_archive.collections.load(ULID("KIND"))
     save_collection(
-        pg_archive, replace(stored.collection, parent_id="ROOT"), stored.version, changed_by="t"
+        pg_archive,
+        replace(stored.collection, parent_id=ID_ROOT),
+        stored.version,
+        changed_by="t",
     )
 
     assert "Geerbt" not in _pub_titles(PUBLIC)  # now inherits the root default, Members

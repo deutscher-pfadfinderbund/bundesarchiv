@@ -14,13 +14,13 @@ from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
     Change,
     Lifecycle,
     MediaRef,
-    Ulid,
     Version,
 )
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
@@ -93,7 +93,7 @@ def none_if_blank(raw: str) -> str | None:
 def parse_edit_form(
     post: Mapping[str, object],
     *,
-    ulid: Ulid,
+    ulid: ULID,
     chooser: CollectionChooser,
     current_media: tuple[MediaRef, ...] = (),
     current_audience: Audience | None,
@@ -104,7 +104,7 @@ def parse_edit_form(
     """Parse + validate an edit-form POST into an ``Article`` (with the given ``ulid``) or a field
     error map. Total: malformed input never raises, it becomes a field error. ``chooser`` is the
     chooser the form offered; it decides which collection values are fileable and words the refusal
-    (``chooser.accepts`` / ``chooser.error``).
+    (``chooser.resolve`` / ``chooser.error``).
 
     ``current_media`` is the article's media as stored: the metadata save PRESERVES it (never wipes
     it) and only updates each entry's caption from the form's ``caption[<hash>]`` field (spec §6.3 —
@@ -123,8 +123,8 @@ def parse_edit_form(
     if not title:
         errors["title"] = "Titel ist erforderlich."
 
-    collection_id = _get(post, "collection_id").strip()
-    if not chooser.accepts(collection_id):
+    collection_id = chooser.resolve(_get(post, "collection_id"))
+    if collection_id is None:
         errors["collection_id"] = chooser.error()
 
     media_type = none_if_blank(_get(post, "media_type"))
@@ -158,7 +158,7 @@ def parse_edit_form(
     if template and lifecycle is not Lifecycle.DRAFT:
         errors["template"] = "Eine Vorlage bleibt ein Entwurf."
 
-    if errors:
+    if errors or collection_id is None:
         return ParseResult(article=None, errors=errors, expected_version=expected_version)
 
     article = Article(
@@ -288,7 +288,9 @@ def _parse_custom(
     try:
         # Round-trip through Article so the reserved-key collision + normalization is the SAME rule
         # the domain enforces (no second copy of the reserved-name set here).
-        normalized = Article(ulid="X", title="x", collection_id="x", custom=tuple(rows)).custom
+        normalized = Article(
+            ulid=ULID("X"), title="x", collection_id=ULID("x"), custom=tuple(rows)
+        ).custom
     except ValueError:
         return (), "Bezeichnung ist reserviert."
     names = [name for name, _ in rows]

@@ -26,7 +26,7 @@ from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
-from bundesarchiv.domain.models import Lifecycle, MediaRef, Version
+from bundesarchiv.domain.models import ULID, Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.indexer import file_kind, mime_type
 from bundesarchiv.index.query import FacetCount, FileKind, SearchFilters, SearchPage, search
@@ -168,14 +168,14 @@ class MediaTile:
         return bool(self.display_url)
 
 
-def media_tiles(ulid: str, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
+def media_tiles(ulid: ULID, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
     """``media`` as tiles, in its order (cover first, ADR 0015). One tile header read per file: the
     thumbnail cache is local (ADR 0017)."""
     root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
     return tuple(_tile(ulid, ref, thumbnails.tile_size(root, ref.content_hash)) for ref in media)
 
 
-def _tile(ulid: str, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile:
+def _tile(ulid: ULID, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile:
     image = thumbnails.renders(ref, Size.DISPLAY)
     caption = none_if_blank(ref.caption or "") or ""
     return MediaTile(
@@ -196,7 +196,7 @@ def _tile(ulid: str, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile
 class _Pane:
     """Built only from a ``visible``-projected Article."""
 
-    ulid: str
+    ulid: ULID
     title: str
     ref_code: str
     date: str
@@ -690,7 +690,7 @@ def trash(request: HttpRequest) -> HttpResponseBase:
 class _TrashRow:
     """One Papierkorb row, read from the canonical record: the index carries no CAS version."""
 
-    ulid: str
+    ulid: ULID
     title: str
     ref_code: str
     collection: str
@@ -699,7 +699,7 @@ class _TrashRow:
     version: Version
 
 
-def _trash_row(archive: Archive, ulid: str, chooser: CollectionChooser) -> _TrashRow | None:
+def _trash_row(archive: Archive, ulid: ULID, chooser: CollectionChooser) -> _TrashRow | None:
     """The row for ``ulid``, or ``None`` once it has left the Papierkorb since the index was
     written (restored, or deleted for good)."""
     try:

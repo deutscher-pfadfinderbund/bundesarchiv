@@ -13,7 +13,7 @@ from typing import BinaryIO
 from PIL import Image, ImageOps  # noqa: TID251
 
 from bundesarchiv.app import pdf
-from bundesarchiv.domain.models import MediaRef, Ulid
+from bundesarchiv.domain.models import ULID, MediaRef
 from bundesarchiv.index.indexer import file_kind
 from bundesarchiv.index.query import FileKind
 from bundesarchiv.persistence.errors import NotFound
@@ -102,7 +102,7 @@ def tile_size(thumbnail_root: Path, content_hash: str) -> tuple[int, int] | None
 
 
 def generate_thumbnail(
-    store: ObjectStore, ulid: Ulid, content_hash: str, thumbnail_root: Path
+    store: ObjectStore, ulid: ULID, content_hash: str, thumbnail_root: Path
 ) -> bool:
     """True iff a tile was written; never raises for the file's content."""
     articles = ArticleRepository(store)
@@ -117,7 +117,7 @@ def generate_thumbnail(
 
 
 def cached(
-    articles: ArticleRepository, ulid: Ulid, ref: MediaRef, thumbnail_root: Path, size: Size
+    articles: ArticleRepository, ulid: ULID, ref: MediaRef, thumbnail_root: Path, size: Size
 ) -> Path | None:
     """The cache file of ``ref``'s version of ``size``, derived first on a miss; None when the file
     yields none. ``ref`` is on Article ``ulid`` — the caller already loaded and authorized it.
@@ -136,7 +136,7 @@ def cached(
 
 
 def _derive(
-    articles: ArticleRepository, ulid: Ulid, ref: MediaRef, thumbnail_root: Path, size: Size
+    articles: ArticleRepository, ulid: ULID, ref: MediaRef, thumbnail_root: Path, size: Size
 ) -> bool:
     if not renders(ref, size):
         return False

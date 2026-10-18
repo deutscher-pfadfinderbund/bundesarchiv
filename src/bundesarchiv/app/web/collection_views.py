@@ -34,6 +34,7 @@ from bundesarchiv.app.web.viewers import (
     viewer_of,
 )
 from bundesarchiv.domain.identity import is_valid_ulid
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.collections import StoredCollection
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
@@ -63,7 +64,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
                 archive,
                 changed_by=archivist.username,
                 name=name,
-                parent_id=parent_id or None,
+                parent_id=chooser.resolve(parent_id),
                 audience=audience,
             )
             return redirect_to(request, landing.created_collection_url(result.ulid))
@@ -107,7 +108,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated_collection(request, ulid)
     if gated is None:
         return not_found()
-    archive, stored, archivist = gated
+    archive, ulid, stored, archivist = gated
     chooser = CollectionChooser.of(archive)
     if request.method == "POST":
         name = one_line(request.POST.get("name", ""))
@@ -149,7 +150,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 
 def _render_edit(
-    request: HttpRequest, ulid: str, chooser: CollectionChooser, panel: FormPanel
+    request: HttpRequest, ulid: ULID, chooser: CollectionChooser, panel: FormPanel
 ) -> HttpResponseBase:
     """The rename form: in place as its tool panel when htmx asked, else as the page."""
     if is_partial(request):
@@ -169,12 +170,12 @@ def _render_edit(
 
 def _load_gated_collection(
     request: HttpRequest, ulid: str
-) -> tuple[Archive, StoredCollection, Archivist] | None:
+) -> tuple[Archive, ULID, StoredCollection, Archivist] | None:
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or not is_valid_ulid(ulid):
         return None
     archive = Archive.canonical()
     try:
-        return archive, archive.collections.load(ulid), archivist
+        return archive, ulid, archive.collections.load(ulid), archivist
     except ArchiveError:
         return None

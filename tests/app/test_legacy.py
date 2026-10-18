@@ -19,7 +19,7 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.management.commands.import_legacy import CHANGED_BY
 from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.app.web import vocab
-from bundesarchiv.domain.models import Lifecycle
+from bundesarchiv.domain.models import ULID, Lifecycle
 from bundesarchiv.persistence._layout import COLLECTIONS
 
 #: Stand-ins for the edit form's two lists: `unknown_vocabulary` only ever tests membership, and
@@ -28,9 +28,9 @@ _KNOWN_MEDIA_TYPES = ("Schrifttum", "Foto(s)")
 _KNOWN_DOCUMENT_TYPES = ("Zeitschrift", "Lagerheft", "Chronik / Dokumentation", "Sonstiges")
 
 _COLLECTIONS = {
-    "Bund": "01BUND0000000000000000000",
-    "Orden St. Georg": "01ORDEN000000000000000000",
-    legacy.UNSORTED: "01UNSORTIERT00000000000000"[:26],
+    "Bund": ULID("01BUND0000000000000000000"),
+    "Orden St. Georg": ULID("01ORDEN000000000000000000"),
+    legacy.UNSORTED: ULID("01UNSORTIERT00000000000000"[:26]),
 }
 
 
@@ -649,7 +649,7 @@ def test_an_unreadable_collection_stops_the_import_before_it_writes(tmp_path: Pa
     _write_export(csv_dir, media_root)
     with _roots(tmp_path):
         archive = Archive.canonical()
-        archive.store.write_atomic(COLLECTIONS.readme_key("01BAD"), b"---\nname: [\n---\n")
+        archive.store.write_atomic(COLLECTIONS.readme_key(ULID("01BAD")), b"---\nname: [\n---\n")
         with pytest.raises(CommandError, match="01BAD"):
             _run(csv_dir, media_root)
         assert list(archive.collections.list_ulids()) == ["01BAD"]

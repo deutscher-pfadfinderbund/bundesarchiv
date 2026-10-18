@@ -21,7 +21,7 @@ from tests.app.web._fixtures import (
 )
 
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Change, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index.refresh import InMemoryIndex
 from bundesarchiv.persistence.errors import NotFound
@@ -29,15 +29,15 @@ from bundesarchiv.persistence.repository import Stored
 
 
 def _mark(corpus: Corpus, ulid: str) -> None:
-    stored = corpus.articles.load(ulid)
+    stored = corpus.articles.load(ULID(ulid))
     corpus.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
 
 
 def _mark_of(corpus: Corpus, ulid: str) -> Change | None:
-    return corpus.articles.load(ulid).article.deleted
+    return corpus.articles.load(ULID(ulid)).article.deleted
 
 
-def _other_ulids(corpus: Corpus) -> set[str]:
+def _other_ulids(corpus: Corpus) -> set[ULID]:
     return set(corpus.articles.list_ulids()) - {DRAFT_ULID, PUBLISHED_ULID}
 
 
@@ -55,7 +55,7 @@ def test_copy_creates_draft_copy_and_redirects_to_its_edit_form(corpus: Corpus) 
     new_ulid = new.pop()
     # 302 to the copy's edit form with the Signatur autofocus hint (spec §5)
     assert response["Location"] == f"/articles/{new_ulid}/edit?focus=ref_code"
-    copy = corpus.articles.load(new_ulid).article
+    copy = corpus.articles.load(ULID(new_ulid)).article
     assert copy.ref_code is None  # Signatur cleared (spec §7)
     assert copy.lifecycle is Lifecycle.DRAFT
     assert copy.media == ()
@@ -63,7 +63,7 @@ def test_copy_creates_draft_copy_and_redirects_to_its_edit_form(corpus: Corpus) 
 
 
 def _as_template(corpus: Corpus, **fields: Any) -> Article:
-    stored = corpus.articles.load(DRAFT_ULID)
+    stored = corpus.articles.load(ULID(DRAFT_ULID))
     template = replace(stored.article, template=True, **fields)
     corpus.articles.save(template, stored.version, changed_by="tester")
     return template
@@ -87,7 +87,7 @@ def test_a_copy_of_a_template_is_a_plain_draft_with_every_other_field(corpus: Co
     response = client_as(Archivist()).post(f"/articles/{DRAFT_ULID}/copy")
     (new_ulid,) = _other_ulids(corpus)
     assert response["Location"] == f"/articles/{new_ulid}/edit?focus=ref_code"
-    copy = corpus.articles.load(new_ulid).article
+    copy = corpus.articles.load(ULID(new_ulid)).article
     assert (copy.template, copy.media, copy.ref_code) == (False, (), None)
     excluded = {"ulid", "added_at", "template", "media", "ref_code"}
     assert replace(copy, **{name: getattr(template, name) for name in excluded}) == template
@@ -142,13 +142,13 @@ def test_a_confirm_older_than_the_record_deletes_nothing_and_asks_again(corpus: 
     a confirm of the record as it now stands."""
     client = client_as(Archivist())
     body = client.get(f"/articles/{PUBLISHED_ULID}/delete").content.decode()
-    stored = corpus.articles.load(PUBLISHED_ULID)
+    stored = corpus.articles.load(ULID(PUBLISHED_ULID))
     corpus.articles.save(
         replace(stored.article, title="Inzwischen"), stored.version, changed_by="x"
     )
     refused = _submit_delete_form(client, body, PUBLISHED_ULID)
     assert refused.status_code == 200
-    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
+    assert corpus.articles.load(ULID(PUBLISHED_ULID)).article.title == "Inzwischen"
     assert _mark_of(corpus, PUBLISHED_ULID) is None
     assert _submit_delete_form(client, refused.content.decode(), PUBLISHED_ULID).status_code == 302
     assert _mark_of(corpus, PUBLISHED_ULID) is not None
@@ -159,14 +159,14 @@ def test_the_article_page_deletes_in_place_and_asks_again_when_stale(corpus: Cor
     with htmx too (it answers in place, then navigates on success)."""
     client = client_as(Archivist())
     body = client.get(f"/articles/{PUBLISHED_ULID}").content.decode()
-    stored = corpus.articles.load(PUBLISHED_ULID)
+    stored = corpus.articles.load(ULID(PUBLISHED_ULID))
     corpus.articles.save(
         replace(stored.article, title="Inzwischen"), stored.version, changed_by="x"
     )
     [(action, fields)] = _delete_forms(body, PUBLISHED_ULID)
     refused = client.post(action, fields, headers={"HX-Request": "true"})
     assert refused.status_code == 200
-    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
+    assert corpus.articles.load(ULID(PUBLISHED_ULID)).article.title == "Inzwischen"
     [(action, fields)] = _delete_forms(refused.content.decode(), PUBLISHED_ULID)
     done = client.post(action, fields, headers={"HX-Request": "true"})
     assert done["HX-Redirect"] == "/articles"
@@ -186,14 +186,14 @@ def test_a_save_landing_while_the_delete_runs_survives(
 
     def load_then_a_concurrent_save(self: ArticleRepository, ulid: str) -> Stored:
         monkeypatch.setattr(ArticleRepository, "load", real_load)
-        loaded = real_load(self, ulid)
+        loaded = real_load(self, ULID(ulid))
         self.save(replace(loaded.article, title="Inzwischen"), loaded.version, changed_by="bert")
         return loaded
 
     monkeypatch.setattr(ArticleRepository, "load", load_then_a_concurrent_save)
     refused = _submit_delete_form(client, body, PUBLISHED_ULID)
     assert refused.status_code == 200
-    survivor = corpus.articles.load(PUBLISHED_ULID).article
+    survivor = corpus.articles.load(ULID(PUBLISHED_ULID)).article
     assert (survivor.title, survivor.deleted) == ("Inzwischen", None)
 
 
@@ -201,7 +201,7 @@ def test_a_drafts_edit_form_deletes_through_its_one_confirm(corpus: Corpus) -> N
     client = client_as(Archivist())
     body = client.get(f"/articles/{DRAFT_ULID}/edit").content.decode()
     [(action, fields)] = _delete_forms(body, DRAFT_ULID)
-    assert fields["expected_version"] == str(corpus.articles.load(DRAFT_ULID).version)
+    assert fields["expected_version"] == str(corpus.articles.load(ULID(DRAFT_ULID)).version)
     assert client.post(action, fields).status_code == 302
     assert _mark_of(corpus, DRAFT_ULID) is not None
 
@@ -229,7 +229,7 @@ def test_delete_permanently_deletes_a_marked_record_for_good(corpus: Corpus) -> 
     response = client.post(action, fields)
     assert (response.status_code, response["Location"]) == (302, "/trash")
     with pytest.raises(NotFound):
-        corpus.articles.load(PUBLISHED_ULID)
+        corpus.articles.load(ULID(PUBLISHED_ULID))
 
 
 def test_a_permanent_confirm_older_than_the_record_deletes_nothing_and_asks_again(
@@ -238,18 +238,18 @@ def test_a_permanent_confirm_older_than_the_record_deletes_nothing_and_asks_agai
     _mark(corpus, PUBLISHED_ULID)
     client = client_as(Archivist())
     body = client.get(f"/articles/{PUBLISHED_ULID}/delete-permanently").content.decode()
-    stored = corpus.articles.load(PUBLISHED_ULID)
+    stored = corpus.articles.load(ULID(PUBLISHED_ULID))
     corpus.articles.save(
         replace(stored.article, title="Inzwischen"), stored.version, changed_by="x"
     )
     [(action, fields)] = _for_good_forms(body, PUBLISHED_ULID)
     refused = client.post(action, fields)
     assert refused.status_code == 200
-    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
+    assert corpus.articles.load(ULID(PUBLISHED_ULID)).article.title == "Inzwischen"
     [(action, fields)] = _for_good_forms(refused.content.decode(), PUBLISHED_ULID)
     assert client.post(action, fields).status_code == 302
     with pytest.raises(NotFound):
-        corpus.articles.load(PUBLISHED_ULID)
+        corpus.articles.load(ULID(PUBLISHED_ULID))
 
 
 def test_a_restore_landing_while_permanent_runs_survives(
@@ -266,7 +266,7 @@ def test_a_restore_landing_while_permanent_runs_survives(
 
     def load_then_a_restore(self: ArticleRepository, ulid: str) -> Stored:
         monkeypatch.setattr(ArticleRepository, "load", real_load)
-        loaded = real_load(self, ulid)
+        loaded = real_load(self, ULID(ulid))
         self.save(replace(loaded.article, deleted=None), loaded.version, changed_by="bert")
         return loaded
 
@@ -285,10 +285,12 @@ def _restore(client: Any, ulid: str, version: int) -> Any:
 
 def test_restore_takes_the_record_out_of_the_trash(corpus: Corpus) -> None:
     _mark(corpus, PUBLISHED_ULID)
-    before = corpus.articles.load(PUBLISHED_ULID)
+    before = corpus.articles.load(ULID(PUBLISHED_ULID))
     response = _restore(client_as(Archivist()), PUBLISHED_ULID, before.version)
     assert (response.status_code, response["Location"]) == (302, f"/articles/{PUBLISHED_ULID}")
-    assert corpus.articles.load(PUBLISHED_ULID).article == replace(before.article, deleted=None)
+    assert corpus.articles.load(ULID(PUBLISHED_ULID)).article == replace(
+        before.article, deleted=None
+    )
 
 
 @pytest.mark.parametrize("hx", [False, True], ids=["plain", "htmx"])
@@ -308,7 +310,7 @@ def test_delete_with_index_lag_says_so(corpus: Corpus, hx: bool) -> None:
 
 
 def _version(corpus: Corpus, ulid: str) -> int:
-    return corpus.articles.load(ulid).version
+    return corpus.articles.load(ULID(ulid)).version
 
 
 def test_the_page_of_a_marked_record_offers_restore_and_delete_permanently_only(
@@ -332,9 +334,9 @@ def test_the_page_of_a_marked_record_offers_restore_and_delete_permanently_only(
 
 def test_restore_on_a_stale_page_restores_nothing(corpus: Corpus) -> None:
     _mark(corpus, PUBLISHED_ULID)
-    before = corpus.articles.load(PUBLISHED_ULID)
+    before = corpus.articles.load(ULID(PUBLISHED_ULID))
     assert _restore(client_as(Archivist()), PUBLISHED_ULID, before.version - 1).status_code == 302
-    assert corpus.articles.load(PUBLISHED_ULID) == before
+    assert corpus.articles.load(ULID(PUBLISHED_ULID)) == before
 
 
 def test_a_save_landing_while_the_restore_runs_survives(
@@ -343,18 +345,18 @@ def test_a_save_landing_while_the_restore_runs_survives(
     from bundesarchiv.persistence.repository import ArticleRepository
 
     _mark(corpus, PUBLISHED_ULID)
-    version = corpus.articles.load(PUBLISHED_ULID).version
+    version = corpus.articles.load(ULID(PUBLISHED_ULID)).version
     real_load = ArticleRepository.load
 
     def load_then_a_concurrent_save(self: ArticleRepository, ulid: str) -> Stored:
         monkeypatch.setattr(ArticleRepository, "load", real_load)
-        loaded = real_load(self, ulid)
+        loaded = real_load(self, ULID(ulid))
         self.save(replace(loaded.article, title="Inzwischen"), loaded.version, changed_by="bert")
         return loaded
 
     monkeypatch.setattr(ArticleRepository, "load", load_then_a_concurrent_save)
     assert _restore(client_as(Archivist()), PUBLISHED_ULID, version).status_code == 302
-    survivor = corpus.articles.load(PUBLISHED_ULID).article
+    survivor = corpus.articles.load(ULID(PUBLISHED_ULID)).article
     assert survivor.title == "Inzwischen" and survivor.deleted is not None
 
 
@@ -364,12 +366,12 @@ def test_the_trash_routes_deny_and_change_nothing(
     corpus: Corpus, viewer: Viewer, route: str
 ) -> None:
     _mark(corpus, PUBLISHED_ULID)
-    before = corpus.articles.load(PUBLISHED_ULID)
+    before = corpus.articles.load(ULID(PUBLISHED_ULID))
     client = client_as(viewer)
     path = f"/articles/{PUBLISHED_ULID}/{route}"
     assert_denied(client.get(path))
     assert_denied(client.post(path, {"expected_version": str(before.version)}))
-    assert corpus.articles.load(PUBLISHED_ULID) == before
+    assert corpus.articles.load(ULID(PUBLISHED_ULID)) == before
 
 
 # --- fail-closed: no exposure, no publish affordance (learning G.34) ---------------
@@ -418,7 +420,7 @@ def test_a_published_record_with_an_unresolvable_chain_keeps_its_status_on_offer
 def _publish_post(corpus: Corpus, ulid: str, **overrides: str) -> dict[str, str]:
     """A form POST setting Status to Veröffentlicht, at the article's current version so CAS
     passes."""
-    version = corpus.articles.load(ulid).version
+    version = corpus.articles.load(ULID(ulid)).version
     return {
         "title": "Ohne Bestandskette",
         "collection_id": "WAISE",
@@ -434,12 +436,12 @@ def test_publishing_an_unresolvable_chain_is_refused_by_the_SERVER(corpus: Corpu
     # reachable with ordinary UI actions: re-parent a Bestand under a missing parent (the article's
     # own version is untouched, so CAS passes), then POST Veröffentlicht.
     ulid = _article_whose_collection_chain_is_broken(corpus)
-    before = corpus.articles.load(ulid)
+    before = corpus.articles.load(ULID(ulid))
     response = client_as(Archivist()).post(
         f"/articles/{ulid}/edit", _publish_post(corpus, ulid, title="Frisch getippt")
     )
     assert response.status_code == 200  # a re-render, exactly like a validation failure
-    after = corpus.articles.load(ulid)
+    after = corpus.articles.load(ULID(ulid))
     assert after.article.lifecycle is Lifecycle.DRAFT  # nothing published
     assert after.version == before.version  # ...and nothing written at all
     body = response.content.decode()
@@ -456,7 +458,7 @@ def test_withdrawing_an_unresolvable_chain_stays_allowed(corpus: Corpus) -> None
         _publish_post(corpus, ulid, lifecycle="draft"),
     )
     assert response.status_code == 302
-    assert corpus.articles.load(ulid).article.lifecycle is Lifecycle.DRAFT
+    assert corpus.articles.load(ULID(ulid)).article.lifecycle is Lifecycle.DRAFT
 
 
 @pytest.mark.parametrize("lifecycle", [Lifecycle.DRAFT, Lifecycle.PUBLISHED])
@@ -470,7 +472,7 @@ def test_an_unchanged_status_with_an_unresolvable_chain_stays_a_plain_save(
         _publish_post(corpus, ulid, title="Nur gespeichert", lifecycle=lifecycle.value),
     )
     assert response.status_code == 302
-    stored = corpus.articles.load(ulid).article
+    stored = corpus.articles.load(ULID(ulid)).article
     assert (stored.title, stored.lifecycle) == ("Nur gespeichert", lifecycle)
 
 
@@ -481,33 +483,33 @@ def _publish(
     corpus: Corpus, ulid: str, viewer: Viewer | None = None, version: int | None = None
 ) -> Any:
     if version is None:
-        version = corpus.articles.load(ulid).version
+        version = corpus.articles.load(ULID(ulid)).version
     return client_as(viewer or Archivist("anna")).post(
         f"/articles/{ulid}/publish", {"expected_version": str(version)}
     )
 
 
 def test_publish_publishes_the_draft_and_returns_to_its_page(corpus: Corpus) -> None:
-    before = corpus.articles.load(DRAFT_ULID)
+    before = corpus.articles.load(ULID(DRAFT_ULID))
     response = _publish(corpus, DRAFT_ULID)
     assert response.status_code == 302
     assert response["Location"] == f"/articles/{DRAFT_ULID}"
-    after = corpus.articles.load(DRAFT_ULID)
+    after = corpus.articles.load(ULID(DRAFT_ULID))
     assert after.article == replace(before.article, lifecycle=Lifecycle.PUBLISHED)
     assert after.change is not None and after.change.by == "anna"
 
 
 def _assert_refused(corpus: Corpus, ulid: str, version: int | None = None) -> None:
     """A refused publish writes nothing and sends the archivist back to the page as it stands."""
-    before = corpus.articles.load(ulid)
+    before = corpus.articles.load(ULID(ulid))
     response = _publish(corpus, ulid, version=version)
     assert response.status_code == 302
     assert response["Location"] == f"/articles/{ulid}"
-    assert corpus.articles.load(ulid) == before
+    assert corpus.articles.load(ULID(ulid)) == before
 
 
 def test_publish_on_a_stale_page_writes_nothing(corpus: Corpus) -> None:
-    _assert_refused(corpus, DRAFT_ULID, version=corpus.articles.load(DRAFT_ULID).version - 1)
+    _assert_refused(corpus, DRAFT_ULID, version=corpus.articles.load(ULID(DRAFT_ULID)).version - 1)
 
 
 def test_publish_refuses_a_record_changed_while_it_publishes(
@@ -524,16 +526,16 @@ def test_publish_refuses_a_record_changed_while_it_publishes(
         nonlocal loads
         loads += 1
         if loads == 2:
-            stored = real_load(self, ulid)
+            stored = real_load(self, ULID(ulid))
             audience = Audience(AudienceTier.GROUPS, ("vorstand",))
             self.save(replace(stored.article, audience=audience), stored.version, changed_by="bert")
-        return real_load(self, ulid)
+        return real_load(self, ULID(ulid))
 
-    version = corpus.articles.load(DRAFT_ULID).version
+    version = corpus.articles.load(ULID(DRAFT_ULID)).version
     monkeypatch.setattr(ArticleRepository, "load", load_with_a_concurrent_save)
     response = _publish(corpus, DRAFT_ULID, version=version)
     monkeypatch.undo()
-    after = corpus.articles.load(DRAFT_ULID)
+    after = corpus.articles.load(ULID(DRAFT_ULID))
     assert response.status_code == 302
     assert after.article.lifecycle is Lifecycle.DRAFT
     assert after.change is not None and after.change.by == "bert"  # only the concurrent save
@@ -557,27 +559,27 @@ def test_publish_leaves_a_published_record_alone(corpus: Corpus) -> None:
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 def test_publish_denied_publishes_nothing(corpus: Corpus, viewer: Viewer) -> None:
-    before = corpus.articles.load(DRAFT_ULID)
+    before = corpus.articles.load(ULID(DRAFT_ULID))
     assert_denied(_publish(corpus, DRAFT_ULID, viewer=viewer))
-    assert corpus.articles.load(DRAFT_ULID) == before
+    assert corpus.articles.load(ULID(DRAFT_ULID)) == before
 
 
 def test_publish_get_is_404(corpus: Corpus) -> None:
-    before = corpus.articles.load(DRAFT_ULID)
+    before = corpus.articles.load(ULID(DRAFT_ULID))
     assert_denied(client_as(Archivist()).get(f"/articles/{DRAFT_ULID}/publish"))
-    assert corpus.articles.load(DRAFT_ULID) == before
+    assert corpus.articles.load(ULID(DRAFT_ULID)) == before
 
 
 def test_the_confirmation_says_who_will_see_the_record(corpus: Corpus) -> None:
     body = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}").content.decode()
     assert 'popovertarget="publish"' in body
     assert f'action="/articles/{DRAFT_ULID}/publish"' in body
-    version = corpus.articles.load(DRAFT_ULID).version
+    version = corpus.articles.load(ULID(DRAFT_ULID)).version
     assert f'name="expected_version" value="{version}"' in body
     assert "Nach dem Veröffentlichen ist dieser Artikel öffentlich." in body  # PUB is public
     # the statement follows the record's own audience, not a fixed wording
     articles = corpus.articles
-    stored = articles.load(DRAFT_ULID)
+    stored = articles.load(ULID(DRAFT_ULID))
     members = replace(stored.article, audience=Audience(AudienceTier.MEMBERS))
     articles.save(members, stored.version, changed_by="tester")
     body = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}").content.decode()

@@ -24,7 +24,7 @@ from collections.abc import Callable, Mapping
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Collection, Ulid
+from bundesarchiv.domain.models import ULID, Collection
 
 #: The Eltern-Bestand top-level marker — a Bestand with no parent. Public because the Bestand form's
 #: read-only parent row displays it too, and the two may not drift.
@@ -46,21 +46,21 @@ class CollectionChooser:
         """Wrap the Collection loader; it is called at most once. Views use ``of`` — a caller that
         already holds a set passes ``lambda: collections``."""
         self._load = load
-        self._loaded: dict[Ulid, Collection] | None = None
+        self._loaded: dict[ULID, Collection] | None = None
 
     @classmethod
     def of(cls, archive: Archive) -> CollectionChooser:
         """This request's chooser over the archive's Collections."""
         return cls(archive.collections.load_all)
 
-    def by_ulid(self) -> Mapping[Ulid, Collection]:
+    def by_ulid(self) -> Mapping[ULID, Collection]:
         """Every saved Bestand keyed by ulid — the whole set, for the callers that need Collections
         rather than options."""
         if self._loaded is None:
             self._loaded = {c.ulid: c for c in self._load()}
         return self._loaded
 
-    def chain_of(self, collection_id: Ulid) -> ResolvedChain | None:
+    def chain_of(self, collection_id: ULID) -> ResolvedChain | None:
         """The Bestand chain above ``collection_id``, leaf first, or ``None`` when it does not
         resolve (unknown, orphaned, cyclic). ``None`` is THE publish gate: no chain, no exposure
         statement, no publishing."""
@@ -69,7 +69,7 @@ class CollectionChooser:
         except DomainError:
             return None
 
-    def names(self) -> Mapping[Ulid, str]:
+    def names(self) -> Mapping[str, str]:
         return {ulid: c.name for ulid, c in self.by_ulid().items()}
 
     def options(self) -> Options:
@@ -81,20 +81,28 @@ class CollectionChooser:
         refusal) then every Bestand."""
         return (("", TOP_LEVEL_LABEL), *self._by_name())
 
+    def resolve(self, raw: str) -> ULID | None:
+        """The ulid of the Bestand ``raw`` names, or ``None``: membership in the saved set is the
+        parse. Surrounding whitespace is stripped first, like every other form value."""
+        found = self._find(raw)
+        return found.ulid if found is not None else None
+
     def accepts(self, raw: str) -> bool:
-        """Whether ``raw`` names a Bestand that may be filed into. Surrounding whitespace is stripped
-        first, like every other form value."""
-        return raw.strip() in self.by_ulid()
+        """Whether ``raw`` names a Bestand that may be filed into."""
+        return self.resolve(raw) is not None
 
     def error(self) -> str:
         """THE refusal an unaccepted value earns, on every surface."""
         return _REFUSAL
 
-    def name_of(self, ulid: str) -> str | None:
-        """The Bestand's name, or ``None`` when the ulid names none — the caller decides what an
+    def name_of(self, raw: str) -> str | None:
+        """The name of the Bestand ``raw`` names, or ``None`` — the caller decides what an
         unresolvable value shows; this never raises."""
-        found = self.by_ulid().get(ulid.strip())
+        found = self._find(raw)
         return found.name if found is not None else None
+
+    def _find(self, raw: str) -> Collection | None:
+        return self.by_ulid().get(ULID(raw.strip()))
 
     def _by_name(self) -> Options:
         collections = sorted(self.by_ulid().values(), key=lambda c: (c.name, c.ulid))

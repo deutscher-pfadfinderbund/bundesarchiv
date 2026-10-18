@@ -11,6 +11,7 @@ from django.urls import reverse
 
 from bundesarchiv.app.web.browse import PARAM_COLLECTION
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
+from bundesarchiv.domain.models import ULID
 
 _CREATED, _FOCUS, _INDEX = "created", "focus", "index"
 _YES, _REF_CODE, _LAGGING = "1", "ref_code", "lagging"
@@ -21,12 +22,12 @@ FLAG_KEYS = frozenset({_CREATED, _FOCUS, _INDEX})
 LAG_FLAG = (_INDEX, _LAGGING)
 
 
-def created_collection_url(ulid: str) -> str:
+def created_collection_url(ulid: ULID) -> str:
     """The create-article form with the just-created Bestand pre-selected and announced."""
     return f"{reverse('article-create')}?{urlencode({PARAM_COLLECTION: ulid, _CREATED: _YES})}"
 
 
-def copy_url(ulid: str) -> str:
+def copy_url(ulid: ULID) -> str:
     """The edit form of a fresh copy, with the cleared Signatur focused."""
     return f"{reverse('article-edit', args=[ulid])}?{urlencode({_FOCUS: _REF_CODE})}"
 

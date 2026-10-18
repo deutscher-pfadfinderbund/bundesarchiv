@@ -6,6 +6,7 @@ import pytest
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -241,8 +242,8 @@ def test_build_row_archivist_text_empty_without_sources() -> None:
 
 def test_build_row_ancestors_are_leaf_to_root_including_own_collection() -> None:
     root = _root("ROOT")
-    mid = Collection(ulid="MID", name="Mid", parent_id="ROOT")
-    leaf = Collection(ulid="LEAF", name="Leaf", parent_id="MID")
+    mid = Collection(ulid=ULID("MID"), name="Mid", parent_id=ULID("ROOT"))
+    leaf = Collection(ulid=ULID("LEAF"), name="Leaf", parent_id=ULID("MID"))
     article = _article(collection_id="LEAF")
     row = indexer.build_row(article, _chain(leaf, mid, root), cap_year=_CAP_YEAR)
     assert row["collection_ancestors"] == ["LEAF", "MID", "ROOT"]
@@ -264,13 +265,18 @@ def store() -> InMemoryObjectStore:
     collections.save(_root("ROOT", name="Wurzel"), 0, changed_by="tester")
     collections.save(
         Collection(
-            ulid="FOTOS", name="Fotos", parent_id="ROOT", audience=Audience(AudienceTier.PUBLIC)
+            ulid=ULID("FOTOS"),
+            name="Fotos",
+            parent_id=ULID("ROOT"),
+            audience=Audience(AudienceTier.PUBLIC),
         ),
         0,
         changed_by="tester",
     )
     collections.save(
-        Collection(ulid="AKTEN", name="Akten", parent_id="FOTOS"), 0, changed_by="tester"
+        Collection(ulid=ULID("AKTEN"), name="Akten", parent_id=ULID("FOTOS")),
+        0,
+        changed_by="tester",
     )
 
     # 1. Published, inherits PUBLIC from FOTOS.
@@ -391,7 +397,7 @@ def test_a_hit_summarizes_its_files_and_the_files_filter_reads_the_same_fact() -
     CollectionRepository(store).save(_root(), 0, changed_by="tester")
     articles = ArticleRepository(store)
     media = tuple(
-        articles.add_media("01MIX", name, io.BytesIO(name.encode()), media_type=mime)
+        articles.add_media(ULID("01MIX"), name, io.BytesIO(name.encode()), media_type=mime)
         for name, mime in (("brief.pdf", "application/pdf"), ("a.jpg", None), ("b.jpg", None))
     )
     articles.save(_article(ulid="01MIX", media=media), 0, changed_by="tester")
@@ -399,9 +405,9 @@ def test_a_hit_summarizes_its_files_and_the_files_filter_reads_the_same_fact() -
     indexer.rebuild(store)
 
     hits = {hit.ulid: hit for hit in search(Archivist()).hits}
-    assert hits["01MIX"].file_counts == ((FileKind.IMAGE, 2), (FileKind.PDF, 1))
-    assert hits["01NIX"].file_counts == ()
-    assert hits["01MIX"].collection_id == "ROOT"
+    assert hits[ULID("01MIX")].file_counts == ((FileKind.IMAGE, 2), (FileKind.PDF, 1))
+    assert hits[ULID("01NIX")].file_counts == ()
+    assert hits[ULID("01MIX")].collection_id == "ROOT"
     with_files = search(Archivist(), filters=SearchFilters(has_files=True)).hits
     assert [hit.ulid for hit in with_files] == ["01MIX"]
     pdf = search(Archivist(), filters=SearchFilters(file_kind=FileKind.PDF))

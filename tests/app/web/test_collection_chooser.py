@@ -3,13 +3,13 @@
 import pytest
 
 from bundesarchiv.app.web.collection_chooser import TOP_LEVEL_LABEL, CollectionChooser
-from bundesarchiv.domain.models import Collection
+from bundesarchiv.domain.models import ULID, Collection
 
 #: Two Bestände whose load order (the store lists by ulid) is the REVERSE of their name order, so
 #: any test that passes under load order fails under name order and vice versa.
 _LOAD_ORDER = (
-    Collection(ulid="01ZEITUNGSAUSSCHNITTE00000", name="Zeitungsausschnitte"),
-    Collection(ulid="02FOTOGRAFIEN0000000000000", name="Fotografien"),
+    Collection(ulid=ULID("01ZEITUNGSAUSSCHNITTE00000"), name="Zeitungsausschnitte"),
+    Collection(ulid=ULID("02FOTOGRAFIEN0000000000000"), name="Fotografien"),
 )
 
 
@@ -40,10 +40,9 @@ def test_an_empty_archive_still_offers_the_placeholder() -> None:
 # --- membership: no existence oracle -----------------------------------------------
 
 
-def test_accepts_a_saved_collection_and_ignores_surrounding_whitespace() -> None:
-    chooser = _chooser(*_LOAD_ORDER)
-    assert chooser.accepts("02FOTOGRAFIEN0000000000000")
-    assert chooser.accepts("  02FOTOGRAFIEN0000000000000  ")
+@pytest.mark.parametrize("raw", ["02FOTOGRAFIEN0000000000000", "  02FOTOGRAFIEN0000000000000  "])
+def test_resolve_gives_the_stored_ulid_of_a_saved_collection(raw: str) -> None:
+    assert _chooser(*_LOAD_ORDER).resolve(raw) == _LOAD_ORDER[1].ulid
 
 
 @pytest.mark.parametrize(
@@ -58,7 +57,9 @@ def test_accepts_a_saved_collection_and_ignores_surrounding_whitespace() -> None
     ],
 )
 def test_empty_malformed_and_unknown_are_the_same_refusal(raw: str) -> None:
-    assert not _chooser(*_LOAD_ORDER).accepts(raw)
+    chooser = _chooser(*_LOAD_ORDER)
+    assert chooser.resolve(raw) is None
+    assert not chooser.accepts(raw)
 
 
 # --- resolving names ---------------------------------------------------------------
@@ -81,9 +82,9 @@ def test_the_loaded_set_is_addressable_by_ulid_and_by_name() -> None:
 
 
 def test_chain_of_is_the_collection_chain_leaf_first() -> None:
-    root = Collection(ulid="ROOT", name="Archiv")
-    leaf = Collection(ulid="LEAF", name="Fotografien", parent_id="ROOT")
-    chain = _chooser(root, leaf).chain_of("LEAF")
+    root = Collection(ulid=ULID("ROOT"), name="Archiv")
+    leaf = Collection(ulid=ULID("LEAF"), name="Fotografien", parent_id=ULID("ROOT"))
+    chain = _chooser(root, leaf).chain_of(ULID("LEAF"))
     assert chain is not None and chain.collections == (leaf, root)
 
 
@@ -96,5 +97,5 @@ def test_chain_of_is_the_collection_chain_leaf_first() -> None:
     ],
 )
 def test_chain_of_an_unresolvable_collection_is_none(collection_id: str) -> None:
-    waise = Collection(ulid="WAISE", name="Waise", parent_id="FEHLT")
-    assert _chooser(waise).chain_of(collection_id) is None
+    waise = Collection(ulid=ULID("WAISE"), name="Waise", parent_id=ULID("FEHLT"))
+    assert _chooser(waise).chain_of(ULID(collection_id)) is None

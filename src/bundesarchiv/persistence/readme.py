@@ -5,13 +5,13 @@ from typing import Any
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
     Change,
     Lifecycle,
     MediaRef,
-    Ulid,
     Version,
 )
 from bundesarchiv.persistence import _change, _front_matter
@@ -66,7 +66,7 @@ def _media_entry(media: MediaRef) -> dict[str, Any]:
     return entry
 
 
-def decode(ulid: Ulid, text: str) -> tuple[Article, Version, Change | None]:
+def decode(ulid: ULID, text: str) -> tuple[Article, Version, Change | None]:
     """Parse README.md text back to its Article, stored version and change record (None for a
     README written before ADR 0019)."""
     front_matter, title, body = _front_matter.split_title(ulid, text, "title")
@@ -80,7 +80,7 @@ def decode(ulid: Ulid, text: str) -> tuple[Article, Version, Change | None]:
         raise UnreadableReadme(f"{ulid}: README front-matter is malformed: {exc}") from exc
 
 
-def read_version(ulid: Ulid, text: str) -> Version:
+def read_version(ulid: ULID, text: str) -> Version:
     front_matter, _ = _front_matter.parse(ulid, text)
     try:
         return _front_matter.version_of(front_matter)
@@ -179,9 +179,9 @@ def _article_from_front_matter(fm: dict[str, Any], title: str | None, body: str)
     if not isinstance(media, list | tuple):
         raise ValueError(f"media: expected a list, got {type(media).__name__}")
     return Article(
-        ulid=str(fm["ulid"]),
+        ulid=ULID(str(fm["ulid"])),
         title=str(fm["title"]) if title is None else title,
-        collection_id=str(fm["collection_id"]),
+        collection_id=ULID(str(fm["collection_id"])),
         body=body,
         lifecycle=Lifecycle(fm["lifecycle"]),
         audience=audience_from_front_matter(fm),

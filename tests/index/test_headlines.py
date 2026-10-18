@@ -10,7 +10,7 @@ import pytest
 from tests._articles import make_article
 from tests.index import fixtures
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Collection
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Public
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import Headline, SearchHit, search
@@ -18,7 +18,7 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-_ROOT = "HL_ROOT"
+_ROOT = ULID("HL_ROOT")
 _LONG_TAG = (
     "Fahrtenbuch der Gruppe mit vielen Seiten über das Bundeslager des DPB 1960 auf Burg"
     " Königstein und danach noch weitere Fahrten in den Harz und an die See"

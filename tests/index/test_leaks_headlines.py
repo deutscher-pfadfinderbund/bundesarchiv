@@ -16,7 +16,7 @@ import pytest
 from tests._articles import make_article
 from tests.index import fixtures
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import search
@@ -24,7 +24,7 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-_ROOT = "LH_ROOT"
+_ROOT = ULID("LH_ROOT")
 _ARCHIVIST_WORDS = ("Geheimregal", "Geheimnotiz")
 
 

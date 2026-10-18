@@ -9,7 +9,7 @@ from typing import Any
 
 import yaml
 
-from bundesarchiv.domain.models import Audience, Ulid, Version
+from bundesarchiv.domain.models import ULID, Audience, Version
 from bundesarchiv.persistence.errors import UnreadableReadme
 
 MARKER = "Managed by bundesarchiv — do not edit by hand."
@@ -60,7 +60,7 @@ def dump(front_matter: dict[str, Any], title: str, body: str) -> str:
     return f"{HEAD}{block}\n{FENCE}\n# {title}\n\n{body}"
 
 
-def split_title(ulid: Ulid, text: str, title_key: str) -> tuple[dict[str, Any], str | None, str]:
+def split_title(ulid: ULID, text: str, title_key: str) -> tuple[dict[str, Any], str | None, str]:
     """The mirror of `dump`: the front matter, the title and the body after it. A front matter that
     holds `title_key` is the old layout (ADR 0019): no title, the body verbatim."""
     front_matter, body = parse(ulid, text)
@@ -72,7 +72,7 @@ def split_title(ulid: Ulid, text: str, title_key: str) -> tuple[dict[str, Any], 
     return front_matter, heading.removeprefix("# "), rest.removeprefix("\n")
 
 
-def _split(ulid: Ulid, text: str) -> tuple[list[str], str]:
+def _split(ulid: ULID, text: str) -> tuple[list[str], str]:
     """The front-matter lines between the fences, and the body verbatim."""
     lines = text.split("\n")
     if lines[0].strip() == f"<!-- {MARKER} -->":
@@ -88,13 +88,13 @@ def _split(ulid: Ulid, text: str) -> tuple[list[str], str]:
     return lines[1:close], "\n".join(lines[close + 1 :])
 
 
-def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
+def parse(ulid: ULID, text: str) -> tuple[dict[str, Any], str]:
     """The front matter and the body of README `text`, the body verbatim."""
     block, body = _split(ulid, text)
     return _load(ulid, block), body
 
 
-def _load(ulid: Ulid, block: list[str]) -> dict[str, Any]:
+def _load(ulid: ULID, block: list[str]) -> dict[str, Any]:
     try:
         front_matter = yaml.load("\n".join(block), Loader=yaml.CSafeLoader)
     except (yaml.YAMLError, RecursionError) as exc:

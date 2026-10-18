@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from bundesarchiv.domain.models import Change, Collection, Ulid, Version
+from bundesarchiv.domain.models import ULID, Change, Collection, Version
 from bundesarchiv.persistence import _front_matter, collection_readme
 from bundesarchiv.persistence._layout import COLLECTIONS, Scan
 from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order
@@ -26,7 +26,7 @@ class CollectionRepository:
     def __init__(self, store: ObjectStore) -> None:
         self._store = store
 
-    def load(self, ulid: Ulid) -> StoredCollection:
+    def load(self, ulid: ULID) -> StoredCollection:
         """Return the Collection for `ulid` with its stored version and change record. Raises
         `NotFound` if absent."""
         try:
@@ -65,11 +65,11 @@ class CollectionRepository:
         treated as absent (owner 2026-10-01): the Articles under it then fail closed."""
         return COLLECTIONS.scan(self._store, lambda ulid: self.load(ulid).collection)
 
-    def list_ulids(self) -> list[Ulid]:
+    def list_ulids(self) -> list[ULID]:
         """The ulid of every saved Collection, none of them read."""
         return COLLECTIONS.list_ulids(self._store)
 
-    def keys_for(self, ulid: Ulid) -> list[StoredKey]:
+    def keys_for(self, ulid: ULID) -> list[StoredKey]:
         """The keys of the Collection's folder in the order a save writes them: history, the README
         last (ADR 0020 push order). A README that does not decode is not `readable`. An absent
         Collection yields ``[]``."""
@@ -77,7 +77,7 @@ class CollectionRepository:
             self._store, COLLECTIONS.folder(ulid), {}, readable=self._decodes(ulid)
         )
 
-    def _decodes(self, ulid: Ulid) -> bool:
+    def _decodes(self, ulid: ULID) -> bool:
         try:
             self.load(ulid)
         except NotFound:

@@ -16,6 +16,7 @@ from bundesarchiv.app.web import browse, vocab
 from bundesarchiv.app.web.byline import BylineLink
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_urls import media_url
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.index.query import SearchFilters, SearchHit
 
 
@@ -118,7 +119,7 @@ class Row:
     archivist's chrome, False for everyone else; ``selected`` marks the row in the pane;
     ``text_hits`` is None unless the query matched a page of the hit's files."""
 
-    ulid: str
+    ulid: ULID
     title: str
     href: str
     draft: bool

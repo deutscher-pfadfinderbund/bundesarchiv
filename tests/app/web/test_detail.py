@@ -26,7 +26,7 @@ from bundesarchiv.app.thumbnails import generate_thumbnail
 from bundesarchiv.app.web.media_urls import display_url, media_url, thumbnail_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 # The detail page only PRINTS the Bestand id (as a ?collection= facet link) and never routes on it, so
@@ -143,7 +143,9 @@ def test_a_tile_shows_a_thumbnail_only_once_the_cache_holds_one(
     second = thumbnail_url(corpus.pub, corpus.second_hash)
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
         before = _body(Public(), corpus.pub)
-        assert generate_thumbnail(Archive.canonical().store, corpus.pub, corpus.second_hash, thumbs)
+        assert generate_thumbnail(
+            Archive.canonical().store, ULID(corpus.pub), corpus.second_hash, thumbs
+        )
         after = _body(Public(), corpus.pub)
     assert second not in before
     assert "b.png" in before
@@ -318,6 +320,18 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
 def test_draft_is_404_for_non_archivist(corpus: _DetailArchive, viewer: Viewer) -> None:
     response = client_as(viewer).get(f"/articles/{corpus.draft}")
     assert_denied(response)
+
+
+@pytest.mark.parametrize(
+    "misspell",
+    [str.lower, lambda u: u[:-1] + "U", lambda u: "8" + u[1:], lambda u: u + "0"],
+    ids=["lowercase", "excluded-letter", "beyond-128-bits", "too-long"],
+)
+def test_a_misspelled_ulid_is_denied_before_the_store_is_asked(
+    corpus: _DetailArchive, misspell: Callable[[str], str]
+) -> None:
+    """A case-insensitive filesystem (macOS) would find the lowercase folder."""
+    assert_denied(client_as(Archivist()).get(f"/articles/{misspell(corpus.pub)}"))
 
 
 def test_draft_is_200_and_closes_with_publish_for_archivist(corpus: _DetailArchive) -> None:

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from bundesarchiv.domain.models import Article, Ulid, Version
+from bundesarchiv.domain.models import ULID, Article, Version
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,7 +14,7 @@ class SaveResult:
 
 @dataclass(frozen=True, slots=True)
 class CreateResult:
-    ulid: Ulid
+    ulid: ULID
     version: Version
     index_updated: bool
 

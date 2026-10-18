@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 
 from bundesarchiv.domain.errors import BrokenCollectionTree, MisresolvedChain
-from bundesarchiv.domain.models import Collection, Ulid
+from bundesarchiv.domain.models import ULID, Collection
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,10 +33,10 @@ class ResolvedChain:
         return self.collections[0]
 
 
-def resolve_chain(collection_id: Ulid, collections: Mapping[Ulid, Collection]) -> ResolvedChain:
+def resolve_chain(collection_id: ULID, collections: Mapping[ULID, Collection]) -> ResolvedChain:
     chain: list[Collection] = []
-    seen: set[Ulid] = set()
-    current: Ulid | None = collection_id
+    seen: set[ULID] = set()
+    current: ULID | None = collection_id
     while current is not None:
         if current in seen:
             raise BrokenCollectionTree(f"cycle in Collection tree at {current!r}")

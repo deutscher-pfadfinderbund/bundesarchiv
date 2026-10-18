@@ -6,7 +6,7 @@ import pytest
 
 from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS, can_view, preview, project, visible
 from bundesarchiv.domain.collections import ResolvedChain
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 
@@ -17,9 +17,9 @@ def _article(
     collection_id: str = "c-leaf",
 ) -> Article:
     return Article(
-        ulid="01J0",
+        ulid=ULID("01J0"),
         title="Zeltlager 1955",
-        collection_id=collection_id,
+        collection_id=ULID(collection_id),
         lifecycle=lifecycle,
         audience=audience,
     )
@@ -27,7 +27,7 @@ def _article(
 
 def _chain(collection_id: str = "c-leaf") -> ResolvedChain:
     # A single root Collection that owns the Article — a minimal valid resolved chain.
-    return ResolvedChain((Collection(ulid=collection_id, name=collection_id),))
+    return ResolvedChain((Collection(ulid=ULID(collection_id), name=collection_id),))
 
 
 def test_public_viewer_sees_a_published_public_article() -> None:
@@ -87,9 +87,9 @@ def _inherited_groups_chain() -> ResolvedChain:
     # A silent leaf under a root that carries the GROUPS rung — the rung is INHERITED.
     return ResolvedChain(
         (
-            Collection(ulid="c-leaf", name="c-leaf", parent_id="c-root"),
+            Collection(ulid=ULID("c-leaf"), name="c-leaf", parent_id=ULID("c-root")),
             Collection(
-                ulid="c-root",
+                ulid=ULID("c-root"),
                 name="c-root",
                 audience=Audience(AudienceTier.GROUPS, ("vorstand", "stamm-koeln")),
             ),
@@ -128,16 +128,16 @@ def test_preview_surfaces_inherited_group_names() -> None:
 
 def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article() -> None:
     article = _article(collection_id="c-leaf", audience=Audience(AudienceTier.PUBLIC))
-    wrong_chain = ResolvedChain((Collection(ulid="c-other", name="c-other"),))
+    wrong_chain = ResolvedChain((Collection(ulid=ULID("c-other"), name="c-other"),))
     assert can_view(Public(), article, wrong_chain) is False
     assert can_view(Archivist(), article, wrong_chain) is False
 
 
 def _physical_article() -> Article:
     return Article(
-        ulid="01J0",
+        ulid=ULID("01J0"),
         title="Zeltlager 1955",
-        collection_id="c-leaf",
+        collection_id=ULID("c-leaf"),
         lifecycle=Lifecycle.PUBLISHED,
         audience=Audience(AudienceTier.PUBLIC),
         ref_code="Foto-1955/007",
@@ -226,7 +226,7 @@ def test_preview_surfaces_the_named_groups_for_a_groups_article() -> None:
 def test_preview_denies_all_on_a_chain_resolved_for_a_different_article() -> None:
     # Unresolvable binding -> nobody sees it (preview inherits can_view's deny).
     article = _article(audience=Audience(AudienceTier.PUBLIC))
-    wrong_chain = ResolvedChain((Collection(ulid="c-other", name="c-other"),))
+    wrong_chain = ResolvedChain((Collection(ulid=ULID("c-other"), name="c-other"),))
     p = preview(article, wrong_chain)
     assert p.public is False
     assert p.members is False

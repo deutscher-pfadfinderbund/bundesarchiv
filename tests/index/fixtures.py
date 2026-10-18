@@ -15,6 +15,7 @@ import pytest
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -26,6 +27,10 @@ from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
+
+ID_AKTEN = ULID("AKTEN")
+ID_FOTOS = ULID("FOTOS")
+ID_ROOT = ULID("ROOT")
 
 ARCHIVIST = Archivist()
 PLAIN_MEMBER = Member(())
@@ -73,26 +78,28 @@ def build_store() -> InMemoryObjectStore:
     articles = ArticleRepository(store)
 
     collections.save(
-        Collection(ulid="ROOT", name="Bundesarchiv", parent_id=None), 0, changed_by="tester"
+        Collection(ulid=ID_ROOT, name="Bundesarchiv", parent_id=None), 0, changed_by="tester"
     )
     collections.save(
         Collection(
-            ulid="FOTOS",
+            ulid=ID_FOTOS,
             name="Fotografien",
-            parent_id="ROOT",
+            parent_id=ID_ROOT,
             audience=Audience(AudienceTier.PUBLIC),
         ),
         0,
         changed_by="tester",
     )
     collections.save(
-        Collection(ulid="LAGER", name="Lagerfotos", parent_id="FOTOS"), 0, changed_by="tester"
+        Collection(ulid=ULID("LAGER"), name="Lagerfotos", parent_id=ID_FOTOS),
+        0,
+        changed_by="tester",
     )
     collections.save(
         Collection(
-            ulid="AKTEN",
+            ulid=ID_AKTEN,
             name="Aktenbestand",
-            parent_id="ROOT",
+            parent_id=ID_ROOT,
             audience=Audience(AudienceTier.MEMBERS),
         ),
         0,
@@ -100,9 +107,9 @@ def build_store() -> InMemoryObjectStore:
     )
     collections.save(
         Collection(
-            ulid="VORSTAND",
+            ulid=ULID("VORSTAND"),
             name="Vorstandsakten",
-            parent_id="AKTEN",
+            parent_id=ID_AKTEN,
             audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
         ),
         0,
@@ -174,9 +181,9 @@ def _articles() -> tuple[Article, ...]:
     return (
         # --- PUBLIC (via FOTOS / LAGER) ---
         Article(
-            ulid="ART_PUBFOTO",
+            ulid=ULID("ART_PUBFOTO"),
             title="Öffentliches Foto der Fahrten",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="B 2",
             media_type="Foto",
@@ -186,9 +193,9 @@ def _articles() -> tuple[Article, ...]:
             creator="Hans Müller",
         ),
         Article(
-            ulid="ART_PUBLAGER",
+            ulid=ULID("ART_PUBLAGER"),
             title="Bundeslager Lieder und Häuser",
-            collection_id="LAGER",
+            collection_id=ULID("LAGER"),
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="B 10",
             media_type="Foto",
@@ -197,9 +204,9 @@ def _articles() -> tuple[Article, ...]:
             date=EdtfDate("1972"),
         ),
         Article(
-            ulid="ART_PUBHAUS",
+            ulid=ULID("ART_PUBHAUS"),
             title="Bäume vor dem Haus",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="B 1",
             media_type="Foto",
@@ -208,9 +215,9 @@ def _articles() -> tuple[Article, ...]:
             date=EdtfDate("1981"),
         ),
         Article(
-            ulid="ART_PUBKARTE",
+            ulid=ULID("ART_PUBKARTE"),
             title="Historische Wanderkarte",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="K 3",
             media_type="Karte",
@@ -219,9 +226,9 @@ def _articles() -> tuple[Article, ...]:
             date=EdtfDate("1958"),
         ),
         Article(
-            ulid="ART_PUBPLAKAT",
+            ulid=ULID("ART_PUBPLAKAT"),
             title="Plakat zum Singewettstreit",
-            collection_id="LAGER",
+            collection_id=ULID("LAGER"),
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="P 20",
             media_type="Plakat",
@@ -232,9 +239,9 @@ def _articles() -> tuple[Article, ...]:
         ),
         # --- MEMBERS (explicit AKTEN / inherited) ---
         Article(
-            ulid="ART_MEMAKTE",
+            ulid=ULID("ART_MEMAKTE"),
             title="Vertrauliche Mitgliederakte",
-            collection_id="AKTEN",
+            collection_id=ID_AKTEN,
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="A 5",
             media_type="Akte",
@@ -243,9 +250,9 @@ def _articles() -> tuple[Article, ...]:
             date=EdtfDate("1975"),
         ),
         Article(
-            ulid="ART_MEMNOTIZ",
+            ulid=ULID("ART_MEMNOTIZ"),
             title="Interne Notiz der Fahrten",
-            collection_id="AKTEN",
+            collection_id=ID_AKTEN,
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="A 12",
             media_type="Akte",
@@ -254,9 +261,9 @@ def _articles() -> tuple[Article, ...]:
             date=EdtfDate("1988"),
         ),
         Article(
-            ulid="ART_MEMBRIEF",
+            ulid=ULID("ART_MEMBRIEF"),
             title="Briefwechsel im Bund",
-            collection_id="ROOT",
+            collection_id=ID_ROOT,
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="A 1",
             media_type="Akte",
@@ -266,9 +273,9 @@ def _articles() -> tuple[Article, ...]:
         ),
         # --- GROUPS {vorstand} ---
         Article(
-            ulid="ART_GRPPROT",
+            ulid=ULID("ART_GRPPROT"),
             title="Protokoll der Vorstandssitzung",
-            collection_id="VORSTAND",
+            collection_id=ULID("VORSTAND"),
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="V 2",
             media_type="Akte",
@@ -278,9 +285,9 @@ def _articles() -> tuple[Article, ...]:
             physical_location="Tresor 1",
         ),
         Article(
-            ulid="ART_GRPBESCH",
+            ulid=ULID("ART_GRPBESCH"),
             title="Beschluss der Fahrten-Ordnung",
-            collection_id="VORSTAND",
+            collection_id=ULID("VORSTAND"),
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="V 10",
             media_type="Akte",
@@ -292,9 +299,9 @@ def _articles() -> tuple[Article, ...]:
         ),
         # --- DRAFT (archivist-only regardless of audience) ---
         Article(
-            ulid="ART_DRAFT",
+            ulid=ULID("ART_DRAFT"),
             title="Entwurf einer Chronik",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.DRAFT,
             ref_code="D 1",
             media_type="Akte",
@@ -304,9 +311,9 @@ def _articles() -> tuple[Article, ...]:
         ),
         # --- Dangling collection_id -> fail-closed archivist-only row (no ancestors) ---
         Article(
-            ulid="ART_ORPHAN",
+            ulid=ULID("ART_ORPHAN"),
             title="Verwaistes Dokument Lieder",
-            collection_id="GHOST",
+            collection_id=ULID("GHOST"),
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="O 1",
             media_type="Akte",

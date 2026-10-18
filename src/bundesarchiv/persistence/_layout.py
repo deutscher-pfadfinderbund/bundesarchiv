@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import BinaryIO
 
-from bundesarchiv.domain.models import MediaRef, Ulid
+from bundesarchiv.domain.models import ULID, MediaRef
 from bundesarchiv.persistence._writer import readme_key
 from bundesarchiv.persistence.errors import UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
@@ -23,7 +23,7 @@ class Scan[T]:
     does not (owner 2026-10-01)."""
 
     readable: tuple[T, ...]
-    unreadable: tuple[Ulid, ...]
+    unreadable: tuple[ULID, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,26 +32,29 @@ class Records:
 
     root: str
 
-    def folder(self, ulid: Ulid) -> str:
+    def folder(self, ulid: ULID) -> str:
         return f"{self.root}/{ulid}"
 
-    def readme_key(self, ulid: Ulid) -> str:
+    def readme_key(self, ulid: ULID) -> str:
         return readme_key(self.folder(ulid))
 
-    def ulid_of_readme(self, key: str) -> Ulid | None:
+    def ulid_of_readme(self, key: str) -> ULID | None:
         """The ulid whose README `key` is, or None when `key` is no README of this kind."""
         parts = key.split("/")
-        return parts[1] if len(parts) == 3 and key == self.readme_key(parts[1]) else None
+        if len(parts) != 3:
+            return None
+        ulid = ULID(parts[1])
+        return ulid if key == self.readme_key(ulid) else None
 
-    def list_ulids(self, store: ObjectStore) -> list[Ulid]:
+    def list_ulids(self, store: ObjectStore) -> list[ULID]:
         """The ulid of every record with a README in `store`, none of them read."""
         return [ulid for key in store.list(f"{self.root}/") if (ulid := self.ulid_of_readme(key))]
 
-    def scan[T](self, store: ObjectStore, load: Callable[[Ulid], T]) -> Scan[T]:
+    def scan[T](self, store: ObjectStore, load: Callable[[ULID], T]) -> Scan[T]:
         """`load` of every record in `store`, sorted by whether its README decodes. Any other
         error, `Busy` included, propagates."""
         readable: list[T] = []
-        unreadable: list[Ulid] = []
+        unreadable: list[ULID] = []
         for ulid in self.list_ulids(store):
             try:
                 readable.append(load(ulid))
@@ -64,11 +67,11 @@ ARTICLES = Records("articles")
 COLLECTIONS = Records("collections")
 
 
-def media_folder(ulid: Ulid) -> str:
+def media_folder(ulid: ULID) -> str:
     return f"{ARTICLES.folder(ulid)}/media/"
 
 
-def media_key(ulid: Ulid, ref: MediaRef) -> str:
+def media_key(ulid: ULID, ref: MediaRef) -> str:
     return f"{media_folder(ulid)}{ref.filename if ref.stored_name is None else ref.stored_name}"
 
 

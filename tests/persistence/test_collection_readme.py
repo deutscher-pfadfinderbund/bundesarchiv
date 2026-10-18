@@ -6,10 +6,12 @@ from datetime import UTC, datetime
 import pytest
 from tests._readmes import HAND_SAVED
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Change, Collection
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Change, Collection
 from bundesarchiv.persistence import _front_matter, collection_readme
 from bundesarchiv.persistence._front_matter import HEAD, text_of
 from bundesarchiv.persistence.errors import ArchiveError
+
+ID_01J0 = ULID("01J0")
 
 _CHANGE = Change(datetime(2026, 9, 25, 10, 30, tzinfo=UTC), "anna")
 
@@ -28,7 +30,7 @@ def _collection(**overrides: object) -> Collection:
 def test_encode_decode_round_trips_all_fields_and_version() -> None:
     collection = _collection()
     decoded, version, _ = collection_readme.decode_collection(
-        collection_readme.encode_collection(collection, 3, _CHANGE), ulid="01J0"
+        collection_readme.encode_collection(collection, 3, _CHANGE), ulid=ID_01J0
     )
     assert decoded == collection
     assert version == 3
@@ -38,7 +40,7 @@ def test_encode_decode_without_parent_id() -> None:
     collection = _collection(parent_id=None)
     text = collection_readme.encode_collection(collection, 1, _CHANGE)
     assert "parent_id:" not in text
-    decoded, _version, _ = collection_readme.decode_collection(text, ulid="01J0")
+    decoded, _version, _ = collection_readme.decode_collection(text, ulid=ID_01J0)
     assert decoded == collection
     assert decoded.parent_id is None
 
@@ -47,15 +49,15 @@ def test_encode_decode_without_audience() -> None:
     collection = _collection(audience=None)
     text = collection_readme.encode_collection(collection, 1, _CHANGE)
     assert "audience:" not in text
-    decoded, _version, _ = collection_readme.decode_collection(text, ulid="01J0")
+    decoded, _version, _ = collection_readme.decode_collection(text, ulid=ID_01J0)
     assert decoded == collection
     assert decoded.audience is None
 
 
 def test_encode_decode_minimal() -> None:
-    collection = Collection(ulid="01J0", name="Root")
+    collection = Collection(ulid=ID_01J0, name="Root")
     decoded, version, _ = collection_readme.decode_collection(
-        collection_readme.encode_collection(collection, 1, _CHANGE), ulid="01J0"
+        collection_readme.encode_collection(collection, 1, _CHANGE), ulid=ID_01J0
     )
     assert decoded == collection
     assert version == 1
@@ -73,20 +75,20 @@ def test_the_name_lives_only_in_the_heading_and_round_trips(name: str) -> None:
     collection = _collection(name=name)
     text = collection_readme.encode_collection(collection, 1, _CHANGE)
     assert text.startswith(HEAD)
-    assert "name" not in _front_matter.parse("01J0", text)[0]
-    assert collection_readme.decode_collection(text, ulid="01J0")[0] == collection
+    assert "name" not in _front_matter.parse(ID_01J0, text)[0]
+    assert collection_readme.decode_collection(text, ulid=ID_01J0)[0] == collection
 
 
 def test_empty_audience_mapping_decodes_to_inherit() -> None:
     decoded, _version, _ = collection_readme.decode_collection(
-        "---\nulid: 01J0\nname: Root\naudience: {}\n---\n", ulid="01J0"
+        "---\nulid: 01J0\nname: Root\naudience: {}\n---\n", ulid=ID_01J0
     )
     assert decoded.audience is None
 
 
 def test_decode_without_marker_still_parses() -> None:
     decoded, _version, _ = collection_readme.decode_collection(
-        "---\nulid: 01J0\nname: Root\n---\n", ulid="01J0"
+        "---\nulid: 01J0\nname: Root\n---\n", ulid=ID_01J0
     )
     assert decoded.name == "Root"
 
@@ -96,7 +98,7 @@ def test_decode_rejects_a_corrupt_version() -> None:
     # backfill case — it must surface as ArchiveError, never coerce.
     with pytest.raises(ArchiveError):
         collection_readme.decode_collection(
-            "---\nulid: 01J0\nname: Root\nversion: -1\n---\n", ulid="01J0"
+            "---\nulid: 01J0\nname: Root\nversion: -1\n---\n", ulid=ID_01J0
         )
 
 
@@ -128,22 +130,22 @@ def test_decode_rejects_a_corrupt_version() -> None:
 )
 def test_decode_rejects_corrupt_readme_as_archive_error(text: str, why: str) -> None:
     with pytest.raises(ArchiveError):
-        collection_readme.decode_collection(text, ulid="x")
+        collection_readme.decode_collection(text, ulid=ULID("x"))
 
 
 def test_the_change_record_round_trips() -> None:
     text = collection_readme.encode_collection(_collection(), 2, _CHANGE)
-    assert collection_readme.decode_collection(text, ulid="01J0")[2] == _CHANGE
+    assert collection_readme.decode_collection(text, ulid=ID_01J0)[2] == _CHANGE
 
 
 def test_a_corrupt_change_record_surfaces_as_archive_error() -> None:
     text = "---\nulid: 01J0\nname: Fotos\nchanged_at: gestern\nchanged_by: anna\n---\n"
     with pytest.raises(ArchiveError):
-        collection_readme.decode_collection(text, ulid="01J0")
+        collection_readme.decode_collection(text, ulid=ID_01J0)
 
 
 @pytest.mark.parametrize("saved", HAND_SAVED)
 def test_a_hand_saved_readme_decodes_like_its_lf_twin(saved: Callable[[str], bytes]) -> None:
     text = collection_readme.encode_collection(_collection(), 1, _CHANGE)
-    decoded = collection_readme.decode_collection(text_of("01J0", saved(text)), ulid="01J0")
-    assert decoded == collection_readme.decode_collection(text, ulid="01J0")
+    decoded = collection_readme.decode_collection(text_of("01J0", saved(text)), ulid=ID_01J0)
+    assert decoded == collection_readme.decode_collection(text, ulid=ID_01J0)

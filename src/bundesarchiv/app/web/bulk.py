@@ -6,7 +6,7 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, Updated
 from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.domain.models import Article, Ulid
+from bundesarchiv.domain.models import ULID, Article
 from bundesarchiv.persistence.errors import ArchiveError
 
 
@@ -97,7 +97,7 @@ def is_allowed_field(field: str) -> bool:
     return field in ALLOWED_FIELDS
 
 
-def apply_field(article: Article, field: str, value: str) -> Article:
+def apply_field(article: Article, field: str, value: str, *, chooser: CollectionChooser) -> Article:
     """``field`` must pass ``is_allowed_field``."""
     if field in _CUSTOM_FIELDS:
         return _apply_custom(article, field, value)
@@ -114,8 +114,8 @@ def apply_field(article: Article, field: str, value: str) -> Article:
         case "document_type":
             return replace(article, document_type=cleaned)
         case "collection_id":
-            # collection_id is required (never None); an empty value is rejected upstream, but guard.
-            return replace(article, collection_id=cleaned or article.collection_id)
+            # collection_id is required (never None); an unknown value is rejected upstream, but guard.
+            return replace(article, collection_id=chooser.resolve(value) or article.collection_id)
         case "media_type":
             return _apply_media_type(article, cleaned)
         case _:  # unreachable — caller checked is_allowed_field; belt-and-braces no-op
@@ -174,7 +174,7 @@ def _display(field: str, raw: str, chooser: CollectionChooser) -> str:
 
 @dataclass(frozen=True, slots=True)
 class BulkRow:
-    ulid: Ulid
+    ulid: ULID
     ref_code: str
     title: str
 
@@ -186,7 +186,7 @@ class BulkOutcome:
 
     saved: int
     conflicted: tuple[BulkRow, ...]
-    missing: tuple[Ulid, ...]
+    missing: tuple[ULID, ...]
     doctype_cleared: tuple[BulkRow, ...]
     index_lagged: bool
 
@@ -204,11 +204,12 @@ class _FieldApplication:
 
     field: str
     value: str
+    chooser: CollectionChooser
     loaded: Article | None = None
 
     def __call__(self, article: Article) -> Article:
         self.loaded = article
-        mutated = apply_field(article, self.field, self.value)
+        mutated = apply_field(article, self.field, self.value, chooser=self.chooser)
         if self.field == "document_type" and not vocab.is_valid_pair(
             article.media_type, mutated.document_type
         ):
@@ -217,16 +218,17 @@ class _FieldApplication:
 
 
 def apply_bulk(
-    archive: Archive, ulids: Sequence[Ulid], field: str, value: str, *, changed_by: str
+    archive: Archive, ulids: Sequence[ULID], field: str, value: str, *, changed_by: str
 ) -> BulkOutcome:
     """Never retries: a lost race must reach the human, not be re-applied to the winner."""
     saved = 0
     conflicted: list[BulkRow] = []
-    missing: list[Ulid] = []
+    missing: list[ULID] = []
     doctype_cleared: list[BulkRow] = []
     index_lagged = False
+    chooser = CollectionChooser.of(archive)
     for ulid in dict.fromkeys(ulids):  # distinct, order-preserving
-        mutation = _FieldApplication(field, value)
+        mutation = _FieldApplication(field, value, chooser)
         try:
             outcome = articles.update_article(
                 archive, ulid, mutation, changed_by=changed_by, retries=0

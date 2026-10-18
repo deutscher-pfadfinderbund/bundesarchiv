@@ -25,6 +25,7 @@ from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -36,7 +37,7 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 if TYPE_CHECKING:
     from bundesarchiv.app.web.card import CardRow
 
-_ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
+_ULID = ULID("01KX7YT9E3VX0CP3A5Q49RZMVH")
 
 
 class _EditCorpus:
@@ -191,7 +192,7 @@ def test_an_edit_naming_no_rung_keeps_the_stored_audience(corpus: _EditCorpus) -
     assert _status(main, "audience").selected == [vocab.audience_value(stored)]
     saved = edit(f"/articles/{ulid}/edit", {**post, "expected_version": str(version)})
     assert saved.status_code == 302
-    assert corpus.articles.load(ulid).article.audience == stored
+    assert corpus.articles.load(ULID(ulid)).article.audience == stored
 
 
 def test_an_edit_keeps_the_date_added(corpus: _EditCorpus) -> None:
@@ -202,7 +203,7 @@ def test_an_edit_keeps_the_date_added(corpus: _EditCorpus) -> None:
     )
     post = _valid_post(corpus, expected_version=str(version), added_at="2026-01-01T00:00:00Z")
     assert client_as(Archivist()).post(f"/articles/{ulid}/edit", post).status_code == 302
-    assert corpus.articles.load(ulid).article.added_at == added_at
+    assert corpus.articles.load(ULID(ulid)).article.added_at == added_at
 
 
 @pytest.mark.parametrize("title", ["", "Neuer Titel"], ids=["unchanged", "title"])
@@ -339,7 +340,9 @@ def test_stale_save_against_deleted_article_is_404(
 
     real_gated = catalog_views._load_gated
 
-    def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object, object] | None:
+    def _delete_then_gate(
+        request: HttpRequest, ulid: str
+    ) -> tuple[object, object, object, object] | None:
         gated = real_gated(request, ulid)
         now = corpus.articles.load(_ULID)
         if for_good:
@@ -842,7 +845,7 @@ def test_a_repeated_custom_name_saves_nothing_and_keeps_both_rows(corpus: _EditC
 # form's ONE CAS write with every unsaved edit. Losing those edits, or publishing by accident, is the
 # risk this block covers (testing razor).
 
-_PUBLISHED_ULID = "01KX7YT9E3VX0CP3A5Q49RZMWR"
+_PUBLISHED_ULID = ULID("01KX7YT9E3VX0CP3A5Q49RZMWR")
 
 
 def _published(corpus: _EditCorpus) -> Version:
@@ -919,7 +922,7 @@ def test_an_unchanged_status_is_a_plain_save(corpus: _EditCorpus, record: str, s
         },
     )
     assert response.status_code == 302
-    stored = corpus.articles.load(ulid)
+    stored = corpus.articles.load(ULID(ulid))
     assert stored.article.title == "Neu getippt"
     assert stored.article.lifecycle is Lifecycle(status)
 

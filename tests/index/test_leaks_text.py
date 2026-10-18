@@ -12,7 +12,7 @@ import pytest
 from tests._articles import make_article
 from tests.index import fixtures
 
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.models import MediaText
@@ -31,7 +31,7 @@ _MEMBER_ONLY = "TX_MEMBER_ONLY"
 _GROUP = "TX_GROUP"
 _DRAFT = "TX_DRAFT"
 _TEMPLATE = "TX_TEMPLATE"
-_TRASH = "TX_TRASH"
+_TRASH = ULID("TX_TRASH")
 _ORPHAN = "TX_ORPHAN"
 
 _SHARED_BYTES = b"one file on two Articles"
@@ -106,15 +106,15 @@ def _build() -> _Corpus:
     store = InMemoryObjectStore()
     collections = CollectionRepository(store)
     collections.save(
-        Collection(_OPEN, "Offen", audience=Audience(AudienceTier.PUBLIC)), 0, changed_by="t"
+        Collection(ULID(_OPEN), "Offen", audience=Audience(AudienceTier.PUBLIC)), 0, changed_by="t"
     )
     collections.save(
-        Collection(_MEMBERS, "Mitglieder", audience=Audience(AudienceTier.MEMBERS)),
+        Collection(ULID(_MEMBERS), "Mitglieder", audience=Audience(AudienceTier.MEMBERS)),
         0,
         changed_by="t",
     )
     collections.save(
-        Collection(_BOARD, "Vorstand", audience=Audience(AudienceTier.GROUPS, ("vorstand",))),
+        Collection(ULID(_BOARD), "Vorstand", audience=Audience(AudienceTier.GROUPS, ("vorstand",))),
         0,
         changed_by="t",
     )

@@ -13,6 +13,7 @@ from bundesarchiv.app import media_text, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -24,6 +25,8 @@ from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
+
+ID_FOTOS = ULID("FOTOS")
 
 
 def _png(color: tuple[int, int, int], size: tuple[int, int] = (8, 8)) -> bytes:
@@ -57,19 +60,19 @@ def _report_pdf() -> bytes:
 
 # Fixed valid ULIDs for the articles a journey names (generated once; stable so screenshots + tests
 # reference the same records across runs).
-PUBLISHED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ7"
-SECOND_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ8"
-DRAFT_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ9"
-CEILING_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZA"
-MARKED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZB"  # in the Papierkorb
-MANY_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZC"
-TEMPLATE_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZD"
+PUBLISHED_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZ7")
+SECOND_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZ8")
+DRAFT_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZ9")
+CEILING_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZA")
+MARKED_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZB")  # in the Papierkorb
+MANY_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZC")
+TEMPLATE_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZD")
 
 #: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Bestand ·
 #: subdivision · volume, the longest code the archive is expected to carry.
 CEILING_REF_CODE = "F12/3-b2"
 # /collections/<ulid>/edit accepts only a real ULID, unlike the literal ROOT/FOTOS ids.
-RENAMABLE_ULID = "01KX939S67DNGH0AB53HNXGB9B"
+RENAMABLE_ULID = ULID("01KX939S67DNGH0AB53HNXGB9B")
 
 #: The photos of MANY_ULID: (filename, caption, pixel size) — landscape, portrait, square, wide.
 MANY_PHOTOS = (
@@ -115,19 +118,19 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
 
-    collections.save(Collection("ROOT", "Bundesarchiv", None), 0, changed_by="tester")
+    collections.save(Collection(ULID("ROOT"), "Bundesarchiv", None), 0, changed_by="tester")
     collections.save(
-        Collection("FOTOS", "Fotografien", "ROOT", Audience(AudienceTier.PUBLIC)),
+        Collection(ID_FOTOS, "Fotografien", ULID("ROOT"), Audience(AudienceTier.PUBLIC)),
         0,
         changed_by="tester",
     )
     collections.save(
-        Collection("AKTEN", "Aktenbestand", "ROOT", Audience(AudienceTier.MEMBERS)),
+        Collection(ULID("AKTEN"), "Aktenbestand", ULID("ROOT"), Audience(AudienceTier.MEMBERS)),
         0,
         changed_by="tester",
     )
     collections.save(
-        Collection(RENAMABLE_ULID, "Karten", "FOTOS", Audience(AudienceTier.PUBLIC)),
+        Collection(RENAMABLE_ULID, "Karten", ID_FOTOS, Audience(AudienceTier.PUBLIC)),
         0,
         changed_by="tester",
     )
@@ -158,7 +161,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         Article(
             ulid=PUBLISHED_ULID,
             title="Sommerfahrt 1962",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.PUBLISHED,
             # A multi-paragraph body, so the detail states exercise the prose+card split.
             body=(
@@ -186,7 +189,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         Article(
             ulid=SECOND_ULID,
             title="Herbstlager 1963",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="F13",
             media_type="Foto(s)",
@@ -201,7 +204,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         Article(
             ulid=DRAFT_ULID,
             title="Lagerchronik",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.DRAFT,
             ref_code="F9",
             media_type="Foto(s)",
@@ -217,7 +220,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         Article(
             ulid=CEILING_ULID,
             title="Gauversammlung Rhön",
-            collection_id="AKTEN",
+            collection_id=ULID("AKTEN"),
             lifecycle=Lifecycle.PUBLISHED,
             ref_code=CEILING_REF_CODE,
             media_type="Schrifttum",
@@ -242,7 +245,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         Article(
             ulid=MANY_ULID,
             title="Pfingstlager 1964",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="F14",
             media_type="Foto(s)",
@@ -261,7 +264,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         Article(
             ulid=TEMPLATE_ULID,
             title="Fahrtenbericht",
-            collection_id="AKTEN",
+            collection_id=ULID("AKTEN"),
             lifecycle=Lifecycle.DRAFT,
             template=True,
             media_type="Schrifttum",
@@ -274,7 +277,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     winterlager = Article(
         ulid=MARKED_ULID,
         title="Winterlager 1961",
-        collection_id="FOTOS",
+        collection_id=ID_FOTOS,
         lifecycle=Lifecycle.PUBLISHED,
         ref_code="F11",
         media_type="Foto(s)",
@@ -294,7 +297,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             (CEILING_ULID, minutes),
             *((MANY_ULID, ref) for ref in many),
         ):
-            thumbnails.generate_thumbnail(store, ulid, ref.content_hash, thumbnail_root)
+            thumbnails.generate_thumbnail(store, ULID(ulid), ref.content_hash, thumbnail_root)
     return CorpusHandles(
         draft_ulid=DRAFT_ULID,
         published_ulid=PUBLISHED_ULID,

@@ -19,11 +19,11 @@ from bundesarchiv.app.tasks import enqueue_extract_media_text, enqueue_generate_
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     Lifecycle,
     MediaRef,
-    Ulid,
     Version,
 )
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
@@ -41,7 +41,7 @@ def save_article(
 
 def update_article(
     archive: Archive,
-    ulid: Ulid,
+    ulid: ULID,
     mutate: Callable[[Article], Article],
     *,
     changed_by: str,
@@ -70,7 +70,7 @@ def create_article(
     *,
     changed_by: str,
     title: str,
-    collection_id: Ulid,
+    collection_id: ULID,
     body: str = "",
     lifecycle: Lifecycle = Lifecycle.DRAFT,
     audience: Audience | None = None,
@@ -108,7 +108,7 @@ def create_article(
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
-def copy_article(archive: Archive, ulid: Ulid, *, changed_by: str) -> CreateResult:
+def copy_article(archive: Archive, ulid: ULID, *, changed_by: str) -> CreateResult:
     source = archive.articles.load(ulid).article
     return create_article(
         archive,
@@ -152,7 +152,7 @@ def restore_article(
     )
 
 
-def hard_delete_article(archive: Archive, ulid: Ulid, expected_version: Version) -> SaveResult:
+def hard_delete_article(archive: Archive, ulid: ULID, expected_version: Version) -> SaveResult:
     """Delete ``ulid`` from canonical for good (ADR 0020); a stale ``expected_version`` raises
     ``Conflict``."""
     archive.articles.hard_delete(ulid, expected_version)
@@ -164,7 +164,7 @@ def hard_delete_article(archive: Archive, ulid: Ulid, expected_version: Version)
 class Thumbnail:
     """Render the file ``content_hash`` of Article ``ulid``."""
 
-    ulid: Ulid
+    ulid: ULID
     content_hash: str
 
 
@@ -172,7 +172,7 @@ class Thumbnail:
 class PageText:
     """Read the page text of Article ``ulid``'s files (ADR 0023)."""
 
-    ulid: Ulid
+    ulid: ULID
 
 
 type DerivedJob = Thumbnail | PageText

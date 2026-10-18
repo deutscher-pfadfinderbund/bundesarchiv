@@ -13,7 +13,7 @@ from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Article
+from bundesarchiv.domain.models import ULID, Article
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.errors import ArchiveError
 
@@ -56,14 +56,14 @@ def bulk_document_types(request: HttpRequest) -> HttpResponseBase:
     )
 
 
-def _distinct_valid_ulids(raw: list[str]) -> list[str]:
+def _distinct_valid_ulids(raw: list[str]) -> list[ULID]:
     """The selection, deduped + shape-validated in-view (spec §6.4). A malformed ulid is dropped here
     (never distinguishable, never a 500); a well-formed-but-absent one is bucketed ``missing`` later."""
     return list(dict.fromkeys(u for u in raw if is_valid_ulid(u)))
 
 
 def _validate(
-    selection: list[str], field: str, archive: Archive, chooser: CollectionChooser, value: str
+    selection: list[ULID], field: str, archive: Archive, chooser: CollectionChooser, value: str
 ) -> str | None:
     """The verbatim German refusal of an apply, or ``None`` when it may proceed."""
     if not selection:
@@ -88,7 +88,7 @@ def _confirm(
     request: HttpRequest,
     archive: Archive,
     chooser: CollectionChooser,
-    selection: list[str],
+    selection: list[ULID],
     field: str,
     value: str,
 ) -> HttpResponseBase:
@@ -128,7 +128,7 @@ def _commit(
     request: HttpRequest,
     archive: Archive,
     chooser: CollectionChooser,
-    selection: list[str],
+    selection: list[ULID],
     field: str,
     value: str,
     changed_by: str,
@@ -163,7 +163,7 @@ def _commit(
 def _reject(
     request: HttpRequest,
     chooser: CollectionChooser,
-    selection: list[str],
+    selection: list[ULID],
     field: str,
     value: str,
     error: str,
@@ -196,7 +196,7 @@ def _orphans(articles: list[Article], field: str, value: str) -> list[Article]:
     ]
 
 
-def _load_all(archive: Archive, ulids: list[str]) -> list[Article]:
+def _load_all(archive: Archive, ulids: list[ULID]) -> list[Article]:
     """Absent, unreadable and trashed ones are skipped."""
     repo = archive.articles
     out: list[Article] = []

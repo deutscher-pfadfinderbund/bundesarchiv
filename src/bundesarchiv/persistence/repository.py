@@ -10,7 +10,7 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, replace
 from typing import BinaryIO
 
-from bundesarchiv.domain.models import Article, Change, MediaRef, Ulid, Version
+from bundesarchiv.domain.models import ULID, Article, Change, MediaRef, Version
 from bundesarchiv.persistence import _front_matter, readme
 from bundesarchiv.persistence._layout import (
     ARTICLES,
@@ -43,7 +43,7 @@ class ArticleRepository:
     def __init__(self, store: ObjectStore) -> None:
         self._store = store
 
-    def load(self, ulid: Ulid) -> Stored:
+    def load(self, ulid: ULID) -> Stored:
         try:
             text = self._read_readme(ulid)
         except NotFound:
@@ -85,7 +85,7 @@ class ArticleRepository:
 
     def add_media(
         self,
-        ulid: Ulid,
+        ulid: ULID,
         filename: str,
         source: BinaryIO,
         media_type: str | None = None,
@@ -109,7 +109,7 @@ class ArticleRepository:
             stored_name=None if stored == filename else stored,
         )
 
-    def media_key(self, ulid: Ulid, ref: MediaRef) -> str:
+    def media_key(self, ulid: ULID, ref: MediaRef) -> str:
         """The store-relative key of `ref`'s file (`articles/<ulid>/media/<name>`).
 
         The layout's public face (ADR 0005): a caller that must name a file on the wire — the
@@ -117,20 +117,20 @@ class ArticleRepository:
         the scheme."""
         return media_key(ulid, ref)
 
-    def open_media(self, ulid: Ulid, ref: MediaRef) -> BinaryIO:
+    def open_media(self, ulid: ULID, ref: MediaRef) -> BinaryIO:
         """A readable stream over `ref`'s file, for a caller that hands the bytes straight on
         without materializing them. Raises `NotFound` if the file is not stored; the caller
         closes the stream."""
         return self._store.open_stream(media_key(ulid, ref))
 
-    def list_ulids(self) -> Iterable[Ulid]:
+    def list_ulids(self) -> Iterable[ULID]:
         return ARTICLES.list_ulids(self._store)
 
     def scan(self) -> Scan[Article]:
         """Every saved Article, sorted by whether its README decodes (owner 2026-10-01)."""
         return ARTICLES.scan(self._store, lambda ulid: self.load(ulid).article)
 
-    def keys_for(self, ulid: Ulid) -> list[StoredKey]:
+    def keys_for(self, ulid: ULID) -> list[StoredKey]:
         """The keys of the Article's folder in the order a save writes them: media, history, the
         README last (ADR 0020 push order). A media file the current README names carries its
         `content_hash`; a README that does not decode is not `readable`. Reserved keys are excluded
@@ -140,12 +140,12 @@ class ArticleRepository:
             self._store, ARTICLES.folder(ulid), named or {}, readable=named is not None
         )
 
-    def folder(self, ulid: Ulid) -> str:
+    def folder(self, ulid: ULID) -> str:
         """The folder that holds every file of the Article (`articles/<ulid>`), the prefix a hard
         delete removes."""
         return ARTICLES.folder(ulid)
 
-    def hard_delete(self, ulid: Ulid, expected_version: Version) -> None:
+    def hard_delete(self, ulid: ULID, expected_version: Version) -> None:
         """Remove the Article's folder for good, keeping no copy (ADR 0020). Raises `Conflict`
         (deleting nothing) when a save moved it past `expected_version`. A no-op if the Article is
         absent."""
@@ -157,7 +157,7 @@ class ArticleRepository:
         )
 
     def _place(
-        self, ulid: Ulid, name: str, source: BinaryIO, start: int, digest: tuple[str, int]
+        self, ulid: ULID, name: str, source: BinaryIO, start: int, digest: tuple[str, int]
     ) -> str:
         """The name in the Article's media folder that ends up holding the bytes `source` holds
         from `start` on (`digest` is their hash and size): the first of `name`'s candidates that is
@@ -185,7 +185,7 @@ class ArticleRepository:
                     return _name_of(holder)
         raise ArchiveError(f"{folder}: every candidate name holds other bytes")
 
-    def _named_media(self, ulid: Ulid) -> dict[str, str] | None:
+    def _named_media(self, ulid: ULID) -> dict[str, str] | None:
         """The key and `content_hash` of each media file the current README names, or None when
         that README does not decode."""
         try:
@@ -203,7 +203,7 @@ class ArticleRepository:
                     f"{article.ulid}: media {ref.content_hash} not stored before save"
                 )
 
-    def _read_readme(self, ulid: Ulid) -> str:
+    def _read_readme(self, ulid: ULID) -> str:
         return _front_matter.text_of(ulid, self._store.read(ARTICLES.readme_key(ulid)))
 
 

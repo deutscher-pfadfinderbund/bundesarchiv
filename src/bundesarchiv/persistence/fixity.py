@@ -10,7 +10,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 
-from bundesarchiv.domain.models import MediaRef, Ulid
+from bundesarchiv.domain.models import ULID, MediaRef
 from bundesarchiv.persistence import collection_readme, readme
 from bundesarchiv.persistence._front_matter import text_of
 from bundesarchiv.persistence._layout import ARTICLES, COLLECTIONS, content_digest, media_key
@@ -19,7 +19,7 @@ from bundesarchiv.persistence.errors import ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 #: How the media files one README version names are read from its text.
-type _MediaOf = Callable[[Ulid, str], tuple[MediaRef, ...]]
+type _MediaOf = Callable[[ULID, str], tuple[MediaRef, ...]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +75,7 @@ def verify(store: ObjectStore) -> Report:
     )
 
 
-def _records(stored: Iterable[str]) -> Iterator[tuple[str, Ulid, str, _MediaOf]]:
+def _records(stored: Iterable[str]) -> Iterator[tuple[str, ULID, str, _MediaOf]]:
     """Every Article and Collection with a README among `stored`: that key, the ulid, the folder,
     and how to read the media files a version names."""
     for key in sorted(stored):
@@ -89,11 +89,11 @@ def _history(store: ObjectStore, folder: str) -> list[str]:
     return [key for key in store.list(f"{folder}/") if is_history_key(folder, key)]
 
 
-def _article_media(ulid: Ulid, text: str) -> tuple[MediaRef, ...]:
+def _article_media(ulid: ULID, text: str) -> tuple[MediaRef, ...]:
     return readme.decode(ulid, text)[0].media
 
 
-def _collection_media(ulid: Ulid, text: str) -> tuple[MediaRef, ...]:
+def _collection_media(ulid: ULID, text: str) -> tuple[MediaRef, ...]:
     collection_readme.decode_collection(text, ulid=ulid)
     return ()
 

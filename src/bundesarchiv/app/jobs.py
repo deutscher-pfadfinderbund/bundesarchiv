@@ -10,6 +10,7 @@ from dataclasses import asdict
 from bundesarchiv.app import mirror, stats
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.mirror import PushRecord
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.index import indexer
 from bundesarchiv.index.models import ArticleIndex
 from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
@@ -33,7 +34,7 @@ def reconcile(archive: Archive, enqueue_missing_text: Callable[[Archive], None])
         logger.exception("page text enqueue failed")
 
 
-def mirror_push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: str) -> None:
+def mirror_push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: ULID) -> None:
     """Push the saved Article or Collection ``ulid`` to ``remote`` as current canonical truth has
     it, only what ``record`` does not hold already. A no-op for a ulid no longer saved. A failed
     write raises."""
@@ -43,7 +44,7 @@ def mirror_push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid:
 
 
 def mirror_delete_article(
-    archive: Archive, remote: ObjectStore, record: PushRecord, ulid: str
+    archive: Archive, remote: ObjectStore, record: PushRecord, ulid: ULID
 ) -> None:
     """Take the hard-deleted Article ``ulid`` off ``remote``, then out of ``record`` (ADR 0020
     "Hard delete"). Idempotent; a failed delete raises."""

@@ -5,6 +5,7 @@ from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import DRAFT_ULID, PUB, Corpus, client_as
 
 from bundesarchiv.app.web import vocab
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
@@ -69,7 +70,7 @@ def _save_post(corpus: Corpus) -> dict[str, str]:
         "title": "Lagerchronik",
         "collection_id": PUB,
         "media_type": "Foto(s)",
-        "expected_version": str(corpus.articles.load(DRAFT_ULID).version),
+        "expected_version": str(corpus.articles.load(ULID(DRAFT_ULID)).version),
     }
 
 

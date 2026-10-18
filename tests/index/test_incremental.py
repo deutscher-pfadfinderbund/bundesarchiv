@@ -9,6 +9,7 @@ from tests._readmes import UNREADABLE_README
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -21,6 +22,11 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import Busy
 from bundesarchiv.persistence.repository import ArticleRepository
+
+ID_01FOTO = ULID("01FOTO")
+ID_01ROOT = ULID("01ROOT")
+ID_FOTOS = ULID("FOTOS")
+ID_ROOT = ULID("ROOT")
 
 
 def _article(collection_id: str, ulid: str, **overrides: object) -> Article:
@@ -45,16 +51,23 @@ def _seed[S: InMemoryObjectStore](store: S) -> S:
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
 
-    collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester")
+    collections.save(
+        Collection(ulid=ID_ROOT, name="Wurzel", parent_id=None), 0, changed_by="tester"
+    )
     collections.save(
         Collection(
-            ulid="FOTOS", name="Fotos", parent_id="ROOT", audience=Audience(AudienceTier.PUBLIC)
+            ulid=ID_FOTOS,
+            name="Fotos",
+            parent_id=ID_ROOT,
+            audience=Audience(AudienceTier.PUBLIC),
         ),
         0,
         changed_by="tester",
     )
     collections.save(
-        Collection(ulid="AKTEN", name="Akten", parent_id="FOTOS"), 0, changed_by="tester"
+        Collection(ulid=ULID("AKTEN"), name="Akten", parent_id=ID_FOTOS),
+        0,
+        changed_by="tester",
     )
 
     articles.save(_article("ROOT", "01ROOT", title="Wurzelartikel"), 0, changed_by="tester")
@@ -74,7 +87,7 @@ def _seed[S: InMemoryObjectStore](store: S) -> S:
 def test_index_article_inserts_a_new_row(store: InMemoryObjectStore) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    indexer.index_article(store, "01FOTO")
+    indexer.index_article(store, ID_01FOTO)
     row = ArticleIndex.objects.get(ulid="01FOTO")
     assert row.tier == "PUBLIC"  # inherits PUBLIC from FOTOS
     assert row.archivist_only is False
@@ -86,23 +99,23 @@ def test_index_article_updates_a_changed_row(store: InMemoryObjectStore) -> None
     """Re-reads canonical: an article whose audience narrowed reindexes to the new scope."""
     from bundesarchiv.index.models import ArticleIndex
 
-    indexer.index_article(store, "01ROOT")
+    indexer.index_article(store, ID_01ROOT)
     assert ArticleIndex.objects.get(ulid="01ROOT").tier == "MEMBERS"
 
     articles = ArticleRepository(store)
-    stored = articles.load("01ROOT")
+    stored = articles.load(ID_01ROOT)
     articles.save(
         Article(
-            ulid="01ROOT",
+            ulid=ID_01ROOT,
             title="Wurzelartikel",
-            collection_id="ROOT",
+            collection_id=ID_ROOT,
             lifecycle=Lifecycle.PUBLISHED,
             audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
         ),
         stored.version,
         changed_by="tester",
     )
-    indexer.index_article(store, "01ROOT")
+    indexer.index_article(store, ID_01ROOT)
 
     row = ArticleIndex.objects.get(ulid="01ROOT")
     assert row.tier == "GROUPS"
@@ -114,12 +127,12 @@ def test_index_article_updates_a_changed_row(store: InMemoryObjectStore) -> None
 def test_index_article_deletes_row_when_article_gone(store: InMemoryObjectStore) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    indexer.index_article(store, "01FOTO")
+    indexer.index_article(store, ID_01FOTO)
     assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
     repo = ArticleRepository(store)
-    repo.hard_delete("01FOTO", repo.load("01FOTO").version)
-    indexer.index_article(store, "01FOTO")
+    repo.hard_delete(ID_01FOTO, repo.load(ID_01FOTO).version)
+    indexer.index_article(store, ID_01FOTO)
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
 
@@ -127,7 +140,7 @@ def test_index_article_deletes_row_when_article_gone(store: InMemoryObjectStore)
 def test_index_article_delete_of_missing_row_is_a_noop(store: InMemoryObjectStore) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    indexer.index_article(store, "01NEVER")  # not in canonical, not in index
+    indexer.index_article(store, ULID("01NEVER"))  # not in canonical, not in index
     assert not ArticleIndex.objects.filter(ulid="01NEVER").exists()
 
 
@@ -138,7 +151,7 @@ def test_index_article_broken_chain_writes_fail_closed_row(store: InMemoryObject
     ArticleRepository(store).save(
         _article("GHOST", "01BAD", title="Verwaist"), 0, changed_by="tester"
     )
-    indexer.index_article(store, "01BAD")
+    indexer.index_article(store, ULID("01BAD"))
 
     row = ArticleIndex.objects.get(ulid="01BAD")
     assert row.archivist_only is True
@@ -165,12 +178,12 @@ def test_index_subtree_reindexes_descendants_only(store: InMemoryObjectStore) ->
     assert ArticleIndex.objects.get(ulid="01ROOT").tier == "MEMBERS"
 
     collections = CollectionRepository(store)
-    stored = collections.load("FOTOS")
+    stored = collections.load(ID_FOTOS)
     collections.save(
         Collection(
-            ulid="FOTOS",
+            ulid=ID_FOTOS,
             name="Fotos",
-            parent_id="ROOT",
+            parent_id=ID_ROOT,
             audience=Audience(AudienceTier.MEMBERS),  # narrowed PUBLIC -> MEMBERS
         ),
         stored.version,
@@ -178,12 +191,12 @@ def test_index_subtree_reindexes_descendants_only(store: InMemoryObjectStore) ->
     )
 
     articles = ArticleRepository(store)
-    root_article = articles.load("01ROOT")
+    root_article = articles.load(ID_01ROOT)
     articles.save(
         _article("ROOT", "01ROOT", title="Neuer Titel"), root_article.version, changed_by="tester"
     )
 
-    indexer.index_subtree(store, "FOTOS")
+    indexer.index_subtree(store, ID_FOTOS)
 
     assert ArticleIndex.objects.get(ulid="01FOTO").tier == "MEMBERS"
     assert ArticleIndex.objects.get(ulid="01AKTE").tier == "MEMBERS"
@@ -194,7 +207,7 @@ def test_index_subtree_reindexes_descendants_only(store: InMemoryObjectStore) ->
 def test_index_subtree_on_root_reindexes_whole_tree(store: InMemoryObjectStore) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    indexer.index_subtree(store, "ROOT")
+    indexer.index_subtree(store, ID_ROOT)
     assert ArticleIndex.objects.count() == 3
 
 
@@ -210,7 +223,7 @@ def test_rebuild_indexes_an_unreadable_article_archivist_only_and_reports_it(
 ) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    store.write_atomic(ARTICLES.readme_key("01FOTO"), data)
+    store.write_atomic(ARTICLES.readme_key(ID_01FOTO), data)
     report = indexer.rebuild(store)
     assert report.indexed == 3
     assert report.unreadable_articles == ("01FOTO",)
@@ -226,7 +239,7 @@ def test_rebuild_treats_an_unreadable_collection_as_absent_and_reports_it(
 ) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    store.write_atomic(COLLECTIONS.readme_key("FOTOS"), data)
+    store.write_atomic(COLLECTIONS.readme_key(ID_FOTOS), data)
     report = indexer.rebuild(store)
     assert report.unreadable_collections == ("FOTOS",)
     assert set(report.failed_closed) == {"01FOTO", "01AKTE"}
@@ -242,8 +255,8 @@ def test_index_article_narrows_an_unreadable_article_to_archivist_only(
     from bundesarchiv.index.models import ArticleIndex
 
     indexer.rebuild(store)
-    store.write_atomic(ARTICLES.readme_key("01FOTO"), data)
-    indexer.index_article(store, "01FOTO")
+    store.write_atomic(ARTICLES.readme_key(ID_01FOTO), data)
+    indexer.index_article(store, ID_01FOTO)
     assert ArticleIndex.objects.get(ulid="01FOTO").archivist_only is True
 
 
@@ -256,9 +269,9 @@ def test_index_article_fails_closed_under_an_unreadable_collection(
     from bundesarchiv.index.models import ArticleIndex
 
     indexer.rebuild(store)
-    store.write_atomic(COLLECTIONS.readme_key("FOTOS"), data)
+    store.write_atomic(COLLECTIONS.readme_key(ID_FOTOS), data)
     caplog.clear()
-    indexer.index_article(store, "01AKTE")
+    indexer.index_article(store, ULID("01AKTE"))
     assert ArticleIndex.objects.get(ulid="01AKTE").archivist_only is True
     assert caplog.text == ""
 
@@ -273,12 +286,12 @@ def test_index_subtree_goes_on_past_unreadable_readmes(
     from bundesarchiv.index.models import ArticleIndex
 
     indexer.rebuild(store)
-    store.write_atomic(COLLECTIONS.readme_key("AKTEN"), data)
-    store.write_atomic(ARTICLES.readme_key("01ROOT"), data)
-    indexer.index_subtree(store, "FOTOS")
+    store.write_atomic(COLLECTIONS.readme_key(ULID("AKTEN")), data)
+    store.write_atomic(ARTICLES.readme_key(ID_01ROOT), data)
+    indexer.index_subtree(store, ID_FOTOS)
     assert ArticleIndex.objects.get(ulid="01AKTE").tier == "PUBLIC"
     assert ArticleIndex.objects.get(ulid="01ROOT").tier == "MEMBERS"
-    indexer.index_subtree(store, "AKTEN")
+    indexer.index_subtree(store, ULID("AKTEN"))
     assert ArticleIndex.objects.get(ulid="01AKTE").archivist_only is True
 
 
@@ -298,11 +311,11 @@ class _BusyStore(InMemoryObjectStore):
     ("busy", "write"),
     [
         pytest.param(
-            ARTICLES.readme_key("01FOTO"),
-            lambda s: indexer.index_article(s, "01FOTO"),
+            ARTICLES.readme_key(ID_01FOTO),
+            lambda s: indexer.index_article(s, ID_01FOTO),
             id="article",
         ),
-        pytest.param(COLLECTIONS.readme_key("FOTOS"), indexer.rebuild, id="collection"),
+        pytest.param(COLLECTIONS.readme_key(ID_FOTOS), indexer.rebuild, id="collection"),
     ],
 )
 def test_a_busy_store_is_no_unreadable_readme(
@@ -336,7 +349,7 @@ def test_advisory_lock_serializes_concurrent_index_writers(
     finished = threading.Event()
 
     def background_index() -> None:
-        indexer.index_article(store, "01FOTO")
+        indexer.index_article(store, ID_01FOTO)
         connection.close()
         finished.set()
 
@@ -390,8 +403,8 @@ def _in_thread(fn: Callable[..., object], *args: object) -> None:
     "writer",
     [
         pytest.param(indexer.rebuild, id="rebuild"),
-        pytest.param(lambda s: indexer.index_subtree(s, "FOTOS"), id="index_subtree"),
-        pytest.param(lambda s: indexer.index_article(s, "01FOTO"), id="index_article"),
+        pytest.param(lambda s: indexer.index_subtree(s, ID_FOTOS), id="index_subtree"),
+        pytest.param(lambda s: indexer.index_article(s, ID_01FOTO), id="index_article"),
     ],
 )
 def test_a_writer_mid_read_cannot_overwrite_a_later_narrowing(
@@ -400,7 +413,7 @@ def test_a_writer_mid_read_cannot_overwrite_a_later_narrowing(
     from bundesarchiv.index.models import ArticleIndex
 
     store = _seed(_PausingStore())
-    store.pause_on = ARTICLES.readme_key("01FOTO")
+    store.pause_on = ARTICLES.readme_key(ID_01FOTO)
     articles = ArticleRepository(store)
     narrowed = _article(
         "FOTOS",
@@ -413,7 +426,7 @@ def test_a_writer_mid_read_cannot_overwrite_a_later_narrowing(
     with ThreadPoolExecutor(max_workers=2) as pool:
         wide = pool.submit(_in_thread, writer, store)
         assert store.paused.wait(timeout=5)
-        articles.save(narrowed, articles.load("01FOTO").version, changed_by="tester")
+        articles.save(narrowed, articles.load(ID_01FOTO).version, changed_by="tester")
         narrow = pool.submit(_in_thread, indexer.index_article, store, "01FOTO")
         wait([narrow], timeout=1.0)  # with the lock taken first, this waits on the paused writer
         store.release.set()

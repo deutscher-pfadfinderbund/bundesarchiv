@@ -9,6 +9,7 @@ from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.errors import MisresolvedChain
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -25,9 +26,9 @@ def _article(
     collection_id: str = "c-leaf",
 ) -> Article:
     return Article(
-        ulid="01J0",
+        ulid=ULID("01J0"),
         title="Zeltlager 1955",
-        collection_id=collection_id,
+        collection_id=ULID(collection_id),
         lifecycle=lifecycle,
         audience=audience,
     )
@@ -36,7 +37,8 @@ def _article(
 def _coll(
     ulid: str, *, parent_id: str | None = None, audience: Audience | None = None
 ) -> Collection:
-    return Collection(ulid=ulid, name=ulid, parent_id=parent_id, audience=audience)
+    parent = None if parent_id is None else ULID(parent_id)
+    return Collection(ulid=ULID(ulid), name=ulid, parent_id=parent, audience=audience)
 
 
 def _chain(*collections: Collection) -> ResolvedChain:

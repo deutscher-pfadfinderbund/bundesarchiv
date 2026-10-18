@@ -9,6 +9,7 @@ from django.templatetags.static import static
 
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.index.query import FileKind, SearchHit, TextPage
 
 DESIGN_SYSTEM = Path(__file__).resolve().parents[4] / "docs" / "design" / "design-system.md"
@@ -63,14 +64,14 @@ _SORT_OPTIONS = (
 #: missing facts.
 _LEDGER_HITS = tuple(
     SearchHit(
-        ulid=f"01KDEMQ0000000000000000{n:03d}",
+        ulid=ULID(f"01KDEMQ0000000000000000{n:03d}"),
         title=title,
         ref_code=ref or None,
         date_edtf=date or None,
         media_type=None,
         document_type=doc_type or None,
         is_draft=draft,
-        collection_id="",
+        collection_id=ULID(""),
         file_counts=files,
     )
     for n, (title, ref, date, doc_type, draft, files) in enumerate(
@@ -102,14 +103,14 @@ _LEDGER_HITS = tuple(
 
 #: A hit that matched on five pages of its PDF: its row prints the capped "Im Volltext" line.
 _TEXT_HIT = SearchHit(
-    ulid="01KDEMQ0000000000000000007",
+    ulid=ULID("01KDEMQ0000000000000000007"),
     title="Gaubrief Herbst 1971",
     ref_code="G4",
     date_edtf="1971",
     media_type=None,
     document_type="Zeitschrift",
     is_draft=False,
-    collection_id="",
+    collection_id=ULID(""),
     file_counts=((FileKind.PDF, 1),),
     text_pages=tuple(TextPage("0" * 64, page) for page in (4, 9, 14, 22, 31)),
 )
