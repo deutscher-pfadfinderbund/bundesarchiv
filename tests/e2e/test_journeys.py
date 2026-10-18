@@ -1477,8 +1477,7 @@ def test_a_search_suggestion_sets_its_filter_with_the_keyboard(
     expect(page.locator(".autocomplete-kind")).to_have_text(["Artikel", "Autor"])
     expect(heading).not_to_have_accessible_name(re.compile("Vorschl"))
     options = suggestions.locator('a[role="option"]')
-    every = parse_qs(urlparse(options.last.get_attribute("href") or "").query)
-    assert every == {"q": ["meyer"], "media_type": ["Foto(s)"]}  # what Enter submits
+    expect(page.locator(".autocomplete-all")).to_have_count(0)
     # an option is a link: a modified click opens its pick in a new tab and leaves this one be
     with page.context.expect_page() as opened:
         options.nth(1).click(modifiers=["ControlOrMeta"])
@@ -1600,7 +1599,7 @@ def test_a_suggested_count_is_drawn_as_a_filter_menus_count(
 ) -> None:
     # law C7: one renderer per fact type, and an Artikel's date is not a count
     page = archivist_page
-    page.route("**/suggestions?*", long_suggestions)
+    page.route("**/suggestions/list?*", long_suggestions)
     page.goto(f"{live_workbench}{LIST}", wait_until="networkidle")
     page.locator("#search-field").press_sequentially("lager")
     suggestions = page.locator(".autocomplete-list")

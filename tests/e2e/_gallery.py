@@ -3,6 +3,7 @@ and width to ``var/gallery/<state>.<mode>.<width>.png`` (``BUNDESARCHIV_GALLERY_
 """
 
 import os
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -79,6 +80,7 @@ def long_suggestions(route: Route) -> None:
             "total": 2012,
             "total_label": "2.012",
             "all_href": "/y",
+            "all_option": "/suggestions/list" not in route.request.url,
         },
     )
     route.fulfill(status=200, content_type="text/html", body=body)
@@ -89,7 +91,7 @@ def _reach_suggestions_marked(path: str) -> Callable[[Page, str, CorpusHandles],
     first option marked."""
 
     def reach(page: Page, base: str, _corpus: CorpusHandles) -> None:
-        page.route("**/suggestions?*", long_suggestions)
+        page.route(re.compile(r"/suggestions(/list)?\?"), long_suggestions)
         page.goto(base + path, wait_until="networkidle")
         page.locator("#search-field").press_sequentially("lager")
         expect(page.locator(".autocomplete-list")).to_be_visible()
