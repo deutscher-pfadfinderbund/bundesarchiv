@@ -11,7 +11,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from itertools import groupby
 from operator import itemgetter
-from typing import Any, Literal, assert_never
+from typing import Any, Literal, TypedDict, assert_never, cast
 
 from django.contrib.postgres.expressions import ArraySubquery
 from django.contrib.postgres.search import (
@@ -167,21 +167,26 @@ class SearchPage:
     dateless_count: int | None
 
 
-_HIT_COLUMNS = (
-    "ulid",
-    "title",
-    "ref_code",
-    "date_edtf",
-    "media_type",
-    "document_type",
-    "is_draft",
-    "collection_id",
-    "file_counts",
-    "deleted_at",
-    "deleted_by",
-    "added_at",
-    "is_template",
-)
+class _HitRow(TypedDict):
+    """One ``.values(*_HIT_COLUMNS)`` row: the columns of a ``SearchHit``, plus the files' hashes."""
+
+    ulid: ULID
+    title: str
+    ref_code: str | None
+    date_edtf: str | None
+    media_type: str | None
+    document_type: str | None
+    is_draft: bool
+    collection_id: ULID
+    file_counts: dict[str, int]
+    deleted_at: datetime.datetime | None
+    deleted_by: str | None
+    added_at: datetime.datetime | None
+    is_template: bool
+    media_hashes: list[str]
+
+
+_HIT_COLUMNS = tuple(_HitRow.__annotations__)
 
 
 def search(
@@ -477,11 +482,28 @@ def _page_of_hits(
     )
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
-    rows = list(ordered.values(*_HIT_COLUMNS, "media_hashes")[start : start + size])
-    pages = _text_pages(query, [row.pop("media_hashes") for row in rows])
-    return tuple(
-        SearchHit(**{**row, "file_counts": _in_kind_order(row["file_counts"]), "text_pages": tp})
-        for row, tp in zip(rows, pages, strict=True)
+    # Our own index rows: the columns are the ones ``_HitRow`` names.
+    rows = cast(list[_HitRow], list(ordered.values(*_HIT_COLUMNS)[start : start + size]))
+    pages = _text_pages(query, [row["media_hashes"] for row in rows])
+    return tuple(_hit(row, tp) for row, tp in zip(rows, pages, strict=True))
+
+
+def _hit(row: _HitRow, text_pages: tuple[TextPage, ...]) -> SearchHit:
+    return SearchHit(
+        ulid=row["ulid"],
+        title=row["title"],
+        ref_code=row["ref_code"],
+        date_edtf=row["date_edtf"],
+        media_type=row["media_type"],
+        document_type=row["document_type"],
+        is_draft=row["is_draft"],
+        collection_id=row["collection_id"],
+        file_counts=_in_kind_order(row["file_counts"]),
+        deleted_at=row["deleted_at"],
+        deleted_by=row["deleted_by"],
+        added_at=row["added_at"],
+        is_template=row["is_template"],
+        text_pages=text_pages,
     )
 
 
