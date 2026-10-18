@@ -29,8 +29,6 @@ from bundesarchiv.index.query import (
 _ARTICLES = 3
 _VALUES = 2
 
-_LABELS = {field.name: field.label for field in card.FIELDS}
-
 
 @dataclass(frozen=True, slots=True)
 class Entry:
@@ -60,9 +58,9 @@ def _entry(text: str, words: str, href: str, *, date: str = "", count: str = "")
 
 #: The value groups in their order: the field asked for, its label and the param a pick sets.
 _VALUE_GROUPS: tuple[tuple[Suggested, str, str], ...] = (
-    ("creator", _LABELS["creator"], browse.PARAM_CREATOR),
-    ("place", _LABELS["subject_place"], browse.PARAM_PLACE),
-    ("tags", _LABELS["tags"], browse.PARAM_TAG),
+    ("creator", card.LABELS["creator"], browse.PARAM_CREATOR),
+    ("place", card.LABELS["subject_place"], browse.PARAM_PLACE),
+    ("tags", card.LABELS["tags"], browse.PARAM_TAG),
 )
 
 

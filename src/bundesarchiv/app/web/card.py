@@ -295,6 +295,8 @@ FIELDS: tuple[_Field, ...] = (
     _Field("custom_value", section="more"),
 )
 
+LABELS: dict[str, str] = {f.name: f.label for f in FIELDS}
+
 
 def first_empty_field(values: dict[str, object]) -> str:
     """The first field of the cataloguing spine (DOM order) whose value is empty — the fresh-edit

@@ -18,7 +18,6 @@ from bundesarchiv.index.query import Headline, HeadlineField, SearchFilters, Sea
 #: The fields a why line may name, heaviest first (the ADR 0011 weights: Schlagworte B, Autor and
 #: Ort C, Beschreibung D). The title never: a title holding the word needs no why line.
 _WHY_ORDER: tuple[HeadlineField, ...] = ("tags", "creator", "subject_place", "body")
-_LABELS = {f.name: f.label for f in card.FIELDS}
 
 #: The ledger columns the facts line prints, in its order.
 _FACTS = tuple(
@@ -60,7 +59,7 @@ def why(headlines: Sequence[Headline]) -> Why | None:
         return None
     start = (("… ", False),) if found.cut_start else ()
     end = ((" …", False),) if found.cut_end else ()
-    return Why(_LABELS[found.field], (*start, *found.runs, *end))
+    return Why(card.LABELS[found.field], (*start, *found.runs, *end))
 
 
 def rows(
