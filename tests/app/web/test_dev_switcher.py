@@ -13,7 +13,7 @@ import pytest
 from django.test import Client, RequestFactory, override_settings
 from django.urls import NoReverseMatch, Resolver404, resolve, reverse
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import dev_realm_settings, page_forms
+from tests.app.web._fixtures import RecordingRealm, dev_realm_settings, page_forms
 
 from bundesarchiv.app.web.dev_realm import DevRealm
 from bundesarchiv.app.web.viewers import realm, viewer_of
@@ -109,6 +109,13 @@ def test_the_page_answers_only_this_sites_callback(redirect_uri: str) -> None:
     flow = {**_flow(client), "redirect_uri": redirect_uri}
     assert_denied(client.get(_PAGE, flow))
     assert_denied(client.post(_PAGE, {**flow, "kind": "archivist"}))
+
+
+def test_a_realm_that_is_not_the_dev_realm_mints_no_code() -> None:
+    client = Client()
+    flow = _flow(client)
+    with override_settings(BUNDESARCHIV_REALM=RecordingRealm([])):
+        assert_denied(client.post(_PAGE, {**flow, "kind": "archivist"}))
 
 
 def test_a_bookmark_starts_a_login() -> None:

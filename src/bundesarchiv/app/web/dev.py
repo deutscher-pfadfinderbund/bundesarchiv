@@ -17,7 +17,7 @@ from django.urls import reverse
 from bundesarchiv.app.web.auth_views import callback_uri, login_redirect
 from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
 from bundesarchiv.app.web.media_views import not_found
-from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.app.web.viewers import realm, viewer_of
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 #: What the realm's authorize request carries, and the form hands back on POST.
@@ -64,7 +64,10 @@ def _answer(request: HttpRequest) -> HttpResponse:
     viewer = _viewer_from_post(request)
     if not all(flow.values()) or flow["redirect_uri"] != callback_uri(request) or viewer is None:
         return not_found()
-    code = DevRealm().mint_code(claims_of(viewer), nonce=flow["nonce"])
+    login_realm = realm()
+    if not isinstance(login_realm, DevRealm):
+        return not_found()
+    code = login_realm.mint_code(claims_of(viewer), nonce=flow["nonce"])
     if code is None:
         return not_found()
     answer = urlencode({"code": code, "state": flow["state"]})
