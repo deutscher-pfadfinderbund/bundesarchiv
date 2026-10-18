@@ -29,9 +29,6 @@ from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm, claims_of
 from bundesarchiv.app.web.viewers import login_cookies
 from bundesarchiv.domain.viewer import Archivist, Member
 
-#: The test settings serve https, so these are the ``__Host-`` names.
-_COOKIES = login_cookies()
-
 _ARCHIVIST_CLAIMS = claims_of(Archivist(username="anna.schmidt"))
 _MEMBER_CLAIMS = claims_of(Member(groups=("vorstand",)))
 
@@ -101,10 +98,10 @@ def test_the_callback_replays_the_nonce_the_authorize_request_carried(asked: Ask
 def test_the_callback_leaves_both_token_cookies(asked: Asked) -> None:
     client = Client()
     _logged_in(client, _MEMBER_CLAIMS)
-    claims = DevRealm().verify_access(client.cookies[_COOKIES.access].value)
+    claims = DevRealm().verify_access(client.cookies[login_cookies().access].value)
     assert claims is not None
     assert claims["groups"] == ["vorstand"]
-    assert DevRealm().refresh(client.cookies[_COOKIES.refresh].value) is not None
+    assert DevRealm().refresh(client.cookies[login_cookies().refresh].value) is not None
     assert client.get("/articles/new").status_code == 404  # a Member, not an Archivist
 
 
@@ -114,7 +111,7 @@ def test_the_transient_state_cookie_is_dropped_at_the_callback(asked: Asked) -> 
     client = Client()
     answer = _authorized(client)
     _callback(client, **answer)
-    assert client.cookies[_COOKIES.state].value == ""
+    assert client.cookies[login_cookies().state].value == ""
     assert_denied(_callback(client, **answer), "replayed callback")
 
 
@@ -124,11 +121,11 @@ def test_the_transient_state_cookie_is_dropped_at_the_callback(asked: Asked) -> 
 def test_login_plants_a_signed_state_cookie(asked: Asked) -> None:
     client = Client()
     response = _login(client)
-    cookie = response.cookies[_COOKIES.state]
+    cookie = response.cookies[login_cookies().state]
     assert cookie["httponly"] and cookie["secure"] and cookie["samesite"] == "Lax"
     # __Host-: no sibling host on the registrable domain (Keycloak's own lives on one) can shadow
     # this cookie with a Domain=-scoped one of the same name.
-    assert _COOKIES.state.startswith("__Host-")
+    assert login_cookies().state.startswith("__Host-")
     assert cookie["path"] == "/" and not cookie["domain"]
     assert (
         signing.loads(cookie.value, key=VIEWER_KEY, salt="oidc-state")["state"]
@@ -141,14 +138,14 @@ def test_login_falls_closed_without_a_signing_key(asked: Asked) -> None:
     with override_settings(VIEWER_SIGNING_KEY=None):
         response = _login(Client())
     assert_denied(response, "login without a signing key")
-    assert _COOKIES.state not in response.cookies
+    assert login_cookies().state not in response.cookies
 
 
 def test_login_falls_closed_when_the_realm_answers_nothing(asked: Asked) -> None:
     with override_settings(DEV_VIEWER_SIGNING_KEY=None):
         response = _login(Client())
     assert_denied(response, "login with no authorize endpoint")
-    assert _COOKIES.state not in response.cookies
+    assert login_cookies().state not in response.cookies
 
 
 def test_login_rejects_a_post(asked: Asked) -> None:
@@ -169,7 +166,7 @@ def test_callback_denies_a_bad_request(
     answer = _authorized(client) | dropped
     response = _callback(client, **{k: v for k, v in answer.items() if v is not None})
     assert_denied(response, label)
-    assert _COOKIES.access not in response.cookies
+    assert login_cookies().access not in response.cookies
 
 
 @pytest.mark.parametrize("state", ["not-the-one", "ü"])
@@ -185,7 +182,7 @@ def test_a_state_that_does_not_match_restarts_the_login(asked: Asked, state: str
     response = _callback(client, code=answer["code"], state=state)
     assert response.status_code == 302
     assert response["Location"] == "/login?next=%2Farticles%2Fnew"
-    assert _COOKIES.access not in response.cookies
+    assert login_cookies().access not in response.cookies
 
 
 def test_callback_denies_without_the_state_cookie(asked: Asked) -> None:
@@ -193,14 +190,14 @@ def test_callback_denies_without_the_state_cookie(asked: Asked) -> None:
     answer = _authorized(Client())
     response = _callback(Client(), **answer)
     assert_denied(response, "callback with no state cookie")
-    assert _COOKIES.access not in response.cookies
+    assert login_cookies().access not in response.cookies
 
 
 def test_callback_denies_a_tampered_state_cookie(asked: Asked) -> None:
     client = Client()
     answer = _authorized(client)
-    signed = client.cookies[_COOKIES.state].value
-    client.cookies[_COOKIES.state] = signed[:-1] + ("a" if signed[-1] != "a" else "b")
+    signed = client.cookies[login_cookies().state].value
+    client.cookies[login_cookies().state] = signed[:-1] + ("a" if signed[-1] != "a" else "b")
     assert_denied(_callback(client, **answer), "tampered state")
 
 
@@ -229,12 +226,12 @@ def test_callback_denies_a_state_cookie_it_cannot_trust(
 ) -> None:
     """The login it names is otherwise complete: the code is bound to that cookie's nonce."""
     client = Client()
-    client.cookies[_COOKIES.state] = _state_cookie(key=key, issued=time.time() - age)
+    client.cookies[login_cookies().state] = _state_cookie(key=key, issued=time.time() - age)
     code = DevRealm().mint_code(_ARCHIVIST_CLAIMS, nonce="n")
     assert code is not None
     response = _callback(client, code=code, state="s")
     assert_denied(response, label)
-    assert _COOKIES.access not in response.cookies
+    assert login_cookies().access not in response.cookies
 
 
 def test_callback_denies_when_the_token_exchange_fails(asked: Asked) -> None:
@@ -245,7 +242,7 @@ def test_callback_denies_when_the_token_exchange_fails(asked: Asked) -> None:
     assert stale is not None
     response = _callback(client, code=stale, state=answer["state"])
     assert_denied(response, "failed token exchange")
-    assert _COOKIES.access not in response.cookies
+    assert login_cookies().access not in response.cookies
 
 
 def test_callback_rejects_a_post(asked: Asked) -> None:
@@ -303,7 +300,7 @@ def test_logout_hands_the_refresh_cookie_on_and_clears_both_cookies(asked: Asked
     client = Client()
     _logged_in(client)
     assert client.get("/articles/new").status_code == 200
-    refresh_token = client.cookies[_COOKIES.refresh].value
+    refresh_token = client.cookies[login_cookies().refresh].value
 
     response = client.post("/logout")
     assert response.status_code == 302
@@ -313,8 +310,8 @@ def test_logout_hands_the_refresh_cookie_on_and_clears_both_cookies(asked: Asked
         "post_logout_redirect_uri": "http://testserver/",
     }
     assert response["Location"] == "http://testserver/"
-    assert client.cookies[_COOKIES.access].value == ""
-    assert client.cookies[_COOKIES.refresh].value == ""
+    assert client.cookies[login_cookies().access].value == ""
+    assert client.cookies[login_cookies().refresh].value == ""
 
 
 def test_logout_clears_the_cookies_even_with_no_realm_to_return_through(asked: Asked) -> None:
@@ -324,15 +321,15 @@ def test_logout_clears_the_cookies_even_with_no_realm_to_return_through(asked: A
         response = client.post("/logout")
     assert response.status_code == 302
     assert response["Location"] == "/"
-    assert client.cookies[_COOKIES.access].value == ""
-    assert client.cookies[_COOKIES.refresh].value == ""
+    assert client.cookies[login_cookies().access].value == ""
+    assert client.cookies[login_cookies().refresh].value == ""
 
 
 def test_logout_without_token_cookies_still_clears_and_redirects(asked: Asked) -> None:
     response = Client().post("/logout")
     assert response.status_code == 302
     assert _last(asked, "logout_url")["refresh_token"] is None
-    assert response.cookies[_COOKIES.access].value == ""
+    assert response.cookies[login_cookies().access].value == ""
 
 
 def test_a_refresh_through_the_real_middleware_stack_renews_both_cookies(asked: Asked) -> None:
@@ -341,22 +338,22 @@ def test_a_refresh_through_the_real_middleware_stack_renews_both_cookies(asked: 
     tokens = DevRealm().mint_tokens(_ARCHIVIST_CLAIMS)
     assert tokens is not None
     client = Client()
-    client.cookies[_COOKIES.refresh] = tokens.refresh
+    client.cookies[login_cookies().refresh] = tokens.refresh
     response = client.get("/articles/new")
     assert response.status_code == 200
-    renewed = DevRealm().verify_access(response.cookies[_COOKIES.access].value)
+    renewed = DevRealm().verify_access(response.cookies[login_cookies().access].value)
     assert renewed is not None
     assert renewed["preferred_username"] == "anna.schmidt"
-    assert DevRealm().refresh(response.cookies[_COOKIES.refresh].value) is not None
+    assert DevRealm().refresh(response.cookies[login_cookies().refresh].value) is not None
 
 
 def test_a_dead_refresh_cookie_is_cleared_on_the_way_to_the_door(asked: Asked) -> None:
     client = Client()
-    client.cookies[_COOKIES.refresh] = "revoked"
+    client.cookies[login_cookies().refresh] = "revoked"
     response = client.get("/articles/new")
     assert_door(response, "/articles/new")
-    assert response.cookies[_COOKIES.access].value == ""
-    assert response.cookies[_COOKIES.refresh].value == ""
+    assert response.cookies[login_cookies().access].value == ""
+    assert response.cookies[login_cookies().refresh].value == ""
 
 
 def test_logout_rejects_a_get(asked: Asked) -> None:
