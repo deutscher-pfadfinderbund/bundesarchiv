@@ -44,5 +44,24 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(container list)",
+      "Bash(gh run watch *)",
+      "Bash(git check-ignore *)",
+      "Bash(git cherry *)",
+      "Bash(git merge-base *)",
+      "Bash(git rev-list *)",
+      "Bash(mise run check)",
+      "Bash(mise run test:db)",
+      "Bash(mise run test:e2e)",
+      "Bash(mise run test:gallery)",
+      "Bash(mise run test:gallery-diff)",
+      "Bash(mise run test:index)",
+      "Bash(uv run pyrefly check src tests scripts)",
+      "Bash(uv run ruff check)",
+      "Bash(uv run ruff format --check .)"
+    ]
   }
 }
