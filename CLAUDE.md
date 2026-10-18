@@ -29,7 +29,7 @@ tests); pick the package(s) a task touches:
 
 | Moment | Command |
 | --- | --- |
-| Inner loop | `mise run test:nodb` (~5s, no container), or path-scoped `uv run pytest tests/<suite>/...` |
+| Inner loop | `mise run test:nodb` (~6s under `-n 4`, no container; `-- -n 0` runs it serially, for `--pdb` and debugging), or path-scoped `uv run pytest tests/<suite>/...` |
 | One suite | `mise run test:domain` / `test:persistence` / `test:index` / `test:app` |
 | Suites a diff needs | `mise run test:affected [-- BASE] [--dry-run]` — runs the suites `BASE...HEAD` plus uncommitted changes need, stops at the first red; not `check`. |
 | Before a commit | `mise run check` — ruff, format, import contracts, pyrefly, mypy, Biome (static CSS/JS: lint + format), no-DB tests. The pre-commit hook runs the same class of checks. |

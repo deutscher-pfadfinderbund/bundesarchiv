@@ -100,6 +100,9 @@ legacy values (commas inside a Schlagwort) among the adversarial inputs.
   builders first; wire something bespoke only when the standard shape genuinely
   does not fit. That shape is frozen — a test asserting a global count or
   listing builds its own content with `make_corpus`.
+  Content too costly to build per test goes through `copy_of(fill)`: `fill` writes it once per
+  session into a template, each test gets its own copy of the files and builds its own objects
+  from that copy. Tests share files, never objects, dicts or handles.
   Articles for any suite come from `tests/_articles.py::make_article` (PUBLISHED by default);
   the web suite's `make_article` is that builder with the public Bestand filled in.
 - `e2e/` — real-browser journeys + the state gallery (both deselected from the

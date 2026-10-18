@@ -1,5 +1,7 @@
 """README codec — Article ⇄ front-matter bytes, tested directly (no store, no repo)."""
 
+import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -279,17 +281,47 @@ def test_read_version_rejects_a_non_integer_version() -> None:
         readme.read_version("x", text)
 
 
+#: Decodes stdin's README on a thread with a 512 KiB stack and prints what it raised.
+_DECODE_ON_A_SMALL_STACK = """
+import sys, threading
+from bundesarchiv.persistence import readme
+from bundesarchiv.persistence.errors import ArchiveError
+
+def decode():
+    try:
+        readme.decode("x", text)
+    except ArchiveError as exc:
+        print("ArchiveError", type(exc.__cause__).__name__)
+
+text = sys.stdin.read()
+threading.stack_size(512 * 1024)
+thread = threading.Thread(target=decode)
+thread.start()
+thread.join()
+"""
+
+
 def test_deeply_nested_front_matter_surfaces_as_archive_error() -> None:
-    # Corrupt or hostile nesting surfaces as ArchiveError. Past the loader's stack (libyaml: ~50k
-    # levels) it raises RecursionError, which is not a YAMLError subclass.
+    # Corrupt or hostile nesting surfaces as ArchiveError. Past the loader's stack it raises
+    # RecursionError, which is not a YAMLError subclass. On the main thread's stack that takes ~50k
+    # levels and seconds of scanning; a small thread stack overflows within ~2k. In a subprocess,
+    # so a crash on that stack fails this test and never the test process.
     nested = "---\nkey: " + "{" * 600 + "\n---\nbody"
     with pytest.raises(ArchiveError):
         readme.decode("x", nested)
     with pytest.raises(ArchiveError):
         readme.read_version("x", nested)
     too_deep = "---\nkey: " + "[" * 100_000 + "\n---\nbody"
-    with pytest.raises(ArchiveError):
-        readme.decode("x", too_deep)
+    result = subprocess.run(  # noqa: S603 — fixed arguments
+        [sys.executable, "-c", _DECODE_ON_A_SMALL_STACK],
+        input=too_deep,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert (result.returncode, result.stdout.split()) == (0, ["ArchiveError", "RecursionError"]), (
+        result.stderr
+    )
 
 
 # --- date / creator / subject_place -----------------------------------------------------------

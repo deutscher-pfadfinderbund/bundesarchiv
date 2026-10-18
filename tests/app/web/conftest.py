@@ -1,5 +1,6 @@
 """The index and queue stubs never raise, so ``after_write.run`` reports the index current."""
 
+import fcntl
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack
 from itertools import count
@@ -25,19 +26,43 @@ def corpus(tmp_path: Path) -> Iterator[Corpus]:
 
 
 @pytest.fixture
-def make_corpus(tmp_path: Path) -> Iterator[Callable[[], Corpus]]:
-    """Build a fresh ROOT-only corpus to fill with bespoke content. Each call gets its own store
-    and becomes the canonical root, so a test that needs two archives builds them in the order it
-    wants to query them."""
+def make_corpus(tmp_path: Path) -> Iterator[Callable[..., Corpus]]:
+    """Build a fresh ROOT-only corpus to fill with bespoke content, or with ``template`` a copy of
+    that corpus's files. Each call gets its own store and becomes the canonical root, so a test
+    that needs two archives builds them in the order it wants to query them."""
     roots = count()
     with ExitStack() as stack:
 
-        def build() -> Corpus:
-            built = Corpus(tmp_path / f"canonical-{next(roots)}")
+        def build(template: Corpus | None = None) -> Corpus:
+            root = tmp_path / f"canonical-{next(roots)}"
+            built = Corpus(root) if template is None else template.copy(root)
             stack.enter_context(override_settings(**settings_for(built)))
             return built
 
         yield build
+
+
+@pytest.fixture(scope="session")
+def _templates() -> dict[Callable[[Corpus], None], Corpus]:
+    return {}
+
+
+@pytest.fixture
+def copy_of(
+    make_corpus: Callable[..., Corpus],
+    tmp_path_factory: pytest.TempPathFactory,
+    _templates: dict[Callable[[Corpus], None], Corpus],
+) -> Callable[[Callable[[Corpus], None]], Corpus]:
+    """``copy_of(fill)``: ``fill`` writes its content once per session into a template archive no
+    test receives; each call returns a ``make_corpus`` copy of the template's files."""
+
+    def build(fill: Callable[[Corpus], None]) -> Corpus:
+        if fill not in _templates:
+            _templates[fill] = Corpus(tmp_path_factory.mktemp("template") / "canonical")
+            fill(_templates[fill])
+        return make_corpus(_templates[fill])
+
+    return build
 
 
 @pytest.fixture
@@ -52,12 +77,28 @@ def recording_store(monkeypatch: pytest.MonkeyPatch) -> KeyRecordingStore:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _collect_static_assets() -> None:
-    """Build STATIC_ROOT + the manifest once per session — the web tests run under prod settings,
-    where {% static %} RAISES without one (ADR 0016). ``--clear`` drops a prior asset set's orphans."""
+def _collect_static_assets(request: pytest.FixtureRequest) -> None:
+    """Build STATIC_ROOT + the manifest once per run — the web tests run under prod settings,
+    where {% static %} RAISES without one (ADR 0016). ``--clear`` drops a prior asset set's orphans.
+    The xdist workers of one run share its id: the first to take the lock collects and stamps it,
+    the others find the stamp and only read."""
+    from django.conf import settings
     from django.core.management import call_command
+    from django.core.signals import setting_changed
 
-    call_command("collectstatic", "--no-input", "--clear", verbosity=0)
+    run = getattr(request.config, "workerinput", {}).get("testrunuid", "")
+    stamp_path = Path(f"{settings.STATIC_ROOT}.run")
+    stamp_path.parent.mkdir(parents=True, exist_ok=True)
+    with stamp_path.open("a+") as stamp:
+        fcntl.flock(stamp, fcntl.LOCK_EX)
+        stamp.seek(0)
+        if not run or stamp.read() != run:
+            call_command("collectstatic", "--no-input", "--clear", verbosity=0)
+            stamp.truncate(0)
+            stamp.write(run)
+    # Collection can build the storage before any fixture runs (anyio's collector touches a
+    # module-level `staticfiles_storage`), holding the manifest from before the collect: rebuild it.
+    setting_changed.send(None, setting="STATIC_ROOT", value=settings.STATIC_ROOT, enter=True)
 
 
 @pytest.fixture(autouse=True)

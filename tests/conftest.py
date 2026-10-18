@@ -6,7 +6,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -52,6 +52,21 @@ def pytest_deselected(items: list[pytest.Item]) -> None:
 def _runs_under_test_db(item: pytest.Item) -> bool:
     return item.get_closest_marker("requires_pg") is not None and not any(
         item.get_closest_marker(name) for name in ("e2e", "gallery")
+    )
+
+
+def pytest_sessionfinish(session: pytest.Session) -> None:
+    """An xdist worker deselects, so it hands its count to the controller's summary."""
+    if hasattr(session.config, "workeroutput"):
+        session.config.workeroutput["deselected_pg"] = session.config.stash.get(_DESELECTED_PG, 0)
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_testnodedown(node: Any, error: object) -> None:
+    """Every worker collects the whole suite, so each reports the same count."""
+    stash = node.config.stash
+    stash[_DESELECTED_PG] = max(
+        stash.get(_DESELECTED_PG, 0), getattr(node, "workeroutput", {}).get("deselected_pg", 0)
     )
 
 
