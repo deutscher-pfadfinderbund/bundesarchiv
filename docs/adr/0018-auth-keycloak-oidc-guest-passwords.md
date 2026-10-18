@@ -195,11 +195,13 @@ Ours to test is small and server-free:
   the setting set or with `DEBUG` on.
   Dev and every web test log in through it: ADR 0025.
 
-The declarative authlib lines behind the port are not suite-tested: the
-realistic failure is Keycloak *client misconfiguration* (a missing mapper, a
-wrong redirect URI), which no fake can catch because it would encode our own
-assumptions. That is a deploy-runbook smoke step: one real login per realm
-change.
+The refresh and revoke calls behind the port are tested over an
+`httpx2.MockTransport` (the logout's step order, a refused or malformed refresh
+answer), as is the check of every token response. Not tested: the authorize
+request and the code exchange against a real realm. The realistic failure is
+Keycloak *client misconfiguration* (a missing mapper, a wrong redirect URI),
+which no fake can catch because it would encode our own assumptions. That is a
+deploy-runbook smoke step: one real login per realm change.
 
 ## Considered options
 
