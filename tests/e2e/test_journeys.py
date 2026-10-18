@@ -2486,6 +2486,6 @@ def test_dev_logs_in_and_out_through_the_dev_realm(public_page: Page, live_workb
     page.locator("main form button[type=submit]").click()
     page.wait_for_url(live_workbench + "/")
     assert page.request.get(live_workbench + "/articles/new").status == 200
-    page.locator("form[action='/logout'] button").click()
-    page.wait_for_url(live_workbench + "/")
+    with page.expect_navigation():
+        page.locator("form[action='/logout'] button").click()
     assert page.request.get(live_workbench + "/articles/new").status == 404
