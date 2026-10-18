@@ -55,11 +55,6 @@ search-path = [".", "src"]
 errors = { deprecated = "error" }
 
 [[tool.pyrefly.sub-config]]
-# `SearchHit(**{**row, ...})`: pyrefly can't narrow the heterogeneous row dict.
-matches = "src/bundesarchiv/index/query.py"
-errors = { bad-argument-type = false }
-
-[[tool.pyrefly.sub-config]]
 # authlib ships no types; keycloak.py is the seam that types its answers.
 matches = "**/*keycloak*.py"
 errors = { untyped-import = false }
