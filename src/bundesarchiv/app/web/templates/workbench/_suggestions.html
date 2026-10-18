@@ -1,0 +1,32 @@
+{% comment %}
+The search field's suggestions, grouped by kind: combobox.js puts them in the field's list. Each
+option is a link: a pick follows it, and the last option leads to the list Enter would submit. An
+Artikel adds its date after the title; a value its article count at the end edge, as a filter menu's
+entry does (components.css, "panel entry"). The kind describes each option, so it is heard with it.
+Without JS the field just submits.
+{% endcomment %}
+{% for group in groups %}
+<div class="autocomplete-group" role="group" aria-labelledby="suggest-kind-{{ forloop.counter }}">
+  <span class="autocomplete-kind" id="suggest-kind-{{ forloop.counter }}">{{ group.kind }}</span>
+  <ul role="presentation">
+    {% for entry in group.entries %}
+    <li role="presentation">
+      <a role="option" tabindex="-1" aria-selected="false" aria-describedby="suggest-kind-{{ forloop.parentloop.counter }}" href="{{ entry.href }}">
+        <span>{{ entry.before }}{% if entry.match %}<mark>{{ entry.match }}</mark>{% endif %}{{ entry.after }}</span>
+        {% if entry.date %}
+        <span class="quiet">{{ entry.date }}</span>
+        {% endif %}
+        {% if entry.count %}
+        <span class="autocomplete-count">{{ entry.count }}</span>
+        {% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+{% if total %}
+<a class="autocomplete-all" role="option" tabindex="-1" aria-selected="false" href="{{ all_href }}">
+  <span>{% if total == 1 %}1 Treffer{% else %}Alle {{ total_label }} Treffer{% endif %} für „{{ text }}“</span>
+</a>
+{% endif %}

@@ -25,6 +25,7 @@ from bundesarchiv.app.web.catalog_views import (
 from bundesarchiv.app.web.collection_views import collection_create, collection_edit
 from bundesarchiv.app.web.media_views import page_not_found, serve_media, serve_thumbnail
 from bundesarchiv.app.web.start import start
+from bundesarchiv.app.web.suggestions import suggestions
 
 handler404 = page_not_found
 
@@ -78,6 +79,7 @@ urlpatterns = [
         "articles/<str:ulid>/document-types", article_document_types, name="article-document-types"
     ),
     path("tags/suggestions", tag_suggestions, name="tag-suggestions"),
+    path("suggestions", suggestions, name="suggestions"),
     path("articles/<str:ulid>", article_detail, name="article-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),

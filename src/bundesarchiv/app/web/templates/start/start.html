@@ -9,7 +9,7 @@ it out of a small container.
 {% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
 <main id="content" class="start">
-  {% for partial, area in areas %}{% include partial with area=area only %}
+  {% for partial, area in areas %}{% include partial with area=area is_signed_in=is_signed_in only %}
   {% endfor %}
 </main>
 {% endblock %}

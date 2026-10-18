@@ -250,25 +250,50 @@ _MAX_SUGGESTIONS = 10
 
 
 def suggest_tags(viewer: Viewer, text: str, *, exclude: Iterable[str] = ()) -> tuple[str, ...]:
-    """Those starting with ``text`` first, each part by use count, then alphabetically."""
+    """The Schlagworte of ``viewer``'s Articles outside the Papierkorb that contain ``text``, in
+    ``values_containing``'s order. At most ten, none in ``exclude`` (ignoring case)."""
+    taken = {tag.casefold() for tag in exclude}
+    kept = (fc.value for fc in values_containing(viewer, "tags", text))
+    return tuple(tag for tag in kept if tag.casefold() not in taken)[:_MAX_SUGGESTIONS]
+
+
+type Suggested = Literal["creator", "place", "tags"]
+
+_SUGGESTED_COLUMNS: Mapping[Suggested, str] = {
+    "creator": "creator",
+    "place": "subject_place",
+    "tags": "tags",
+}
+
+
+def values_containing(
+    viewer: Viewer, field: Suggested, text: str, filters: SearchFilters | None = None
+) -> tuple[FacetCount, ...]:
+    """The values of ``field`` on ``viewer``'s Articles outside the Papierkorb that contain
+    ``text``, ignoring case, each with how many of those Articles carry it: the ones starting with
+    it first, each part by count, then alphabetically. A blank ``text`` matches nothing.
+    ``filters`` narrow the Articles as they narrow a facet: all but ``field``'s own, and never
+    across the Papierkorb (their ``deleted`` is ignored)."""
     needle = text.strip().casefold()
     if not needle:
         return ()
+    column = _SUGGESTED_COLUMNS[field]
+    value = Func(F(column), function="unnest") if field == "tags" else F(column)
+    narrowed = _apply_filters(
+        _scoped(viewer, deleted=False), _without(filters or SearchFilters(), field)
+    )
     rows = (
-        _scoped(viewer, deleted=False)
-        .annotate(_elem=Func(F("tags"), function="unnest"))
+        narrowed.annotate(_elem=value)
         .values("_elem")
         .annotate(_n=Count("ulid"))
         .order_by("-_n", Collate("_elem", _DE_NUMERIC))
     )
-    taken = {tag.casefold() for tag in exclude}
     matches = [
-        tag
+        FacetCount(row["_elem"], row["_n"])
         for row in rows
-        if needle in (folded := (tag := row["_elem"]).casefold()) and folded not in taken
+        if row["_elem"] and needle in row["_elem"].casefold()
     ]
-    ranked = sorted(matches, key=lambda tag: not tag.casefold().startswith(needle))
-    return tuple(ranked[:_MAX_SUGGESTIONS])
+    return tuple(sorted(matches, key=lambda fc: not fc.value.casefold().startswith(needle)))
 
 
 def _search_query(text: str | None) -> SearchQuery | None:
