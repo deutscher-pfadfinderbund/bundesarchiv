@@ -19,7 +19,7 @@ from tests.index import fixtures
 from bundesarchiv.domain.models import Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
-from bundesarchiv.index.query import Suggested, search, values_containing
+from bundesarchiv.index.query import SearchFilters, Suggested, search, values_containing
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -145,6 +145,32 @@ def test_each_value_group_offers_and_counts_only_the_viewers_rows(
 ) -> None:
     expected = Counter(value for row in _visible(tier) for value in _values(row, field))
     offered = values_containing(viewer, field, "WALD")
+    assert {fc.value: fc.count for fc in offered} == expected
+    assert len(offered) == len(expected)
+
+
+#: Two filters, so clearing only a group's own dimension shows; ``deleted`` must not open the
+#: Papierkorb.
+_FILTERS = SearchFilters(place="Burg Waldeck", tag="Waldfest", deleted=True)
+
+
+def _passes(row: _Row, field: Suggested) -> bool:
+    """``_FILTERS`` with the group's own dimension cleared, as a facet counts."""
+    return (field == "place" or row.place == "Burg Waldeck") and (
+        field == "tags" or "Waldfest" in row.tags
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(("tier", "viewer"), _TIERS)
+@pytest.mark.parametrize("field", ["creator", "place", "tags"])
+def test_the_filters_narrow_each_group_within_the_viewers_rows(
+    corpus: None, tier: str, viewer: Viewer, field: Suggested
+) -> None:
+    expected = Counter(
+        value for row in _visible(tier) if _passes(row, field) for value in _values(row, field)
+    )
+    offered = values_containing(viewer, field, "WALD", _FILTERS)
     assert {fc.value: fc.count for fc in offered} == expected
     assert len(offered) == len(expected)
 

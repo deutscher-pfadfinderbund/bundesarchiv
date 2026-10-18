@@ -266,18 +266,24 @@ _SUGGESTED_COLUMNS: Mapping[Suggested, str] = {
 }
 
 
-def values_containing(viewer: Viewer, field: Suggested, text: str) -> tuple[FacetCount, ...]:
+def values_containing(
+    viewer: Viewer, field: Suggested, text: str, filters: SearchFilters | None = None
+) -> tuple[FacetCount, ...]:
     """The values of ``field`` on ``viewer``'s Articles outside the Papierkorb that contain
     ``text``, ignoring case, each with how many of those Articles carry it: the ones starting with
-    it first, each part by count, then alphabetically. A blank ``text`` matches nothing."""
+    it first, each part by count, then alphabetically. A blank ``text`` matches nothing.
+    ``filters`` narrow the Articles as they narrow a facet: all but ``field``'s own, and never
+    across the Papierkorb (their ``deleted`` is ignored)."""
     needle = text.strip().casefold()
     if not needle:
         return ()
     column = _SUGGESTED_COLUMNS[field]
     value = Func(F(column), function="unnest") if field == "tags" else F(column)
+    narrowed = _apply_filters(
+        _scoped(viewer, deleted=False), _without(filters or SearchFilters(), field)
+    )
     rows = (
-        _scoped(viewer, deleted=False)
-        .annotate(_elem=value)
+        narrowed.annotate(_elem=value)
         .values("_elem")
         .annotate(_n=Count("ulid"))
         .order_by("-_n", Collate("_elem", _DE_NUMERIC))
