@@ -159,12 +159,12 @@ class FacetCount:
 @dataclass(frozen=True, slots=True)
 class SearchPage:
     """``total`` counts every match, not just this page; ``dateless_count`` is the "Ohne Datum"
-    facet."""
+    facet, None when the search asked for no facets."""
 
     hits: tuple[SearchHit, ...]
     total: int
     facets: Mapping[str, tuple[FacetCount, ...]]
-    dateless_count: int
+    dateless_count: int | None
 
 
 _HIT_COLUMNS = (
@@ -224,7 +224,7 @@ def search(
         hits=hits,
         total=total,
         facets=_facets(matched, filters, facets),
-        dateless_count=_dateless_count(matched, filters),
+        dateless_count=_dateless_count(matched, filters) if facets else None,
     )
 
 
