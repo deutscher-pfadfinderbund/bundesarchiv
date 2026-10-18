@@ -76,6 +76,12 @@
     return [start, end < 0 ? field.value.length : end];
   }
 
+  // a list suggested for `at` ({ start, text }) still matches the field: same line, same text
+  function fits(field, at) {
+    const [start, end] = spanOf(field);
+    return at?.start === start && field.value.slice(start, end).trim() === at.text;
+  }
+
   function close(field) {
     asked += 1;
     target = undefined;
@@ -107,6 +113,7 @@
     // an open list stays until the answer replaces it; only the older request is dropped
     asked += 1;
     const ticket = asked;
+    const at = { start, text: q };
     fetch(`${field.dataset.suggest}?${query(field, q)}`)
       .then((response) => {
         if (!response.ok) {
@@ -116,12 +123,7 @@
       })
       .then((html) => {
         const list = listOf(field);
-        if (
-          ticket !== asked ||
-          document.activeElement !== field ||
-          !list ||
-          spanOf(field)[0] !== start
-        ) {
+        if (ticket !== asked || document.activeElement !== field || !list || !fits(field, at)) {
           return;
         }
         list.innerHTML = html;
@@ -136,7 +138,7 @@
         field.removeAttribute("aria-activedescendant");
         statusOf(field).textContent =
           options.length === 1 ? "1 Vorschlag" : `${options.length} Vorschläge`;
-        target = { start, text: q };
+        target = at;
         if (!list.matches(":popover-open")) {
           list.showPopover();
         }
@@ -164,12 +166,11 @@
   }
 
   function take(field, option) {
-    const [start, end] = spanOf(field);
-    // the list was suggested for one text; if the caret or the text moved off it, change nothing
-    if (!target || target.start !== start || field.value.slice(start, end).trim() !== target.text) {
+    if (!fits(field, target)) {
       close(field);
       return;
     }
+    const [start, end] = spanOf(field);
     close(field);
     if (option.href) {
       location.assign(option.href);
@@ -208,7 +209,10 @@
       const step = event.key === "ArrowDown" ? 1 : -1;
       mark(field, options, ((active + 1 + step + states) % states) - 1);
     } else if (event.key === "Enter" && active >= 0) {
-      event.preventDefault();
+      // a list the field moved off takes nothing, and the Enter stays the field's own
+      if (fits(field, target)) {
+        event.preventDefault();
+      }
       take(field, options[active]);
     } else if (event.key === "Escape") {
       event.preventDefault();

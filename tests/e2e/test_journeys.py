@@ -1656,6 +1656,47 @@ def test_the_suggestion_list_stays_open_while_a_refinement_is_fetched(
     expect(field).to_have_attribute("aria-expanded", "false")
 
 
+def test_an_answer_for_older_text_is_never_shown(archivist_page: Page, live_workbench: str) -> None:
+    # The answer for "meye" lands while "meyer" still waits out its debounce.
+    page = archivist_page
+    page.clock.install(time=0)
+    held: list[Route] = []
+    page.route(re.compile(r"/suggestions\?q=meye$"), lambda route: held.append(route))
+    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.clock.pause_at(60_000)  # the debounce fires only when the test runs the clock
+    field = page.locator("main #search-field")
+    suggestions = page.locator(".autocomplete-list")
+    field.press_sequentially("meye")
+    page.clock.run_for(150)
+    page.wait_for_timeout(300)  # the request for "meye" is out, unanswered
+    field.press_sequentially("r")
+    with page.expect_response(re.compile(r"/suggestions\?q=meye$")) as answer:
+        long_suggestions(held[0])
+    answer.value.finished()
+    page.wait_for_timeout(300)  # the answer is handled
+    expect(suggestions).to_be_hidden()
+    expect(field).not_to_have_attribute("aria-activedescendant", re.compile(".+"))
+    page.clock.run_for(150)
+    expect(page.locator("#search-field-suggestions-status")).to_have_text("3 Vorschläge")
+    expect(suggestions).to_be_visible()
+
+
+def test_enter_on_a_list_the_field_moved_off_submits_the_field(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    field = page.locator("main #search-field")
+    field.press_sequentially("meyer")
+    expect(page.locator(".autocomplete-list")).to_be_visible()
+    page.keyboard.press("ArrowDown")
+    expect(field).to_have_attribute("aria-activedescendant", re.compile("search-field-suggestions"))
+    # the text changes under the open list without a key (a script, an extension)
+    field.evaluate("(el) => { el.value = 'meyers'; }")
+    page.keyboard.press("Enter")
+    page.wait_for_url(re.compile(r"/articles\?q=meyers"))
+
+
 def test_enter_after_typing_submits_though_the_open_list_had_a_marked_option(
     archivist_page: Page, live_workbench: str
 ) -> None:
@@ -1770,8 +1811,8 @@ def test_a_suggestion_is_not_taken_into_a_line_whose_text_changed(
     page.keyboard.press("ArrowDown")  # an option is marked
     # the line changes under the open list without a key (a script, an extension)
     field.evaluate("(el) => { el.value = 'lager\\nrx'; }")
-    page.keyboard.press("Enter")
-    expect(field).to_have_value("lager\nrx")
+    page.keyboard.press("Enter")  # the field's own: a new line
+    expect(field).to_have_value("lager\nrx\n")
     expect(page.locator(".autocomplete-list")).to_be_hidden()
 
 
