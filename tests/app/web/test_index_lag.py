@@ -2,9 +2,11 @@
 place, or on the page its redirect lands on. The route list is exhaustive over the prod urlconf."""
 
 from collections.abc import Callable, Iterator
+from functools import partial
 from pathlib import Path
 
 import pytest
+from django.test import override_settings
 from django.urls import URLPattern, get_resolver
 from tests.app.web._fixtures import (
     DRAFT_ULID,
@@ -16,10 +18,10 @@ from tests.app.web._fixtures import (
     list_url,
 )
 
-from bundesarchiv.app import after_write
 from bundesarchiv.app.web import landing
 from bundesarchiv.domain.models import Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member
+from bundesarchiv.index.refresh import InMemoryIndex, Refresh
 
 #: The context keys that carry the notice: pages, the Medien drawer, the bulk result.
 _LAG_KEYS = ("index_lag", "drawer_index_lag", "bulk_index_lag")
@@ -80,17 +82,13 @@ _READS = {
 
 
 @pytest.fixture
-def failing_index(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[str]]:
-    """The synchronous index update raises; yields the ulids it was asked to index."""
-    asked: list[str] = []
-
-    def fail(_store: object, ulid: str, **_: object) -> None:
-        asked.append(ulid)
-        raise RuntimeError("index down")
-
-    monkeypatch.setattr(after_write, "index_article", fail)
-    monkeypatch.setattr(after_write, "index_subtree", fail)
-    yield asked
+def failing_index(corpus: Corpus) -> Iterator[list[Refresh]]:
+    """The synchronous index update raises; yields the refreshes it was asked for."""
+    refreshed: list[Refresh] = []
+    with override_settings(
+        BUNDESARCHIV_INDEX=partial(InMemoryIndex, failing=True, refreshed=refreshed)
+    ):
+        yield refreshed
 
 
 @pytest.mark.parametrize(
@@ -98,7 +96,7 @@ def failing_index(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[str]]:
     [pytest.param(name, marks=[_DB] if name in _NEEDS_DB else []) for name in WRITES],
 )
 def test_a_write_whose_index_update_failed_shows_the_lag(
-    corpus: Corpus, failing_index: list[str], route: str
+    corpus: Corpus, failing_index: list[Refresh], route: str
 ) -> None:
     client = client_as(Archivist("anna"))
     response = WRITES[route](client, corpus)

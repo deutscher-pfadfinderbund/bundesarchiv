@@ -4,9 +4,6 @@
 The write services name what they wrote; this module decides what that means for the index and
 the mirror. Nothing here raises: the canonical write already stood. ``run`` answers whether the
 index caught up in-request — the bit every write route must show when it is False.
-
-``index_article`` and ``index_subtree`` are module-level names so tests can monkeypatch the index
-adapter.
 """
 
 import contextlib
@@ -21,7 +18,6 @@ from bundesarchiv.app.tasks import (
     enqueue_reindex_subtree,
 )
 from bundesarchiv.domain.models import Ulid
-from bundesarchiv.index.indexer import SYNC_LOCK_TIMEOUT_MS, index_article, index_subtree
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,8 +62,7 @@ def run(archive: Archive, written: Written) -> bool:
             index_updated, mirror = _article_synced(archive, ulid), enqueue_mirror_delete_article
         case MovedCollection(ulid):
             index_updated = _synced(
-                lambda: index_subtree(archive.store, ulid, lock_timeout_ms=SYNC_LOCK_TIMEOUT_MS),
-                lambda: enqueue_reindex_subtree(ulid),
+                lambda: archive.index.refresh_subtree(ulid), lambda: enqueue_reindex_subtree(ulid)
             )
             mirror = enqueue_mirror_push
         case SavedCollection():
@@ -80,8 +75,7 @@ def run(archive: Archive, written: Written) -> bool:
 
 def _article_synced(archive: Archive, ulid: Ulid) -> bool:
     return _synced(
-        lambda: index_article(archive.store, ulid, lock_timeout_ms=SYNC_LOCK_TIMEOUT_MS),
-        lambda: enqueue_reindex_article(ulid),
+        lambda: archive.index.refresh_article(ulid), lambda: enqueue_reindex_article(ulid)
     )
 
 

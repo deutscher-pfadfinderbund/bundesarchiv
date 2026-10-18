@@ -2,10 +2,12 @@
 (spec §6.2/§7/§8, ADR 0022)."""
 
 from dataclasses import replace
+from functools import partial
 from typing import Any
 from urllib.parse import urlparse
 
 import pytest
+from django.test import override_settings
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import (
     DRAFT_ULID,
@@ -21,6 +23,7 @@ from tests.app.web._fixtures import (
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
+from bundesarchiv.index.refresh import InMemoryIndex
 from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.repository import Stored
 
@@ -289,20 +292,14 @@ def test_restore_takes_the_record_out_of_the_trash(corpus: Corpus) -> None:
 
 
 @pytest.mark.parametrize("hx", [False, True], ids=["plain", "htmx"])
-def test_delete_with_index_lag_says_so(
-    corpus: Corpus, monkeypatch: pytest.MonkeyPatch, hx: bool
-) -> None:
+def test_delete_with_index_lag_says_so(corpus: Corpus, hx: bool) -> None:
     # ADR 0014: the mark takes the record out of search; a lagging index is said, as on a restore.
-    from bundesarchiv.app import after_write
-
-    monkeypatch.setattr(
-        after_write, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
-    )
     client = client_as(Archivist())
     [(action, fields)] = _delete_forms(
         client.get(f"/articles/{PUBLISHED_ULID}").content.decode(), PUBLISHED_ULID
     )
-    done = client.post(action, fields, headers={"HX-Request": "true"} if hx else {})
+    with override_settings(BUNDESARCHIV_INDEX=partial(InMemoryIndex, failing=True)):
+        done = client.post(action, fields, headers={"HX-Request": "true"} if hx else {})
     landing = done["HX-Redirect"] if hx else done["Location"]
     assert _mark_of(corpus, PUBLISHED_ULID) is not None
     assert urlparse(landing).path == f"/articles/{PUBLISHED_ULID}"

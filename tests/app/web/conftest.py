@@ -1,4 +1,5 @@
-"""The index and queue stubs never raise, so ``after_write.run`` reports the index current."""
+"""The in-memory index (``settings_for``) and queue never raise, so ``after_write.run`` reports the
+index current."""
 
 import fcntl
 from collections.abc import Callable, Iterator
@@ -14,6 +15,7 @@ from procrastinate.testing import InMemoryConnector
 from tests.app.web._fixtures import Corpus, KeyRecordingStore, settings_for, standard_corpus
 
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.index.refresh import InMemoryIndex
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -71,7 +73,9 @@ def recording_store(monkeypatch: pytest.MonkeyPatch) -> KeyRecordingStore:
     whichever corpus is live, so a deny test can assert no blob was probed."""
     store = KeyRecordingStore(Archive.canonical)
     monkeypatch.setattr(
-        Archive, "canonical", classmethod(lambda _: Archive.of(cast("ObjectStore", store)))
+        Archive,
+        "canonical",
+        classmethod(lambda _: Archive.of(cast("ObjectStore", store), InMemoryIndex)),
     )
     return store
 
@@ -102,13 +106,7 @@ def _collect_static_assets(request: pytest.FixtureRequest) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _stub_service_boundaries(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """No-op the index writes for the duration of a web test; a job that reaches the queue lands
-    in Procrastinate's in-memory connector. The canonical write (repository + README + CAS) stays
-    real."""
-    from bundesarchiv.app import after_write
-
-    for name in ("index_article", "index_subtree"):
-        monkeypatch.setattr(after_write, name, lambda *a, **k: None)
+def _in_memory_queue() -> Iterator[None]:
+    """A job that reaches the queue lands in Procrastinate's in-memory connector."""
     with app.replace_connector(InMemoryConnector()):
         yield

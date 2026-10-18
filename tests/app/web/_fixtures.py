@@ -41,6 +41,7 @@ from bundesarchiv.domain.models import (
     Version,
 )
 from bundesarchiv.domain.viewer import Viewer
+from bundesarchiv.index.refresh import InMemoryIndex
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -238,7 +239,8 @@ def standard_corpus(root: Path) -> Corpus:
 
 def settings_for(corpus: Corpus) -> dict[str, object]:
     """The settings a web test runs under: the prod urlconf, the dev-viewer signing key
-    ``client_as`` signs with, and ``corpus`` as the canonical store.
+    ``client_as`` signs with, ``corpus`` as the canonical store, and an in-memory index, so a write
+    refreshes no Postgres row (a search test builds its rows itself).
 
     The ADR 0018 anonymous gate is OFF here, as it is in ``settings_dev``: these tests assert what
     each tier — anonymous included — is ANSWERED, which is the contract behind the gate and the one
@@ -249,6 +251,7 @@ def settings_for(corpus: Corpus) -> dict[str, object]:
         "DEV_VIEWER_SIGNING_KEY": DEV_KEY,
         "ANONYMOUS_GATE_ENABLED": False,
         "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.root),
+        "BUNDESARCHIV_INDEX": InMemoryIndex,
     }
 
 

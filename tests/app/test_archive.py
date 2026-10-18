@@ -6,6 +6,8 @@ from django.test import override_settings
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.models import Article
+from bundesarchiv.index.refresh import InMemoryIndex
+from bundesarchiv.persistence.objectstore import ObjectStore
 
 ULID = "01KX7YT9E3VX0CP3A5Q49RZMWK"
 
@@ -21,3 +23,17 @@ def test_canonical_resolves_the_configured_root_at_every_call(tmp_path: Path) ->
     assert (first / "articles" / ULID / "README.md").is_file()
     with override_settings(BUNDESARCHIV_CANONICAL_ROOT=str(second)):
         assert list(Archive.canonical().articles.list_ulids()) == []
+
+
+def test_the_index_is_built_over_the_archives_own_store(tmp_path: Path) -> None:
+    """ADR 0024."""
+    over: list[ObjectStore] = []
+
+    def index(store: ObjectStore) -> InMemoryIndex:
+        over.append(store)
+        return InMemoryIndex(store)
+
+    with override_settings(BUNDESARCHIV_CANONICAL_ROOT=str(tmp_path), BUNDESARCHIV_INDEX=index):
+        archive = Archive.canonical()
+
+    assert over == [archive.store]

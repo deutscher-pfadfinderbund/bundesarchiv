@@ -37,10 +37,6 @@ CONFIG_VERSION = 8
 _INDEX_WRITER_LOCK_KEY = 0x42554E44
 
 
-#: Long enough to outwait a typical full rebuild; on timeout the retry job reindexes.
-SYNC_LOCK_TIMEOUT_MS = 5000
-
-
 def _take_writer_lock(lock_timeout_ms: int | None = None) -> None:
     """Acquire the transaction-scoped index-writer advisory lock. MUST be called inside every index
     writer's ``transaction.atomic()`` block BEFORE its first canonical read; it releases at commit
