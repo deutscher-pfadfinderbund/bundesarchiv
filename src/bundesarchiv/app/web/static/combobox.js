@@ -229,15 +229,24 @@
   });
 
   document.addEventListener("focusout", (event) => {
-    if (event.target.matches?.(FIELD)) {
-      close(event.target);
+    const field = event.target;
+    if (field.matches?.(FIELD) && !listOf(field)?.contains(event.relatedTarget)) {
+      close(field);
     }
   });
 
-  // a click on an option must not take the focus out of the field (that would close the list)
+  // a press in the list must not take the focus out of the field (that would close the list) …
   document.addEventListener("mousedown", (event) => {
-    if (event.target.closest?.(".autocomplete-list")) {
+    if (event.target.closest?.(".autocomplete-list") && !event.target.closest("a[href]")) {
       event.preventDefault();
+    }
+  });
+  // … but a press on a link is let through: a prevented one there makes Chromium drop a modified
+  // click's new tab now and then. The link takes the focus and hands it straight back.
+  document.addEventListener("focusin", (event) => {
+    const list = event.target.closest?.(".autocomplete-list");
+    if (list) {
+      document.querySelector(`[aria-controls="${list.id}"]`)?.focus();
     }
   });
   // a link option is followed by the browser (a new tab on a middle or modified click)
