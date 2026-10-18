@@ -76,3 +76,8 @@ For any UI change: restart the dev server after EVERY commit (`:8000` runs `--no
 stale code otherwise), then judge on the live pages — never ship PNGs to the owner (he browses live
 himself). Agents keep their own internal screenshot self-verification loop; the state gallery
 (`mise run test:gallery`) is the shared review medium, and `mise run test:e2e` drives the journeys.
+
+A journey that races a debounce or a late answer drives time itself: `page.clock.install(time=0)`
+before `goto`, then `pause_at(...)` (install alone lets time flow), `run_for(ms)` to fire the timer,
+and `page.route` to hold the answer. A late answer is judged by the field as it is when the answer
+arrives, never by values captured when the request left.
