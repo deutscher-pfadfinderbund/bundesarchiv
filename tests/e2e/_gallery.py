@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Literal
 
 from django.template.loader import render_to_string
-from playwright.sync_api import Browser, Page
+from playwright.sync_api import Browser, Page, Route, expect
 from tests.e2e._corpus import TEMPLATE_ULID, CorpusHandles
 from tests.e2e._pages import (
     LIST,
@@ -20,6 +20,8 @@ from tests.e2e._pages import (
     reach_tag_suggestions,
 )
 
+from bundesarchiv.app.web.suggestions import Entry, Group
+
 #: Shot under the emulated ``prefers-color-scheme``, with no theme cookie.
 MODES: tuple[Literal["light", "dark"], ...] = ("light", "dark")
 
@@ -28,6 +30,9 @@ WIDTHS: tuple[int, ...] = (1440, 680)
 
 #: A phone, for the states a mockup was drawn at 390 for.
 PHONE: tuple[int, ...] = (390,)
+
+#: The narrowest phone the design holds.
+PHONE_NARROW = 375
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +45,57 @@ class GalleryState:
         True  # False for a full-viewport overlay: the shot is the viewport, not the page
     )
     widths: tuple[int, ...] = WIDTHS
+
+
+def long_suggestions(route: Route) -> None:
+    """The suggestions route's answer for "lager", through the real template: long titles, every
+    kind of group and big counts, which the corpus is too small to offer."""
+    groups = (
+        Group(
+            "Artikel",
+            tuple(
+                Entry(
+                    "",
+                    "Lager",
+                    f"chronik der Ferienlager in der Rhön und im Harz {n}",
+                    "/x",
+                    date=date,
+                )
+                for n, date in enumerate(("2012", "2012-07-14", "1963"))
+            ),
+        ),
+        Group(
+            "Autor",
+            tuple(Entry("", "Lager", f"leitung Ost {n}", "/x", count="2.012") for n in (1, 2)),
+        ),
+        Group("Ort", tuple(Entry("", "Lager", f"platz {n}", "/x", count="12") for n in (1, 2))),
+        Group("Schlagworte", (Entry("", "Lager", "feuer", "/x", count="1.012"),)),
+    )
+    body = render_to_string(
+        "workbench/_suggestions.html",
+        {
+            "groups": groups,
+            "text": "lager",
+            "total": 2012,
+            "total_label": "2.012",
+            "all_href": "/y",
+        },
+    )
+    route.fulfill(status=200, content_type="text/html", body=body)
+
+
+def _reach_suggestions_marked(path: str) -> Callable[[Page, str, CorpusHandles], None]:
+    """``path`` with "lager" typed in its search field, answered by ``long_suggestions``, the
+    first option marked."""
+
+    def reach(page: Page, base: str, _corpus: CorpusHandles) -> None:
+        page.route("**/suggestions?*", long_suggestions)
+        page.goto(base + path, wait_until="networkidle")
+        page.locator("#search-field").press_sequentially("lager")
+        expect(page.locator(".autocomplete-list")).to_be_visible()
+        page.keyboard.press("ArrowDown")
+
+    return reach
 
 
 def _goto(path: str) -> Callable[[Page, str, CorpusHandles], None]:
@@ -430,6 +486,20 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the start page, the search field suggesting Artikel and Autor for what is typed",
         True,
         reach_search_suggestions,
+    ),
+    GalleryState(
+        "list-suggestions-marked",
+        'the list page, the search field suggesting for "lager" with the first option marked',
+        True,
+        _reach_suggestions_marked(LIST),
+        widths=(1440, PHONE_NARROW),
+    ),
+    GalleryState(
+        "start-suggestions-marked",
+        'the start page, "lager" suggested on a phone with the first option marked',
+        True,
+        _reach_suggestions_marked("/"),
+        widths=(PHONE_NARROW,),
     ),
     GalleryState(
         "edit-rejected",

@@ -100,10 +100,12 @@
   function suggest(field) {
     const [start, end] = spanOf(field);
     const q = field.value.slice(start, end).trim();
-    close(field);
     if (!q) {
+      close(field);
       return;
     }
+    // an open list stays until the answer replaces it; only the older request is dropped
+    asked += 1;
     const ticket = asked;
     fetch(`${field.dataset.suggest}?${query(field, q)}`)
       .then((response) => {
@@ -127,14 +129,19 @@
         options.forEach((option, i) => {
           option.id = `${list.id}-${i}`;
         });
-        if (options.length > 0) {
-          statusOf(field).textContent =
-            options.length === 1 ? "1 Vorschlag" : `${options.length} Vorschläge`;
-          target = { start, text: q };
+        if (options.length === 0) {
+          close(field);
+          return;
+        }
+        field.removeAttribute("aria-activedescendant");
+        statusOf(field).textContent =
+          options.length === 1 ? "1 Vorschlag" : `${options.length} Vorschläge`;
+        target = { start, text: q };
+        if (!list.matches(":popover-open")) {
           list.showPopover();
-          if (field.hasAttribute("aria-expanded")) {
-            field.setAttribute("aria-expanded", "true");
-          }
+        }
+        if (field.hasAttribute("aria-expanded")) {
+          field.setAttribute("aria-expanded", "true");
         }
       })
       .catch(() => {
@@ -176,6 +183,11 @@
     const field = event.target;
     // an untrusted input is take()'s own: the line is complete, nothing to suggest
     if (event.isTrusted && field.matches?.(FIELD)) {
+      // the list on show is for the text before this key: nothing in it is marked for Enter
+      const list = listOf(field);
+      if (list) {
+        mark(field, optionsOf(list), -1);
+      }
       clearTimeout(typing);
       typing = setTimeout(() => suggest(field), 150);
     }

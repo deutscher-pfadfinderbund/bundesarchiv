@@ -10,6 +10,7 @@ from playwright.sync_api import Browser, Dialog, FilePayload, Locator, Page, Rou
 from pytest_django.plugin import DjangoDbBlocker
 from tests.app.web._asserts import assert_login_target
 from tests.e2e._corpus import MINUTES_FILENAME, CorpusHandles, _png
+from tests.e2e._gallery import long_suggestions
 from tests.e2e._pages import (
     BULK_COMMIT,
     LIST,
@@ -1355,6 +1356,168 @@ def test_a_search_suggestion_sets_its_filter_with_the_keyboard(
     }
 
 
+# In-page: the baseline of an element's first line is where a zero-size inline-block at its end sits.
+_BASELINE = """(el) => {
+    const probe = el.ownerDocument.createElement("span");
+    probe.style.cssText = "display:inline-block;width:0;height:0";
+    el.append(probe);
+    const bottom = probe.getBoundingClientRect().bottom;
+    probe.remove();
+    return bottom;
+}"""
+_TEXT_RECT_COUNT = """(el) => {
+    const range = el.ownerDocument.createRange();
+    range.selectNodeContents(el);
+    return range.getClientRects().length;
+}"""
+
+
+_TEXT_EDGE = (
+    "(el) => el.getBoundingClientRect().left + parseFloat(getComputedStyle(el).paddingLeft)"
+)
+
+
+def _suggested_lager(browser: Browser, base: str, width: int, height: int) -> Page:
+    """The start page at this viewport with "lager" typed, answered by ``long_suggestions``."""
+    from tests.e2e.conftest import _archivist_cookie
+
+    context = browser.new_context(viewport={"width": width, "height": height})
+    context.add_cookies([_archivist_cookie(base)])  # type: ignore[list-item]
+    page = context.new_page()
+    page.route("**/suggestions?*", long_suggestions)
+    page.goto(f"{base}/", wait_until="networkidle")
+    page.locator("main #search-field").press_sequentially("lager")
+    expect(page.locator(".autocomplete-list")).to_be_visible()
+    return page
+
+
+def test_a_long_suggestion_list_holds_its_layout_on_a_phone(
+    browser: Browser, live_workbench: str
+) -> None:
+    page = _suggested_lager(browser, live_workbench, 375, 667)
+    suggestions = page.locator(".autocomplete-list")
+    # what follows a title (a date, a count) never breaks
+    notes = suggestions.locator("[role=option] > span + span")
+    assert [note.evaluate(_TEXT_RECT_COUNT) for note in notes.all()] == [1] * notes.count()
+    # a kind above its options sits on their text edge
+    title = suggestions.locator("[role=option] > span").first
+    kind = suggestions.locator(".autocomplete-kind").first
+    assert kind.evaluate(_TEXT_EDGE) == pytest.approx(title.bounding_box()["x"], abs=0.5)  # type: ignore[index]
+    # the list ends within the viewport, and the option the keys reach is scrolled into it
+    for _ in range(suggestions.locator("[role=option]").count()):
+        page.keyboard.press("ArrowDown")
+        box = suggestions.bounding_box()
+        marked = suggestions.locator("[aria-selected=true]").bounding_box()
+        assert box and marked
+        assert box["y"] + box["height"] <= 667
+        assert box["y"] <= marked["y"]
+        assert marked["y"] + marked["height"] <= box["y"] + box["height"]
+    page.context.close()
+
+
+def test_a_suggestion_kind_beside_its_options_shares_their_baseline(
+    browser: Browser, live_workbench: str
+) -> None:
+    page = _suggested_lager(browser, live_workbench, 1440, 900)
+    suggestions = page.locator(".autocomplete-list")
+    kind = suggestions.locator(".autocomplete-kind").first
+    title = suggestions.locator("[role=option] > span").first
+    assert kind.evaluate(_BASELINE) == pytest.approx(title.evaluate(_BASELINE), abs=0.5)
+    # the kind column starts on the text edge of the entry that spans the list
+    every = suggestions.locator(".autocomplete-all > span")
+    assert kind.evaluate(_TEXT_EDGE) == pytest.approx(every.bounding_box()["x"], abs=0.5)  # type: ignore[index]
+    page.context.close()
+
+
+def test_a_short_suggestion_list_ends_with_its_last_option(
+    browser: Browser, live_workbench: str
+) -> None:
+    page = _suggested_lager(browser, live_workbench, 1440, 900)
+    box = page.locator(".autocomplete-list").bounding_box()
+    last = page.locator(".autocomplete-all").bounding_box()
+    assert box and last
+    assert box["y"] + box["height"] - (last["y"] + last["height"]) < 20  # the panel's padding
+    page.context.close()
+
+
+def test_a_suggested_count_is_drawn_as_a_filter_menus_count(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # law C7: one renderer per fact type, and an Artikel's date is not a count
+    page = archivist_page
+    page.route("**/suggestions?*", long_suggestions)
+    page.goto(f"{live_workbench}{LIST}", wait_until="networkidle")
+    page.locator("#search-field").press_sequentially("lager")
+    suggestions = page.locator(".autocomplete-list")
+    expect(suggestions).to_be_visible()
+    look = "(el) => { const s = getComputedStyle(el); return [s.fontFamily, s.fontSize, s.fontVariantNumeric, s.color]; }"
+    menu_count = page.locator(".menu li > a > span").first
+    count = suggestions.locator(".autocomplete-count").first
+    date = suggestions.locator("[role=option] > .quiet").first
+    assert count.evaluate(look) == menu_count.evaluate(look)
+    assert date.evaluate(look) != menu_count.evaluate(look)
+    # at the option's end edge
+    gap = count.evaluate(
+        """(el) => {
+            const option = el.parentElement;
+            const end = option.getBoundingClientRect().right - parseFloat(getComputedStyle(option).paddingRight);
+            return end - el.getBoundingClientRect().right;
+        }"""
+    )
+    assert gap == pytest.approx(0, abs=0.5)
+
+
+def test_an_option_is_described_by_its_kind(archivist_page: Page, live_workbench: str) -> None:
+    page = archivist_page
+    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.locator("main #search-field").press_sequentially("meyer")
+    suggestions = page.locator(".autocomplete-list")
+    expect(suggestions).to_be_visible()
+    options = suggestions.locator("a[role=option]")
+    expect(options.nth(1)).to_have_accessible_description("Autor")
+    expect(options.nth(0)).to_have_accessible_description("Artikel")
+
+
+def test_the_suggestion_list_stays_open_while_a_refinement_is_fetched(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    field = page.locator("main #search-field")
+    field.press_sequentially("meye")
+    suggestions = page.locator(".autocomplete-list")
+    expect(suggestions).to_be_visible()
+    held: list[Route] = []
+    page.route(re.compile(r"/suggestions\?q=meyer$"), lambda route: held.append(route))
+    field.press_sequentially("r")
+    page.wait_for_timeout(400)  # past the debounce: the refinement's request is out, unanswered
+    expect(suggestions).to_be_visible()
+    held[0].continue_()
+    expect(page.locator("#search-field-suggestions-status")).to_have_text("3 Vorschläge")
+    expect(suggestions).to_be_visible()
+    # an answer with no option closes it
+    field.press_sequentially("zzzq")
+    expect(suggestions).to_be_hidden()
+    expect(field).to_have_attribute("aria-expanded", "false")
+
+
+def test_enter_after_typing_submits_though_the_open_list_had_a_marked_option(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    field = page.locator("main #search-field")
+    field.press_sequentially("meyer")
+    expect(page.locator(".autocomplete-list")).to_be_visible()
+    page.keyboard.press("ArrowDown")
+    expect(field).to_have_attribute("aria-activedescendant", re.compile("search-field-suggestions"))
+    page.route(re.compile(r"/suggestions\?q=meyers$"), lambda route: None)  # never answered
+    field.press_sequentially("s")  # the list on show is for "meyer": its mark is no longer Enter's
+    expect(field).not_to_have_attribute("aria-activedescendant", re.compile(".+"))
+    page.keyboard.press("Enter")
+    page.wait_for_url(re.compile(r"/articles\?q=meyers"))
+
+
 def test_tab_from_the_start_page_search_field_reaches_the_submit_button(
     archivist_page: Page, live_workbench: str
 ) -> None:
@@ -1491,9 +1654,10 @@ def test_a_stale_failed_request_leaves_the_newer_list_open(
     page.route("**/tags/suggestions*", hold_rx)
     field = page.locator("main #field-tags")
     field.press_sequentially("x")  # "rx": its request hangs
-    expect(page.locator(".autocomplete-list")).to_be_hidden()
+    expect(page.locator(".autocomplete-list")).to_be_visible()
     page.wait_for_timeout(300)  # past the debounce, the request is out
-    page.keyboard.press("Backspace")  # "r" again: a newer request, answered at once
+    with page.expect_response(re.compile(r"[?&]q=r(&|$)")):
+        page.keyboard.press("Backspace")  # "r" again: a newer request, answered at once
     expect(page.locator(".autocomplete-list")).to_be_visible()
     held[0].abort()  # the old request fails late
     page.wait_for_timeout(500)

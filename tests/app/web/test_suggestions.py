@@ -68,10 +68,10 @@ def test_an_entry_marks_the_first_match_and_leads_to_its_pick() -> None:
     article, creator = build("KÖNIG", {}, _page(1), {"creator": _counts(("Hans König", 1_234))})
     assert article == Group(
         "Artikel",
-        (Entry("", "König", "stein 0", reverse("article-detail", args=["U0"]), "1960"),),
+        (Entry("", "König", "stein 0", reverse("article-detail", args=["U0"]), date="1960"),),
     )
     (entry,) = creator.entries
-    assert (entry.before, entry.match, entry.after, entry.note) == ("Hans ", "König", "", "1.234")
+    assert (entry.before, entry.match, entry.after, entry.count) == ("Hans ", "König", "", "1.234")
 
 
 def test_a_value_pick_keeps_the_filters_and_drops_the_text() -> None:
@@ -130,7 +130,7 @@ def test_the_groups_and_the_all_link_stay_within_the_forms_filters(
     indexer.rebuild(corpus.store)
     response = client_as(Member(())).get("/suggestions?q=sommer&media_type=Foto(s)&page=3")
     _, creator = response.context["groups"]
-    assert [(e.before + e.match + e.after, e.note) for e in creator.entries] == [
+    assert [(e.before + e.match + e.after, e.count) for e in creator.entries] == [
         ("Anna Sommer", "1")
     ]
     assert parse_qs(urlparse(response.context["all_href"]).query) == {

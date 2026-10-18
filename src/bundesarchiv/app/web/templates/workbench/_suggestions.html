@@ -1,6 +1,8 @@
 {% comment %}
 The search field's suggestions, grouped by kind: combobox.js puts them in the field's list. Each
-option is a link: a pick follows it, and the last option leads to the list Enter would submit.
+option is a link: a pick follows it, and the last option leads to the list Enter would submit. An
+Artikel adds its date after the title; a value its article count at the end edge, as a filter menu's
+entry does (components.css, "panel entry"). The kind describes each option, so it is heard with it.
 Without JS the field just submits.
 {% endcomment %}
 {% for group in groups %}
@@ -9,10 +11,13 @@ Without JS the field just submits.
   <ul role="presentation">
     {% for entry in group.entries %}
     <li role="presentation">
-      <a role="option" tabindex="-1" aria-selected="false" href="{{ entry.href }}">
+      <a role="option" tabindex="-1" aria-selected="false" aria-describedby="suggest-kind-{{ forloop.parentloop.counter }}" href="{{ entry.href }}">
         <span>{{ entry.before }}{% if entry.match %}<mark>{{ entry.match }}</mark>{% endif %}{{ entry.after }}</span>
-        {% if entry.note %}
-        <span class="quiet">{{ entry.note }}</span>
+        {% if entry.date %}
+        <span class="quiet">{{ entry.date }}</span>
+        {% endif %}
+        {% if entry.count %}
+        <span class="autocomplete-count">{{ entry.count }}</span>
         {% endif %}
       </a>
     </li>

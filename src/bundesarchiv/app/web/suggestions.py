@@ -34,14 +34,15 @@ _LABELS = {field.name: field.label for field in card.FIELDS}
 
 @dataclass(frozen=True, slots=True)
 class Entry:
-    """One option: its words split around the first match of the text, where a pick leads, and a
-    quiet note (an Artikel's date, a value's count)."""
+    """One option: its words split around the first match of the text, where a pick leads, and what
+    it adds (an Artikel's date, a value's count)."""
 
     before: str
     match: str
     after: str
     href: str
-    note: str
+    date: str = ""
+    count: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,11 +51,11 @@ class Group:
     entries: tuple[Entry, ...]
 
 
-def _entry(text: str, words: str, href: str, note: str) -> Entry:
+def _entry(text: str, words: str, href: str, *, date: str = "", count: str = "") -> Entry:
     found = re.search(re.escape(text), words, re.IGNORECASE)
     if found is None:
-        return Entry(words, "", "", href, note)
-    return Entry(words[: found.start()], found[0], words[found.end() :], href, note)
+        return Entry(words, "", "", href, date, count)
+    return Entry(words[: found.start()], found[0], words[found.end() :], href, date, count)
 
 
 #: The value groups in their order: the field asked for, its label and the param a pick sets.
@@ -74,7 +75,7 @@ def _values(
     text: str, within: Mapping[str, str], counts: Sequence[FacetCount], param: str
 ) -> tuple[Entry, ...]:
     return tuple(
-        _entry(text, fc.value, preset_url(param, fc.value, within), vocab.count(fc.count))
+        _entry(text, fc.value, preset_url(param, fc.value, within), count=vocab.count(fc.count))
         for fc in counts[:_VALUES]
     )
 
@@ -89,7 +90,7 @@ def build(
     list ``within`` (the form's params) leads to, with that value set and without the text
     (ruling 2)."""
     articles = tuple(
-        _entry(text, h.title, reverse("article-detail", args=[h.ulid]), h.date_edtf or "")
+        _entry(text, h.title, reverse("article-detail", args=[h.ulid]), date=h.date_edtf or "")
         for h in page.hits[:_ARTICLES]
     )
     groups = (
