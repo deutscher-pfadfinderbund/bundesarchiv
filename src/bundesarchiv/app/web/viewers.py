@@ -29,8 +29,8 @@ from django.utils.cache import patch_vary_headers
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import landing, vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.app.web.keycloak import Tokens, refresh, verify_access
-from bundesarchiv.app.web.oidc import viewer_from_claims
+from bundesarchiv.app.web.keycloak import KeycloakRealm
+from bundesarchiv.app.web.oidc import Realm, Tokens, viewer_from_claims
 from bundesarchiv.app.web.panels import FormPanel, header_panels
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
@@ -129,6 +129,13 @@ def _switched_viewer(request: HttpRequest) -> Viewer | None:
     return _parse_viewer(payload) if payload is not None else None
 
 
+def realm() -> Realm:
+    """The login realm: ``settings.BUNDESARCHIV_REALM`` when set (dev and tests; the WSGI entry
+    refuses to serve with it), else Keycloak."""
+    configured: Realm | None = getattr(settings, "BUNDESARCHIV_REALM", None)
+    return configured if configured is not None else KeycloakRealm()
+
+
 def set_token_cookies(tokens: Tokens, response: HttpResponse) -> None:
     """Set both token cookies on ``response`` (ADR 0018)."""
     if len(tokens.access) > _COOKIE_WARN_LENGTH:
@@ -153,14 +160,15 @@ def _token_viewer(request: HttpRequest) -> Viewer | None:
     """The viewer of an OIDC login's token cookies, or ``None`` when they do not resolve to one. A
     rejected or missing access token is refreshed with the refresh cookie; the outcome waits on the
     request for ``TokenCookieMiddleware``."""
+    login = realm()
     access = request.COOKIES.get(ACCESS_COOKIE)
-    claims = verify_access(access) if access else None
+    claims = login.verify_access(access) if access else None
     if claims is not None:
         return viewer_from_claims(claims)
     refresh_token = request.COOKIES.get(REFRESH_COOKIE)
     if not refresh_token:
         return None
-    tokens = refresh(refresh_token)
+    tokens = login.refresh(refresh_token)
     setattr(request, _REFRESHED_ATTR, tokens)
     return viewer_from_claims(tokens.claims) if tokens is not None else None
 

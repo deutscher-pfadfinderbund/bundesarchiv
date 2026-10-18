@@ -1,18 +1,18 @@
 """OIDC viewers from the token cookies (ADR 0018): check, refresh, and what the response carries.
 
-The realm is faked at the two names ``viewers`` reaches it by (``verify_access``, ``refresh``);
-``viewer_of`` and ``TokenCookieMiddleware`` run for real.
+The tokens are the dev realm's (``BUNDESARCHIV_REALM``); ``viewer_of`` and ``TokenCookieMiddleware``
+run for real.
 """
 
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 
 import pytest
 from django.http import HttpRequest, HttpResponse
-from django.test import RequestFactory
+from django.test import RequestFactory, override_settings
+from tests.app.web._fixtures import DEV_KEY
 
-from bundesarchiv.app.web import viewers
-from bundesarchiv.app.web.keycloak import Tokens
+from bundesarchiv.app.web.dev_realm import Asked, DevRealm
 from bundesarchiv.app.web.viewers import (
     ACCESS_COOKIE,
     REFRESH_COOKIE,
@@ -27,29 +27,25 @@ _ARCHIVIST: Mapping[str, object] = {
     "realm_access": {"roles": ["Bundesarchiv"]},
 }
 _MEMBER: Mapping[str, object] = {"groups": ["/DPB/Bundesführung"]}
-_RENEWED = Tokens(access="access-2", refresh="refresh-2", claims=_ARCHIVIST, id_token=None)
-
-
-class _Realm:
-    def __init__(self) -> None:
-        self.valid: dict[str, Mapping[str, object]] = {}
-        self.refreshable: dict[str, Tokens] = {}
-        self.refreshed: list[str] = []
-
-    def verify_access(self, token: str) -> Mapping[str, object] | None:
-        return self.valid.get(token)
-
-    def refresh(self, token: str) -> Tokens | None:
-        self.refreshed.append(token)
-        return self.refreshable.get(token)
 
 
 @pytest.fixture
-def realm(monkeypatch: pytest.MonkeyPatch) -> _Realm:
-    fake = _Realm()
-    monkeypatch.setattr(viewers, "verify_access", fake.verify_access)
-    monkeypatch.setattr(viewers, "refresh", fake.refresh)
-    return fake
+def asked() -> Iterator[Asked]:
+    calls: Asked = []
+    with override_settings(
+        DEV_VIEWER_SIGNING_KEY=DEV_KEY, BUNDESARCHIV_REALM=DevRealm(asked=calls)
+    ):
+        yield calls
+
+
+def _refreshed(asked: Asked) -> list[str | None]:
+    return [args["refresh_token"] for name, args in asked if name == "refresh"]
+
+
+def _tokens(claims: Mapping[str, object] = _ARCHIVIST, *, lifetime: int = 60) -> tuple[str, str]:
+    tokens = DevRealm(lifetime=lifetime).mint_tokens(claims)
+    assert tokens is not None
+    return tokens.access, tokens.refresh
 
 
 def _served(
@@ -70,35 +66,30 @@ def _served(
     return seen["viewer"], response
 
 
-def test_a_valid_access_token_is_the_viewer(realm: _Realm) -> None:
-    realm.valid["access-1"] = _ARCHIVIST
-    viewer, response = _served({ACCESS_COOKIE: "access-1", REFRESH_COOKIE: "refresh-1"})
+def test_a_valid_access_token_is_the_viewer(asked: Asked) -> None:
+    access, refresh = _tokens()
+    viewer, response = _served({ACCESS_COOKIE: access, REFRESH_COOKIE: refresh})
     assert viewer == Archivist(username="anna")
-    assert realm.refreshed == []
+    assert _refreshed(asked) == []
     assert not response.cookies
 
 
-def test_groups_come_from_the_token(realm: _Realm) -> None:
-    realm.valid["access-1"] = _MEMBER
-    viewer, _ = _served({ACCESS_COOKIE: "access-1"})
+def test_groups_come_from_the_token(asked: Asked) -> None:
+    access, _ = _tokens(_MEMBER)
+    viewer, _ = _served({ACCESS_COOKIE: access})
     assert viewer == Member(groups=("/DPB/Bundesführung",))
 
 
 @pytest.mark.parametrize(
-    "cookies",
-    [
-        pytest.param({ACCESS_COOKIE: "expired", REFRESH_COOKIE: "refresh-1"}, id="expired-access"),
-        pytest.param({REFRESH_COOKIE: "refresh-1"}, id="no-access-cookie"),
-    ],
+    "expired_access", [True, False], ids=["expired-access", "no-access-cookie"]
 )
-def test_a_refresh_renews_the_viewer_and_both_cookies(
-    realm: _Realm, cookies: Mapping[str, str]
-) -> None:
-    realm.refreshable["refresh-1"] = _RENEWED
+def test_a_refresh_renews_the_viewer_and_both_cookies(asked: Asked, expired_access: bool) -> None:
+    expired, refresh = _tokens(lifetime=-1)
+    cookies = {REFRESH_COOKIE: refresh} | ({ACCESS_COOKIE: expired} if expired_access else {})
     viewer, response = _served(cookies)
     assert viewer == Archivist(username="anna")
-    assert response.cookies[ACCESS_COOKIE].value == "access-2"
-    assert response.cookies[REFRESH_COOKIE].value == "refresh-2"
+    assert DevRealm().verify_access(response.cookies[ACCESS_COOKIE].value) is not None
+    assert DevRealm().refresh(response.cookies[REFRESH_COOKIE].value) is not None
     for name in (ACCESS_COOKIE, REFRESH_COOKIE):
         morsel = response.cookies[name]
         assert morsel["httponly"] and morsel["secure"] and morsel["samesite"] == "Lax"
@@ -107,47 +98,46 @@ def test_a_refresh_renews_the_viewer_and_both_cookies(
         assert name.startswith("__Host-") and morsel["path"] == "/" and not morsel["domain"]
 
 
-def test_a_failed_refresh_is_public_and_drops_both_cookies(realm: _Realm) -> None:
-    viewer, response = _served({ACCESS_COOKIE: "expired", REFRESH_COOKIE: "revoked"})
+def test_a_failed_refresh_is_public_and_drops_both_cookies(asked: Asked) -> None:
+    expired, _ = _tokens(lifetime=-1)
+    viewer, response = _served({ACCESS_COOKIE: expired, REFRESH_COOKIE: "revoked"})
     assert viewer == Public()
     assert response.cookies[ACCESS_COOKIE].value == ""
     assert response.cookies[REFRESH_COOKIE].value == ""
 
 
-def test_no_token_cookies_touch_nothing(realm: _Realm) -> None:
+def test_no_token_cookies_touch_nothing(asked: Asked) -> None:
     viewer, response = _served({})
     assert viewer == Public()
-    assert realm.refreshed == []
+    assert _refreshed(asked) == []
     assert not response.cookies
 
 
-def test_one_request_refreshes_at_most_once(realm: _Realm) -> None:
-    realm.refreshable["refresh-1"] = _RENEWED
-    _served({REFRESH_COOKIE: "refresh-1"})
-    assert realm.refreshed == ["refresh-1"]
+def test_one_request_refreshes_at_most_once(asked: Asked) -> None:
+    _, refresh = _tokens()
+    _served({REFRESH_COOKIE: refresh})
+    assert _refreshed(asked) == [refresh]
 
 
-def test_a_view_that_sets_its_own_token_cookies_wins(realm: _Realm) -> None:
+def test_a_view_that_sets_its_own_token_cookies_wins(asked: Asked) -> None:
     """Logout deletes the cookies; a refresh during the same request may not bring them back."""
-    realm.refreshable["refresh-1"] = _RENEWED
+    _, refresh = _tokens()
 
     def logout_like(_request: HttpRequest) -> HttpResponse:
         response = HttpResponse()
         delete_token_cookies(response)
         return response
 
-    _, response = _served({REFRESH_COOKIE: "refresh-1"}, logout_like)
+    _, response = _served({REFRESH_COOKIE: refresh}, logout_like)
     assert response.cookies[ACCESS_COOKIE].value == ""
     assert response.cookies[REFRESH_COOKIE].value == ""
 
 
 def test_an_oversized_access_token_is_logged(
-    realm: _Realm, caplog: pytest.LogCaptureFixture
+    asked: Asked, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Browsers drop a cookie over 4 kB without a word; every request would then refresh."""
-    realm.refreshable["refresh-1"] = Tokens(
-        access="x" * 4001, refresh="refresh-2", claims=_ARCHIVIST, id_token=None
-    )
+    _, refresh = _tokens({**_ARCHIVIST, "padding": "x" * 4000})
     with caplog.at_level(logging.WARNING, logger="bundesarchiv.app.web.viewers"):
-        _served({REFRESH_COOKIE: "refresh-1"})
-    assert "4001" in caplog.text
+        _, response = _served({REFRESH_COOKIE: refresh})
+    assert str(len(response.cookies[ACCESS_COOKIE].value)) in caplog.text

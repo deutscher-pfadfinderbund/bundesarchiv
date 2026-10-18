@@ -12,10 +12,10 @@ An archivist gate is `isinstance(viewer_of(request), Archivist)`, and a write ro
 Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `test_changed_by.py`
 and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 
-- `viewers.py` — Viewer, request kind, responses · interface: `viewer_of`, `request_kind`, `render_screen`, `redirect_to`, `panel_response`, `TokenCookieMiddleware` · tests: `test_*viewer*.py`, `test_request_kind.py`
+- `viewers.py` — Viewer, request kind, responses · interface: `viewer_of`, `realm`, `request_kind`, `render_screen`, `panel_response`, `TokenCookieMiddleware` · tests: `test_*viewer*.py`, `test_request_kind.py`
 - `auth_views.py` — the login surface: Keycloak in, two token cookies out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect` · tests: `tests/app/web/test_auth_views.py`
-- `keycloak.py` — the ONE place that talks to the realm; failure is `None` (ADR 0018) · interface: `authorization_url`, `verify_access`, `fetch_tokens`, `refresh`, `logout_url` · tests: `tests/app/web/test_keycloak_*.py`
-- `oidc.py` — validated OIDC claims → Viewer, least privilege on an unknown shape · interface: `viewer_from_claims`, `ARCHIVIST_REALM_ROLE` · tests: `tests/app/web/test_oidc_claims.py`
+- `keycloak.py` — the `Realm` adapter, the ONE place that talks to Keycloak; caches per URL (ADR 0018) · interface: `KeycloakRealm` · tests: `tests/app/web/test_keycloak_*.py`
+- `oidc.py` — the OIDC seam: the `Realm` port, its `Tokens`, claims → Viewer · interface: `Realm`, `Tokens`, `viewer_from_claims`, `ARCHIVIST_REALM_ROLE` · tests: `test_oidc_claims.py`, `test_auth_views.py`
 - `anonymous_gate.py` — the anonymous gate: one middleware check, never a per-view decorator (ADR 0018) · interface: `AnonymousGateMiddleware` · tests: `tests/app/web/test_anonymous_gate.py`
 - `slow_requests.py` — one WARNING record per request over `BUNDESARCHIV_SLOW_REQUEST_MS`, by route name · interface: `SlowRequestMiddleware` · tests: `tests/app/web/test_slow_requests.py`
 - `legacy_params.py` — a GET or HEAD naming an old German query param or value gets a 301 to its English URL · interface: `LegacyParamsMiddleware` · tests: `tests/app/web/test_legacy_params.py`
@@ -42,4 +42,4 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `collection_chooser.py` — per-request Collection chooser · interface: `CollectionChooser.of` + `options`/`resolve`/`accepts`/`error`/`name_of`/`names`/`by_ulid`/`chain_of` · tests: `test_collection_chooser.py`
 - `theme.py` — the viewer's light/dark choice: the "theme" cookie (theme.js) as the render's scheme · interface: `theme` (context processor), `COOKIE` · tests: `tests/app/web/test_theme.py`
 
-Internal: `dev.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`
+Internal: `dev.py`, `dev_realm.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`

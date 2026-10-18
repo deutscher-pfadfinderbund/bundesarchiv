@@ -46,6 +46,7 @@ UNREFERENCED: dict[str, str] = {
     "bundesarchiv/app/apps.py:AppServicesConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/index/apps.py:IndexConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/app/push_record.py:InMemoryPushRecord": "test fake",
+    "bundesarchiv/app/web/dev_realm.py:DevRealm": "test fake",
     "bundesarchiv/index/refresh.py:InMemoryIndex": "test fake",
     "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore": "test fake",
 }
@@ -180,18 +181,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         _DEBT,
     ),
     "app/web/conftest.py:recording_store:bundesarchiv.app.archive.Archive.canonical": (1, _DEBT),
-    "app/web/test_auth_views.py:keycloak:bundesarchiv.app.web.auth_views.authorization_url": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_auth_views.py:keycloak:bundesarchiv.app.web.auth_views.fetch_tokens": (1, _DEBT),
-    "app/web/test_auth_views.py:keycloak:bundesarchiv.app.web.auth_views.logout_url": (1, _DEBT),
-    "app/web/test_auth_views.py:keycloak:bundesarchiv.app.web.viewers.verify_access": (1, _DEBT),
-    "app/web/test_auth_views.py:keycloak:bundesarchiv.app.web.viewers.refresh": (1, _DEBT),
-    "app/web/test_auth_views.py:test_callback_denies_an_expired_state_cookie:bundesarchiv.app.web.auth_views._STATE_MAX_AGE": (
-        1,
-        _DEBT,
-    ),
     "app/web/test_bulk.py:test_apply_bulk_conflict_buckets_and_does_not_abort:bundesarchiv.app.articles.save_article": (
         1,
         _RACE,
@@ -240,26 +229,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _CRASH,
     ),
-    "app/web/test_keycloak_discovery.py:test_a_token_response_without_a_refresh_token_logs_nobody_in:bundesarchiv.app.web.keycloak.verify_access": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_keycloak_discovery.py:test_a_token_response_whose_access_token_fails_the_check_logs_nobody_in:bundesarchiv.app.web.keycloak.verify_access": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_keycloak_discovery.py:_logout_realm:bundesarchiv.app.web.keycloak.refresh": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_keycloak_discovery.py:_logout_realm:bundesarchiv.app.web.keycloak._revoke": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_keycloak_tokens.py:test_a_refresh_answer_that_is_not_an_object_is_a_failed_refresh:bundesarchiv.app.web.keycloak.OAuth2Client": (
-        1,
-        _DEBT,
-    ),
     "app/web/test_leak_matrix.py:test_route_tier_matrix:bundesarchiv.app.web.browse_views.search": (
         1,
         _DEBT,
@@ -288,8 +257,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _DEBT,
     ),
-    "app/web/test_token_viewer.py:realm:bundesarchiv.app.web.viewers.verify_access": (1, _DEBT),
-    "app/web/test_token_viewer.py:realm:bundesarchiv.app.web.viewers.refresh": (1, _DEBT),
     "app/web/test_viewer_of.py:test_expired_cookie_is_public:bundesarchiv.app.web.viewers._DEV_VIEWER_MAX_AGE": (
         1,
         _DEBT,
