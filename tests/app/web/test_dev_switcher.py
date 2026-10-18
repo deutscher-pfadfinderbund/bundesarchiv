@@ -120,9 +120,8 @@ def test_a_bookmark_starts_a_login() -> None:
 def test_the_answer_carries_its_csrf_token_so_it_works_under_enforcement() -> None:
     client = Client(enforce_csrf_checks=True)
     flow = _flow(client)
-    client.get(_PAGE, flow)
-    token = client.cookies["csrftoken"].value
-    response = client.post(_PAGE, {**flow, "kind": "archivist", "csrfmiddlewaretoken": token})
+    ((_, fields),) = page_forms(client.get(_PAGE, flow).content.decode())
+    response = client.post(_PAGE, {**fields, "kind": "archivist"})
     assert response.status_code == 302  # accepted (a missing token would be 403)
 
 
