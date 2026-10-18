@@ -361,7 +361,7 @@ Management commands print plain text for humans.
 Always present: `timestamp` (ISO 8601 UTC), `level`, `logger`, `message`. Every key passed as
 `extra` is a top-level field. A traceback is the one string field `exc_info`. All text is English.
 
-- **Mirror job summary** (logger `bundesarchiv.app.tasks`, one per `mirror_reconcile`, `mirror_push`,
+- **Mirror job summary** (logger `bundesarchiv.app.jobs`, one per `mirror_reconcile`, `mirror_push`,
   `mirror_delete_article`): `task`, `outcome` (`ok` at INFO, `failed` at ERROR), `seconds`, and
   `exception_class` + `exc_info` on failure. `mirror_push` adds `ulid`, `sent`, `sent_bytes`;
   `mirror_delete_article` adds `ulid`; `mirror_reconcile` adds `sent`, `sent_bytes`, `recorded`,

@@ -47,7 +47,6 @@ UNREFERENCED: dict[str, str] = {
     "bundesarchiv/index/apps.py:IndexConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/app/push_record.py:InMemoryPushRecord": "test fake",
     "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore": "test fake",
-    "bundesarchiv/app/tasks.py:mirror_reconcile": "Procrastinate task, run by name",
     "bundesarchiv/app/tasks.py:run_worker_once_in_test": "test hook, called from tests only",
 }
 
@@ -248,97 +247,9 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         2,
         _RACE,
     ),
-    "app/test_tasks.py:test_reindex_article_job_recomputes_from_current_canonical:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_the_reconcile_job_rebuilds_everything:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_the_reconcile_job_logs_the_archive_stats_and_survives_their_failure:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
     "app/test_tasks.py:test_the_reconcile_job_logs_the_archive_stats_and_survives_their_failure:bundesarchiv.app.stats.log_archive_stats": (
         1,
         _CRASH,
-    ),
-    "app/test_tasks.py:test_reindex_subtree_job_recomputes_subtree:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_worker_execution_smoke_runs_deferred_reindex_article:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_generate_thumbnail_task_derives_from_canonical:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_the_push_job_pushes_the_saved_record_and_notes_it:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_the_push_job_pushes_the_saved_record_and_notes_it:bundesarchiv.app.tasks.mirror_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_mirror_push_task_is_noop_when_mirror_unset:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_mirror_push_task_is_noop_when_mirror_unset:bundesarchiv.app.tasks.mirror_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_the_reconcile_job_returns_how_many_keys_each_finding_holds:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_the_reconcile_job_returns_how_many_keys_each_finding_holds:bundesarchiv.app.tasks.mirror_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_mirror_reconcile_task_is_noop_when_mirror_unset:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_mirror_reconcile_task_is_noop_when_mirror_unset:bundesarchiv.app.tasks.mirror_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_mirror_push_worker_execution_smoke:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_mirror_push_worker_execution_smoke:bundesarchiv.app.tasks.mirror_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_a_hard_delete_reaches_the_system_of_record_through_the_worker:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_a_hard_delete_reaches_the_system_of_record_through_the_worker:bundesarchiv.app.tasks.mirror_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_the_reconcile_job_logs_one_summary_record:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_the_reconcile_job_logs_one_summary_record:bundesarchiv.app.tasks.mirror_store": (
-        1,
-        _DEBT,
-    ),
-    "app/test_tasks.py:test_a_failed_push_logs_its_summary_with_the_exception_class_and_still_raises:bundesarchiv.app.tasks.canonical_store": (
-        1,
-        _CRASH,
-    ),
-    "app/test_tasks.py:test_a_failed_push_logs_its_summary_with_the_exception_class_and_still_raises:bundesarchiv.app.tasks.mirror_store": (
-        1,
-        _DEBT,
     ),
     "app/test_thumbnails.py:test_a_request_that_waited_on_the_lock_takes_its_peers_version:bundesarchiv.app.thumbnails._derive_lock": (
         1,

@@ -1,9 +1,13 @@
-"""The worker jobs: references (a ulid), never payloads, so a run re-reads canonical (ADR 0014)."""
+"""The worker jobs: references (a ulid), never payloads, so a run re-reads canonical (ADR 0014).
+The task shells run over a canonical root on disk; the jobs over an in-memory archive."""
 
+import contextlib
 import io
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
+from urllib.parse import urlsplit
 
+import httpx2
 import pytest
 from django.core.management.base import CommandError
 from django.test import override_settings
@@ -11,7 +15,9 @@ from PIL import Image
 from tests._pdfs import text_pdf
 from tests._queue import queued
 
+from bundesarchiv.app import jobs
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.push_record import InMemoryPushRecord, PostgresPushRecord
 from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.domain.models import (
     Article,
@@ -23,14 +29,14 @@ from bundesarchiv.domain.models import (
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
+from bundesarchiv.persistence.errors import ArchiveError
+from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
 _MIRROR = "http://mirror.example/dav/"
 
 
-@pytest.fixture
-def store() -> InMemoryObjectStore:
-    store = InMemoryObjectStore()
+def _seeded[S: ObjectStore](store: S) -> S:
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
     collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester")
@@ -49,17 +55,42 @@ def store() -> InMemoryObjectStore:
     return store
 
 
+@pytest.fixture
+def store() -> InMemoryObjectStore:
+    return _seeded(InMemoryObjectStore())
+
+
+@pytest.fixture
+def canonical(tmp_path: Path) -> Iterator[ObjectStore]:
+    """The seeded archive where the task shells find it: ``Archive.canonical()``."""
+    with override_settings(BUNDESARCHIV_CANONICAL_ROOT=str(tmp_path / "canonical")):
+        yield _seeded(Archive.canonical().store)
+
+
+def _fake_dav(
+    monkeypatch: pytest.MonkeyPatch, answer: Callable[[httpx2.Request], httpx2.Response]
+) -> list[httpx2.Client]:
+    """Every client ``tasks.mirror_store`` builds gets its answers from ``answer``, not the
+    network; returns the clients built."""
+    built: list[httpx2.Client] = []
+    real = httpx2.Client
+
+    def client(**kwargs: object) -> httpx2.Client:
+        made = real(transport=httpx2.MockTransport(answer), **kwargs)  # type: ignore[arg-type]
+        built.append(made)
+        return made
+
+    monkeypatch.setattr(httpx2, "Client", client)
+    return built
+
+
 @pytest.mark.django_db
-def test_reindex_article_job_recomputes_from_current_canonical(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_reindex_article_job_recomputes_from_current_canonical(canonical: ObjectStore) -> None:
     import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.index.models import ArticleIndex
 
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-
     # (Job conceptually enqueued here for 01FOTO at PUBLIC.) Now canonical changes:
-    articles = ArticleRepository(store)
+    articles = ArticleRepository(canonical)
     stored = articles.load("01FOTO")
     articles.save(
         Article(
@@ -80,54 +111,38 @@ def test_reindex_article_job_recomputes_from_current_canonical(
 
 
 @pytest.mark.django_db
-def test_the_reconcile_job_rebuilds_everything(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import bundesarchiv.app.tasks as tasks_mod
-    from bundesarchiv.index.models import ArticleIndex
-
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-    tasks_mod.reconcile.func(timestamp=0)
-    assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
-
-
-@pytest.mark.django_db
 def test_the_reconcile_job_logs_the_archive_stats_and_survives_their_failure(
     store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.app import stats
+    from bundesarchiv.index.models import ArticleIndex
 
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    netted: list[Archive] = []
     with caplog.at_level("INFO", logger="bundesarchiv.app.stats"):
-        tasks_mod.reconcile.func(timestamp=0)
+        jobs.reconcile(Archive.of(store), netted.append)
     assert [r.getMessage() for r in caplog.records] == ["archive stats"]
+    assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
     monkeypatch.setattr(stats, "log_archive_stats", lambda _: 1 / 0)
-    tasks_mod.reconcile.func(timestamp=0)  # the rebuild stands; the failure is logged
+    jobs.reconcile(Archive.of(store), netted.append)
+    assert len(netted) == 2  # the page-text net still ran
 
 
 @pytest.mark.django_db
-def test_reindex_subtree_job_recomputes_subtree(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_reindex_subtree_job_recomputes_subtree(canonical: ObjectStore) -> None:
     import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.index.models import ArticleIndex
 
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
     tasks_mod.reindex_subtree.func(collection_ulid="FOTOS")
     assert ArticleIndex.objects.get(ulid="01FOTO").tier == "PUBLIC"
 
 
 @pytest.mark.django_db(transaction=True)
-def test_worker_execution_smoke_runs_deferred_reindex_article(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_worker_execution_smoke_runs_deferred_reindex_article(canonical: ObjectStore) -> None:
     """``transaction=True``: the worker commits the task's write in its own transaction, outside pytest-django's per-test rollback, so the row would leak into later tests."""
     import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.index.models import ArticleIndex
 
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
     result = tasks_mod.run_worker_once_in_test(defer=lambda: enqueue_test_article())
     # After the one-shot drain, the deferred reindex_article has executed:
     assert ArticleIndex.objects.get(ulid="01FOTO").tier == "PUBLIC"
@@ -141,18 +156,17 @@ def enqueue_test_article() -> None:
     reindex_article.defer(ulid="01FOTO")
 
 
-def test_generate_thumbnail_task_derives_from_canonical(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_generate_thumbnail_task_derives_from_canonical(tmp_path: Path) -> None:
     import bundesarchiv.app.tasks as tasks_mod
 
-    store = InMemoryObjectStore()
-    articles = ArticleRepository(store)
-    ref = articles.add_media("A1", "p.png", io.BytesIO(_png_bytes()), media_type="image/png")
-    articles.save(Article("A1", "Bild", "FOTOS", media=(ref,)), 0, changed_by="tester")
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
     thumbs = tmp_path / "thumbs"
-    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+    with override_settings(
+        BUNDESARCHIV_CANONICAL_ROOT=str(tmp_path / "canonical"),
+        BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs),
+    ):
+        articles = Archive.canonical().articles
+        ref = articles.add_media("A1", "p.png", io.BytesIO(_png_bytes()), media_type="image/png")
+        articles.save(Article("A1", "Bild", "FOTOS", media=(ref,)), 0, changed_by="tester")
         tasks_mod.generate_thumbnail.func(ulid="A1", content_hash=ref.content_hash)
     out = thumbnail_path(thumbs, ref.content_hash)
     assert out.is_file()
@@ -182,56 +196,39 @@ def test_the_monthly_verify_fails_its_job_when_it_finds_something(tmp_path: Path
 # ---------------------------------------------------------------------------
 
 
-def test_mirror_store_is_none_when_url_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mirror_store_is_none_when_url_unset() -> None:
     import bundesarchiv.app.tasks as tasks_mod
 
     with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=None):
         assert tasks_mod.mirror_store() is None
 
 
-@pytest.mark.django_db
-def test_the_push_job_pushes_the_saved_record_and_notes_it(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import bundesarchiv.app.tasks as tasks_mod
-    from bundesarchiv.app.push_record import PostgresPushRecord
+def test_the_push_job_pushes_the_saved_record_and_notes_it(store: InMemoryObjectStore) -> None:
+    remote, record = InMemoryObjectStore(), InMemoryPushRecord()
 
-    remote = InMemoryObjectStore()
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
-
-    tasks_mod.mirror_push.func(ulid="01FOTO")
+    jobs.mirror_push(Archive.of(store), remote, record, "01FOTO")
 
     (readme,) = (key.key for key in ArticleRepository(store).keys_for("01FOTO"))
     assert remote.read(readme) == store.read(readme)
-    assert PostgresPushRecord().held([readme]).keys() == {readme}
+    assert record.held([readme]).keys() == {readme}
 
 
-def test_mirror_push_task_is_noop_when_mirror_unset(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """No mirror configured -> the job returns for a saved Article without touching anything: no
-    remote, no push record (this test has no database)."""
+def test_mirror_push_task_is_noop_when_mirror_unset() -> None:
+    """No mirror configured -> the job returns without touching anything: no remote, no push
+    record (this test has no database)."""
     import bundesarchiv.app.tasks as tasks_mod
 
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: None)
-
-    tasks_mod.mirror_push.func(ulid="01FOTO")
+    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=None):
+        tasks_mod.mirror_push.func(ulid="01FOTO")
 
 
-@pytest.mark.django_db
 def test_the_reconcile_job_returns_how_many_keys_each_finding_holds(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    store: InMemoryObjectStore,
 ) -> None:
-    import bundesarchiv.app.tasks as tasks_mod
-
     remote = InMemoryObjectStore()
     remote.write_atomic("Notizen/liste.txt", b"not the app's")
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
 
-    counts = tasks_mod.mirror_reconcile.func()
+    counts = jobs.mirror_reconcile(Archive.of(store), remote, InMemoryPushRecord())
 
     assert counts == {
         "sent": len(list(store.list())),
@@ -244,14 +241,28 @@ def test_the_reconcile_job_returns_how_many_keys_each_finding_holds(
     }
 
 
-def test_mirror_reconcile_task_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mirror_reconcile_task_is_noop_when_mirror_unset() -> None:
     """No mirror configured -> the reconcile is a clean no-op that says it skipped."""
     import bundesarchiv.app.tasks as tasks_mod
 
-    monkeypatch.setattr(tasks_mod, "canonical_store", InMemoryObjectStore)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: None)
+    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=None):
+        assert tasks_mod.mirror_reconcile.func() == {"skipped": True}
 
-    assert tasks_mod.mirror_reconcile.func() == {"skipped": True}
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("status", [404, 500])
+def test_a_mirror_task_closes_the_remote_it_built_whether_the_job_succeeds_or_fails(
+    canonical: ObjectStore, monkeypatch: pytest.MonkeyPatch, status: int
+) -> None:
+    import bundesarchiv.app.tasks as tasks_mod
+
+    built = _fake_dav(monkeypatch, lambda _request: httpx2.Response(status))
+    fails = pytest.raises(ArchiveError) if status == 500 else contextlib.nullcontext()
+    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=_MIRROR), fails:
+        tasks_mod.mirror_delete_article.func(ulid="01FOTO")
+
+    (client,) = built
+    assert client.is_closed
 
 
 def _queued(enqueue: Callable[[], None], *, mirror: str | None) -> list[tuple[str, str]]:
@@ -272,8 +283,6 @@ def test_enqueue_mirror_push_is_noop_when_mirror_unset() -> None:
 
 
 def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    import httpx2
-
     import bundesarchiv.app.tasks as tasks_mod
 
     def _boom(*_args: object, **_kw: object) -> None:
@@ -306,66 +315,55 @@ def test_saves_of_one_record_share_one_queued_push_and_never_hold_back_its_delet
 
 
 @pytest.mark.django_db(transaction=True)
-def test_mirror_push_worker_execution_smoke(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """``transaction=True``: the job writes the push record in its own transaction, as in the reindex smoke."""
-    import bundesarchiv.app.tasks as tasks_mod
-
-    remote = InMemoryObjectStore()
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
-
-    def defer() -> None:
-        tasks_mod.mirror_push.defer(ulid="01FOTO")
-
-    processed = tasks_mod.run_worker_once_in_test(defer=defer)
-
-    assert list(remote.list()) == list(store.list("articles/"))
-    assert processed >= 1
-
-
-@pytest.mark.django_db(transaction=True)
 def test_a_hard_delete_reaches_the_system_of_record_through_the_worker(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    canonical: ObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The service enqueues the delete, the worker runs it: the Article's folder goes from the
-    system of record, and its rows from the push record. ``transaction=True`` as in the push
+    system of record, and its rows from the push record. ``transaction=True`` as in the reindex
     smoke."""
     import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.app.articles import hard_delete_article
-    from bundesarchiv.app.push_record import PostgresPushRecord
 
-    remote = InMemoryObjectStore()
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
-    tasks_mod.mirror_reconcile.func()
+    archive = Archive.canonical()
+    jobs.mirror_reconcile(archive, InMemoryObjectStore(), PostgresPushRecord())
+    sent: list[tuple[str, str]] = []
+
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        sent.append((request.method, request.url.path))
+        if request.method == "PROPFIND":  # the folder is there
+            return httpx2.Response(207, content=_collection(request.url.path))
+        return httpx2.Response(204)
+
+    _fake_dav(monkeypatch, answer)
 
     def delete() -> None:
-        archive = Archive.of(store)
         hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
 
-    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/"):
+    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=_MIRROR):
         tasks_mod.run_worker_once_in_test(defer=delete)
 
-    assert list(remote.list()) == list(store.list())
-    assert PostgresPushRecord().entries().keys() == set(store.list())
+    folder = urlsplit(_MIRROR).path + archive.articles.folder("01FOTO")
+    assert [path for method, path in sent if method == "DELETE"] == [folder]
+    assert PostgresPushRecord().entries().keys() == set(canonical.list())
 
 
-@pytest.mark.django_db
+def _collection(path: str) -> bytes:
+    """A WebDAV multistatus naming ``path`` as one collection."""
+    return (
+        f'<multistatus xmlns="DAV:"><response><href>{path}/</href><propstat><prop><resourcetype>'
+        "<collection/></resourcetype></prop></propstat></response></multistatus>"
+    ).encode()
+
+
 def test_the_reconcile_job_logs_one_summary_record(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    store: InMemoryObjectStore, caplog: pytest.LogCaptureFixture
 ) -> None:
-    import bundesarchiv.app.tasks as tasks_mod
+    with caplog.at_level("INFO", logger=jobs.__name__):
+        counts = jobs.mirror_reconcile(
+            Archive.of(store), InMemoryObjectStore(), InMemoryPushRecord()
+        )
 
-    remote = InMemoryObjectStore()
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
-
-    with caplog.at_level("INFO", logger="bundesarchiv.app.tasks"):
-        counts = tasks_mod.mirror_reconcile.func()
-
-    (record,) = (r for r in caplog.records if r.name == "bundesarchiv.app.tasks")
+    (record,) = (r for r in caplog.records if r.name == jobs.__name__)
     fields = vars(record)
     assert (record.levelname, fields["task"], fields["outcome"]) == (
         "INFO",
@@ -379,13 +377,9 @@ def test_the_reconcile_job_logs_one_summary_record(
     assert fields["seconds"] >= 0
 
 
-@pytest.mark.django_db
 def test_a_failed_push_logs_its_summary_with_the_exception_class_and_still_raises(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    store: InMemoryObjectStore, caplog: pytest.LogCaptureFixture
 ) -> None:
-    import bundesarchiv.app.tasks as tasks_mod
-    from bundesarchiv.persistence.errors import ArchiveError
-
     class Broken(InMemoryObjectStore):
         def create_large(self, key: str, stream: object, size: int) -> str:
             raise ArchiveError("down")
@@ -393,13 +387,10 @@ def test_a_failed_push_logs_its_summary_with_the_exception_class_and_still_raise
         def write_atomic(self, key: str, data: bytes) -> str:
             raise ArchiveError("down")
 
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-    monkeypatch.setattr(tasks_mod, "mirror_store", Broken)
+    with caplog.at_level("INFO", logger=jobs.__name__), pytest.raises(ArchiveError):
+        jobs.mirror_push(Archive.of(store), Broken(), InMemoryPushRecord(), "01FOTO")
 
-    with caplog.at_level("INFO", logger="bundesarchiv.app.tasks"), pytest.raises(ArchiveError):
-        tasks_mod.mirror_push.func(ulid="01FOTO")
-
-    (record,) = (r for r in caplog.records if r.name == "bundesarchiv.app.tasks")
+    (record,) = (r for r in caplog.records if r.name == jobs.__name__)
     fields = vars(record)
     assert (record.levelname, fields["outcome"], fields["exception_class"], fields["ulid"]) == (
         "ERROR",
