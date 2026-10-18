@@ -3,6 +3,7 @@
 What each tier is offered is ``tests/index/test_leaks_suggestions.py``'s.
 """
 
+import re
 from collections.abc import Callable
 from urllib.parse import parse_qs, urlparse
 
@@ -137,3 +138,18 @@ def test_the_groups_and_the_all_link_stay_within_the_forms_filters(
         "q": ["sommer"],
         "media_type": ["Foto(s)"],
     }
+
+
+@pytest.mark.parametrize("path", ["/", "/articles"])
+@pytest.mark.parametrize(
+    ("viewer", "asks"),
+    [(Public(), False), (Member(()), True)],
+    ids=["public", "member"],
+)
+def test_only_a_signed_in_viewers_search_field_asks_for_suggestions(
+    db: None, corpus: Corpus, path: str, viewer: Public | Member, asks: bool
+) -> None:
+    response = client_as(viewer).get(path)
+    assert response.status_code == 200
+    (field,) = re.findall(r'<input[^>]*id="search-field"[^>]*>', response.content.decode())
+    assert ("data-suggest=" in field) is asks
