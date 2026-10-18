@@ -4,12 +4,14 @@ Fail-closed (ADR 0012): an Article that cannot be resolved or decoded gets an ar
 never a guessed visibility.
 """
 
+import datetime
 import logging
 import mimetypes
 import re
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from typing import TypedDict
 
 from django.db import connection, transaction
 from django.db.models import F, Func
@@ -77,10 +79,51 @@ def _archivist_text(article: Article) -> str:
     return " ".join([article.physical_location or "", *custom_values]).strip()
 
 
-def build_row(article: Article, chain: ResolvedChain, *, cap_year: int) -> dict[str, object]:
+class _ContentRow(TypedDict):
+    ulid: ULID
+    title: str
+    body: str
+    creator: str | None
+    subject_place: str | None
+    ref_code: str | None
+    media_type: str | None
+    document_type: str | None
+    tags: list[str]
+    archivist_text: str
+    is_draft: bool
+    is_template: bool
+    added_at: datetime.datetime | None
+    deleted_at: datetime.datetime | None
+    deleted_by: str | None
+    file_counts: dict[str, int]
+    media_hashes: list[str]
+    date_edtf: str | None
+    date_earliest: datetime.date | None
+    date_latest: datetime.date | None
+    decades: list[int]
+    collection_id: ULID
+    collection_ancestors: list[ULID]
+    config_version: int
+
+
+class _ScopeRow(TypedDict):
+    archivist_only: bool
+    tier: str | None
+    groups: list[str]
+
+
+class IndexRow(_ContentRow, _ScopeRow):
+    """Every column the indexer writes to an ``ArticleIndex`` row; the database fills the rest. An
+    upsert writes only the keys given, so a missing key would keep the old row's value, a scope
+    column's included (ADR 0012): every key is required."""
+
+
+def build_row(article: Article, chain: ResolvedChain, *, cap_year: int) -> IndexRow:
     ancestors = [c.ulid for c in chain.collections]
     scope = _scope_columns(effective_audience(article, chain))
-    return _content_columns(article, ancestors=ancestors, cap_year=cap_year) | _scope_dict(scope)
+    return IndexRow(
+        **_content_columns(article, ancestors=ancestors, cap_year=cap_year), **_scope_dict(scope)
+    )
 
 
 def _body_text(article: Article) -> str:
@@ -115,9 +158,7 @@ def _file_counts(article: Article) -> dict[str, int]:
     return dict(Counter(file_kind(ref).value for ref in article.media))
 
 
-def _content_columns(
-    article: Article, *, ancestors: list[ULID], cap_year: int
-) -> dict[str, object]:
+def _content_columns(article: Article, *, ancestors: list[ULID], cap_year: int) -> _ContentRow:
     earliest, latest, decades = _date_columns(article, cap_year=cap_year)
     return {
         "ulid": article.ulid,
@@ -147,7 +188,7 @@ def _content_columns(
     }
 
 
-def _scope_dict(scope: ScopeColumns) -> dict[str, object]:
+def _scope_dict(scope: ScopeColumns) -> _ScopeRow:
     return {
         "archivist_only": scope.archivist_only,
         "tier": scope.tier,
@@ -155,7 +196,9 @@ def _scope_dict(scope: ScopeColumns) -> dict[str, object]:
     }
 
 
-def _date_columns(article: Article, *, cap_year: int) -> tuple[object, object, tuple[int, ...]]:
+def _date_columns(
+    article: Article, *, cap_year: int
+) -> tuple[datetime.date | None, datetime.date | None, tuple[int, ...]]:
     """(date_earliest, date_latest, decades) from the Article's EDTF date, or nulls/empty when
     it has none. ``date_latest`` is ``None`` for an open-ended interval (the EdtfDate bounds)."""
     if article.date is None:
@@ -164,15 +207,15 @@ def _date_columns(article: Article, *, cap_year: int) -> tuple[object, object, t
     return earliest, latest, article.date.decades(cap_year=cap_year)
 
 
-def _fail_closed_row(article: Article, *, cap_year: int) -> dict[str, object]:
+def _fail_closed_row(article: Article, *, cap_year: int) -> IndexRow:
     """Still indexed, so an Archivist can find and repair the source (ADR 0012)."""
     content = _content_columns(article, ancestors=[], cap_year=cap_year)
-    return content | _scope_dict(_scope_columns(ARCHIVIST_ONLY))
+    return IndexRow(**content, **_scope_dict(_scope_columns(ARCHIVIST_ONLY)))
 
 
 def _row_for(
     article: Article, lookup: dict[ULID, Collection], *, cap_year: int
-) -> tuple[dict[str, object], bool]:
+) -> tuple[IndexRow, bool]:
     """The row, and whether it failed closed (ADR 0012)."""
     try:
         chain = resolve_chain(article.collection_id, lookup)
@@ -181,7 +224,7 @@ def _row_for(
         return _fail_closed_row(article, cap_year=cap_year), True
 
 
-def _unreadable_row(ulid: ULID, *, cap_year: int) -> dict[str, object]:
+def _unreadable_row(ulid: ULID, *, cap_year: int) -> IndexRow:
     """The row of an Article whose README does not decode (owner 2026-10-01): archivist-only, with
     the ulid, all that is known, as its title. Built from a stand-in so every column is written,
     and an upsert keeps nothing of the old row."""
@@ -315,6 +358,4 @@ def hashes_with_text(hashes: Iterable[str]) -> frozenset[str]:
 
 
 def _current_year() -> int:
-    import datetime
-
     return datetime.date.today().year  # noqa: DTZ011 — decade bucketing wants the LOCAL year
