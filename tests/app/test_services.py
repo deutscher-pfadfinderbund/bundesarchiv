@@ -402,7 +402,7 @@ def test_copy_article_copies_metadata_clears_ref_code_and_media(
     )
     articles.save(source, 0, changed_by="tester")
 
-    result = copy_article(pg_archive, ULID("01SOURCE"), changed_by="tester")
+    result = copy_article(pg_archive, source, changed_by="tester")
 
     copy = articles.load(result.ulid).article
     assert copy.ulid != "01SOURCE"  # a fresh identity
@@ -425,12 +425,9 @@ def test_copy_article_copies_metadata_clears_ref_code_and_media(
 
 def test_copy_article_source_untouched(archive: Archive) -> None:
     articles = archive.articles
-    articles.save(
-        Article(ulid=ULID("01SRC"), title="Original", collection_id=ID_FOTOS, ref_code="F1"),
-        0,
-        changed_by="tester",
-    )
-    copy_article(archive, ULID("01SRC"), changed_by="tester")
+    source = Article(ulid=ULID("01SRC"), title="Original", collection_id=ID_FOTOS, ref_code="F1")
+    articles.save(source, 0, changed_by="tester")
+    copy_article(archive, source, changed_by="tester")
     original = articles.load(ULID("01SRC")).article
     assert original.ref_code == "F1"  # source Signatur intact
     assert original.title == "Original"

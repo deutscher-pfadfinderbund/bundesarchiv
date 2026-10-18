@@ -569,8 +569,8 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
-    archive, ulid, _, archivist = gated
-    copy = article_services.copy_article(archive, ulid, changed_by=archivist.username)
+    archive, _, stored, archivist = gated
+    copy = article_services.copy_article(archive, stored.article, changed_by=archivist.username)
     return redirect_to(request, landing.noting_lag(landing.copy_url(copy.ulid), copy.index_updated))
 
 
