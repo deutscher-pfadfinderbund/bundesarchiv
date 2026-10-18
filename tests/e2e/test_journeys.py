@@ -1453,6 +1453,13 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
 
 
+_PRESS_PREVENTED = """(el) => {
+    const press = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    el.dispatchEvent(press);
+    return press.defaultPrevented;
+}"""
+
+
 def test_a_search_suggestion_sets_its_filter_with_the_keyboard(
     archivist_page: Page, live_workbench: str
 ) -> None:
@@ -1478,6 +1485,9 @@ def test_a_search_suggestion_sets_its_filter_with_the_keyboard(
     opened.value.wait_for_url(re.compile(r"creator=K\.(\+|%20)Meyer"))
     opened.value.close()
     expect(suggestions).to_be_visible()
+    # a press on a link goes through: a prevented one makes Chromium drop the new tab now and then
+    assert options.nth(1).evaluate(_PRESS_PREVENTED) is False
+    assert suggestions.locator(".autocomplete-kind").first.evaluate(_PRESS_PREVENTED) is True
     # Tab leaves the field and takes nothing
     page.keyboard.press("ArrowDown")
     page.keyboard.press("Tab")
