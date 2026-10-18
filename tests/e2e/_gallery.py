@@ -301,6 +301,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         widths=PHONE,
     ),
     GalleryState(
+        "workbench-reading-sorted",
+        "workbench, the Lesesaal sorted by date from the table: the sentence names the sort",
+        True,
+        _goto(f"{LIST}?q={READING_QUERY}&sort=-date"),
+    ),
+    GalleryState(
         "workbench-table-query",
         "workbench, the table with a query: 'Auswählen' sits apart from the view switch",
         True,

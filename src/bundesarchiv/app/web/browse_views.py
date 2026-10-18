@@ -486,20 +486,29 @@ def _sentence(
         if label
     )
     set_count = len(set_filters) + sum(slot.clear_query is not None for slot in slots)
-    # the start page's "Alle ansehen" order has no column head to show it; it is no filter, so
-    # "alle entfernen" keeps it
-    if parsed.sort == "added":
-        set_filters += (
-            _SetFilter("neueste zuerst", browse.without_param(params, browse.PARAM_SORT)),
-        )
+    order = _order(params, parsed)
     return {
         "slots": slots,
-        "set_filters": set_filters,
+        "set_filters": (*set_filters, order) if order else set_filters,
         "filter_checks": tuple(checks),
         # two or more set filters clear together (owner 2026-09-30); q and the sort stay
         "clear_all_query": browse.clear_filters_query(params) if set_count >= 2 else None,
         "any_filter_set": set_count > 0,
     }
+
+
+def _order(params: dict[str, str], parsed: browse.ParsedQuery) -> _SetFilter | None:
+    """The sort as a set filter where no column head shows it, its link back to relevance: the
+    start page's "Alle ansehen" order, and in the Lesesaal any sort (ruling 1,
+    docs/requirements/search-ui-rulings-2026-10.md). It is no filter: "alle entfernen" keeps it."""
+    if parsed.sort == "added":
+        label = "neueste zuerst"
+    elif parsed.reading and parsed.sort != "relevance":
+        label = f"sortiert nach {ledger.SORT_LABELS[parsed.sort]}"
+        label += ", absteigend" if parsed.descending else ""
+    else:
+        return None
+    return _SetFilter(label, browse.without_param(params, browse.PARAM_SORT))
 
 
 def _bound(day: datetime.date, year_edge: tuple[int, int]) -> str:

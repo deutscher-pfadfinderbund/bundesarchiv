@@ -904,6 +904,18 @@ def test_the_view_switch_shows_the_same_search_in_the_other_view(indexed_corpus:
     assert not [q for q in _queries(_main(_get(Public()).content.decode())) if "view" in q]
 
 
+def test_the_lesesaal_shows_its_sort_with_a_way_back_to_relevance(indexed_corpus: Corpus) -> None:
+    # ruling 1, docs/requirements/search-ui-rulings-2026-10.md; the words are the owner's to judge
+    search = "q=fahrt&collection=FOTOS"
+    to_relevance = {"q": ["fahrt"], "collection": ["FOTOS"]}
+    for sort in ("-date", "ref_code", "title", "added"):
+        assert to_relevance in _sentence_queries(Public(), f"{search}&sort={sort}&page=2"), sort
+    # relevance, or a sort it falls to, has nothing to undo; the table's column head shows its sort
+    assert to_relevance not in _sentence_queries(Public(), f"{search}&sort=bogus")
+    table = {**to_relevance, "view": ["table"]}
+    assert table not in _sentence_queries(Public(), f"{search}&sort=date&view=table")
+
+
 def test_the_why_line_gives_back_its_fields_text_escaped(
     db: None, make_corpus: Callable[[], Corpus]
 ) -> None:

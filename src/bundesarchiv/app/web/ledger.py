@@ -49,6 +49,9 @@ COLUMNS: tuple[Column, ...] = (
     ),
 )
 
+#: Each sort's words, as its column head reads them.
+SORT_LABELS: Mapping[str, str] = {"title": "Titel", **{c.sort: c.label for c in COLUMNS if c.sort}}
+
 DEFAULT_COLUMNS: tuple[Column, ...] = tuple(c for c in COLUMNS if c.key != "collection")
 
 #: The cookie keeping a viewer's chosen columns: a per-person preference, so it never enters the
@@ -161,7 +164,7 @@ def build(
     shown = unfiltered((c for c in COLUMNS if c in columns), params)
     active = parsed.sort
     heads = (
-        _head("title", "Titel", "title", active, parsed.descending, params),
+        _head("title", SORT_LABELS["title"], "title", active, parsed.descending, params),
         *(_head(c.key, c.label, c.sort, active, parsed.descending, params) for c in shown),
     )
     selected_ulids = frozenset(selection) if is_archivist else frozenset()
