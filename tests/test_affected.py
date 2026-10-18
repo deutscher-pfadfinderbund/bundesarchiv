@@ -67,7 +67,7 @@ def test_the_browser_imports_are_the_ones_corpus_and_conftest_import_directly() 
         "src/bundesarchiv/app/media_text.py",
         "src/bundesarchiv/index/indexer.py",
         "tests/_pdfs.py",
-        "tests/app/web/_fixtures.py",
+        "tests/_login.py",
     } <= modules
     assert "src/bundesarchiv/app/__init__.py" not in modules
 

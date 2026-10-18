@@ -18,15 +18,11 @@ from django.test import override_settings
 from playwright.sync_api import Browser, BrowserContext, Page
 from pytest_django.live_server_helper import LiveServer
 from pytest_django.plugin import DjangoDbBlocker
-from tests.app.web._fixtures import viewer_cookies
+from tests._login import DEV_KEY, viewer_cookies
 from tests.e2e._corpus import CorpusHandles, build_corpus
 
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import settings_dev
-
-# Any key works: the suite both mints and verifies the dev realm's tokens with it.
-_DEV_KEY = "test-e2e-dev-viewer-key"
-
 
 _REPORT_CSP_VIOLATIONS = """
 document.addEventListener("securitypolicyviolation", (e) => window.__cspViolation(
@@ -81,7 +77,7 @@ def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, obje
         "CSRF_COOKIE_SECURE": settings_dev.CSRF_COOKIE_SECURE,
         "BUNDESARCHIV_REALM": settings_dev.BUNDESARCHIV_REALM,
         "VIEWER_SIGNING_KEY": settings_dev.VIEWER_SIGNING_KEY,
-        "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
+        "DEV_VIEWER_SIGNING_KEY": DEV_KEY,
         "BUNDESARCHIV_CANONICAL_ROOT": str(_e2e_root),
         "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_thumbs),
         "DEBUG": False,

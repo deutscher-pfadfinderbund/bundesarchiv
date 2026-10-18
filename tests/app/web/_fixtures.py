@@ -27,11 +27,11 @@ from django.template.loader import render_to_string
 from django.test import Client
 from django.urls import reverse
 from tests import _articles
+from tests._login import DEV_KEY, viewer_cookies
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
+from bundesarchiv.app.web.dev_realm import DevRealm
 from bundesarchiv.app.web.oidc import Realm, Tokens
-from bundesarchiv.app.web.viewers import login_cookies
 from bundesarchiv.domain.models import (
     ULID,
     Article,
@@ -41,13 +41,12 @@ from bundesarchiv.domain.models import (
     Lifecycle,
     Version,
 )
-from bundesarchiv.domain.viewer import Archivist, Member, Viewer
+from bundesarchiv.domain.viewer import Viewer
 from bundesarchiv.index.refresh import InMemoryIndex
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-DEV_KEY = "test-web-dev-viewer-key"
 VIEWER_KEY = "test-web-viewer-signing-key"
 
 ROOT = ULID("ROOT")
@@ -145,17 +144,6 @@ def download_hrefs(body: str) -> list[str]:
 def list_url(**params: str) -> str:
     """The list's address, ``params`` as its query."""
     return f"{reverse('workbench')}?{urlencode(params)}" if params else reverse("workbench")
-
-
-def viewer_cookies(viewer: Viewer | None) -> dict[str, str]:
-    """The token cookies a dev-realm login as ``viewer`` leaves, minted under the settings in force;
-    none for ``Public()`` or ``None`` (an anonymous visitor)."""
-    if not isinstance(viewer, Archivist | Member):
-        return {}
-    tokens = DevRealm().mint_tokens(claims_of(viewer))
-    assert tokens is not None, "no DEV_VIEWER_SIGNING_KEY: run under settings_for"
-    cookies = login_cookies()
-    return {cookies.access: tokens.access, cookies.refresh: tokens.refresh}
 
 
 #: Every call to a ``RecordingRealm``, in order: each operation's name and its arguments.

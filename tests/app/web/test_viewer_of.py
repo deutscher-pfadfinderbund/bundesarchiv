@@ -10,7 +10,7 @@ from django.core import signing
 from django.http import HttpRequest
 from django.test import RequestFactory, override_settings
 from pytest_django.fixtures import Settings
-from tests.app.web._fixtures import DEV_KEY, viewer_cookies
+from tests._login import DEV_KEY, viewer_cookies
 
 from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
 from bundesarchiv.app.web.keycloak import KeycloakRealm

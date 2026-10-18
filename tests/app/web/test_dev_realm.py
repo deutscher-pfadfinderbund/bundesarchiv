@@ -7,7 +7,7 @@ import pytest
 from django.core import signing
 from django.urls import reverse
 from pytest_django.fixtures import Settings
-from tests.app.web._fixtures import DEV_KEY
+from tests._login import DEV_KEY
 
 from bundesarchiv.app.web import dev_realm
 from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm, claims_of
