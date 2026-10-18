@@ -5,6 +5,7 @@ middleware.
 import os
 from collections.abc import Iterator
 from pathlib import Path
+from urllib.parse import urlparse
 
 # Playwright's sync API runs an event loop in its worker thread; Django then flags any ORM call
 # (e.g. the corpus build/teardown) as SynchronousOnlyOperation even though it is sync-safe here (the
@@ -17,18 +18,14 @@ from django.test import override_settings
 from playwright.sync_api import Browser, BrowserContext, Page
 from pytest_django.live_server_helper import LiveServer
 from pytest_django.plugin import DjangoDbBlocker
+from tests.app.web._fixtures import viewer_cookies
 from tests.e2e._corpus import CorpusHandles, build_corpus
 
-from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
-from bundesarchiv.app.web.viewers import login_cookies
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import settings_dev
 
 # Any key works: the suite both mints and verifies the dev realm's tokens with it.
 _DEV_KEY = "test-e2e-dev-viewer-key"
-
-#: Outlives the longest journey or gallery state, so one access token serves the whole test.
-_ACCESS_LIFETIME = 60 * 60
 
 
 _REPORT_CSP_VIOLATIONS = """
@@ -113,21 +110,22 @@ def live_workbench(
     return live_server.url
 
 
-def _archivist_cookie(base_url: str) -> dict[str, object]:
-    """A Playwright cookie dict carrying the access token a dev-realm login as an Archivist leaves,
-    scoped to the live server's host so the browser sends it on every request. Called under the
-    e2e settings, whose key and cookie names it mints with."""
-    from urllib.parse import urlparse
-
-    tokens = DevRealm(lifetime=_ACCESS_LIFETIME).mint_tokens(claims_of(Archivist()))
-    assert tokens is not None
+def add_archivist_cookies(context: BrowserContext, base_url: str) -> None:
+    """Log ``context`` in as an Archivist: both token cookies a dev-realm login leaves, scoped to
+    the live server's host so the browser sends them on every request. Called under the e2e
+    settings, whose key and cookie names it mints with."""
     host = urlparse(base_url).hostname or "localhost"
-    return {"name": login_cookies().access, "value": tokens.access, "domain": host, "path": "/"}
+    context.add_cookies(
+        [
+            {"name": name, "value": value, "domain": host, "path": "/"}
+            for name, value in viewer_cookies(Archivist()).items()
+        ]
+    )
 
 
 def _archivist_context_page(browser: Browser, base_url: str, *, javascript: bool) -> Iterator[Page]:
     context = browser.new_context(java_script_enabled=javascript)
-    context.add_cookies([_archivist_cookie(base_url)])  # type: ignore[list-item]
+    add_archivist_cookies(context, base_url)
     page = context.new_page()
     yield page
     context.close()
