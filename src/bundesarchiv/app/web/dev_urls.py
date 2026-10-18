@@ -25,7 +25,7 @@ _demo_csp = csp_override({**_PAGE_POLICY, "style-src": [CSP.SELF, CSP.UNSAFE_INL
 urlpatterns = [
     path("", include("bundesarchiv.app.web.urls")),
     path("favicon.ico", favicon, name="dev-favicon"),
-    path("_dev/viewer/", authorize, name="dev-switch-viewer"),
+    path("_dev/viewer/", authorize, name="dev-authorize"),
     path("_dev/components/", _demo_csp(component_library), name="dev-components"),
     path("_dev/layouts/split-narrow/", _demo_csp(layout_demo), name="dev-layout"),
 ]

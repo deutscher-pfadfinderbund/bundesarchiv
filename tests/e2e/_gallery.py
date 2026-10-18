@@ -20,6 +20,7 @@ from tests.e2e._pages import (
     reach_search_suggestions,
     reach_tag_suggestions,
 )
+from tests.e2e.conftest import add_archivist_cookies
 
 from bundesarchiv.app.web.suggestions import Entry, Group
 
@@ -562,7 +563,6 @@ def render_state(
     browser: Browser,
     base_url: str,
     corpus: CorpusHandles,
-    archivist_cookie: dict[str, object],
     state: GalleryState,
     out_dir: Path | None = None,
 ) -> list[Path]:
@@ -575,7 +575,7 @@ def render_state(
         )
         try:
             if state.archivist:
-                context.add_cookies([archivist_cookie])  # type: ignore[list-item]
+                add_archivist_cookies(context, base_url)
             page = context.new_page()
             state.reach(page, base_url, corpus)
             for mode in MODES:

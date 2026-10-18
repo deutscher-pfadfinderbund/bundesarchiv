@@ -28,9 +28,6 @@ _REFRESH_SALT = "dev-realm-refresh"
 #: Keycloak's offline session idle limit: each refresh issues a new refresh token.
 _REFRESH_LIFETIME = 30 * 24 * 60 * 60
 
-#: Every call to the realm, in order: each operation's name and its arguments.
-type Asked = list[tuple[str, dict[str, str | None]]]
-
 
 def claims_of(viewer: Archivist | Member) -> dict[str, object]:
     """The claims a login as ``viewer`` carries, shaped as Keycloak's, so ``viewer_from_claims``
@@ -55,8 +52,8 @@ def _signed(payload: Mapping[str, object], salt: str) -> str | None:
 
 
 def _current(raw: str | None, salt: str) -> dict[str, Any] | None:
-    """The payload of ``raw`` when this key signed it under ``salt`` and its ``exp`` (if it carries
-    one) lies ahead; ``None`` otherwise."""
+    """The payload of ``raw`` when this key signed it under ``salt`` and its ``exp`` lies ahead;
+    ``None`` otherwise, a payload without ``exp`` included."""
     key = _key()
     if not key or not raw:
         return None
@@ -64,7 +61,7 @@ def _current(raw: str | None, salt: str) -> dict[str, Any] | None:
         payload: dict[str, Any] = signing.loads(raw, key=key, salt=salt)
     except signing.BadSignature:
         return None
-    if "exp" in payload and payload["exp"] <= time.time():
+    if payload.get("exp", 0) <= time.time():
         return None
     return payload
 
@@ -72,16 +69,10 @@ def _current(raw: str | None, salt: str) -> dict[str, Any] | None:
 @dataclass(frozen=True, slots=True)
 class DevRealm:
     """A ``Realm`` with no server. ``lifetime`` is how many seconds a code or an access token stays
-    good, ``refresh_lifetime`` a refresh token (negative mints expired ones); ``asked``, when given,
-    records every call."""
+    good, ``refresh_lifetime`` a refresh token (negative mints expired ones)."""
 
     lifetime: int = 60
     refresh_lifetime: int = _REFRESH_LIFETIME
-    asked: Asked | None = None
-
-    def _ask(self, operation: str, **args: str | None) -> None:
-        if self.asked is not None:
-            self.asked.append((operation, args))
 
     def _exp(self, lifetime: int | None = None) -> int:
         return int(time.time()) + (self.lifetime if lifetime is None else lifetime)
@@ -100,32 +91,34 @@ class DevRealm:
         return Tokens(access=access, refresh=refresh, claims=access_claims, id_token=None)
 
     def authorization_url(self, *, state: str, nonce: str, redirect_uri: str) -> str | None:
-        self._ask("authorization_url", state=state, nonce=nonce, redirect_uri=redirect_uri)
         if _key() is None:
             return None
         query = urlencode({"state": state, "nonce": nonce, "redirect_uri": redirect_uri})
         return f"{AUTHORIZE_PATH}?{query}"
 
-    def fetch_tokens(self, *, code: str, nonce: str, redirect_uri: str) -> Tokens | None:
-        self._ask("fetch_tokens", code=code, nonce=nonce, redirect_uri=redirect_uri)
+    def fetch_tokens(
+        self,
+        *,
+        code: str,
+        nonce: str,
+        redirect_uri: str,  # noqa: ARG002
+    ) -> Tokens | None:
         payload = _current(code, _CODE_SALT)
         if payload is None or payload["nonce"] != nonce:
             return None
         return self.mint_tokens(payload["claims"])
 
     def verify_access(self, access_token: str) -> Mapping[str, object] | None:
-        self._ask("verify_access", access_token=access_token)
         return _current(access_token, _ACCESS_SALT)
 
     def refresh(self, refresh_token: str) -> Tokens | None:
-        self._ask("refresh", refresh_token=refresh_token)
         claims = _current(refresh_token, _REFRESH_SALT)
         return self.mint_tokens(claims) if claims is not None else None
 
-    def logout_url(self, *, refresh_token: str | None, post_logout_redirect_uri: str) -> str | None:
-        self._ask(
-            "logout_url",
-            refresh_token=refresh_token,
-            post_logout_redirect_uri=post_logout_redirect_uri,
-        )
+    def logout_url(
+        self,
+        *,
+        refresh_token: str | None,  # noqa: ARG002
+        post_logout_redirect_uri: str,
+    ) -> str | None:
         return post_logout_redirect_uri if _key() is not None else None

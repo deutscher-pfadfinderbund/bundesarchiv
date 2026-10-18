@@ -13,7 +13,7 @@ another file's expectations. Such a test builds its own content with ``make_corp
 import io
 import re
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from functools import partial
 from html import unescape
@@ -27,10 +27,11 @@ from django.template.loader import render_to_string
 from django.test import Client
 from django.urls import reverse
 from tests import _articles
+from tests._login import DEV_KEY, viewer_cookies
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
-from bundesarchiv.app.web.viewers import login_cookies
+from bundesarchiv.app.web.dev_realm import DevRealm
+from bundesarchiv.app.web.oidc import Realm, Tokens
 from bundesarchiv.domain.models import (
     ULID,
     Article,
@@ -40,13 +41,13 @@ from bundesarchiv.domain.models import (
     Lifecycle,
     Version,
 )
-from bundesarchiv.domain.viewer import Archivist, Member, Viewer
+from bundesarchiv.domain.viewer import Viewer
 from bundesarchiv.index.refresh import InMemoryIndex
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-DEV_KEY = "test-web-dev-viewer-key"
+VIEWER_KEY = "test-web-viewer-signing-key"
 
 ROOT = ULID("ROOT")
 # A real ULID: the collection routes validate their ``<ulid>`` in-view, so a mnemonic literal
@@ -145,15 +146,60 @@ def list_url(**params: str) -> str:
     return f"{reverse('workbench')}?{urlencode(params)}" if params else reverse("workbench")
 
 
-def viewer_cookies(viewer: Viewer | None) -> dict[str, str]:
-    """The token cookies a dev-realm login as ``viewer`` leaves, minted under the settings in force;
-    none for ``Public()`` or ``None`` (an anonymous visitor)."""
-    if not isinstance(viewer, Archivist | Member):
-        return {}
-    tokens = DevRealm().mint_tokens(claims_of(viewer))
-    assert tokens is not None, "no DEV_VIEWER_SIGNING_KEY: run under settings_for"
-    cookies = login_cookies()
-    return {cookies.access: tokens.access, cookies.refresh: tokens.refresh}
+#: Every call to a ``RecordingRealm``, in order: each operation's name and its arguments.
+type Asked = list[tuple[str, dict[str, str | None]]]
+
+
+class RecordingRealm:
+    """A ``Realm`` that answers as a plain ``DevRealm`` and records every call in ``asked``."""
+
+    def __init__(self, asked: Asked) -> None:
+        self.asked = asked
+        self._realm = DevRealm()
+
+    def authorization_url(self, *, state: str, nonce: str, redirect_uri: str) -> str | None:
+        self.asked.append(
+            ("authorization_url", {"state": state, "nonce": nonce, "redirect_uri": redirect_uri})
+        )
+        return self._realm.authorization_url(state=state, nonce=nonce, redirect_uri=redirect_uri)
+
+    def fetch_tokens(self, *, code: str, nonce: str, redirect_uri: str) -> Tokens | None:
+        self.asked.append(
+            ("fetch_tokens", {"code": code, "nonce": nonce, "redirect_uri": redirect_uri})
+        )
+        return self._realm.fetch_tokens(code=code, nonce=nonce, redirect_uri=redirect_uri)
+
+    def verify_access(self, access_token: str) -> Mapping[str, object] | None:
+        self.asked.append(("verify_access", {"access_token": access_token}))
+        return self._realm.verify_access(access_token)
+
+    def refresh(self, refresh_token: str) -> Tokens | None:
+        self.asked.append(("refresh", {"refresh_token": refresh_token}))
+        return self._realm.refresh(refresh_token)
+
+    def logout_url(self, *, refresh_token: str | None, post_logout_redirect_uri: str) -> str | None:
+        self.asked.append(
+            (
+                "logout_url",
+                {
+                    "refresh_token": refresh_token,
+                    "post_logout_redirect_uri": post_logout_redirect_uri,
+                },
+            )
+        )
+        return self._realm.logout_url(
+            refresh_token=refresh_token, post_logout_redirect_uri=post_logout_redirect_uri
+        )
+
+
+def dev_realm_settings(realm: Realm | None = None) -> dict[str, object]:
+    """The settings a login through the dev realm needs: both signing keys and the realm itself, a
+    plain ``DevRealm`` unless ``realm`` is given. For ``override_settings(**...)``."""
+    return {
+        "DEV_VIEWER_SIGNING_KEY": DEV_KEY,
+        "VIEWER_SIGNING_KEY": VIEWER_KEY,
+        "BUNDESARCHIV_REALM": realm or DevRealm(),
+    }
 
 
 def client_as(viewer: Viewer | None, *, enforce_csrf: bool = False) -> Client:

@@ -13,7 +13,7 @@ import pytest
 from django.test import Client, RequestFactory, override_settings
 from django.urls import NoReverseMatch, Resolver404, resolve, reverse
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import page_forms
+from tests.app.web._fixtures import RecordingRealm, dev_realm_settings, page_forms
 
 from bundesarchiv.app.web.dev_realm import DevRealm
 from bundesarchiv.app.web.viewers import realm, viewer_of
@@ -30,9 +30,7 @@ def _dev() -> Iterator[None]:
     with override_settings(
         ROOT_URLCONF="bundesarchiv.app.web.dev_urls",
         MIDDLEWARE=["django.middleware.csrf.CsrfViewMiddleware"],
-        DEV_VIEWER_SIGNING_KEY="test-dev-viewer-key",
-        VIEWER_SIGNING_KEY="test-viewer-signing-key",
-        BUNDESARCHIV_REALM=DevRealm(),
+        **dev_realm_settings(),
     ):
         yield
 
@@ -113,6 +111,13 @@ def test_the_page_answers_only_this_sites_callback(redirect_uri: str) -> None:
     assert_denied(client.post(_PAGE, {**flow, "kind": "archivist"}))
 
 
+def test_a_realm_that_is_not_the_dev_realm_mints_no_code() -> None:
+    client = Client()
+    flow = _flow(client)
+    with override_settings(BUNDESARCHIV_REALM=RecordingRealm([])):
+        assert_denied(client.post(_PAGE, {**flow, "kind": "archivist"}))
+
+
 def test_a_bookmark_starts_a_login() -> None:
     response = Client().get(_PAGE)
     assert response.status_code == 302
@@ -122,9 +127,8 @@ def test_a_bookmark_starts_a_login() -> None:
 def test_the_answer_carries_its_csrf_token_so_it_works_under_enforcement() -> None:
     client = Client(enforce_csrf_checks=True)
     flow = _flow(client)
-    client.get(_PAGE, flow)
-    token = client.cookies["csrftoken"].value
-    response = client.post(_PAGE, {**flow, "kind": "archivist", "csrfmiddlewaretoken": token})
+    ((_, fields),) = page_forms(client.get(_PAGE, flow).content.decode())
+    response = client.post(_PAGE, {**fields, "kind": "archivist"})
     assert response.status_code == 302  # accepted (a missing token would be 403)
 
 
@@ -156,12 +160,12 @@ def test_prod_root_urlconf_is_the_media_surface_not_the_dev_urls() -> None:
 
 def test_prod_media_urlconf_exposes_no_dev_login_page() -> None:
     prod_urls = importlib.import_module("bundesarchiv.app.web.urls")
-    assert not any(getattr(p, "name", None) == "dev-switch-viewer" for p in prod_urls.urlpatterns)
+    assert not any(getattr(p, "name", None) == "dev-authorize" for p in prod_urls.urlpatterns)
 
 
 def test_the_dev_login_page_lives_only_in_the_dev_urlconf() -> None:
     dev_urls = importlib.import_module("bundesarchiv.app.web.dev_urls")
-    assert any(getattr(p, "name", None) == "dev-switch-viewer" for p in dev_urls.urlpatterns)
+    assert any(getattr(p, "name", None) == "dev-authorize" for p in dev_urls.urlpatterns)
 
 
 @override_settings(ROOT_URLCONF="tests.app.web._empty_urls")
@@ -169,7 +173,7 @@ def test_the_page_neither_resolves_nor_reverses_without_the_dev_urlconf() -> Non
     with pytest.raises(Resolver404):
         resolve(_PAGE)
     with pytest.raises(NoReverseMatch):
-        reverse("dev-switch-viewer")
+        reverse("dev-authorize")
 
 
 # Explicit: the subprocess connects to Postgres out of band, so no DB fixture appears in this

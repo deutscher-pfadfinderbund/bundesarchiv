@@ -3,14 +3,15 @@
 Its failure answer is the port's ``None``: an unconfigured setting, an unreachable realm, a refused
 code or refresh token, or a token that does not validate.
 
-The authlib calls are NOT suite-tested, deliberately (ADR 0018 "Testing"): the realistic failure
-here is Keycloak CLIENT misconfiguration — a missing mapper, a redirect URI that does not match — and
-a fake of this seam can only encode our own assumptions about the realm. One real login per realm
-change is the deploy runbook's smoke step. What IS tested is everything above the seam (the views
-run against the dev realm), the token check, the logout step order, the URLs built here, and the
-caches below, whose failure mode is not a refused login but a worker that can never log anybody in
-again. The caches are module-level, keyed by URL, because ``viewers.realm()`` builds an adapter
-per call.
+The refresh and revoke calls run in the suite over an ``httpx2.MockTransport`` (the logout's step
+order and the refresh failure shapes among them), as does the check of every token response. NOT
+tested: the authorize request and the code exchange against a real realm, because the realistic
+failure here is Keycloak CLIENT misconfiguration — a missing mapper, a redirect URI that does not
+match — and a fake of this seam can only encode our own assumptions about the realm. One real login
+per realm change is the deploy runbook's smoke step (ADR 0018 "Testing"). Everything above the seam
+runs against the dev realm. The caches below are module-level, keyed by URL, because
+``viewers.realm()`` builds an adapter per call; their failure mode is not a refused login but a
+worker that can never log anybody in again.
 """
 
 import json
@@ -208,8 +209,8 @@ def _end_session_url(post_logout_redirect_uri: str, *, id_token_hint: str | None
 
 @dataclass(frozen=True, slots=True)
 class KeycloakRealm:
-    """The ``Realm`` Keycloak answers. ``oauth_client`` builds authlib's client; a test passes one
-    over an ``httpx2.MockTransport``."""
+    """The ``Realm`` Keycloak answers. ``oauth_client`` builds authlib's client; the refresh and
+    revoke tests pass one over an ``httpx2.MockTransport``."""
 
     oauth_client: Callable[..., OAuth2Client] = OAuth2Client
 

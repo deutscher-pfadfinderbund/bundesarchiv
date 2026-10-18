@@ -10,7 +10,7 @@ from django.core import signing
 from django.http import HttpRequest
 from django.test import RequestFactory, override_settings
 from pytest_django.fixtures import Settings
-from tests.app.web._fixtures import DEV_KEY, viewer_cookies
+from tests._login import DEV_KEY, viewer_cookies
 
 from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
 from bundesarchiv.app.web.keycloak import KeycloakRealm
@@ -23,8 +23,6 @@ _PROD_SECRET_KEY = "totally-different-production-secret-key"
 
 # Stands in for the deployment's ``VIEWER_SIGNING_KEY``, which prod settings leave unset.
 _VIEWER_KEY = "test-web-viewer-signing-key"
-
-_COOKIES = login_cookies()
 
 
 @pytest.fixture(autouse=True)
@@ -44,11 +42,11 @@ def _request(cookies: dict[str, str]) -> HttpRequest:
 
 
 def _access(value: str) -> HttpRequest:
-    return _request({_COOKIES.access: value})
+    return _request({login_cookies().access: value})
 
 
 def _archivist_access() -> str:
-    return viewer_cookies(Archivist())[_COOKIES.access]
+    return viewer_cookies(Archivist())[login_cookies().access]
 
 
 def test_no_cookie_is_public() -> None:
@@ -56,7 +54,9 @@ def test_no_cookie_is_public() -> None:
 
 
 def test_empty_cookie_is_public() -> None:
-    assert viewer_of(_request({_COOKIES.access: "", _COOKIES.refresh: ""})) == Public()
+    assert (
+        viewer_of(_request({login_cookies().access: "", login_cookies().refresh: ""})) == Public()
+    )
 
 
 @pytest.mark.parametrize(
@@ -71,7 +71,7 @@ def test_empty_cookie_is_public() -> None:
     ],
 )
 def test_the_access_token_names_the_viewer(viewer: Viewer) -> None:
-    assert viewer_of(_access(viewer_cookies(viewer)[_COOKIES.access])) == viewer
+    assert viewer_of(_access(viewer_cookies(viewer)[login_cookies().access])) == viewer
 
 
 def test_tampered_signature_is_public() -> None:
@@ -88,7 +88,7 @@ def test_expired_access_without_refresh_is_public() -> None:
 
 def test_a_refresh_token_in_the_access_slot_is_public() -> None:
     # The same key under another salt: a token minted for one purpose never passes for another.
-    refresh = viewer_cookies(Archivist())[_COOKIES.refresh]
+    refresh = viewer_cookies(Archivist())[login_cookies().refresh]
     assert viewer_of(_access(refresh)) == Public()
 
 

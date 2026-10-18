@@ -1,20 +1,20 @@
 """The dev realm: it signs in exactly what it minted itself, under the dev key, and nothing else."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from django.core import signing
+from django.urls import reverse
 from pytest_django.fixtures import Settings
-from tests.app.web._fixtures import DEV_KEY
+from tests._login import DEV_KEY
 
-from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, Asked, DevRealm, claims_of
+from bundesarchiv.app.web import dev_realm
+from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm, claims_of
 from bundesarchiv.app.web.oidc import viewer_from_claims
 from bundesarchiv.domain.viewer import Archivist, Member
 
-_CLAIMS: Mapping[str, object] = {
-    "preferred_username": "anna",
-    "realm_access": {"roles": ["Bundesarchiv"]},
-}
+_CLAIMS = claims_of(Archivist(username="anna"))
 _REDIRECT = "http://testserver/oidc/callback"
 
 
@@ -56,15 +56,13 @@ def test_the_authorization_url_is_the_dev_page_carrying_the_login() -> None:
     assert parse_qs(parts.query) == {"state": ["s1"], "nonce": ["n1"], "redirect_uri": [_REDIRECT]}
 
 
+def test_the_authorize_path_is_the_dev_page_the_dev_urlconf_mounts() -> None:
+    assert reverse("dev-authorize", urlconf="bundesarchiv.app.web.dev_urls") == AUTHORIZE_PATH
+
+
 def test_logout_returns_to_the_post_logout_uri() -> None:
     realm = DevRealm()
     assert realm.logout_url(refresh_token=None, post_logout_redirect_uri="http://x/") == "http://x/"
-
-
-def test_every_call_is_recorded() -> None:
-    asked: Asked = []
-    DevRealm(asked=asked).refresh("r1")
-    assert asked == [("refresh", {"refresh_token": "r1"})]
 
 
 def test_a_code_bound_to_another_nonce_logs_nobody_in() -> None:
@@ -151,6 +149,11 @@ def test_an_expired_value_is_refused(
     expired: DevRealm, minted: Callable[[DevRealm], str], use: Callable[[str], object]
 ) -> None:
     assert use(minted(expired)) is None
+
+
+def test_a_value_without_an_expiry_is_refused() -> None:
+    timeless = signing.dumps(dict(_CLAIMS), key=DEV_KEY, salt=dev_realm._ACCESS_SALT)
+    assert DevRealm().verify_access(timeless) is None
 
 
 def test_a_refresh_sets_its_own_expiries_whatever_the_claims_carry() -> None:

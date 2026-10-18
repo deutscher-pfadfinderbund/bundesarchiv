@@ -1537,10 +1537,10 @@ _TEXT_EDGE = (
 
 def _suggested_lager(browser: Browser, base: str, width: int, height: int) -> Page:
     """The start page at this viewport with "lager" typed, answered by ``long_suggestions``."""
-    from tests.e2e.conftest import _archivist_cookie
+    from tests.e2e.conftest import add_archivist_cookies
 
     context = browser.new_context(viewport={"width": width, "height": height})
-    context.add_cookies([_archivist_cookie(base)])  # type: ignore[list-item]
+    add_archivist_cookies(context, base)
     page = context.new_page()
     page.route("**/suggestions?*", long_suggestions)
     page.goto(f"{base}/", wait_until="networkidle")
@@ -1873,10 +1873,10 @@ def test_cas_conflict_second_saver_sees_panel(
     # second sees the "Inzwischen geändert" panel (CAS, ADR 0013) — driven through two real browsers.
     edit_url = _create_draft(archivist_page, live_workbench, "E2E Rennen")
 
-    from tests.e2e.conftest import _archivist_cookie
+    from tests.e2e.conftest import add_archivist_cookies
 
     ctx2 = browser.new_context()
-    ctx2.add_cookies([_archivist_cookie(live_workbench)])  # type: ignore[list-item]
+    add_archivist_cookies(ctx2, live_workbench)
     page2 = ctx2.new_page()
     page2.goto(edit_url)  # both now hold the same expected_version
     # both forms carry a valid Medienart so each save reaches the CAS path (not a validation error);
@@ -2344,10 +2344,10 @@ def test_a_media_action_never_hides_anothers_save_from_the_form(
     # form's media action must not advance its version past that save (ADR 0013).
     edit_url = _create_draft(archivist_page, live_workbench, "E2E Medien nach fremdem Speichern")
 
-    from tests.e2e.conftest import _archivist_cookie
+    from tests.e2e.conftest import add_archivist_cookies
 
     ctx2 = browser.new_context()
-    ctx2.add_cookies([_archivist_cookie(live_workbench)])  # type: ignore[list-item]
+    add_archivist_cookies(ctx2, live_workbench)
     page2 = ctx2.new_page()
     page2.goto(edit_url)
     page2.select_option('select[name="media_type"]', "Foto(s)")
@@ -2486,6 +2486,6 @@ def test_dev_logs_in_and_out_through_the_dev_realm(public_page: Page, live_workb
     page.locator("main form button[type=submit]").click()
     page.wait_for_url(live_workbench + "/")
     assert page.request.get(live_workbench + "/articles/new").status == 200
-    page.locator("form[action='/logout'] button").click()
-    page.wait_for_url(live_workbench + "/")
+    with page.expect_navigation():
+        page.locator("form[action='/logout'] button").click()
     assert page.request.get(live_workbench + "/articles/new").status == 404

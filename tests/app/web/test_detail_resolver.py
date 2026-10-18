@@ -2,7 +2,8 @@ from collections.abc import Callable
 
 import pytest
 from django.test import RequestFactory
-from tests.app.web._fixtures import PUB, Corpus, make_article, make_collection, viewer_cookies
+from tests._login import viewer_cookies
+from tests.app.web._fixtures import PUB, Corpus, make_article, make_collection
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail

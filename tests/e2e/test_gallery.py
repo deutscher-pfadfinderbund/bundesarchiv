@@ -14,11 +14,7 @@ pytestmark = pytest.mark.gallery
 def test_render_state(
     state: GalleryState, browser: Browser, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    from tests.e2e.conftest import _archivist_cookie
-
-    written = render_state(
-        browser, live_workbench, e2e_corpus, _archivist_cookie(live_workbench), state
-    )
+    written = render_state(browser, live_workbench, e2e_corpus, state)
     assert len(written) == len(MODES) * len(state.widths)
     assert all(p.exists() and p.stat().st_size > 0 for p in written)
     print(f"\nwrote {len(written)} PNGs for {state.name} to {gallery_dir()}")

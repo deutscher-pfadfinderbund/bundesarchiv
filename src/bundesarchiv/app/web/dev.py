@@ -4,14 +4,20 @@ sends the browser, as Keycloak's login form would (ADR 0025)."""
 from html import escape
 from urllib.parse import urlencode
 
-from django.http import HttpRequest, HttpResponse, HttpResponseNotFound, HttpResponseRedirect
+from django.http import (
+    HttpRequest,
+    HttpResponse,
+    HttpResponseNotFound,
+    HttpResponseRedirect,
+    QueryDict,
+)
 from django.middleware.csrf import get_token
 from django.urls import reverse
 
 from bundesarchiv.app.web.auth_views import callback_uri, login_redirect
 from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
 from bundesarchiv.app.web.media_views import not_found
-from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.app.web.viewers import realm, viewer_of
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 #: What the realm's authorize request carries, and the form hands back on POST.
@@ -33,22 +39,35 @@ def _viewer_from_post(request: HttpRequest) -> Archivist | Member | None:
     return None
 
 
+def _flow(params: QueryDict) -> dict[str, str]:
+    return {name: params.get(name, "") for name in _FLOW}
+
+
 def authorize(request: HttpRequest) -> HttpResponse:
     """GET renders the login form for one login; POST answers it with a code for the chosen viewer,
     back at ``redirect_uri``. That must be this site's own callback, so the page redirects nowhere
     else. A GET without a login (a bookmark) starts one."""
-    if request.method not in ("GET", "POST"):
+    if request.method == "POST":
+        return _answer(request)
+    if request.method != "GET":
         return not_found()
-    params = request.GET if request.method == "GET" else request.POST
-    flow = {name: params.get(name, "") for name in _FLOW}
+    flow = _flow(request.GET)
     if not all(flow.values()):
-        return HttpResponseRedirect(login_redirect("/")) if request.method == "GET" else not_found()
+        return HttpResponseRedirect(login_redirect("/"))
     if flow["redirect_uri"] != callback_uri(request):
         return not_found()
-    if request.method == "GET":
-        return HttpResponse(_render_form(viewer_of(request), flow, csrf_token=get_token(request)))
+    return HttpResponse(_render_form(viewer_of(request), flow, csrf_token=get_token(request)))
+
+
+def _answer(request: HttpRequest) -> HttpResponse:
+    flow = _flow(request.POST)
     viewer = _viewer_from_post(request)
-    code = DevRealm().mint_code(claims_of(viewer), nonce=flow["nonce"]) if viewer else None
+    if not all(flow.values()) or flow["redirect_uri"] != callback_uri(request) or viewer is None:
+        return not_found()
+    login_realm = realm()
+    if not isinstance(login_realm, DevRealm):
+        return not_found()
+    code = login_realm.mint_code(claims_of(viewer), nonce=flow["nonce"])
     if code is None:
         return not_found()
     answer = urlencode({"code": code, "state": flow["state"]})
@@ -79,7 +98,7 @@ def _render_form(current: Viewer, flow: dict[str, str], *, csrf_token: str) -> s
         '<main class="stub">'
         "<h1>Anmelden als (nur Entwicklung)</h1>"
         f"<p>Aktuell: <strong>{escape(_describe(current))}</strong></p>"
-        f'<form method=post action="{reverse("dev-switch-viewer")}">'
+        f'<form method=post action="{reverse("dev-authorize")}">'
         f'<input type=hidden name=csrfmiddlewaretoken value="{escape(csrf_token)}">{hidden}'
         "<p><label><input type=radio name=kind value=archivist> Archivar</label>"
         " Benutzername: <input type=text name=username></p>"
