@@ -12,7 +12,7 @@ from tests._articles import make_article
 from tests.index import fixtures
 
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import Facet, SearchFilters, SearchPage, facet_counts, search
@@ -20,7 +20,7 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-_ROOT = "PK_ROOT"
+_ROOT = ULID("PK_ROOT")
 _LIVE = "PK_LIVE"
 _MARKED = "PK_MARKED"
 _MARKED_DATELESS = "PK_MARKED_DATELESS"

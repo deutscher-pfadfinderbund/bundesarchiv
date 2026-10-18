@@ -14,7 +14,7 @@ from tests.app.web._fixtures import (
 )
 
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import Audience, AudienceTier
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 FOTOS = new_ulid()
@@ -35,7 +35,7 @@ def archive(make_corpus: Callable[[], Corpus]) -> Corpus:
 
 
 def _name_of(corpus: Corpus, ulid: str) -> str:
-    return corpus.collections.load(ulid).collection.name
+    return corpus.collections.load(ULID(ulid)).collection.name
 
 
 # --- archivist gate + 404 discipline ----------------------------------------------

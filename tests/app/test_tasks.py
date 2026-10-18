@@ -20,6 +20,7 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.push_record import InMemoryPushRecord, PostgresPushRecord
 from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
@@ -33,20 +34,35 @@ from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
+ID_01A = ULID("01A")
+ID_01FOTO = ULID("01FOTO")
+ID_FOTOS = ULID("FOTOS")
+ID_ROOT = ULID("ROOT")
+
 
 def _seeded[S: ObjectStore](store: S) -> S:
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
-    collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester")
+    collections.save(
+        Collection(ulid=ID_ROOT, name="Wurzel", parent_id=None), 0, changed_by="tester"
+    )
     collections.save(
         Collection(
-            ulid="FOTOS", name="Fotos", parent_id="ROOT", audience=Audience(AudienceTier.PUBLIC)
+            ulid=ID_FOTOS,
+            name="Fotos",
+            parent_id=ID_ROOT,
+            audience=Audience(AudienceTier.PUBLIC),
         ),
         0,
         changed_by="tester",
     )
     articles.save(
-        Article(ulid="01FOTO", title="Foto", collection_id="FOTOS", lifecycle=Lifecycle.PUBLISHED),
+        Article(
+            ulid=ID_01FOTO,
+            title="Foto",
+            collection_id=ID_FOTOS,
+            lifecycle=Lifecycle.PUBLISHED,
+        ),
         0,
         changed_by="tester",
     )
@@ -89,12 +105,12 @@ def test_reindex_article_job_recomputes_from_current_canonical(canonical: Object
 
     # (Job conceptually enqueued here for 01FOTO at PUBLIC.) Now canonical changes:
     articles = ArticleRepository(canonical)
-    stored = articles.load("01FOTO")
+    stored = articles.load(ID_01FOTO)
     articles.save(
         Article(
-            ulid="01FOTO",
+            ulid=ID_01FOTO,
             title="Foto",
-            collection_id="FOTOS",
+            collection_id=ID_FOTOS,
             lifecycle=Lifecycle.PUBLISHED,
             audience=Audience(AudienceTier.MEMBERS),  # narrowed after 'enqueue'
         ),
@@ -162,8 +178,10 @@ def test_generate_thumbnail_task_derives_from_canonical(tmp_path: Path) -> None:
         BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs),
     ):
         articles = Archive.canonical().articles
-        ref = articles.add_media("A1", "p.png", io.BytesIO(_png_bytes()), media_type="image/png")
-        articles.save(Article("A1", "Bild", "FOTOS", media=(ref,)), 0, changed_by="tester")
+        ref = articles.add_media(
+            ULID("A1"), "p.png", io.BytesIO(_png_bytes()), media_type="image/png"
+        )
+        articles.save(Article(ULID("A1"), "Bild", ID_FOTOS, media=(ref,)), 0, changed_by="tester")
         tasks_mod.generate_thumbnail.func(ulid="A1", content_hash=ref.content_hash)
     out = thumbnail_path(thumbs, ref.content_hash)
     assert out.is_file()
@@ -203,9 +221,9 @@ def test_mirror_store_is_none_when_url_unset() -> None:
 def test_the_push_job_pushes_the_saved_record_and_notes_it(store: InMemoryObjectStore) -> None:
     remote, record = InMemoryObjectStore(), InMemoryPushRecord()
 
-    jobs.mirror_push(Archive.of(store), remote, record, "01FOTO")
+    jobs.mirror_push(Archive.of(store), remote, record, ID_01FOTO)
 
-    (readme,) = (key.key for key in ArticleRepository(store).keys_for("01FOTO"))
+    (readme,) = (key.key for key in ArticleRepository(store).keys_for(ID_01FOTO))
     assert remote.read(readme) == store.read(readme)
     assert record.held([readme]).keys() == {readme}
 
@@ -266,7 +284,7 @@ def test_enqueue_mirror_push_is_noop_when_mirror_unset() -> None:
     """No queue churn for a feature that is off."""
     import bundesarchiv.app.tasks as tasks_mod
 
-    assert queued(lambda: tasks_mod.enqueue_mirror_push("01A")) == []
+    assert queued(lambda: tasks_mod.enqueue_mirror_push(ID_01A)) == []
 
 
 def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -279,7 +297,7 @@ def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPat
     # ``from httpx2 import Client``) — this attribute IS what ``tasks.mirror_store`` calls.
     monkeypatch.setattr(httpx2, "Client", _boom)
 
-    jobs = queued(lambda: tasks_mod.enqueue_mirror_push("01A"), mirror=True)
+    jobs = queued(lambda: tasks_mod.enqueue_mirror_push(ID_01A), mirror=True)
     assert jobs == [("mirror_push", {"ulid": "01A"})]
 
 
@@ -289,10 +307,10 @@ def test_saves_of_one_record_share_one_queued_push_and_never_hold_back_its_delet
     import bundesarchiv.app.tasks as tasks_mod
 
     def saves_then_a_delete() -> None:
-        tasks_mod.enqueue_mirror_push("01A")
-        tasks_mod.enqueue_mirror_push("01A")
-        tasks_mod.enqueue_mirror_push("01B")
-        tasks_mod.enqueue_mirror_delete_article("01A")
+        tasks_mod.enqueue_mirror_push(ID_01A)
+        tasks_mod.enqueue_mirror_push(ID_01A)
+        tasks_mod.enqueue_mirror_push(ULID("01B"))
+        tasks_mod.enqueue_mirror_delete_article(ID_01A)
 
     assert queued(saves_then_a_delete, mirror=True) == [
         ("mirror_push", {"ulid": "01A"}),
@@ -323,12 +341,12 @@ def test_a_hard_delete_reaches_the_system_of_record_through_the_worker(
     _fake_dav(monkeypatch, answer)
 
     def delete() -> None:
-        hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
+        hard_delete_article(archive, ID_01FOTO, archive.articles.load(ID_01FOTO).version)
 
     with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=MIRROR):
         run_worker_once_in_test(defer=delete)
 
-    folder = urlsplit(MIRROR).path + archive.articles.folder("01FOTO")
+    folder = urlsplit(MIRROR).path + archive.articles.folder(ID_01FOTO)
     assert [path for method, path in sent if method == "DELETE"] == [folder]
     assert PostgresPushRecord().entries().keys() == set(canonical.list())
 
@@ -374,7 +392,7 @@ def test_a_failed_push_logs_its_summary_with_the_exception_class_and_still_raise
             raise ArchiveError("down")
 
     with caplog.at_level("INFO", logger=jobs.__name__), pytest.raises(ArchiveError):
-        jobs.mirror_push(Archive.of(store), Broken(), InMemoryPushRecord(), "01FOTO")
+        jobs.mirror_push(Archive.of(store), Broken(), InMemoryPushRecord(), ID_01FOTO)
 
     (record,) = (r for r in caplog.records if r.name == jobs.__name__)
     fields = vars(record)
@@ -397,10 +415,10 @@ def test_one_page_text_job_is_queued_per_article_that_misses_text_and_no_pdf_is_
     articles = ArticleRepository(store)
     for ulid in ("01HEFT", "01ZWEI"):
         refs = tuple(
-            articles.add_media(ulid, name, io.BytesIO(text_pdf([name])))
+            articles.add_media(ULID(ulid), name, io.BytesIO(text_pdf([name])))
             for name in ("a.pdf", "b.pdf")
         )
-        articles.save(Article(ulid, "Heft", "FOTOS", media=refs), 0, changed_by="tester")
+        articles.save(Article(ULID(ulid), "Heft", ID_FOTOS, media=refs), 0, changed_by="tester")
 
     enqueue = lambda: tasks_mod.enqueue_missing_text(Archive.of(store))
     assert sorted(queued(enqueue), key=str) == [
@@ -416,11 +434,11 @@ def test_a_failed_page_text_enqueue_never_fails_the_rebuild(tmp_path: Path) -> N
     from bundesarchiv.index.models import ArticleIndex
 
     store = LocalFsObjectStore(tmp_path)
-    root = Collection(ulid="ROOT", name="Wurzel", parent_id=None)
+    root = Collection(ulid=ID_ROOT, name="Wurzel", parent_id=None)
     CollectionRepository(store).save(root, 0, changed_by="tester")
     articles = ArticleRepository(store)
-    heft = articles.add_media("01HEFT", "a.pdf", io.BytesIO(text_pdf(["Lager"])))
-    articles.save(Article("01HEFT", "Heft", "ROOT", media=(heft,)), 0, changed_by="tester")
+    heft = articles.add_media(ULID("01HEFT"), "a.pdf", io.BytesIO(text_pdf(["Lager"])))
+    articles.save(Article(ULID("01HEFT"), "Heft", ID_ROOT, media=(heft,)), 0, changed_by="tester")
 
     with override_settings(BUNDESARCHIV_CANONICAL_ROOT=str(tmp_path)):
         refuse = frozenset({"extract_media_text"})
@@ -433,7 +451,7 @@ def test_a_page_text_job_already_queued_stands_in_for_the_next() -> None:
     import bundesarchiv.app.tasks as tasks_mod
 
     def two_saves() -> None:
-        tasks_mod.enqueue_extract_media_text("01A")
-        tasks_mod.enqueue_extract_media_text("01A")
+        tasks_mod.enqueue_extract_media_text(ID_01A)
+        tasks_mod.enqueue_extract_media_text(ID_01A)
 
     assert queued(two_saves) == [("extract_media_text", {"ulid": "01A"})]

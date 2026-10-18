@@ -12,7 +12,7 @@ from django.core.management.base import CommandError
 from django.test import override_settings
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.domain.models import Article, Collection, MediaRef
+from bundesarchiv.domain.models import ULID, Article, Collection, MediaRef
 from bundesarchiv.persistence._writer import history_key, readme_key
 
 ARTICLE, COLLECTION = "01ARTIKEL", "01BESTAND"
@@ -28,11 +28,11 @@ def archive(tmp_path: Path) -> Iterator[Archive]:
 def scans(archive: Archive) -> tuple[MediaRef, MediaRef]:
     """A Bestand saved twice, and an Article saved twice: its first version names a scan and a
     second file uploaded under the same name, its second version only the scan."""
-    archive.collections.save(Collection(COLLECTION, "Bund"), 0, changed_by="tester")
-    archive.collections.save(Collection(COLLECTION, "Bund (alt)"), 1, changed_by="tester")
-    scan = archive.articles.add_media(ARTICLE, "Scan.pdf", io.BytesIO(b"%PDF eins"))
-    twin = archive.articles.add_media(ARTICLE, "Scan.pdf", io.BytesIO(b"%PDF zwei"))
-    article = Article(ARTICLE, "Brief", COLLECTION, media=(scan, twin))
+    archive.collections.save(Collection(ULID(COLLECTION), "Bund"), 0, changed_by="tester")
+    archive.collections.save(Collection(ULID(COLLECTION), "Bund (alt)"), 1, changed_by="tester")
+    scan = archive.articles.add_media(ULID(ARTICLE), "Scan.pdf", io.BytesIO(b"%PDF eins"))
+    twin = archive.articles.add_media(ULID(ARTICLE), "Scan.pdf", io.BytesIO(b"%PDF zwei"))
+    article = Article(ULID(ARTICLE), "Brief", ULID(COLLECTION), media=(scan, twin))
     archive.articles.save(article, 0, changed_by="tester")
     archive.articles.save(replace(article, media=(scan,)), 1, changed_by="tester")
     return scan, twin
@@ -66,7 +66,7 @@ def test_a_clean_tree_reports_clean(scans: tuple[MediaRef, MediaRef]) -> None:
 def test_a_flipped_byte_is_found(
     archive: Archive, scans: tuple[MediaRef, MediaRef], which: int
 ) -> None:
-    key = archive.articles.media_key(ARTICLE, scans[which])
+    key = archive.articles.media_key(ULID(ARTICLE), scans[which])
     data = archive.store.read(key)
     archive.store.write_atomic(key, bytes([data[0] ^ 1]) + data[1:])
     assert f"Media files with a mismatched checksum: 1\n  {key}\n" in _findings()
@@ -76,7 +76,7 @@ def test_a_flipped_byte_is_found(
 def test_a_missing_file_is_found(
     archive: Archive, scans: tuple[MediaRef, MediaRef], which: int
 ) -> None:
-    key = archive.articles.media_key(ARTICLE, scans[which])
+    key = archive.articles.media_key(ULID(ARTICLE), scans[which])
     archive.store.delete(key)
     assert f"References without a file: 1\n  {key}\n" in _findings()
 
@@ -117,8 +117,8 @@ def test_an_unreadable_readme_version_is_found(
 def test_an_unreadable_file_is_found_and_the_check_goes_on(
     tmp_path: Path, archive: Archive, scans: tuple[MediaRef, MediaRef]
 ) -> None:
-    key = archive.articles.media_key(ARTICLE, scans[0])
-    stranger = archive.articles.media_key(ARTICLE, MediaRef("Fremd.pdf", "0" * 64))
+    key = archive.articles.media_key(ULID(ARTICLE), scans[0])
+    stranger = archive.articles.media_key(ULID(ARTICLE), MediaRef("Fremd.pdf", "0" * 64))
     archive.store.write_atomic(stranger, b"Notiz")
     locked = (tmp_path / "canonical").joinpath(*key.split("/"))
     locked.chmod(0o000)
@@ -135,7 +135,7 @@ def test_the_report_is_one_structured_record_ok_or_failed(
 ) -> None:
     with caplog.at_level("INFO", logger="bundesarchiv.app.management.commands.verify"):
         call_command("verify", stdout=io.StringIO())
-        archive.store.delete(archive.articles.media_key(ARTICLE, scans[0]))
+        archive.store.delete(archive.articles.media_key(ULID(ARTICLE), scans[0]))
         _findings()
     clean, broken = (vars(r) for r in caplog.records)
     assert (clean["outcome"], clean["checked_readmes"], clean["checked_files"]) == ("ok", 4, 2)

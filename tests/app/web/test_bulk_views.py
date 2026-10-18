@@ -11,10 +11,10 @@ from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection, page_hrefs
 
 from bundesarchiv.app.web import browse, bulk
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
-_A = "01KX7YT9E3VX0CP3A5Q49RZM01"
+_A = ULID("01KX7YT9E3VX0CP3A5Q49RZM01")
 _B = "01KX7YT9E3VX0CP3A5Q49RZM02"
 
 
@@ -38,7 +38,7 @@ def two_drafts(make_corpus: Callable[[], Corpus]) -> Corpus:
 
 def _stored(corpus: Corpus, ulid: str) -> Article:
     """The article as it is on disk right now — the oracle every zero-writes assert reads."""
-    return corpus.articles.load(ulid).article
+    return corpus.articles.load(ULID(ulid)).article
 
 
 _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
@@ -244,7 +244,7 @@ def test_the_ticked_head_box_selects_every_row_of_its_page(two_drafts: Corpus) -
 
 def test_commit_keeps_the_date_added(two_drafts: Corpus) -> None:
     added_at = datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC)
-    ulid = "01KX7YT9E3VX0CP3A5Q49RZM03"
+    ulid = ULID("01KX7YT9E3VX0CP3A5Q49RZM03")
     two_drafts.add_article(make_article(ulid, collection_id="PUB", added_at=added_at))
     client_as(Archivist()).post(
         "/articles/bulk-edit",

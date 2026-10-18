@@ -5,7 +5,7 @@ index; ``InMemoryIndex`` is the test fake."""
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
-from bundesarchiv.domain.models import Ulid, Version
+from bundesarchiv.domain.models import ULID, Version
 from bundesarchiv.index.indexer import index_article, index_subtree
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import NotFound
@@ -19,10 +19,10 @@ SYNC_LOCK_TIMEOUT_MS = 5000
 class Index(Protocol):
     """Best effort: the write already stood, so a caller survives a raise (ADR 0014)."""
 
-    def refresh_article(self, ulid: Ulid) -> None:
+    def refresh_article(self, ulid: ULID) -> None:
         """Recompute ``ulid``'s row from the store, or drop it when the Article is gone."""
 
-    def refresh_subtree(self, collection_ulid: Ulid) -> None:
+    def refresh_subtree(self, collection_ulid: ULID) -> None:
         """Recompute the row of every Article under ``collection_ulid``."""
 
 
@@ -34,15 +34,15 @@ class PostgresIndex:
     store: ObjectStore
     lock_timeout_ms: int = SYNC_LOCK_TIMEOUT_MS
 
-    def refresh_article(self, ulid: Ulid) -> None:
+    def refresh_article(self, ulid: ULID) -> None:
         index_article(self.store, ulid, lock_timeout_ms=self.lock_timeout_ms)
 
-    def refresh_subtree(self, collection_ulid: Ulid) -> None:
+    def refresh_subtree(self, collection_ulid: ULID) -> None:
         index_subtree(self.store, collection_ulid, lock_timeout_ms=self.lock_timeout_ms)
 
 
 #: A refresh the fake was asked for, and the version ``store`` held at that moment (None: absent).
-type Refresh = tuple[Literal["article", "subtree"], Ulid, Version | None]
+type Refresh = tuple[Literal["article", "subtree"], ULID, Version | None]
 
 
 @dataclass
@@ -54,14 +54,14 @@ class InMemoryIndex:
     failing: bool = False
     refreshed: list[Refresh] = field(default_factory=list)
 
-    def refresh_article(self, ulid: Ulid) -> None:
+    def refresh_article(self, ulid: ULID) -> None:
         try:
             version: Version | None = ArticleRepository(self.store).load(ulid).version
         except NotFound:
             version = None
         self._record(("article", ulid, version))
 
-    def refresh_subtree(self, collection_ulid: Ulid) -> None:
+    def refresh_subtree(self, collection_ulid: ULID) -> None:
         try:
             version: Version | None = CollectionRepository(self.store).load(collection_ulid).version
         except NotFound:

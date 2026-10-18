@@ -32,12 +32,12 @@ from tests import _articles
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
     Collection,
     Lifecycle,
-    Ulid,
     Version,
 )
 from bundesarchiv.domain.viewer import Viewer
@@ -48,12 +48,12 @@ from bundesarchiv.persistence.repository import ArticleRepository
 
 DEV_KEY = "test-web-dev-viewer-key"
 
-ROOT = "ROOT"
+ROOT = ULID("ROOT")
 # A real ULID: the collection routes validate their ``<ulid>`` in-view, so a mnemonic literal
 # would 404 there instead of failing loudly.
-PUB = "01KX7YT9E3VX0CP3A5Q49RZMPB"
+PUB = ULID("01KX7YT9E3VX0CP3A5Q49RZMPB")
 PUBLISHED_ULID = "01KX7YT9E3VX0CP3A5Q49RZMWK"
-DRAFT_ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
+DRAFT_ULID = ULID("01KX7YT9E3VX0CP3A5Q49RZMVH")
 
 
 def draft_mark() -> str:
@@ -156,13 +156,13 @@ def client_as(viewer: Viewer | None, *, enforce_csrf: bool = False) -> Client:
 
 
 def make_collection(
-    ulid: Ulid,
+    ulid: str,
     name: str = "Sammlung",
-    parent_id: Ulid | None = ROOT,
+    parent_id: str | None = ROOT,
     audience: Audience | None = None,
 ) -> Collection:
     """A Collection under ROOT — pass only what the test asserts about."""
-    return Collection(ulid, name, parent_id, audience)
+    return Collection(ULID(ulid), name, None if parent_id is None else ULID(parent_id), audience)
 
 
 # ``ulid`` stays explicit: the views reject anything that is not a real ULID (``is_valid_ulid``),
@@ -263,7 +263,7 @@ def settings_for(corpus: Corpus) -> dict[str, object]:
 
 
 def _version(corpus: Corpus, ulid: str) -> str:
-    return str(corpus.articles.load(ulid).version)
+    return str(corpus.articles.load(ULID(ulid)).version)
 
 
 def with_two_media(corpus: Corpus) -> tuple[str, str]:
@@ -278,7 +278,7 @@ def with_two_media(corpus: Corpus) -> tuple[str, str]:
 
 
 def _marked(corpus: Corpus, ulid: str) -> str:
-    stored = corpus.articles.load(ulid)
+    stored = corpus.articles.load(ULID(ulid))
     return str(corpus.articles.mark_deleted(stored.article, stored.version, changed_by="tester"))
 
 

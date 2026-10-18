@@ -14,8 +14,9 @@ from tests._articles import make_article
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import thumbnail_path
+from bundesarchiv.domain.models import ULID
 
-_ULID = "01KX7YT9E3VX0CP3A5Q49RZMPB"
+_ULID = ULID("01KX7YT9E3VX0CP3A5Q49RZMPB")
 
 
 def _encoded(size: tuple[int, int], color: tuple[int, int, int], format: str) -> bytes:

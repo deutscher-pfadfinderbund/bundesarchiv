@@ -7,7 +7,7 @@ from bundesarchiv.app import after_write
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import CreateResult, SaveResult
 from bundesarchiv.domain import identity
-from bundesarchiv.domain.models import Audience, Collection, Ulid, Version
+from bundesarchiv.domain.models import ULID, Audience, Collection, Version
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
 
 
@@ -16,7 +16,7 @@ def create_collection(
     *,
     changed_by: str,
     name: str,
-    parent_id: Ulid | None = None,
+    parent_id: ULID | None = None,
     audience: Audience | None = None,
 ) -> CreateResult:
     """A new leaf holds no Articles, so its audience exposes nothing and nothing is reindexed."""
@@ -30,7 +30,7 @@ def create_collection(
     return CreateResult(ulid=collection.ulid, version=new_version, index_updated=index_updated)
 
 
-def _collection_exists(archive: Archive, ulid: Ulid) -> bool:
+def _collection_exists(archive: Archive, ulid: ULID) -> bool:
     try:
         archive.collections.load(ulid)
     except NotFound:

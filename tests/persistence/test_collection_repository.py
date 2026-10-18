@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from tests._readmes import UNREADABLE_README
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Collection
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Collection
 from bundesarchiv.persistence import collection_readme
 from bundesarchiv.persistence._writer import history_key, readme_key
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
@@ -12,6 +12,8 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository, StoredCollection
 from bundesarchiv.persistence.errors import Conflict, NotFound, UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
+
+ID_01J0 = ULID("01J0")
 
 
 def _collection(ulid: str = "01J0", **overrides: object) -> Collection:
@@ -44,7 +46,7 @@ def test_save_then_load_round_trips_the_collection(repo: CollectionRepository) -
     )
     version = repo.save(collection, expected_version=0, changed_by="tester")
     assert version == 1
-    loaded = repo.load("01J0")
+    loaded = repo.load(ID_01J0)
     assert isinstance(loaded, StoredCollection)
     assert loaded.collection == collection
     assert loaded.version == 1
@@ -52,7 +54,7 @@ def test_save_then_load_round_trips_the_collection(repo: CollectionRepository) -
 
 def test_load_missing_raises_not_found(repo: CollectionRepository) -> None:
     with pytest.raises(NotFound):
-        repo.load("nope")
+        repo.load(ULID("nope"))
 
 
 def test_stale_expected_version_raises_conflict(repo: CollectionRepository) -> None:
@@ -66,16 +68,16 @@ def test_version_increments_across_saves(repo: CollectionRepository) -> None:
     assert repo.save(_collection(), expected_version=0, changed_by="tester") == 1
     assert repo.save(_collection(name="a"), expected_version=1, changed_by="tester") == 2
     assert repo.save(_collection(name="b"), expected_version=2, changed_by="tester") == 3
-    assert repo.load("01J0").version == 3
+    assert repo.load(ID_01J0).version == 3
 
 
 def test_unversioned_readme_loads_as_zero_then_saves_cleanly(repo: CollectionRepository) -> None:
     # Written before versioning (ADR 0013).
     repo._store.write_atomic("collections/01J0/README.md", b"---\nulid: 01J0\nname: Old\n---\n")
-    loaded = repo.load("01J0")
+    loaded = repo.load(ID_01J0)
     assert loaded.version == 0
     assert repo.save(_collection(name="Migrated"), expected_version=0, changed_by="tester") == 1
-    assert repo.load("01J0").version == 1
+    assert repo.load(ID_01J0).version == 1
 
 
 def test_load_all_returns_every_saved_collection(repo: CollectionRepository) -> None:
@@ -95,7 +97,7 @@ def test_load_all_returns_empty_tuple_when_no_collections(repo: CollectionReposi
 def test_keys_for_lists_history_before_the_readme_it_replaced(repo: CollectionRepository) -> None:
     repo.save(_collection(), expected_version=0, changed_by="tester")
     repo.save(_collection(name="Neu"), expected_version=1, changed_by="tester")
-    assert [(key.key, key.write_once) for key in repo.keys_for("01J0")] == [
+    assert [(key.key, key.write_once) for key in repo.keys_for(ID_01J0)] == [
         (history_key("collections/01J0", 1), True),
         (readme_key("collections/01J0"), False),
     ]
@@ -106,17 +108,17 @@ def test_keys_for_marks_a_readme_that_does_not_decode(
     repo: CollectionRepository, rotten: bytes
 ) -> None:
     repo.save(_collection(), expected_version=0, changed_by="tester")
-    assert all(key.readable for key in repo.keys_for("01J0"))
+    assert all(key.readable for key in repo.keys_for(ID_01J0))
     repo._store.write_atomic(readme_key("collections/01J0"), rotten)
-    assert [(key.key, key.readable) for key in repo.keys_for("01J0")] == [
+    assert [(key.key, key.readable) for key in repo.keys_for(ID_01J0)] == [
         (readme_key("collections/01J0"), False)
     ]
 
 
 def test_collection_without_parent_and_audience_round_trips(repo: CollectionRepository) -> None:
-    collection = Collection(ulid="01J0", name="Root")
+    collection = Collection(ulid=ID_01J0, name="Root")
     repo.save(collection, expected_version=0, changed_by="tester")
-    loaded = repo.load("01J0")
+    loaded = repo.load(ID_01J0)
     assert loaded.collection == collection
     assert loaded.collection.parent_id is None
     assert loaded.collection.audience is None
@@ -152,10 +154,10 @@ def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     assert len(winners) == 1, f"expected exactly one winner, got {results}"
     assert len(losers) == 1, f"expected exactly one Conflict, got {results}"
     assert winners[0] == 2  # winner wrote v1 -> v2
-    assert repo.load("01J0").version == 2
+    assert repo.load(ID_01J0).version == 2
     # And the README front matter really carries v2.
     raw = repo._store.read(readme_key("collections/01J0")).decode("utf-8")
-    _decoded, stored_version, _ = collection_readme.decode_collection(raw, ulid="01J0")
+    _decoded, stored_version, _ = collection_readme.decode_collection(raw, ulid=ID_01J0)
     assert stored_version == 2
 
 
@@ -166,7 +168,7 @@ def test_an_unreadable_readme_fails_load_and_save(repo: CollectionRepository, da
     repo._store.write_atomic(readme_key("collections/01J0"), data)
     before = {key: repo._store.read(key) for key in repo._store.list()}
     with pytest.raises(UnreadableReadme):
-        repo.load("01J0")
+        repo.load(ID_01J0)
     with pytest.raises(UnreadableReadme):
         repo.save(_collection(), expected_version=1, changed_by="tester")
     assert {key: repo._store.read(key) for key in repo._store.list()} == before

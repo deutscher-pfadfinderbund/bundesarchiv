@@ -17,7 +17,7 @@ from typing import assert_never
 
 from bundesarchiv.app import pdf
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.domain.models import MediaRef, Ulid
+from bundesarchiv.domain.models import ULID, MediaRef
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import FileKind
 from bundesarchiv.persistence.errors import NotFound
@@ -68,7 +68,7 @@ def parse(data: bytes, content_hash: str) -> Parsed:
     return Pages(texts) if texts else Unreadable()
 
 
-def read(archive: Archive, ulid: Ulid, ref: MediaRef) -> Parsed | None:
+def read(archive: Archive, ulid: ULID, ref: MediaRef) -> Parsed | None:
     """What Article ``ulid``'s file ``ref`` gives (``parse``), or None when the file is gone or its
     read fails (logged); a later fill tries again. Never raises for the file's bytes."""
     try:
@@ -81,7 +81,7 @@ def read(archive: Archive, ulid: Ulid, ref: MediaRef) -> Parsed | None:
         return None
 
 
-def record(ulid: Ulid, content_hash: str, parsed: Parsed) -> None:
+def record(ulid: ULID, content_hash: str, parsed: Parsed) -> None:
     """Store ``parsed`` as the text of ``content_hash``: the pages of ``Pages``, the page-0 marker
     for ``Unreadable``. A ``HashMismatch`` stores nothing and is logged as an alarm naming the file
     and Article ``ulid``."""
@@ -96,7 +96,7 @@ def record(ulid: Ulid, content_hash: str, parsed: Parsed) -> None:
             assert_never(parsed)
 
 
-def fill(archive: Archive, ulid: Ulid) -> dict[str, Parsed]:
+def fill(archive: Archive, ulid: ULID) -> dict[str, Parsed]:
     """``read`` and ``record`` each ``readable`` file of Article ``ulid``'s current media that has
     no text yet; returns the outcome per content hash of each file read (a failed read is absent).
     ``{}`` when the Article is gone. Never raises for a file's bytes."""
@@ -112,7 +112,7 @@ def fill(archive: Archive, ulid: Ulid) -> dict[str, Parsed]:
     }
 
 
-def _fill_one(archive: Archive, ulid: Ulid, ref: MediaRef) -> Parsed | None:
+def _fill_one(archive: Archive, ulid: ULID, ref: MediaRef) -> Parsed | None:
     """``read`` one file and ``record`` its outcome at once, so a later file that kills the job
     leaves this one stored."""
     parsed = read(archive, ulid, ref)
@@ -121,7 +121,7 @@ def _fill_one(archive: Archive, ulid: Ulid, ref: MediaRef) -> Parsed | None:
     return parsed
 
 
-def missing(archive: Archive) -> tuple[Ulid, ...]:
+def missing(archive: Archive) -> tuple[ULID, ...]:
     """The Articles whose README decodes with a ``readable`` file that has no text yet."""
     files = {a.ulid: readable(a.media) for a in archive.articles.scan().readable}
     done = indexer.hashes_with_text(r.content_hash for refs in files.values() for r in refs)

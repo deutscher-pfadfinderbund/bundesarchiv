@@ -89,7 +89,9 @@ def collections_area(
 ) -> Mapping[str, object]:
     """The top-level Bestände the viewer has Articles in, most first. ``counts`` is already
     viewer-scoped, and a Bestand it does not count is not named."""
-    top = {c.ulid: c.name for c in chooser.by_ulid().values() if c.parent_id is None}
+    top: dict[str, str] = {
+        c.ulid: c.name for c in chooser.by_ulid().values() if c.parent_id is None
+    }
     tiles = sorted(
         (
             Tile(

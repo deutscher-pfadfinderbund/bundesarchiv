@@ -18,7 +18,7 @@ from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
 from bundesarchiv.domain.audience import ARCHIVIST_ONLY, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Article, Collection, Lifecycle, MediaRef, Ulid
+from bundesarchiv.domain.models import ULID, Article, Collection, Lifecycle, MediaRef
 from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.index.query import FileKind
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
@@ -66,9 +66,9 @@ class RebuildReport:
     archivist-only, such a Collection is treated as absent."""
 
     indexed: int
-    failed_closed: tuple[str, ...]
-    unreadable_articles: tuple[str, ...]
-    unreadable_collections: tuple[str, ...]
+    failed_closed: tuple[ULID, ...]
+    unreadable_articles: tuple[ULID, ...]
+    unreadable_collections: tuple[ULID, ...]
 
 
 def _archivist_text(article: Article) -> str:
@@ -115,7 +115,9 @@ def _file_counts(article: Article) -> dict[str, int]:
     return dict(Counter(file_kind(ref).value for ref in article.media))
 
 
-def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -> dict[str, object]:
+def _content_columns(
+    article: Article, *, ancestors: list[ULID], cap_year: int
+) -> dict[str, object]:
     earliest, latest, decades = _date_columns(article, cap_year=cap_year)
     return {
         "ulid": article.ulid,
@@ -169,7 +171,7 @@ def _fail_closed_row(article: Article, *, cap_year: int) -> dict[str, object]:
 
 
 def _row_for(
-    article: Article, lookup: dict[Ulid, Collection], *, cap_year: int
+    article: Article, lookup: dict[ULID, Collection], *, cap_year: int
 ) -> tuple[dict[str, object], bool]:
     """The row, and whether it failed closed (ADR 0012)."""
     try:
@@ -179,15 +181,15 @@ def _row_for(
         return _fail_closed_row(article, cap_year=cap_year), True
 
 
-def _unreadable_row(ulid: Ulid, *, cap_year: int) -> dict[str, object]:
+def _unreadable_row(ulid: ULID, *, cap_year: int) -> dict[str, object]:
     """The row of an Article whose README does not decode (owner 2026-10-01): archivist-only, with
     the ulid, all that is known, as its title. Built from a stand-in so every column is written,
     and an upsert keeps nothing of the old row."""
-    stand_in = Article(ulid=ulid, title=ulid, collection_id="", lifecycle=Lifecycle.PUBLISHED)
+    stand_in = Article(ulid=ulid, title=ulid, collection_id=ULID(""), lifecycle=Lifecycle.PUBLISHED)
     return _fail_closed_row(stand_in, cap_year=cap_year)
 
 
-def _collection_lookup(store: ObjectStore) -> tuple[dict[Ulid, Collection], tuple[Ulid, ...]]:
+def _collection_lookup(store: ObjectStore) -> tuple[dict[ULID, Collection], tuple[ULID, ...]]:
     """Every saved Collection by ulid, the lookup ``resolve_chain`` takes, and the ulids of those
     left out because their README does not decode."""
     scan = CollectionRepository(store).scan()
@@ -234,7 +236,7 @@ def config_stale() -> bool:
     return ArticleIndex.objects.exclude(config_version=CONFIG_VERSION).exists()
 
 
-def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None = None) -> None:
+def index_article(store: ObjectStore, ulid: ULID, *, lock_timeout_ms: int | None = None) -> None:
     """A ``lock_timeout_ms`` timeout raises ``OperationalError`` with nothing written."""
     articles = ArticleRepository(store)
     cap_year = _current_year()
@@ -255,7 +257,7 @@ def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None
 
 
 def index_subtree(
-    store: ObjectStore, collection_ulid: Ulid, *, lock_timeout_ms: int | None = None
+    store: ObjectStore, collection_ulid: ULID, *, lock_timeout_ms: int | None = None
 ) -> None:
     """An Article whose README does not decode is left to ``rebuild``."""
     articles = ArticleRepository(store)
@@ -270,7 +272,7 @@ def index_subtree(
                 ArticleIndex.objects.update_or_create(ulid=article.ulid, defaults=row)
 
 
-def _in_subtree(article: Article, collection_ulid: Ulid, lookup: dict[Ulid, Collection]) -> bool:
+def _in_subtree(article: Article, collection_ulid: ULID, lookup: dict[ULID, Collection]) -> bool:
     try:
         chain = resolve_chain(article.collection_id, lookup)
     except DomainError:

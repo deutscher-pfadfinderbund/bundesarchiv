@@ -16,11 +16,11 @@ from tests.app.web._fixtures import (
     page_hrefs,
 )
 
-from bundesarchiv.domain.models import Audience, AudienceTier
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import indexer
 
-_MARKED = "01KX7YT9E3VX0CP3A5Q49RZMTA"
+_MARKED = ULID("01KX7YT9E3VX0CP3A5Q49RZMTA")
 _LIVE = "01KX7YT9E3VX0CP3A5Q49RZMTB"
 
 

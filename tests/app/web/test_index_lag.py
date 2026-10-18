@@ -19,7 +19,7 @@ from tests.app.web._fixtures import (
 )
 
 from bundesarchiv.app.web import landing
-from bundesarchiv.domain.models import Lifecycle
+from bundesarchiv.domain.models import ULID, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member
 from bundesarchiv.index.refresh import InMemoryIndex, Refresh
 
@@ -34,7 +34,7 @@ _NO_SYNC = {"collection-create", "collection-edit"}
 
 
 def _media(corpus: Corpus) -> tuple[str, ...]:
-    return tuple(ref.filename for ref in corpus.articles.load(DRAFT_ULID).article.media)
+    return tuple(ref.filename for ref in corpus.articles.load(ULID(DRAFT_ULID)).article.media)
 
 
 def _titles(corpus: Corpus) -> list[str]:
@@ -44,20 +44,20 @@ def _titles(corpus: Corpus) -> list[str]:
 #: What the canonical write left behind, per route: the lag never undoes the write (ADR 0014).
 _STOOD: dict[str, Callable[[Corpus], bool]] = {
     "article-create": lambda c: "Neu" in _titles(c),
-    "article-edit": lambda c: c.articles.load(DRAFT_ULID).article.title == "Umbenannt",
+    "article-edit": lambda c: c.articles.load(ULID(DRAFT_ULID)).article.title == "Umbenannt",
     "article-copy": lambda c: len(_titles(c)) == 3,
     "article-publish": lambda c: (
-        c.articles.load(DRAFT_ULID).article.lifecycle is Lifecycle.PUBLISHED
+        c.articles.load(ULID(DRAFT_ULID)).article.lifecycle is Lifecycle.PUBLISHED
     ),
-    "article-delete": lambda c: c.articles.load(PUBLISHED_ULID).article.deleted is not None,
+    "article-delete": lambda c: c.articles.load(ULID(PUBLISHED_ULID)).article.deleted is not None,
     "article-delete-permanently": lambda c: PUBLISHED_ULID not in set(c.articles.list_ulids()),
-    "article-restore": lambda c: c.articles.load(PUBLISHED_ULID).article.deleted is None,
+    "article-restore": lambda c: c.articles.load(ULID(PUBLISHED_ULID)).article.deleted is None,
     "article-media-upload": lambda c: _media(c) == ("scan.pdf",),
     "article-media-move": lambda c: _media(c) == ("b.pdf", "a.pdf"),
     "article-media-remove": lambda c: _media(c) == ("b.pdf",),
-    "article-bulk-edit": lambda c: c.articles.load(DRAFT_ULID).article.creator == "Kurt",
+    "article-bulk-edit": lambda c: c.articles.load(ULID(DRAFT_ULID)).article.creator == "Kurt",
     "collection-create": lambda c: "Karten" in {x.name for x in c.collections.load_all()},
-    "collection-edit": lambda c: c.collections.load(PUB).collection.name == "Umbenannt",
+    "collection-edit": lambda c: c.collections.load(ULID(PUB)).collection.name == "Umbenannt",
 }
 
 #: Every route that writes nothing to the archive.

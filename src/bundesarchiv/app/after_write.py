@@ -17,28 +17,28 @@ from bundesarchiv.app.tasks import (
     enqueue_reindex_article,
     enqueue_reindex_subtree,
 )
-from bundesarchiv.domain.models import Ulid
+from bundesarchiv.domain.models import ULID
 
 
 @dataclass(frozen=True, slots=True)
 class SavedArticle:
     """An Article was saved (a Papierkorb mark included): reindex its row, push it."""
 
-    ulid: Ulid
+    ulid: ULID
 
 
 @dataclass(frozen=True, slots=True)
 class RemovedArticle:
     """An Article left canonical for good: its row drops on reindex, its delete is enqueued."""
 
-    ulid: Ulid
+    ulid: ULID
 
 
 @dataclass(frozen=True, slots=True)
 class SavedCollection:
     """A Collection was saved without moving the visibility of any Article: push it."""
 
-    ulid: Ulid
+    ulid: ULID
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +46,7 @@ class MovedCollection:
     """A Collection was saved and the visibility of the Articles under it moved: reindex its whole
     subtree, push it."""
 
-    ulid: Ulid
+    ulid: ULID
 
 
 type Written = SavedArticle | RemovedArticle | SavedCollection | MovedCollection
@@ -73,7 +73,7 @@ def run(archive: Archive, written: Written) -> bool:
     return index_updated
 
 
-def _article_synced(archive: Archive, ulid: Ulid) -> bool:
+def _article_synced(archive: Archive, ulid: ULID) -> bool:
     return _synced(
         lambda: archive.index.refresh_article(ulid), lambda: enqueue_reindex_article(ulid)
     )

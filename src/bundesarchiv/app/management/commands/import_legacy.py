@@ -21,7 +21,7 @@ from bundesarchiv.app import legacy, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain import identity
-from bundesarchiv.domain.models import Collection, MediaRef, Ulid
+from bundesarchiv.domain.models import ULID, Collection, MediaRef
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.repository import cleaned_name
 
@@ -74,7 +74,7 @@ class Command(BaseCommand):
 
     def _create_collections(
         self, archive: Archive, items: Sequence[dict[str, str]]
-    ) -> dict[str, Ulid]:
+    ) -> dict[str, ULID]:
         """Create every Bestand the export needs as a top-level Collection, idempotently BY NAME.
 
         By name, because the run may be resumed against a root that already holds the Bestände but
@@ -198,6 +198,6 @@ def _refuse_a_media_root_without_the_files(
         )
 
 
-def _dry_ids(items: Sequence[dict[str, str]]) -> dict[str, Ulid]:
+def _dry_ids(items: Sequence[dict[str, str]]) -> dict[str, ULID]:
     """Throwaway Bestand ULIDs for the dry run, which creates nothing but still maps every row."""
     return {name: identity.new_ulid() for name in legacy.collection_names(items)}

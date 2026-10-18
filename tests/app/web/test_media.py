@@ -20,10 +20,12 @@ from tests.app.web._fixtures import (
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle, MediaRef
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
+
+ID_A1 = ULID("A1")
 
 
 def _png_bytes(color: tuple[int, int, int] = (200, 40, 60)) -> bytes:
@@ -71,7 +73,7 @@ def _fill(base: Corpus) -> None:
     )
     for tier, (ulid, coll, lifecycle, color) in _TIERS.items():
         ref = base.articles.add_media(
-            ulid, f"{tier}.png", io.BytesIO(_png_bytes(color)), media_type="image/png"
+            ULID(ulid), f"{tier}.png", io.BytesIO(_png_bytes(color)), media_type="image/png"
         )
         base.add_article(
             make_article(
@@ -88,7 +90,7 @@ class _TierCorpus:
         self.thumbnail_root = thumbnail_root
         self.ulid_by_tier = {tier: ulid for tier, (ulid, *_) in _TIERS.items()}
         self.ref_by_tier = {
-            tier: base.articles.load(ulid).article.media[0]
+            tier: base.articles.load(ULID(ulid)).article.media[0]
             for tier, ulid in self.ulid_by_tier.items()
         }
         self.hash_by_tier = {tier: ref.content_hash for tier, ref in self.ref_by_tier.items()}
@@ -116,7 +118,7 @@ class _TierCorpus:
     def blob_key(self, tier: str) -> str:
         """This tier's file key, from the repository that owns the layout — a byte comparison
         proves the right bytes, never the key scheme (which the X-Accel test pins verbatim)."""
-        return self.articles.media_key(self.ulid_by_tier[tier], self.ref_by_tier[tier])
+        return self.articles.media_key(ULID(self.ulid_by_tier[tier]), self.ref_by_tier[tier])
 
 
 @pytest.fixture
@@ -329,7 +331,7 @@ def test_x_accel_redirect_percent_encodes_the_named_file(corpus: _TierCorpus) ->
     ulid = new_ulid()
     ref = corpus.articles.add_media(ulid, "Grüße 100%41.png", io.BytesIO(_png_bytes()), "image/png")
     corpus.articles.save(
-        Article(ulid, "Umlaute", "PUB", lifecycle=Lifecycle.PUBLISHED, media=(ref,)),
+        Article(ulid, "Umlaute", ULID("PUB"), lifecycle=Lifecycle.PUBLISHED, media=(ref,)),
         0,
         changed_by="tester",
     )
@@ -355,7 +357,7 @@ def test_hostile_filename_cannot_inject_a_response_header(corpus: _TierCorpus) -
 
     ref = MediaRef('e"vil\r\nSet-Cookie: x=1.png', corpus.hash_by_tier["public"], "image/png")
     article = Article(
-        ulid=corpus.ulid_by_tier["public"], title="x", collection_id="PUB", media=(ref,)
+        ulid=ULID(corpus.ulid_by_tier["public"]), title="x", collection_id=ULID("PUB"), media=(ref,)
     )
     factory_request = None  # media_response ignores request for header building
     with override_settings(BUNDESARCHIV_X_ACCEL_PREFIX="/_protected"):
@@ -489,7 +491,7 @@ def test_deny_is_never_cached(corpus: _TierCorpus) -> None:
 
 
 def _saved(articles: ArticleRepository, ulid: str, *refs: MediaRef) -> None:
-    articles.save(Article(ulid, "Bilder", "PUB", media=refs), 0, changed_by="tester")
+    articles.save(Article(ULID(ulid), "Bilder", ULID("PUB"), media=refs), 0, changed_by="tester")
 
 
 def test_thumbnail_job_generates_for_jpeg_and_png(tmp_path: Path) -> None:
@@ -498,11 +500,11 @@ def test_thumbnail_job_generates_for_jpeg_and_png(tmp_path: Path) -> None:
     store = LocalFsObjectStore(tmp_path / "c")
     thumbs = tmp_path / "t"
     articles = ArticleRepository(store)
-    png = articles.add_media("A1", "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
-    jpg = articles.add_media("A1", "b.jpg", io.BytesIO(_jpeg_bytes()), media_type="image/jpeg")
+    png = articles.add_media(ID_A1, "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
+    jpg = articles.add_media(ID_A1, "b.jpg", io.BytesIO(_jpeg_bytes()), media_type="image/jpeg")
     _saved(articles, "A1", png, jpg)
     for ref in (png, jpg):
-        assert thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs) is True
+        assert thumbnails.generate_thumbnail(store, ID_A1, ref.content_hash, thumbs) is True
         out = thumbnails.thumbnail_path(thumbs, ref.content_hash)
         assert out.is_file()
         with Image.open(out) as im:
@@ -517,10 +519,10 @@ def test_thumbnail_job_noops_for_text_file(tmp_path: Path) -> None:
     thumbs = tmp_path / "t"
     articles = ArticleRepository(store)
     ref = articles.add_media(
-        "A1", "notes.txt", io.BytesIO(b"not an image at all"), media_type="text/plain"
+        ID_A1, "notes.txt", io.BytesIO(b"not an image at all"), media_type="text/plain"
     )
     _saved(articles, "A1", ref)
-    assert thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs) is False
+    assert thumbnails.generate_thumbnail(store, ID_A1, ref.content_hash, thumbs) is False
     assert not thumbnails.thumbnail_path(thumbs, ref.content_hash).exists()
 
 
@@ -529,10 +531,12 @@ def test_thumbnail_job_noops_for_a_file_not_on_the_article(tmp_path: Path) -> No
 
     store = LocalFsObjectStore(tmp_path / "c")
     articles = ArticleRepository(store)
-    dropped = articles.add_media("A1", "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
+    dropped = articles.add_media(ID_A1, "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
     _saved(articles, "A1")
     for ulid, content_hash in (("A1", dropped.content_hash), ("A2", dropped.content_hash)):
-        assert thumbnails.generate_thumbnail(store, ulid, content_hash, tmp_path / "t") is False
+        assert (
+            thumbnails.generate_thumbnail(store, ULID(ulid), content_hash, tmp_path / "t") is False
+        )
 
 
 def test_thumbnail_job_is_idempotent(tmp_path: Path) -> None:
@@ -541,10 +545,10 @@ def test_thumbnail_job_is_idempotent(tmp_path: Path) -> None:
     store = LocalFsObjectStore(tmp_path / "c")
     thumbs = tmp_path / "t"
     articles = ArticleRepository(store)
-    ref = articles.add_media("A1", "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
+    ref = articles.add_media(ID_A1, "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
     _saved(articles, "A1", ref)
-    thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs)
+    thumbnails.generate_thumbnail(store, ID_A1, ref.content_hash, thumbs)
     first = thumbnails.thumbnail_path(thumbs, ref.content_hash).read_bytes()
-    thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs)
+    thumbnails.generate_thumbnail(store, ID_A1, ref.content_hash, thumbs)
     second = thumbnails.thumbnail_path(thumbs, ref.content_hash).read_bytes()
     assert first == second

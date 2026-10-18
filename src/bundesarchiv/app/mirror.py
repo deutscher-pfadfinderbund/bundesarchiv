@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.domain.models import Ulid
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError
 from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
 from bundesarchiv.persistence.repository import StoredKey, content_digest
@@ -70,9 +70,9 @@ class PushRecord(Protocol):
 class _Keys(Protocol):
     """A repository, as far as the push needs one."""
 
-    def list_ulids(self) -> Iterable[Ulid]: ...
+    def list_ulids(self) -> Iterable[ULID]: ...
 
-    def keys_for(self, ulid: Ulid) -> list[StoredKey]: ...
+    def keys_for(self, ulid: ULID) -> list[StoredKey]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,11 +94,11 @@ class ReconcileReport:
     mismatched: tuple[str, ...]
     unreadable: tuple[str, ...]
     remote_only: tuple[str, ...]
-    failed: tuple[Ulid, ...]
+    failed: tuple[ULID, ...]
     remote_keys: int
 
 
-def push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) -> Sent:
+def push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: ULID) -> Sent:
     """Push the saved Article or Collection `ulid` to `remote`: each key `record` does not hold with
     the SHA-256 of its local bytes. A write-once key `remote` holds already is recorded, not sent.
     Raises `ArchiveError` at the first call that fails, and sends nothing after it."""
@@ -108,7 +108,7 @@ def push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) 
     return Sent(len(run.sent), run.sent_bytes)
 
 
-def delete_article(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) -> None:
+def delete_article(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: ULID) -> None:
     """Take the hard-deleted Article `ulid` off `remote`, its whole folder, then forget that folder
     in `record` (ADR 0020 "Hard delete"). Idempotent. Raises `ArchiveError` when the delete fails,
     forgetting nothing."""
@@ -151,7 +151,7 @@ def reconcile(
         },
     )
     run = _Push(archive.store, remote, record, sweep)
-    failed: list[Ulid] = []
+    failed: list[ULID] = []
     for checked, (repository, ulid) in enumerate(records, start=1):
         try:
             run.folder(repository, ulid)
@@ -227,7 +227,7 @@ class _Push:
         self.unreadable: list[str] = []
         self.seen: set[str] = set()
 
-    def folder(self, repository: _Keys, ulid: Ulid) -> None:
+    def folder(self, repository: _Keys, ulid: ULID) -> None:
         # Read before the listing the files are sent from: a save stores every file a README
         # names before that README, so this listing holds them all.
         first = repository.keys_for(ulid)

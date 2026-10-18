@@ -25,6 +25,7 @@ from tests.e2e._pages import (
 )
 
 from bundesarchiv.app.web import vocab
+from bundesarchiv.domain.models import ULID
 
 pytestmark = pytest.mark.e2e
 
@@ -809,7 +810,7 @@ _LONG_TYPE = max(vocab.DOCUMENT_TYPES, key=len)  # derived: the vocabulary IS th
 #: Long HERKUNFT values: an institutional author and a full place name.
 _LONG_CREATOR = "Bundesleitung des Bundes Deutscher Pfadfinderinnen, Referat Öffentlichkeitsarbeit"
 _LONG_PLACE = "Burg Rieneck im Sinntal, Unterfranken"
-_LONG_ULID = "01KXE2E1ANG0000000000000AA"
+_LONG_ULID = ULID("01KXE2E1ANG0000000000000AA")
 
 
 def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
@@ -826,7 +827,7 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
         Article(
             ulid=_LONG_ULID,
             title=_LONG_TITLE,
-            collection_id="FOTOS",
+            collection_id=ULID("FOTOS"),
             lifecycle=Lifecycle.PUBLISHED,
             ref_code=_CEILING_REF_CODE,
             media_type="Gegenstand",
@@ -2070,9 +2071,11 @@ def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
     for i in range(60):
         articles.save(
             Article(
-                ulid=f"01KXE2EPAGE{i:015d}",  # valid Crockford base32, > the canonical 01KX8N…
+                ulid=ULID(
+                    f"01KXE2EPAGE{i:015d}"
+                ),  # valid Crockford base32, > the canonical 01KX8N…
                 title=f"Seitenfüller {i:02d}",
-                collection_id="FOTOS",
+                collection_id=ULID("FOTOS"),
                 lifecycle=Lifecycle.PUBLISHED,
                 media_type="Foto(s)",
             ),

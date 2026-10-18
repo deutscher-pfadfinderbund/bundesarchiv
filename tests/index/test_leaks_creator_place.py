@@ -10,7 +10,7 @@ import pytest
 from tests._articles import make_article
 from tests.index import fixtures
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import Facet, SearchFilters, search
@@ -18,7 +18,7 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-_ROOT = "UO_ROOT"
+_ROOT = ULID("UO_ROOT")
 
 
 class _Row(NamedTuple):

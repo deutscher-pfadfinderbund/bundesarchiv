@@ -11,7 +11,7 @@ from django.contrib.postgres.search import SearchVectorField
 from django.db import connection
 from django.db.models import F, Func
 
-from bundesarchiv.domain.models import Article, Collection, Lifecycle
+from bundesarchiv.domain.models import ULID, Article, Collection, Lifecycle
 from bundesarchiv.index import indexer
 from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
@@ -68,14 +68,16 @@ def test_a_rebuild_over_a_stale_index_recomputes_the_page_vectors(stale: str) ->
     """Page rows outlive the rebuild, so a config change must not leave their vectors behind."""
     store = InMemoryObjectStore()
     CollectionRepository(store).save(
-        Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester"
+        Collection(ulid=ULID("ROOT"), name="Wurzel", parent_id=None), 0, changed_by="tester"
     )
     repo = ArticleRepository(store)
     article = Article(
-        ulid="01FOTO", title="Foto", collection_id="ROOT", lifecycle=Lifecycle.PUBLISHED
+        ulid=ULID("01FOTO"), title="Foto", collection_id=ULID("ROOT"), lifecycle=Lifecycle.PUBLISHED
     )
     repo.save(article, 0, changed_by="tester")
-    ref = repo.add_media("01FOTO", "f.pdf", io.BytesIO(b"pdf"))  # rebuild keeps only named text
+    ref = repo.add_media(
+        ULID("01FOTO"), "f.pdf", io.BytesIO(b"pdf")
+    )  # rebuild keeps only named text
     repo.save(replace(article, media=(ref,)), 1, changed_by="tester")
     indexer.rebuild(store)
     indexer.store_media_text(ref.content_hash, ("Fahrten im Lager",))

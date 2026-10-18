@@ -14,7 +14,7 @@ from tests.index.fixtures import (
     PUBLIC,
 )
 
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Collection
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import _MAX_PAGE_SIZE, Facet, SearchFilters, SearchPage, search
 
@@ -162,7 +162,7 @@ def test_collection_filter_root_is_whole_tree_but_still_scoped(corpus: None) -> 
     """ROOT's subtree is exactly the viewer's visible rows under ROOT: a visible row in another
     tree stays out, and so do the rows under ROOT the viewer cannot see."""
     fixtures.index_beside_corpus(
-        Collection(ulid="ANDERE", name="Anderer Baum", parent_id=None),
+        Collection(ulid=ULID("ANDERE"), name="Anderer Baum", parent_id=None),
         make_article("ART_ANDERE", title="Anderswo", collection_id="ANDERE"),
     )
     page = search(BOARD_MEMBER, filters=SearchFilters(collection="ROOT"), page_size=200)
@@ -255,7 +255,7 @@ def test_sort_ref_code_numeric_and_locale_aware(corpus: None) -> None:
 @pytest.mark.django_db
 def test_sort_date_ascending_nulls_last(corpus: None) -> None:
     fixtures.index_beside_corpus(
-        Collection(ulid="OHNE", name="Ohne Datum", parent_id=None),
+        Collection(ulid=ULID("OHNE"), name="Ohne Datum", parent_id=None),
         make_article(
             "ART_UNDATED",
             title="Undatiert",
@@ -272,7 +272,7 @@ def test_sort_date_ascending_nulls_last(corpus: None) -> None:
 def test_equal_ranks_read_in_numeric_title_order(corpus: None) -> None:
     """A run of issues matches a search equally well; it then reads Nr. 1, 2, 10, not by ulid."""
     fixtures.index_beside_corpus(
-        Collection(ulid="REIHE", name="Reihe", parent_id=None),
+        Collection(ulid=ULID("REIHE"), name="Reihe", parent_id=None),
         *(
             make_article(
                 ulid,
@@ -372,9 +372,9 @@ def test_pagination_past_end_is_empty(corpus: None) -> None:
 @pytest.mark.django_db
 def test_page_size_is_capped(corpus: None) -> None:
     fixtures.index_beside_corpus(
-        Collection(ulid="VIELE", name="Viele", parent_id=None),
+        Collection(ulid=ULID("VIELE"), name="Viele", parent_id=None),
         *(
-            Article(ulid=f"ART_VIELE_{n:03}", title="Viele", collection_id="VIELE")
+            Article(ulid=ULID(f"ART_VIELE_{n:03}"), title="Viele", collection_id=ULID("VIELE"))
             for n in range(_MAX_PAGE_SIZE + 1)
         ),
     )
@@ -392,7 +392,7 @@ def test_page_size_is_capped(corpus: None) -> None:
 def test_empty_text_browse_is_in_ulid_order(corpus: None) -> None:
     """A browse has no rank, so it orders by ulid — whatever order the rows were indexed in."""
     fixtures.index_beside_corpus(
-        Collection(ulid="SPAET", name="Spät indexiert", parent_id=None),
+        Collection(ulid=ULID("SPAET"), name="Spät indexiert", parent_id=None),
         make_article("ART_0B", title="Zweiter", collection_id="SPAET"),
         make_article("ART_0A", title="Erster", collection_id="SPAET"),
     )

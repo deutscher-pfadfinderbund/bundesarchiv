@@ -2,6 +2,7 @@ import pytest
 
 from bundesarchiv.app.reindex import ensure_index_current
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Collection,
     Lifecycle,
@@ -16,10 +17,15 @@ from bundesarchiv.persistence.repository import ArticleRepository
 def store() -> InMemoryObjectStore:
     store = InMemoryObjectStore()
     CollectionRepository(store).save(
-        Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester"
+        Collection(ulid=ULID("ROOT"), name="Wurzel", parent_id=None), 0, changed_by="tester"
     )
     ArticleRepository(store).save(
-        Article(ulid="01FOTO", title="Foto", collection_id="ROOT", lifecycle=Lifecycle.PUBLISHED),
+        Article(
+            ulid=ULID("01FOTO"),
+            title="Foto",
+            collection_id=ULID("ROOT"),
+            lifecycle=Lifecycle.PUBLISHED,
+        ),
         0,
         changed_by="tester",
     )

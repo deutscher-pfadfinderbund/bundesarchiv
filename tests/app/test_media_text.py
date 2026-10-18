@@ -15,14 +15,14 @@ from tests._pdfs import text_pdf
 from bundesarchiv.app import media_text
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.media_text import HashMismatch, Pages, Unreadable
-from bundesarchiv.domain.models import MediaRef
+from bundesarchiv.domain.models import ULID, MediaRef
 from bundesarchiv.index.models import MediaText
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository, content_digest
 
-_ULID = "01KX7YT9E3VX0CP3A5Q49RZMPC"
+_ULID = ULID("01KX7YT9E3VX0CP3A5Q49RZMPC")
 _ENCRYPTED = (Path(__file__).parent / "encrypted.pdf").read_bytes()
 
 
@@ -60,7 +60,7 @@ def _save(
 ) -> tuple[MediaRef, ...]:
     """Save Article ``ulid`` over ``version`` with ``files`` (name, bytes) as its media."""
     articles = ArticleRepository(store)
-    refs = tuple(articles.add_media(ulid, name, io.BytesIO(data)) for name, data in files)
+    refs = tuple(articles.add_media(ULID(ulid), name, io.BytesIO(data)) for name, data in files)
     articles.save(make_article(ulid, collection_id="ROOT", media=refs), version, changed_by="t")
     return refs
 

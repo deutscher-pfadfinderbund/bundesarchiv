@@ -13,6 +13,7 @@ from tests.index.fixtures import (
     PUBLIC,
 )
 
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.domain.viewer import Member, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import (
@@ -393,14 +394,14 @@ def test_no_non_archivist_hit_is_ever_a_draft(corpus: None) -> None:
 @pytest.mark.django_db
 def test_archivist_hits_mark_the_draft(corpus: None) -> None:
     by_ulid = {hit.ulid: hit for hit in _hits(ARCHIVIST)}
-    assert by_ulid["ART_DRAFT"].is_draft is True
-    assert by_ulid["ART_PUBFOTO"].is_draft is False
+    assert by_ulid[ULID("ART_DRAFT")].is_draft is True
+    assert by_ulid[ULID("ART_PUBFOTO")].is_draft is False
 
 
 @pytest.mark.django_db
 def test_failclosed_hit_is_not_marked_draft_for_archivist(corpus: None) -> None:
     by_ulid = {hit.ulid: hit for hit in _hits(ARCHIVIST)}
-    assert by_ulid["ART_ORPHAN"].is_draft is False
+    assert by_ulid[ULID("ART_ORPHAN")].is_draft is False
 
 
 # ===========================================================================

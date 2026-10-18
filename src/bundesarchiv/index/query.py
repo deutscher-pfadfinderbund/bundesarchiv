@@ -35,7 +35,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce, Collate, Lower
 from django.db.models.lookups import Exact
 
-from bundesarchiv.domain.models import Ulid
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.index.scope import _viewer_scope
@@ -80,7 +80,7 @@ class SearchFilters:
     Papierkorb (ADR 0022). ``collection`` matches the whole subtree; ``date_from``/``date_to`` keep
     rows whose date range overlaps the window."""
 
-    collection: Ulid | None = None
+    collection: str | None = None
     media_type: str | None = None
     document_type: str | None = None
     tag: str | None = None
@@ -128,14 +128,14 @@ class Headline:
 class SearchHit:
     """Never carries a floored column (``physical_location``, ``custom``, ``archivist_text``)."""
 
-    ulid: str
+    ulid: ULID
     title: str
     ref_code: str | None
     date_edtf: str | None
     media_type: str | None
     document_type: str | None
     is_draft: bool
-    collection_id: Ulid  # the Bestand the Article sits in; names no Bestand on a fail-closed row
+    collection_id: ULID  # the Bestand the Article sits in; names no Bestand on a fail-closed row
     # (kind, count) in FileKind order, zero kinds left out; () = no files.
     file_counts: tuple[tuple[FileKind, int], ...]
     # The Papierkorb mark (ADR 0022); None on a live row. Only archivist_only rows carry one.

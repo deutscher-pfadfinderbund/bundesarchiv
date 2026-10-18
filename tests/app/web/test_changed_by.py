@@ -9,7 +9,7 @@ from django.http import HttpResponse
 from django.urls import resolve
 from tests.app.web._fixtures import DRAFT_ULID, PUB, PUBLISHED_ULID, WRITES, Corpus, client_as
 
-from bundesarchiv.domain.models import Change
+from bundesarchiv.domain.models import ULID, Change
 from bundesarchiv.domain.viewer import Archivist
 
 _ARCHIVIST = Archivist("anna")
@@ -20,20 +20,20 @@ def _ulid_in(location: str) -> str:
 
 
 def _article(ulid: str) -> Callable[[HttpResponse, Corpus], Change | None]:
-    return lambda _response, corpus: corpus.articles.load(ulid).change
+    return lambda _response, corpus: corpus.articles.load(ULID(ulid)).change
 
 
 def _landed_article(response: HttpResponse, corpus: Corpus) -> Change | None:
-    return corpus.articles.load(_ulid_in(response["Location"])).change
+    return corpus.articles.load(ULID(_ulid_in(response["Location"]))).change
 
 
 def _created_collection(response: HttpResponse, corpus: Corpus) -> Change | None:
     [ulid] = parse_qs(urlparse(response["Location"]).query)["collection"]
-    return corpus.collections.load(ulid).change
+    return corpus.collections.load(ULID(ulid)).change
 
 
 def _chooser(_response: HttpResponse, corpus: Corpus) -> Change | None:
-    return corpus.collections.load(PUB).change
+    return corpus.collections.load(ULID(PUB)).change
 
 
 _CHANGED: dict[str, Callable[[HttpResponse, Corpus], Change | None]] = {

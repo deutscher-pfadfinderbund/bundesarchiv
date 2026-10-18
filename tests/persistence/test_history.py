@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from bundesarchiv.domain.models import Article, Change, Collection, Version
+from bundesarchiv.domain.models import ULID, Article, Change, Collection, Version
 from bundesarchiv.persistence._writer import history_key, readme_key
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
@@ -18,7 +18,7 @@ from bundesarchiv.persistence.errors import ArchiveError, Conflict
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
-ULID = "01J0"
+ARTICLE_ULID = ULID("01J0")
 
 
 @dataclass(frozen=True)
@@ -36,11 +36,11 @@ class _Tree:
 def _articles(store: ObjectStore) -> _Tree:
     repo = ArticleRepository(store)
     return _Tree(
-        folder=f"articles/{ULID}",
+        folder=f"articles/{ARTICLE_ULID}",
         save=lambda title, expected, by: repo.save(
-            Article(ULID, title, "coll"), expected, changed_by=by
+            Article(ARTICLE_ULID, title, ULID("coll")), expected, changed_by=by
         ),
-        change=lambda: repo.load(ULID).change,
+        change=lambda: repo.load(ARTICLE_ULID).change,
         older=(
             b"---\nulid: 01J0\nversion: 4\ntitle: Alt\ncollection_id: coll\nlifecycle: draft\n"
             b"tags: []\nref_code: null\n---\nText"
@@ -52,9 +52,11 @@ def _articles(store: ObjectStore) -> _Tree:
 def _collections(store: ObjectStore) -> _Tree:
     repo = CollectionRepository(store)
     return _Tree(
-        folder=f"collections/{ULID}",
-        save=lambda name, expected, by: repo.save(Collection(ULID, name), expected, changed_by=by),
-        change=lambda: repo.load(ULID).change,
+        folder=f"collections/{ARTICLE_ULID}",
+        save=lambda name, expected, by: repo.save(
+            Collection(ARTICLE_ULID, name), expected, changed_by=by
+        ),
+        change=lambda: repo.load(ARTICLE_ULID).change,
         older=b"---\nulid: 01J0\nname: Alt\n---\n",  # written before versioning: version 0
         older_version=0,
     )

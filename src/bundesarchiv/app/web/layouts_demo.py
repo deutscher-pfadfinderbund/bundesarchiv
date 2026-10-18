@@ -7,6 +7,7 @@ from django.shortcuts import render
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.panels import header_panels
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.index.query import FileKind, SearchHit
 
 #: Enough rows to scroll: two drafts (with and without a Signatur), one Signatur at the owner's
@@ -26,14 +27,14 @@ _ROWS: tuple[tuple[str, str, str, str, bool, tuple[tuple[FileKind, int], ...]], 
 )
 _HITS = tuple(
     SearchHit(
-        ulid=f"01KDEML0000000000000000{n:03d}",
+        ulid=ULID(f"01KDEML0000000000000000{n:03d}"),
         title=title,
         ref_code=ref or None,
         date_edtf=date or None,
         media_type=None,
         document_type=doc_type or None,
         is_draft=draft,
-        collection_id="",
+        collection_id=ULID(""),
         file_counts=files,
     )
     for n, (title, ref, date, doc_type, draft, files) in enumerate(_ROWS)

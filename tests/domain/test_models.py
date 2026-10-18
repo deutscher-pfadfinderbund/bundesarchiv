@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Change, Lifecycle
 
 
 def test_groups_tier_requires_at_least_one_named_group() -> None:
@@ -54,9 +54,9 @@ def _article(**custom_pairs: object) -> Article:
 def test_custom_fields_are_sorted_and_deduped() -> None:
     # Order-independent + canonical: sorted by key, last value wins on a duplicate key.
     article = Article(
-        ulid="01J0",
+        ulid=ULID("01J0"),
         title="t",
-        collection_id="c",
+        collection_id=ULID("c"),
         custom=(("zeta", "1"), ("alpha", "old"), ("alpha", "2")),
     )
     assert article.custom == (("alpha", "2"), ("zeta", "1"))
@@ -107,11 +107,15 @@ def test_a_change_is_stamped_in_utc(at: datetime) -> None:
 )
 def test_the_date_added_is_utc_in_whole_seconds(added_at: datetime) -> None:
     with pytest.raises(ValueError):
-        Article(ulid="01J0", title="t", collection_id="c", added_at=added_at)
+        Article(ulid=ULID("01J0"), title="t", collection_id=ULID("c"), added_at=added_at)
 
 
 def test_a_template_is_always_a_draft() -> None:
     with pytest.raises(ValueError):
         Article(
-            ulid="01J0", title="t", collection_id="c", lifecycle=Lifecycle.PUBLISHED, template=True
+            ulid=ULID("01J0"),
+            title="t",
+            collection_id=ULID("c"),
+            lifecycle=Lifecycle.PUBLISHED,
+            template=True,
         )

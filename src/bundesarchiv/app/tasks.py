@@ -15,6 +15,7 @@ from procrastinate.exceptions import AlreadyEnqueued  # noqa: TID251
 from bundesarchiv.app import jobs, media_text, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.push_record import PostgresPushRecord
+from bundesarchiv.domain.models import ULID
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
 
@@ -52,18 +53,21 @@ def mirror_store() -> WebDavObjectStore | None:
 
 @app.task(name="reindex_article")
 def reindex_article(ulid: str) -> None:
-    indexer.index_article(Archive.canonical().store, ulid)
+    indexer.index_article(Archive.canonical().store, ULID(ulid))
 
 
 @app.task(name="reindex_subtree")
 def reindex_subtree(collection_ulid: str) -> None:
-    indexer.index_subtree(Archive.canonical().store, collection_ulid)
+    indexer.index_subtree(Archive.canonical().store, ULID(collection_ulid))
 
 
 @app.task(name="generate_thumbnail")
 def generate_thumbnail(ulid: str, content_hash: str) -> None:
     thumbnails.generate_thumbnail(
-        Archive.canonical().store, ulid, content_hash, Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
+        Archive.canonical().store,
+        ULID(ulid),
+        content_hash,
+        Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT),
     )
 
 
@@ -71,7 +75,7 @@ def generate_thumbnail(ulid: str, content_hash: str) -> None:
 def extract_media_text(ulid: str) -> None:
     """Reference job (ADR 0023): read the page text of Article ``ulid``'s files that have none yet,
     from current canonical, into ``MediaText``. A no-op for an Article gone or fully read."""
-    media_text.fill(Archive.canonical(), ulid)
+    media_text.fill(Archive.canonical(), ULID(ulid))
 
 
 @app.periodic(cron=settings.BUNDESARCHIV_RECONCILE_CRON)
@@ -96,7 +100,7 @@ def mirror_push(ulid: str) -> None:
     if (remote := mirror_store()) is None:
         return
     with contextlib.closing(remote):
-        jobs.mirror_push(Archive.canonical(), remote, PostgresPushRecord(), ulid)
+        jobs.mirror_push(Archive.canonical(), remote, PostgresPushRecord(), ULID(ulid))
 
 
 @app.task(name="mirror_delete_article", retry=_MIRROR_RETRY)
@@ -104,7 +108,7 @@ def mirror_delete_article(ulid: str) -> None:
     if (remote := mirror_store()) is None:
         return
     with contextlib.closing(remote):
-        jobs.mirror_delete_article(Archive.canonical(), remote, PostgresPushRecord(), ulid)
+        jobs.mirror_delete_article(Archive.canonical(), remote, PostgresPushRecord(), ULID(ulid))
 
 
 @app.periodic(cron=settings.BUNDESARCHIV_MIRROR_RECONCILE_CRON)
@@ -119,20 +123,20 @@ def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
 # --- enqueue wrappers the app services call --------------------------------------
 
 
-def enqueue_reindex_article(ulid: str) -> None:
+def enqueue_reindex_article(ulid: ULID) -> None:
     reindex_article.defer(ulid=ulid)
 
 
-def enqueue_reindex_subtree(collection_ulid: str) -> None:
+def enqueue_reindex_subtree(collection_ulid: ULID) -> None:
     reindex_subtree.defer(collection_ulid=collection_ulid)
 
 
-def enqueue_generate_thumbnail(ulid: str, content_hash: str) -> None:
+def enqueue_generate_thumbnail(ulid: ULID, content_hash: str) -> None:
     """Re-enqueuing the same file is harmless: the job is idempotent and the cache key is the hash."""
     generate_thumbnail.defer(ulid=ulid, content_hash=content_hash)
 
 
-def enqueue_extract_media_text(ulid: str) -> None:
+def enqueue_extract_media_text(ulid: ULID) -> None:
     """Enqueue an ``extract_media_text`` reference job for Article ``ulid``. A job already queued
     for ``ulid`` stands in for this one: it reads current truth when it runs."""
     with contextlib.suppress(AlreadyEnqueued):
@@ -146,7 +150,7 @@ def enqueue_missing_text(archive: Archive) -> None:
         enqueue_extract_media_text(ulid)
 
 
-def enqueue_mirror_push(ulid: str) -> None:
+def enqueue_mirror_push(ulid: ULID) -> None:
     """A push already queued for ``ulid`` stands in for this one: it reads current truth when it
     runs. ``_mirror_configured()``, not ``mirror_store()``: building a client to drop it costs an
     eager SSL-context load."""
@@ -156,7 +160,7 @@ def enqueue_mirror_push(ulid: str) -> None:
         mirror_push.configure(queueing_lock=f"mirror_push:{ulid}").defer(ulid=ulid)
 
 
-def enqueue_mirror_delete_article(ulid: str) -> None:
+def enqueue_mirror_delete_article(ulid: ULID) -> None:
     """Enqueue a ``mirror_delete_article`` reference job for the hard-deleted Article ``ulid``,
     AFTER the local delete. A no-op when no system of record is configured, as
     ``enqueue_mirror_push``."""

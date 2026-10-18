@@ -1,19 +1,20 @@
 from datetime import UTC, datetime
+from typing import TypeGuard
 
-from ulid import ULID
+import ulid as _ulid
 
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.domain.models import Article, Audience, Lifecycle, MediaRef, Ulid
+from bundesarchiv.domain.models import ULID, Article, Audience, Lifecycle, MediaRef
 
 
-def new_ulid() -> Ulid:
-    return str(ULID())
+def new_ulid() -> ULID:
+    return ULID(str(_ulid.ULID()))
 
 
 def create_article(
     *,
     title: str,
-    collection_id: Ulid,
+    collection_id: ULID,
     body: str = "",
     lifecycle: Lifecycle = Lifecycle.DRAFT,
     audience: Audience | None = None,
@@ -50,11 +51,13 @@ def create_article(
     )
 
 
-def is_valid_ulid(value: str) -> bool:
-    """True if `value` is a well-formed ULID. Total: returns False (never raises) for
-    a non-str too, so an untyped caller (e.g. a README field parsed to None) is safe."""
+def is_valid_ulid(value: object) -> TypeGuard[ULID]:
+    """The parse every outside value takes to become a ULID: True only for the canonical
+    uppercase spelling. Total: False, never an exception, for any other value or type."""
+    if not isinstance(value, str):
+        return False
     try:
-        ULID.from_str(value)
-    except ValueError, TypeError:
+        _ulid.ULID.from_str(value)
+    except ValueError:
         return False
     return True

@@ -13,11 +13,11 @@ from tests._pdfs import text_pdf
 
 from bundesarchiv.app import thumbnails
 from bundesarchiv.app.thumbnails import Size, cached, generate_thumbnail, thumbnail_path
-from bundesarchiv.domain.models import MediaRef
+from bundesarchiv.domain.models import ULID, MediaRef
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
-_ULID = "01KX7YT9E3VX0CP3A5Q49RZMPC"
+_ULID = ULID("01KX7YT9E3VX0CP3A5Q49RZMPC")
 
 #: A one-page PDF with an AES-256 user password (``qpdf --encrypt geheim geheim 256``).
 _ENCRYPTED = (Path(__file__).parent / "encrypted.pdf").read_bytes()

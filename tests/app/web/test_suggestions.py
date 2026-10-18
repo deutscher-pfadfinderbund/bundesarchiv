@@ -13,7 +13,7 @@ from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
 from bundesarchiv.app.web.suggestions import Entry, Group, build
-from bundesarchiv.domain.models import Audience, AudienceTier
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier
 from bundesarchiv.domain.viewer import Member, Public
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import FacetCount, SearchHit, SearchPage
@@ -21,14 +21,14 @@ from bundesarchiv.index.query import FacetCount, SearchHit, SearchPage
 
 def _hit(n: int) -> SearchHit:
     return SearchHit(
-        ulid=f"U{n}",
+        ulid=ULID(f"U{n}"),
         title=f"Königstein {n}",
         ref_code=None,
         date_edtf="1960" if n == 0 else None,
         media_type=None,
         document_type=None,
         is_draft=False,
-        collection_id="ROOT",
+        collection_id=ULID("ROOT"),
         file_counts=(),
     )
 

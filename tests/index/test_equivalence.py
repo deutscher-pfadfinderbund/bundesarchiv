@@ -12,12 +12,12 @@ from bundesarchiv.domain.access import can_view
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import (
+    ULID,
     Article,
     Audience,
     AudienceTier,
     Collection,
     Lifecycle,
-    Ulid,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
@@ -62,19 +62,19 @@ _LIFECYCLES: tuple[tuple[str, Lifecycle], ...] = (
     ("pub", Lifecycle.PUBLISHED),
 )
 
-_ROOT_ULID = "GRID_ROOT"
+_ROOT_ULID = ULID("GRID_ROOT")
 
 # One media_type shared by every grid article, so its facet count per viewer must equal the size of
 # the whole can_view-visible set — a single dimension-independent number for the aggregate check.
 _GRID_MEDIA_TYPE = "Rasterakte"
 
 
-def _parent_ulid(parent_tag: str) -> Ulid:
-    return f"GRID_PARENT_{parent_tag}"
+def _parent_ulid(parent_tag: str) -> ULID:
+    return ULID(f"GRID_PARENT_{parent_tag}")
 
 
-def _leaf_ulid(parent_tag: str) -> Ulid:
-    return f"GRID_LEAF_{parent_tag}"
+def _leaf_ulid(parent_tag: str) -> ULID:
+    return ULID(f"GRID_LEAF_{parent_tag}")
 
 
 def _build_grid_store() -> InMemoryObjectStore:
@@ -118,7 +118,7 @@ def _grid_articles() -> Iterator[Article]:
     for parent_tag, _parent_audience in _PARENT_AUDIENCES:
         for art_tag, art_audience in _ARTICLE_AUDIENCES:
             for life_tag, lifecycle in _LIFECYCLES:
-                ulid = f"GRID_{parent_tag}_{art_tag}_{life_tag}"
+                ulid = ULID(f"GRID_{parent_tag}_{art_tag}_{life_tag}")
                 yield Article(
                     ulid=ulid,
                     title=f"Rasterartikel {ulid}",
@@ -129,7 +129,7 @@ def _grid_articles() -> Iterator[Article]:
                 )
 
 
-def _collection_lookup(store: InMemoryObjectStore) -> Mapping[Ulid, Collection]:
+def _collection_lookup(store: InMemoryObjectStore) -> Mapping[ULID, Collection]:
     return {c.ulid: c for c in CollectionRepository(store).load_all()}
 
 
@@ -148,7 +148,9 @@ class _Grid:
         self.store = store
         self.report = report
         self.lookup = _collection_lookup(store)
-        self.articles = tuple(ArticleRepository(store).load(u).article for u in _all_ulids(store))
+        self.articles = tuple(
+            ArticleRepository(store).load(ULID(u)).article for u in _all_ulids(store)
+        )
 
     def can_view_ulids(self, viewer: Viewer) -> set[str]:
         """Catch only ``DomainError`` (what ``can_view`` fails closed on): anything else must fail

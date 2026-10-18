@@ -4,10 +4,11 @@ import enum
 import unicodedata
 from dataclasses import dataclass, fields
 from datetime import datetime, timedelta
+from typing import NewType
 
 from bundesarchiv.domain.edtf import EdtfDate
 
-type Ulid = str  # a Crockford-base32 ULID; the Article's stable identity
+ULID = NewType("ULID", str)  # a Crockford-base32 ULID: an Article's or Collection's identity
 type Version = int  # optimistic-concurrency counter (0 = never saved; first save -> 1)
 
 
@@ -85,9 +86,9 @@ class Collection:
     """The single owning, nestable division an Article belongs to (*Bestand*).
     Collections form a single-parent tree; the root has `parent_id is None`."""
 
-    ulid: Ulid
+    ulid: ULID
     name: str
-    parent_id: Ulid | None = None
+    parent_id: ULID | None = None
     audience: Audience | None = None  # None = inherit from parent / root default (ADR 0001)
 
 
@@ -99,9 +100,9 @@ class Article:
     round-trips through the README.md front-matter.
     """
 
-    ulid: Ulid
+    ulid: ULID
     title: str
-    collection_id: Ulid
+    collection_id: ULID
     body: str = ""
     lifecycle: Lifecycle = Lifecycle.DRAFT
     audience: Audience | None = None  # None = inherit from the Collection chain (ADR 0001)

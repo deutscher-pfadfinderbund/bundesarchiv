@@ -13,7 +13,7 @@ from PIL import Image
 from tests.app.web._asserts import assert_denied, assert_door
 from tests.app.web._fixtures import ROOT, Corpus, client_as, make_article, make_collection
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 _PROD_URLCONF = "bundesarchiv.app.web.urls"
@@ -32,8 +32,8 @@ def _png_bytes(color: tuple[int, int, int]) -> bytes:
 # Real ULIDs: ``collection_edit`` validates the ulid in-view (a literal like "GRP" would 404 as
 # malformed), and the article routes do the same.
 _COLLECTION = "01M553AGABD8F8ZVQV43GRE7TN"
-_ARTICLE = "01M553AGABD8F8ZVQV43GRE7TP"
-_MARKED = "01M553AGABD8F8ZVQV43GRE7TQ"
+_ARTICLE = ULID("01M553AGABD8F8ZVQV43GRE7TP")
+_MARKED = ULID("01M553AGABD8F8ZVQV43GRE7TQ")
 
 
 def _fill(base: Corpus) -> None:
@@ -657,7 +657,7 @@ _MARKED_REFUSED: dict[str, tuple[str, str, Callable[[_MatrixCorpus], dict[str, o
 
 def _unchanged(c: _MatrixCorpus) -> tuple[object, ...]:
     """What a refused write must leave as it was: every Article, and the marked one's version."""
-    return tuple(c.base.articles.list_ulids()), c.base.articles.load(c.marked_ulid).version
+    return tuple(c.base.articles.list_ulids()), c.base.articles.load(ULID(c.marked_ulid)).version
 
 
 @pytest.mark.parametrize("name", _MARKED_REFUSED)
@@ -682,13 +682,13 @@ def test_a_marked_article_refuses_every_other_route(
 @pytest.mark.parametrize("name", ["article-delete-permanently", "article-restore"])
 def test_a_trash_route_refuses_an_unmarked_article(matrix_corpus: _MatrixCorpus, name: str) -> None:
     ulid = matrix_corpus.article_ulid
-    before = matrix_corpus.base.articles.load(ulid)
+    before = matrix_corpus.base.articles.load(ULID(ulid))
     path = _CONTRACT[name].build_path(matrix_corpus).replace(matrix_corpus.marked_ulid, ulid)
     client = client_as(Archivist())
     assert_denied(client.get(path), f"GET {name} on an unmarked article")
     response = client.post(path, {"expected_version": str(before.version)})
     assert_denied(response, f"POST {name} on an unmarked article")
-    assert matrix_corpus.base.articles.load(ulid) == before
+    assert matrix_corpus.base.articles.load(ULID(ulid)) == before
 
 
 @pytest.mark.parametrize("confirmed", ["", "1"])
