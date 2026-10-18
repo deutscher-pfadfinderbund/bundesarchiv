@@ -1,6 +1,6 @@
 """The production WSGI entry point (gunicorn, ADR 0016): the one place that refuses to serve
-without ``REQUIRED_SERVING_ENV`` or with the index replaced (ADR 0024), since neither
-runserver nor the tests import it.
+without ``REQUIRED_SERVING_ENV``, with the index or the login realm replaced (ADR 0024), or with
+``DEBUG`` on, since neither runserver nor the tests import it.
 """
 
 import os
@@ -16,5 +16,9 @@ if _missing:
     raise ImproperlyConfigured(f"refusing to serve, unset environment: {', '.join(_missing)}")
 if hasattr(settings, "BUNDESARCHIV_INDEX"):
     raise ImproperlyConfigured("refusing to serve, BUNDESARCHIV_INDEX replaces the Postgres index")
+if hasattr(settings, "BUNDESARCHIV_REALM"):
+    raise ImproperlyConfigured("refusing to serve, BUNDESARCHIV_REALM replaces the Keycloak realm")
+if settings.DEBUG:
+    raise ImproperlyConfigured("refusing to serve with DEBUG on")
 
 application = get_wsgi_application()

@@ -11,6 +11,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 from tests.app.web._fixtures import PUBLISHED_ULID, client_as
 
+from bundesarchiv.app.web.dev_realm import DevRealm
 from bundesarchiv.domain.viewer import Public
 from bundesarchiv.index import settings as prod_settings
 from bundesarchiv.index import settings_dev
@@ -60,6 +61,23 @@ def test_wsgi_entry_refuses_to_serve_over_an_index_other_than_postgres(
         override_settings(BUNDESARCHIV_INDEX=InMemoryIndex),
         pytest.raises(ImproperlyConfigured, match="BUNDESARCHIV_INDEX"),
     ):
+        _boot_wsgi()
+
+
+@pytest.mark.parametrize(
+    ("label", "override"),
+    [
+        ("BUNDESARCHIV_REALM", {"BUNDESARCHIV_REALM": DevRealm()}),
+        ("DEBUG", {"DEBUG": True}),
+    ],
+)
+def test_wsgi_entry_refuses_to_serve_a_dev_login(
+    monkeypatch: pytest.MonkeyPatch, label: str, override: dict[str, object]
+) -> None:
+    """The dev realm signs in whoever asks; DEBUG is the switch dev runs under."""
+    for name in prod_settings.REQUIRED_SERVING_ENV:
+        monkeypatch.setenv(name, "set-for-this-test")
+    with override_settings(**override), pytest.raises(ImproperlyConfigured, match=label):
         _boot_wsgi()
 
 
