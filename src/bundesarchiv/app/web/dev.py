@@ -4,7 +4,13 @@ sends the browser, as Keycloak's login form would (ADR 0025)."""
 from html import escape
 from urllib.parse import urlencode
 
-from django.http import HttpRequest, HttpResponse, HttpResponseNotFound, HttpResponseRedirect
+from django.http import (
+    HttpRequest,
+    HttpResponse,
+    HttpResponseNotFound,
+    HttpResponseRedirect,
+    QueryDict,
+)
 from django.middleware.csrf import get_token
 from django.urls import reverse
 
@@ -33,22 +39,32 @@ def _viewer_from_post(request: HttpRequest) -> Archivist | Member | None:
     return None
 
 
+def _flow(params: QueryDict) -> dict[str, str]:
+    return {name: params.get(name, "") for name in _FLOW}
+
+
 def authorize(request: HttpRequest) -> HttpResponse:
     """GET renders the login form for one login; POST answers it with a code for the chosen viewer,
     back at ``redirect_uri``. That must be this site's own callback, so the page redirects nowhere
     else. A GET without a login (a bookmark) starts one."""
-    if request.method not in ("GET", "POST"):
+    if request.method == "POST":
+        return _answer(request)
+    if request.method != "GET":
         return not_found()
-    params = request.GET if request.method == "GET" else request.POST
-    flow = {name: params.get(name, "") for name in _FLOW}
+    flow = _flow(request.GET)
     if not all(flow.values()):
-        return HttpResponseRedirect(login_redirect("/")) if request.method == "GET" else not_found()
+        return HttpResponseRedirect(login_redirect("/"))
     if flow["redirect_uri"] != callback_uri(request):
         return not_found()
-    if request.method == "GET":
-        return HttpResponse(_render_form(viewer_of(request), flow, csrf_token=get_token(request)))
+    return HttpResponse(_render_form(viewer_of(request), flow, csrf_token=get_token(request)))
+
+
+def _answer(request: HttpRequest) -> HttpResponse:
+    flow = _flow(request.POST)
     viewer = _viewer_from_post(request)
-    code = DevRealm().mint_code(claims_of(viewer), nonce=flow["nonce"]) if viewer else None
+    if not all(flow.values()) or flow["redirect_uri"] != callback_uri(request) or viewer is None:
+        return not_found()
+    code = DevRealm().mint_code(claims_of(viewer), nonce=flow["nonce"])
     if code is None:
         return not_found()
     answer = urlencode({"code": code, "state": flow["state"]})
