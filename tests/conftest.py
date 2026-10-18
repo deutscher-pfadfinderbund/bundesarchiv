@@ -130,7 +130,13 @@ class _MissingVariable(str):
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Strict templates (tests/CLAUDE.md); prod and dev keep Django's lenient empty string."""
+    """No inherited git variables; strict templates (tests/CLAUDE.md), where prod and dev keep
+    Django's lenient empty string."""
+    # The commit hook runs this suite with GIT_INDEX_FILE exported: a test's scratch repository
+    # would write the committing checkout's index.
+    for name in [name for name in os.environ if name.startswith("GIT_")]:
+        del os.environ[name]
+
     from django.conf import settings
 
     options = cast("dict[str, object]", settings.TEMPLATES[0]["OPTIONS"])
