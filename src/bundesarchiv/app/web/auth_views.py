@@ -15,11 +15,11 @@ from django.core import signing
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 
-from bundesarchiv.app.web.keycloak import authorization_url, fetch_tokens, logout_url
 from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import (
     REFRESH_COOKIE,
     delete_token_cookies,
+    realm,
     set_token_cookies,
 )
 
@@ -75,7 +75,7 @@ def login(request: HttpRequest) -> HttpResponse:
     if request.method != "GET" or not key:
         return not_found()
     state, nonce = token_urlsafe(_TOKEN_BYTES), token_urlsafe(_TOKEN_BYTES)
-    url = authorization_url(state=state, nonce=nonce, redirect_uri=_callback_uri(request))
+    url = realm().authorization_url(state=state, nonce=nonce, redirect_uri=_callback_uri(request))
     if url is None:
         return not_found()
     payload = {
@@ -135,7 +135,9 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
         # cookie. That is a stale login, not an attack — send them back through the flow rather
         # than onto a dead 404. It terminates: the restart mints the state it will match.
         return HttpResponseRedirect(login_redirect(transient.next_path))
-    tokens = fetch_tokens(code=code, nonce=transient.nonce, redirect_uri=_callback_uri(request))
+    tokens = realm().fetch_tokens(
+        code=code, nonce=transient.nonce, redirect_uri=_callback_uri(request)
+    )
     if tokens is None:
         return not_found()
     response = HttpResponseRedirect(transient.next_path)
@@ -151,7 +153,7 @@ def logout(request: HttpRequest) -> HttpResponse:
     if request.method != "POST":
         return not_found()
     home = request.build_absolute_uri(_DEFAULT_NEXT)
-    url = logout_url(
+    url = realm().logout_url(
         refresh_token=request.COOKIES.get(REFRESH_COOKIE), post_logout_redirect_uri=home
     )
     response = HttpResponseRedirect(url or _DEFAULT_NEXT)

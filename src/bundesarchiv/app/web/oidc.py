@@ -1,7 +1,10 @@
-"""OIDC login adapter — validated Keycloak claims → domain ``Viewer`` (ADR 0018).
+"""The OIDC seam (ADR 0018): the ``Realm`` port, its ``Tokens``, and what a realm's claims mean.
+
+``Realm`` is what the login surface asks a realm, with one failure answer, ``None``;
+``viewers.realm()`` picks the adapter (``keycloak.KeycloakRealm``, or the dev realm settings name).
 
 The claims→Viewer mapping is a PURE function over the already-checked access-token claims:
-``keycloak.verify_access`` (signature, issuer, audience, expiry) runs before it and hands it a plain
+``Realm.verify_access`` (signature, issuer, audience, expiry) runs before it and hands it a plain
 dict, so the one authorization decision a request makes is testable as a table with no server in
 sight.
 
@@ -11,6 +14,8 @@ authenticated user — including one whose token carries claims in shapes we do 
 """
 
 from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Protocol
 
 from bundesarchiv.domain.viewer import Archivist, Member, Viewer
 
@@ -18,6 +23,37 @@ from bundesarchiv.domain.viewer import Archivist, Member, Viewer
 #: roles client-scope must map it into the token (deploy runbook), and renaming it there revokes
 #: archivist access here.
 ARCHIVIST_REALM_ROLE = "Bundesarchiv"
+
+
+@dataclass(frozen=True, slots=True)
+class Tokens:
+    """A token response the browser keeps (ADR 0018): the access and offline refresh tokens, the
+    CHECKED claims of the access token, and the ID token, kept only as the logout hint."""
+
+    access: str
+    refresh: str
+    claims: Mapping[str, object]
+    id_token: str | None
+
+
+class Realm(Protocol):
+    """``None`` is every failure: unconfigured, unreachable, refused, or not valid. The callers turn
+    it into the plain 404 or ``Public``, so a half-configured realm authenticates nobody."""
+
+    def authorization_url(self, *, state: str, nonce: str, redirect_uri: str) -> str | None:
+        """Where the browser logs in; the answer comes back to ``redirect_uri`` with ``state``."""
+
+    def fetch_tokens(self, *, code: str, nonce: str, redirect_uri: str) -> Tokens | None:
+        """The ``Tokens`` an authorization code stands for, bound to this browser's ``nonce``."""
+
+    def verify_access(self, access_token: str) -> Mapping[str, object] | None:
+        """The checked claims of a current access token issued to this app."""
+
+    def refresh(self, refresh_token: str) -> Tokens | None:
+        """New ``Tokens`` for a refresh token."""
+
+    def logout_url(self, *, refresh_token: str | None, post_logout_redirect_uri: str) -> str | None:
+        """Where a logout sends the browser, after ending what the server can end."""
 
 
 def viewer_from_claims(claims: Mapping[str, object]) -> Viewer:
