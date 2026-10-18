@@ -1,25 +1,27 @@
 {% comment %}
-The search field's suggestions, grouped by kind: combobox.js puts them in the field's list. A pick
-follows the option's data-href; the last option submits the form, as Enter does. Without JS the
-field just submits.
+The search field's suggestions, grouped by kind: combobox.js puts them in the field's list. Each
+option is a link: a pick follows it, and the last option leads to the list Enter would submit.
+Without JS the field just submits.
 {% endcomment %}
 {% for group in groups %}
 <div class="autocomplete-group" role="group" aria-labelledby="suggest-kind-{{ forloop.counter }}">
   <span class="autocomplete-kind" id="suggest-kind-{{ forloop.counter }}">{{ group.kind }}</span>
   <ul role="presentation">
     {% for entry in group.entries %}
-    <li role="option" aria-selected="false" data-href="{{ entry.href }}">
-      <span>{{ entry.before }}{% if entry.match %}<mark>{{ entry.match }}</mark>{% endif %}{{ entry.after }}</span>
-      {% if entry.note %}
-      <span class="quiet">{{ entry.note }}</span>
-      {% endif %}
+    <li role="presentation">
+      <a role="option" tabindex="-1" aria-selected="false" href="{{ entry.href }}">
+        <span>{{ entry.before }}{% if entry.match %}<mark>{{ entry.match }}</mark>{% endif %}{{ entry.after }}</span>
+        {% if entry.note %}
+        <span class="quiet">{{ entry.note }}</span>
+        {% endif %}
+      </a>
     </li>
     {% endfor %}
   </ul>
 </div>
 {% endfor %}
 {% if total %}
-<div class="autocomplete-all" role="option" aria-selected="false" data-submit>
+<a class="autocomplete-all" role="option" tabindex="-1" aria-selected="false" href="{{ all_href }}">
   <span>{% if total == 1 %}1 Treffer{% else %}Alle {{ total_label }} Treffer{% endif %} für „{{ text }}“</span>
-</div>
+</a>
 {% endif %}

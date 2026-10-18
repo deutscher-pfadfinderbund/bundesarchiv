@@ -6,8 +6,8 @@
 // - a textarea (the edit form's Schlagworte, one per line) is offered values for the line the caret
 //   is on; it keeps its textbox role (a textarea may not be a combobox), and a pick replaces that
 //   line only.
-// - a search input gets role="combobox" and sends its whole form (q and the list's filters); a pick
-//   follows the option's data-href, the data-submit option submits the form, as Enter does.
+// - a search input gets role="combobox" and sends its whole form (q and the list's filters); its
+//   options are links, so Enter follows the marked one and a click is the browser's own.
 (() => {
   "use strict";
 
@@ -49,7 +49,8 @@
     status.id = `${field.id}-suggestions-status`;
     status.className = "visually-hidden";
     status.setAttribute("aria-live", "polite");
-    field.after(list, status);
+    // outside a heading: its accessible name would take in the list and the status
+    (field.closest('[role="heading"]') ?? field).after(list, status);
     if (!isLines(field)) {
       field.setAttribute("role", "combobox");
       field.setAttribute("aria-expanded", "false");
@@ -80,6 +81,7 @@
     target = undefined;
     clearTimeout(typing);
     field.removeAttribute("aria-activedescendant");
+    statusOf(field).textContent = "";
     const list = listOf(field);
     if (list?.matches(":popover-open")) {
       list.hidePopover();
@@ -99,7 +101,6 @@
     const [start, end] = spanOf(field);
     const q = field.value.slice(start, end).trim();
     close(field);
-    statusOf(field).textContent = "";
     if (!q) {
       return;
     }
@@ -163,10 +164,8 @@
       return;
     }
     close(field);
-    if (option.dataset.href) {
-      location.assign(option.dataset.href);
-    } else if (option.hasAttribute("data-submit")) {
-      field.form.requestSubmit();
+    if (option.href) {
+      location.assign(option.href);
     } else {
       field.setRangeText(option.textContent, start, end, "end");
       field.dispatchEvent(new Event("input", { bubbles: true })); // the dirty register
@@ -196,7 +195,7 @@
       const states = options.length + 1;
       const step = event.key === "ArrowDown" ? 1 : -1;
       mark(field, options, ((active + 1 + step + states) % states) - 1);
-    } else if ((event.key === "Enter" || event.key === "Tab") && active >= 0) {
+    } else if (event.key === "Enter" && active >= 0) {
       event.preventDefault();
       take(field, options[active]);
     } else if (event.key === "Escape") {
@@ -212,6 +211,7 @@
       // hide only: the request or timer already pending belongs to the line the caret moved to
       target = undefined;
       field.removeAttribute("aria-activedescendant");
+      statusOf(field).textContent = "";
       listOf(field).hidePopover();
     }
   });
@@ -228,8 +228,9 @@
       event.preventDefault();
     }
   });
+  // a link option is followed by the browser (a new tab on a middle or modified click)
   document.addEventListener("click", (event) => {
-    const option = event.target.closest?.('.autocomplete-list [role="option"]');
+    const option = event.target.closest?.('.autocomplete-list [role="option"]:not([href])');
     const list = option?.closest(".autocomplete-list");
     const field = list && document.querySelector(`[aria-controls="${list.id}"]`);
     if (field) {

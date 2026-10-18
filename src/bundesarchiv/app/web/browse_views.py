@@ -576,9 +576,11 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     )
 
 
-def preset_url(param: str, value: str) -> str:
-    """The list with one filter set: where a crumb, a Schlagwort or a start-page area leads."""
-    return f"{reverse('workbench')}?{browse.with_param({}, param, value)}"
+def preset_url(param: str, value: str, within: Mapping[str, str] | None = None) -> str:
+    """The list with ``param`` set to ``value``: where a crumb, a Schlagwort or a start-page area
+    leads. ``within`` (a list's params) keeps what its search form carries besides ``q``."""
+    kept = dict(_form_filters(within or {}))
+    return f"{reverse('workbench')}?{browse.with_param(kept, param, value)}"
 
 
 @dataclass(frozen=True, slots=True)

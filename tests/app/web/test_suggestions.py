@@ -3,13 +3,18 @@
 What each tier is offered is ``tests/index/test_leaks_suggestions.py``'s.
 """
 
+from collections.abc import Callable
+from urllib.parse import parse_qs, urlparse
+
+import pytest
 from django.urls import reverse
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import Corpus, client_as
+from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
-from bundesarchiv.app.web.browse_views import preset_url
 from bundesarchiv.app.web.suggestions import Entry, Group, build
+from bundesarchiv.domain.models import Audience, AudienceTier
 from bundesarchiv.domain.viewer import Member, Public
+from bundesarchiv.index import indexer
 from bundesarchiv.index.query import FacetCount, SearchHit, SearchPage
 
 
@@ -40,10 +45,12 @@ def _counts(*pairs: tuple[str, int]) -> tuple[FacetCount, ...]:
 def test_each_group_is_capped_and_an_empty_one_left_out() -> None:
     groups = build(
         "könig",
+        {},
         _page(5),
-        _counts(("Königs Erben", 4), ("Hans König", 2), ("Königin", 1)),
-        (),
-        _counts(("Königstreffen", 3), ("Königsberg", 2), ("Königslager", 2)),
+        {
+            "creator": _counts(("Königs Erben", 4), ("Hans König", 2), ("Königin", 1)),
+            "tags": _counts(("Königstreffen", 3), ("Königsberg", 2), ("Königslager", 2)),
+        },
     )
     assert [(g.kind, len(g.entries)) for g in groups] == [
         ("Artikel", 3),
@@ -53,23 +60,34 @@ def test_each_group_is_capped_and_an_empty_one_left_out() -> None:
 
 
 def test_a_tag_used_once_is_dropped() -> None:
-    groups = build("könig", _page(0), (), (), _counts(("Königsheft 3", 1)))
+    groups = build("könig", {}, _page(0), {"tags": _counts(("Königsheft 3", 1))})
     assert groups == ()
 
 
 def test_an_entry_marks_the_first_match_and_leads_to_its_pick() -> None:
-    article, creator = build("KÖNIG", _page(1), _counts(("Hans König", 1_234)), (), ())
+    article, creator = build("KÖNIG", {}, _page(1), {"creator": _counts(("Hans König", 1_234))})
     assert article == Group(
         "Artikel",
         (Entry("", "König", "stein 0", reverse("article-detail", args=["U0"]), "1960"),),
     )
-    assert creator.entries == (
-        Entry("Hans ", "König", "", preset_url("creator", "Hans König"), "1.234"),
-    )
+    (entry,) = creator.entries
+    assert (entry.before, entry.match, entry.after, entry.note) == ("Hans ", "König", "", "1.234")
+
+
+def test_a_value_pick_keeps_the_filters_and_drops_the_text() -> None:
+    within = {"q": "König", "media_type": "Foto(s)", "creator": "Anna", "sort": "date", "page": "2"}
+    (creator,) = build("König", within, _page(0), {"creator": _counts(("Hans König", 2))})
+    href = urlparse(creator.entries[0].href)
+    assert href.path == reverse("workbench")
+    assert parse_qs(href.query) == {
+        "media_type": ["Foto(s)"],
+        "creator": ["Hans König"],
+        "sort": ["date"],
+    }
 
 
 def test_a_value_the_text_does_not_spell_is_left_unmarked() -> None:
-    (place,) = build("strasse", _page(0), (), _counts(("Große Straße", 2)), ())
+    (place,) = build("strasse", {}, _page(0), {"place": _counts(("Große Straße", 2))})
     entry = place.entries[0]
     assert (entry.before, entry.match, entry.after) == ("Große Straße", "", "")
 
@@ -85,3 +103,37 @@ def test_no_text_offers_nothing_and_is_never_shared_cached(corpus: Corpus) -> No
     assert response.context["groups"] == ()
     assert response["Cache-Control"] == "private"
     assert b'role="option"' not in response.content
+
+
+_BUND = "01KX8A00000000000000000BND"
+
+
+@pytest.mark.django_db
+def test_the_groups_and_the_all_link_stay_within_the_forms_filters(
+    make_corpus: Callable[[], Corpus],
+) -> None:
+    corpus = make_corpus()
+    public = Audience(AudienceTier.PUBLIC)
+    corpus.add_collection(make_collection(_BUND, "Bund", parent_id=None, audience=public))
+    for n, (creator, media_type) in enumerate(
+        (("Anna Sommer", "Foto(s)"), ("Bert Sommer", "Buch"))
+    ):
+        corpus.add_article(
+            make_article(
+                f"01KX8A00000000000000000AR{n}",
+                title=f"Sommerfahrt {n}",
+                collection_id=_BUND,
+                creator=creator,
+                media_type=media_type,
+            )
+        )
+    indexer.rebuild(corpus.store)
+    response = client_as(Member(())).get("/suggestions?q=sommer&media_type=Foto(s)&page=3")
+    _, creator = response.context["groups"]
+    assert [(e.before + e.match + e.after, e.note) for e in creator.entries] == [
+        ("Anna Sommer", "1")
+    ]
+    assert parse_qs(urlparse(response.context["all_href"]).query) == {
+        "q": ["sommer"],
+        "media_type": ["Foto(s)"],
+    }

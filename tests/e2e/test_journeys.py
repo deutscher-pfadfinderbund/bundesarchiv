@@ -19,7 +19,6 @@ from tests.e2e._pages import (
     OVERLAY_TRIGGERS,
     SCREENS,
     reach_door,
-    reach_search_suggestions,
     reach_tag_suggestions,
     screens_for,
 )
@@ -73,6 +72,11 @@ def test_the_view_switch_carries_the_search_between_lesesaal_and_table(
     page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("q") == ["Sommer"])
     assert parse_qs(urlparse(page.url).query)["view"] == ["table"]
     expect(page.locator("main .ledger")).to_contain_text("Sommerfahrt 1962")
+    # the suggestions outlive the live results (ruling 4); they overlay the switch until dismissed
+    suggestions = page.locator(".autocomplete-list")
+    expect(suggestions).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(suggestions).to_be_hidden()
     switch.get_by_role("link", name="Lesesaal").click()
     page.wait_for_url(lambda url: "view" not in parse_qs(urlparse(url).query))
     expect(page.locator("main .reading")).to_contain_text("Sommerfahrt 1962")
@@ -1304,26 +1308,75 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
 
 
 def test_a_search_suggestion_sets_its_filter_with_the_keyboard(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+    archivist_page: Page, live_workbench: str
 ) -> None:
+    # A pick keeps the list's filters and drops the text (ruling 2); its options are links (ruling
+    # 3); the heading the field sits in keeps its own name, the list open or closed.
     page = archivist_page
-    reach_search_suggestions(page, live_workbench, e2e_corpus)
-    field = page.locator("main #search-field")
+    page.goto(f"{live_workbench}{LIST}?media_type=Foto(s)", wait_until="networkidle")
+    field = page.locator("#search-field")
+    heading = page.locator(".search-sentence[role=heading]")
+    field.press_sequentially("meyer")
+    page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("q") == ["meyer"])
+    suggestions = page.locator(".autocomplete-list")
+    expect(suggestions).to_be_visible()
     expect(field).to_have_attribute("aria-expanded", "true")
-    kinds = page.locator(".autocomplete-kind")
-    expect(kinds).to_have_text(["Artikel", "Autor"])
-    page.keyboard.press("Escape")
-    expect(page.locator(".autocomplete-list")).to_be_hidden()
-    field.press_sequentially("x")
-    page.keyboard.press("Backspace")
-    expect(page.locator(".autocomplete-list")).to_be_visible()
+    expect(page.locator(".autocomplete-kind")).to_have_text(["Artikel", "Autor"])
+    expect(heading).not_to_have_accessible_name(re.compile("Vorschl"))
+    options = suggestions.locator('a[role="option"]')
+    every = parse_qs(urlparse(options.last.get_attribute("href") or "").query)
+    assert every == {"q": ["meyer"], "media_type": ["Foto(s)"]}  # what Enter submits
+    # an option is a link: a modified click opens its pick in a new tab and leaves this one be
+    with page.context.expect_page() as opened:
+        options.nth(1).click(modifiers=["ControlOrMeta"])
+    opened.value.wait_for_url(re.compile(r"creator=K\.(\+|%20)Meyer"))
+    opened.value.close()
+    expect(suggestions).to_be_visible()
+    # Tab leaves the field and takes nothing
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Tab")
+    expect(suggestions).to_be_hidden()
+    expect(field).not_to_be_focused()
+    expect(heading).not_to_have_accessible_name(re.compile("Vorschl"))
+    assert "creator" not in parse_qs(urlparse(page.url).query)
+    field.press("x")
+    field.press("Backspace")
+    expect(suggestions).to_be_visible()
     page.keyboard.press("ArrowDown")  # the Artikel
     page.keyboard.press("ArrowDown")  # the Autor
     expect(field).to_have_attribute(
         "aria-activedescendant", re.compile(r"search-field-suggestions-\d+")
     )
     page.keyboard.press("Enter")
-    page.wait_for_url(re.compile(r"creator=K\.(\+|%20)Meyer"))
+    page.wait_for_url(lambda url: "creator" in parse_qs(urlparse(url).query))
+    assert parse_qs(urlparse(page.url).query) == {
+        "creator": ["K. Meyer"],
+        "media_type": ["Foto(s)"],
+    }
+
+
+def test_tab_from_the_start_page_search_field_reaches_the_submit_button(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # The options are links, yet Tab skips them: from the field one press reaches "Suchen",
+    # the list open or closed, with or without an ArrowDown first.
+    page = archivist_page
+    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    field = page.locator("main #search-field")
+    submit = page.locator("main .search-sentence-submit")
+    field.focus()
+    page.keyboard.press("Tab")
+    expect(submit).to_be_focused()
+    suggestions = page.locator(".autocomplete-list")
+    for arrow_first in (False, True):
+        field.fill("")
+        field.press_sequentially("meyer")
+        expect(suggestions).to_be_visible()
+        if arrow_first:
+            page.keyboard.press("ArrowDown")
+        page.keyboard.press("Tab")
+        expect(submit).to_be_focused()
+        expect(suggestions).to_be_hidden()
 
 
 def test_without_js_the_search_field_just_submits(
