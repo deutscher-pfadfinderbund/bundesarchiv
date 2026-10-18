@@ -314,6 +314,13 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         widths=(*WIDTHS, *PHONE),
     ),
     GalleryState(
+        "workbench-sentence-wrap",
+        "workbench, a search sentence with filters set, wrapping: no line starts with the dot",
+        True,
+        _goto(f"{LIST}?q=Lager&tag=sommer&media_type=Foto(s)"),
+        widths=(*WIDTHS, *PHONE),
+    ),
+    GalleryState(
         "workbench-templates",
         "workbench filtered to the Vorlagen: the removable chip, no Vorlage mark on the rows",
         True,
