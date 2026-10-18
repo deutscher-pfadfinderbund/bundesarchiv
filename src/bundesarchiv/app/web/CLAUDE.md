@@ -20,11 +20,12 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `slow_requests.py` — one WARNING record per request over `BUNDESARCHIV_SLOW_REQUEST_MS`, by route name · interface: `SlowRequestMiddleware` · tests: `tests/app/web/test_slow_requests.py`
 - `legacy_params.py` — a GET or HEAD naming an old German query param or value gets a 301 to its English URL · interface: `LegacyParamsMiddleware` · tests: `tests/app/web/test_legacy_params.py`
 - `article_auth.py` — Article-level authorization for full-Article render paths · interface: `resolve_visible_detail`, `DetailResolution` · tests: `tests/app/web/test_detail_resolver.py`, `test_detail.py`
-- `browse.py` — pure URL-as-state algebra (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
+- `browse.py` — pure URL-as-state algebra (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param`, `view_query` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
 - `browse_views.py` — the list, detail and Trash routes · interface: `workbench`, `article_detail`, `choose_columns`, `trash`, `preset_url` · tests: `test_workbench.py`, `test_choose_columns.py`, `test_trash.py`
 - `byline.py` — the linked value a byline line prints (Schlagworte, Im Volltext); a leaf · interface: `BylineLink` · tests: `test_detail.py`, `test_ledger.py`
 - `start.py` — start page: areas (a function + a partial each) on one grid, one tuple per role · interface: `start`, `Area`, `ARCHIVIST`, `MEMBER` · tests: `tests/app/web/test_start.py`
-- `ledger.py` — the ledger's columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `build`, `chosen`, `cookie_value` · tests: `tests/app/web/test_ledger.py`
+- `ledger.py` — columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `SORT_LABELS`, `build`, `chosen`, `unfiltered`, `text_hits`, both marks · tests: `test_ledger.py`
+- `reading.py` — the Lesesaal: hits as rows to read, the why line chosen from the headlines · interface: `rows`, `why`, `Row`, `Why` · tests: `tests/app/web/test_reading.py`, `test_workbench.py`
 - `catalog.py` — the edit form's leak-sensitive parse + save · interface: `parse_edit_form`, `audience_choice`, `parse_audience`, `parse_lines`, `save_catalog_form`, `apply_media_fields` · tests: `test_catalog_form.py`
 - `card.py` — THE record card field registry: every field declared once, joined to a render (debt #2) · interface: `FIELDS`, `CardRow`, `card_fields` · tests: `tests/app/web/test_catalog_edit.py`
 - `panels.py` — the small forms as tool panels; a leaf, so the header builds them (debt #24) · interface: `FormPanel`, `header_panels`, the three `*_panel` builders · tests: `test_collection_entrypoints.py`

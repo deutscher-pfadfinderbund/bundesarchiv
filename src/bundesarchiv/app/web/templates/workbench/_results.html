@@ -3,6 +3,10 @@ The results region: the htmx swap target (#results) and the page's main landmark
 an HX-Request and inside the full page otherwise. Every hit is already viewer-scoped by search();
 the archivist chrome is a presentation gate on is_archivist.
 
+With a query the hits read in the Lesesaal (components/reading) unless the address asks for the
+table (browse.ParsedQuery.reading); the column heads that sort, and selection, exist only in the
+table.
+
 Bulk edit (archivist-only): the tool row and the ledger share ONE form that POSTs to
 /articles/bulk-edit; the ledger's checkbox column shows only in selection mode (?selection=).
 The selection survives paging: the view bakes the URL's ?selection= into the pager links, and
@@ -24,8 +28,13 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
       hx-trigger="keyup changed delay:400ms from:input[name=q]">
   {% include "components/index_lag.html" %}
   {% if page.hits %}
+  {% if reading %}
+  {% include "workbench/_tools.html" with choices=None bulk=False %}
+  {% include "components/reading.html" with rows=reading_rows only %}
+  {% else %}
   <form id="columns-form" method="post" action="{% url 'columns' %}" hidden>
-    {% csrf_token %}<input type="hidden" name="back" value="{{ columns_back }}">
+    {% csrf_token %}
+    <input type="hidden" name="back" value="{{ columns_back }}">
   </form>
   {% if is_archivist %}
   <form method="post" action="{% url 'article-bulk-edit' %}">
@@ -36,6 +45,7 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
   {% else %}
   {% include "workbench/_tools.html" with choices=ledger.choices bulk=False %}
   {% include "components/ledger.html" with ledger=ledger bulk=False only %}
+  {% endif %}
   {% endif %}
   {% else %}
   {% comment %}Zero hits with a Bestand as the only filter: that Bestand's own empty state, with an

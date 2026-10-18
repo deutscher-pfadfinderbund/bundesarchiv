@@ -5,6 +5,7 @@ choice in ``_matched_vector``. No QuerySet or model instance crosses the interfa
 """
 
 import datetime
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
@@ -13,7 +14,12 @@ from operator import itemgetter
 from typing import Any, Literal, assert_never
 
 from django.contrib.postgres.expressions import ArraySubquery
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVectorField
+from django.contrib.postgres.search import (
+    SearchHeadline,
+    SearchQuery,
+    SearchRank,
+    SearchVectorField,
+)
 from django.db.models import (
     Case,
     Count,
@@ -26,7 +32,7 @@ from django.db.models import (
     Value,
     When,
 )
-from django.db.models.functions import Collate, Lower
+from django.db.models.functions import Coalesce, Collate, Lower
 from django.db.models.lookups import Exact
 
 from bundesarchiv.domain.models import Ulid
@@ -99,6 +105,25 @@ class TextPage:
     page: int
 
 
+#: The fields a hit's headlines read: the member-searchable ones of the general vector, less the
+#: Signatur and the two type words a row prints anyway. Never ``archivist_text``: a headline is the
+#: same for every viewer, an Archivist's included.
+type HeadlineField = Literal["title", "tags", "creator", "subject_place", "body"]
+HEADLINE_FIELDS: tuple[HeadlineField, ...] = ("title", "tags", "creator", "subject_place", "body")
+
+
+@dataclass(frozen=True, slots=True)
+class Headline:
+    """An excerpt of one of a hit's fields in which the query matched: runs of its text, each
+    ``True`` where it is a matched word, and whether the excerpt leaves out the field's start or
+    end. The runs are plain text, whatever markup the field holds."""
+
+    field: HeadlineField
+    runs: tuple[tuple[str, bool], ...]
+    cut_start: bool
+    cut_end: bool
+
+
 @dataclass(frozen=True, slots=True)
 class SearchHit:
     """Never carries a floored column (``physical_location``, ``custom``, ``archivist_text``)."""
@@ -119,6 +144,7 @@ class SearchHit:
     added_at: datetime.datetime | None = None  # None = unknown
     is_template: bool = False
     text_pages: tuple[TextPage, ...] = ()
+    headlines: tuple[Headline, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +194,7 @@ def search(
     page: int = 1,
     page_size: int = 50,
     facets: tuple[Facet, ...] = _DEFAULT_FACETS,
+    headlines: bool = False,
 ) -> SearchPage:
     """``descending`` reverses a column sort; ``relevance`` and ``added`` ignore it."""
     filters = filters or SearchFilters()
@@ -191,6 +218,8 @@ def search(
         page=page,
         page_size=page_size,
     )
+    if headlines and query is not None:
+        hits = _with_headlines(filtered, query, hits)
     return SearchPage(
         hits=hits,
         total=total,
@@ -454,6 +483,83 @@ def _matching_page_numbers(query: SearchQuery | None, hashes: set[str]) -> dict[
 def _pages_of(hashes: list[str], by_hash: Mapping[str, list[int]]) -> tuple[TextPage, ...]:
     """The matching pages of one hit's files, in media order then page order."""
     return tuple(TextPage(h, page) for h in dict.fromkeys(hashes) for page in by_hash.get(h, ()))
+
+
+#: Where ts_headline marks a matched word. Control characters no field means to hold: the shell
+#: strips them from the field first, so every one in an excerpt is a mark.
+_MARK_START = "\x02"
+_MARK_END = "\x03"
+#: Stands in for "<" while ts_headline reads a field: its parser drops a tag-like word
+#: ("<unleserlich>") from the excerpt, which then is no longer the field's text.
+_LT = "\x04"
+_MARKED_RUN = re.compile(f"{_MARK_START}(.*?){_MARK_END}", re.DOTALL)
+
+
+def _with_headlines(
+    filtered: QuerySet[ArticleIndex], query: SearchQuery, hits: tuple[SearchHit, ...]
+) -> tuple[SearchHit, ...]:
+    """``hits`` with their headlines: one query over the same scoped rows, the page's ulids only."""
+    texts = {f"_text_{f}": _headline_text(f) for f in HEADLINE_FIELDS}
+    marked = {
+        f"_headline_{f}": SearchHeadline(
+            _headline_text(f),
+            query,
+            config=_CONFIG,
+            start_sel=_MARK_START,
+            stop_sel=_MARK_END,
+            max_words=14,
+            min_words=6,
+        )
+        for f in HEADLINE_FIELDS
+    }
+    rows = (
+        filtered.filter(ulid__in=[h.ulid for h in hits])
+        .annotate(**texts, **marked)
+        .values_list("ulid", *texts, *marked)
+    )
+    n = len(HEADLINE_FIELDS)
+    by_ulid = {
+        ulid: tuple(
+            headline
+            for f, text, excerpt in zip(HEADLINE_FIELDS, cols[:n], cols[n:], strict=True)
+            if (headline := _headline(f, text, excerpt))
+        )
+        for ulid, *cols in rows
+    }
+    return tuple(replace(hit, headlines=by_ulid.get(hit.ulid, ())) for hit in hits)
+
+
+def _headline_text(field: HeadlineField) -> Func:
+    """The field's text as its headline reads it: the Schlagworte joined, the marks stripped,
+    "<" stood in for."""
+    column = (
+        Func(F("tags"), Value(" · "), function="array_to_string", output_field=TextField())
+        if field == "tags"
+        else F(field)
+    )
+    return Func(
+        Coalesce(column, Value("")),
+        Value("<" + _MARK_START + _MARK_END + _LT),
+        Value(_LT),
+        function="translate",
+        output_field=TextField(),
+    )
+
+
+def _headline(field: HeadlineField, text: str, excerpt: str) -> Headline | None:
+    """The excerpt ts_headline cut from ``text`` as a ``Headline``, or ``None`` when it marks no
+    word (the query matched elsewhere)."""
+    text, excerpt = text.replace(_LT, "<"), excerpt.replace(_LT, "<")
+    pieces = _MARKED_RUN.split(excerpt)
+    if len(pieces) == 1:
+        return None
+    plain = "".join(pieces)
+    return Headline(
+        field=field,
+        runs=tuple((piece, odd % 2 == 1) for odd, piece in enumerate(pieces) if piece),
+        cut_start=not text.lstrip().startswith(plain.lstrip()),
+        cut_end=not text.rstrip().endswith(plain.rstrip()),
+    )
 
 
 def _in_kind_order(counts: Mapping[str, int]) -> tuple[tuple[FileKind, int], ...]:

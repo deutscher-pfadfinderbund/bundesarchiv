@@ -873,10 +873,62 @@ def _queries(body: str) -> list[dict[str, list[str]]]:
 
 
 def test_the_archivist_list_has_no_selection_until_select(indexed_corpus: Corpus) -> None:
-    body = _get(Archivist(), "q=fahrt").content.decode()
+    body = _get(Archivist(), "q=fahrt&view=table").content.decode()
     assert 'name="selection"' not in body
     # "Auswählen" is the same search in selection mode
-    assert {"q": ["fahrt"], "selection": [""]} in _queries(body)
+    assert {"q": ["fahrt"], "view": ["table"], "selection": [""]} in _queries(body)
+
+
+def _main(body: str) -> str:
+    return body[body.index("<main") : body.index("</main>")]
+
+
+def _sort_links(body: str) -> list[dict[str, list[str]]]:
+    return [q for q in _queries(_main(body)) if "sort" in q]
+
+
+def test_a_query_reads_in_the_lesesaal_without_sort_or_selection(indexed_corpus: Corpus) -> None:
+    reading = _get(Archivist(), f"q=fahrt&{browse.PARAM_SELECTION}=").content.decode()
+    table = _get(Archivist(), f"q=fahrt&view=table&{browse.PARAM_SELECTION}=").content.decode()
+    assert "Fahrtenbericht" in _main(reading)
+    assert not _sort_links(reading) and 'name="selection"' not in reading
+    assert _sort_links(table) and 'name="selection"' in table
+
+
+def test_the_view_switch_shows_the_same_search_in_the_other_view(indexed_corpus: Corpus) -> None:
+    reading = _queries(_main(_get(Public(), "q=fahrt&sort=title&page=1").content.decode()))
+    table = _queries(_main(_get(Public(), "q=fahrt&sort=title&view=table").content.decode()))
+    assert {"q": ["fahrt"], "sort": ["title"], "page": ["1"], "view": ["table"]} in reading
+    assert {"q": ["fahrt"], "sort": ["title"]} in table
+    # without a query the list is the table and offers no Lesesaal
+    assert not [q for q in _queries(_main(_get(Public()).content.decode())) if "view" in q]
+
+
+def test_the_lesesaal_shows_its_sort_with_a_way_back_to_relevance(indexed_corpus: Corpus) -> None:
+    # ruling 1, docs/requirements/search-ui-rulings-2026-10.md; the words are the owner's to judge
+    search = "q=fahrt&collection=FOTOS"
+    to_relevance = {"q": ["fahrt"], "collection": ["FOTOS"]}
+    for sort in ("-date", "ref_code", "title", "added"):
+        assert to_relevance in _sentence_queries(Public(), f"{search}&sort={sort}&page=2"), sort
+    # relevance, or a sort it falls to, has nothing to undo; the table's column head shows its sort
+    assert to_relevance not in _sentence_queries(Public(), f"{search}&sort=bogus")
+    table = {**to_relevance, "view": ["table"]}
+    assert table not in _sentence_queries(Public(), f"{search}&sort=date&view=table")
+
+
+def test_the_why_line_gives_back_its_fields_text_escaped(
+    db: None, make_corpus: Callable[[], Corpus]
+) -> None:
+    corpus = make_corpus()
+    corpus.add_collection(
+        make_collection("PUB", "Öffentlich", audience=Audience(AudienceTier.PUBLIC))
+    )
+    corpus.add_article(
+        make_article("WHYLINE", collection_id="PUB", title="Allerlei", tags=("1 < 2 & Wimpel",))
+    )
+    indexer.rebuild(corpus.store)
+    main = _main(_get(Public(), "q=Wimpel").content.decode())
+    assert "1 &lt; 2 &amp; <mark>Wimpel</mark>" in main
 
 
 def test_selection_mode_shows_the_selection_column(indexed_corpus: Corpus) -> None:

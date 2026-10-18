@@ -4,6 +4,7 @@ from bundesarchiv.app.web.browse import (
     clear_filters_query,
     has_next_page,
     parse_query,
+    view_query,
     with_param,
     without_param,
 )
@@ -114,3 +115,13 @@ def test_a_creator_or_place_round_trips_through_its_link() -> None:
         place = parse_query(_params(with_param({}, "place", value))).filters.place
         assert creator == place == value.strip(), value
     assert parse_query(_params(with_param({}, "creator", ""))).filters.creator is None
+
+
+def test_the_view_switch_keeps_every_other_param_the_page_included() -> None:
+    params = {"q": "Lager", "tag": "sommer", "sort": "-date", "page": "3", "view": "table"}
+    table = _params(view_query(params, table=True))
+    reading = _params(view_query(params, table=False))
+    assert table == params
+    assert reading == {k: v for k, v in params.items() if k != "view"}
+    assert not parse_query(table).reading
+    assert parse_query(reading).reading

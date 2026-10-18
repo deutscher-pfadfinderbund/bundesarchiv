@@ -76,16 +76,16 @@
     flex-wrap: wrap;
     align-items: baseline;
   }
-  /* "in" rides with the first slot, so it never ends a line alone */
-  .search-sentence-slots > :first-child {
+  /* a slot is one unit, "in" and the dot inside it: "in" never ends a line alone and no line
+     starts with a dot (it trails the slot before it) */
+  .search-sentence-slots > div {
     display: inline-flex;
     align-items: baseline;
     gap: var(--space-2);
   }
-  .search-sentence-slots > div + div::before {
+  .search-sentence-slots > div:has(~ div)::after {
     content: "·";
-    display: inline-block;
-    margin-inline: var(--space-3) var(--space-2);
+    margin-inline: calc(var(--space-3) - var(--space-2)) var(--space-2);
     color: var(--ink-2);
   }
   /* an open slot is quieter: a context, it re-points the ink its button reads */
@@ -136,6 +136,10 @@
     }
     .search-sentence-more {
       display: block;
+    }
+    /* the folded slots leave no dot behind: only a slot with a set one after it keeps its dot */
+    .search-sentence-slots > div:not(:has(~ .is-set))::after {
+      content: none;
     }
     /* "Filter" holds the folded slots' lists: it hangs under its trigger between the gutters and
        scrolls in the room that is left, so none of the list shows beside it */

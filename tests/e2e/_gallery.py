@@ -11,10 +11,16 @@ from typing import Literal
 from django.template.loader import render_to_string
 from playwright.sync_api import Browser, Page
 from tests.e2e._corpus import TEMPLATE_ULID, CorpusHandles
-from tests.e2e._pages import LIST, SCREENS, Screen, reach_tag_suggestions
+from tests.e2e._pages import LIST, READING_QUERY, SCREENS, Screen, reach_tag_suggestions
 
 #: Shot under the emulated ``prefers-color-scheme``, with no theme cookie.
 MODES: tuple[Literal["light", "dark"], ...] = ("light", "dark")
+
+#: 1440 shows the pane beside the ledger; 680 is below the 80rem switch, where the pane collapses.
+WIDTHS: tuple[int, ...] = (1440, 680)
+
+#: A phone, for the states a mockup was drawn at 390 for.
+PHONE: tuple[int, ...] = (390,)
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +32,7 @@ class GalleryState:
     full_page: bool = (
         True  # False for a full-viewport overlay: the shot is the viewport, not the page
     )
+    widths: tuple[int, ...] = WIDTHS
 
 
 def _goto(path: str) -> Callable[[Page, str, CorpusHandles], None]:
@@ -287,6 +294,33 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench-bulk", "workbench, selection + 'Feld ändern …' open", True, _reach_bulk
     ),
     GalleryState(
+        "workbench-reading-phone",
+        "workbench, the Lesesaal on a phone (the mockup's 390)",
+        True,
+        _goto(f"{LIST}?q={READING_QUERY}"),
+        widths=PHONE,
+    ),
+    GalleryState(
+        "workbench-reading-sorted",
+        "workbench, the Lesesaal sorted by date from the table: the sentence names the sort",
+        True,
+        _goto(f"{LIST}?q={READING_QUERY}&sort=-date"),
+    ),
+    GalleryState(
+        "workbench-table-query",
+        "workbench, the table with a query: 'Auswählen' sits apart from the view switch",
+        True,
+        _goto(f"{LIST}?q={READING_QUERY}&view=table"),
+        widths=(*WIDTHS, *PHONE),
+    ),
+    GalleryState(
+        "workbench-sentence-wrap",
+        "workbench, a search sentence with filters set, wrapping: no line starts with the dot",
+        True,
+        _goto(f"{LIST}?q=Lager&tag=sommer&media_type=Foto(s)"),
+        widths=(*WIDTHS, *PHONE),
+    ),
+    GalleryState(
         "workbench-templates",
         "workbench filtered to the Vorlagen: the removable chip, no Vorlage mark on the rows",
         True,
@@ -432,9 +466,6 @@ STATES: tuple[GalleryState, ...] = (
     *_INTERACTION_STATES,
 )
 
-#: 1440 shows the pane beside the ledger; 680 is below the 80rem switch, where the pane collapses.
-WIDTHS: tuple[int, ...] = (1440, 680)
-
 
 def gallery_dir() -> Path:
     """Where the PNGs land: ``var/gallery/`` at the repo root by default, overridable by env."""
@@ -453,7 +484,7 @@ def render_state(
     out = out_dir if out_dir is not None else gallery_dir()
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
-    for width in WIDTHS:
+    for width in state.widths:
         context = browser.new_context(
             color_scheme=MODES[0], viewport={"width": width, "height": 900}
         )

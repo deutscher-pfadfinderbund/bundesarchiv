@@ -16,7 +16,7 @@ from bundesarchiv.app.web import browse, vocab
 from bundesarchiv.app.web.byline import BylineLink
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_urls import media_url
-from bundesarchiv.index.query import SearchHit
+from bundesarchiv.index.query import SearchFilters, SearchHit
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +48,9 @@ COLUMNS: tuple[Column, ...] = (
         lambda hit: hit.collection_id,
     ),
 )
+
+#: Each sort's words, as its column head reads them.
+SORT_LABELS: Mapping[str, str] = {"title": "Titel", **{c.sort: c.label for c in COLUMNS if c.sort}}
 
 DEFAULT_COLUMNS: tuple[Column, ...] = tuple(c for c in COLUMNS if c.key != "collection")
 
@@ -158,25 +161,24 @@ def build(
 ) -> Ledger:
     """``params`` is the search state the links build from, without the pane, ``selection`` and
     landing-flag params."""
-    shown = tuple(c for c in COLUMNS if c in columns and not _filtered(c, params))
+    shown = unfiltered((c for c in COLUMNS if c in columns), params)
     active = parsed.sort
     heads = (
-        _head("title", "Titel", "title", active, parsed.descending, params),
+        _head("title", SORT_LABELS["title"], "title", active, parsed.descending, params),
         *(_head(c.key, c.label, c.sort, active, parsed.descending, params) for c in shown),
     )
     selected_ulids = frozenset(selection) if is_archivist else frozenset()
-    mark_drafts = is_archivist and not parsed.filters.drafts_only
     rows = tuple(
         Row(
             ulid=hit.ulid,
             title=hit.title,
             href=reverse("article-detail", args=[hit.ulid]),
-            draft=mark_drafts and hit.is_draft,
-            template=is_archivist and not parsed.filters.templates_only and hit.is_template,
+            draft=draft_mark(hit, parsed.filters, is_archivist=is_archivist),
+            template=template_mark(hit, parsed.filters, is_archivist=is_archivist),
             selected=hit.ulid == selected_ulid,
             in_selection=hit.ulid in selected_ulids,
             cells=tuple(_cell(c, hit, chooser, params) for c in shown),
-            text_hits=_text_hits(hit),
+            text_hits=text_hits(hit),
         )
         for hit in hits
     )
@@ -184,7 +186,23 @@ def build(
     return Ledger(heads=heads, rows=rows, choices=choices)
 
 
-def _text_hits(hit: SearchHit) -> TextHits | None:
+def unfiltered(columns: Iterable[Column], params: Mapping[str, str]) -> tuple[Column, ...]:
+    """``columns`` less those whose filter is set: every hit would repeat its one value."""
+    return tuple(c for c in columns if not _filtered(c, params))
+
+
+def draft_mark(hit: SearchHit, filters: SearchFilters, *, is_archivist: bool) -> bool:
+    """Whether a hit's row carries the Entwurf mark: archivist chrome, unless the filter says it."""
+    return is_archivist and not filters.drafts_only and hit.is_draft
+
+
+def template_mark(hit: SearchHit, filters: SearchFilters, *, is_archivist: bool) -> bool:
+    """Whether a hit's row carries the Vorlage mark: archivist chrome, unless the filter says it."""
+    return is_archivist and not filters.templates_only and hit.is_template
+
+
+def text_hits(hit: SearchHit) -> TextHits | None:
+    """The hit's matching pages as links, or ``None`` when the query matched no page."""
     pages = hit.text_pages
     if not pages:
         return None

@@ -1,15 +1,19 @@
 {% comment %}
-The list's tool row over the column heads (a2 rounds 2 and 11, owner 2026-09-30): the view tool
-"Spalten …" at the end edge; for archivists "Auswählen" at the start, which turns on selection mode
+The list's tool row over the hits (a2 rounds 2 and 11, owner 2026-09-30): with a query, the hit
+count and the view switch "Lesesaal · Tabelle" at the start; the view tool "Spalten …" at the end
+edge (the table only); for archivists "Auswählen" (the table only), which turns on selection mode
 (the ledger's checkbox column) and, in it, becomes "Abbrechen", the count and "Feld ändern …", and
 the way to the Papierkorb before "Spalten …" (ADR 0022). While one Bestand is in focus
 (active_collection), "Bestand bearbeiten …" opens the header's rename panel: an edit is a tool, not
-a word of the search sentence. The
-row sits inside the bulk form, so its "Spalten …" controls post through their own form
-(form=columns-form, _results.html): forms cannot nest.
-Params: choices — ledger.Ledger.choices; bulk — the selection tools (the view's bulk context).
+a word of the search sentence. In the table the row sits inside the bulk form, so its "Spalten …"
+controls post through their own form (form=columns-form, _results.html): forms cannot nest.
+Params: choices — ledger.Ledger.choices, None in the Lesesaal; bulk — the selection tools (the
+view's bulk context).
 {% endcomment %}
 <div role="toolbar" aria-label="Werkzeuge">
+  {% if views %}
+  {% include "components/view_switch.html" with total=total views=views only %}
+  {% endif %}
   {% if bulk %}
   {% if selecting %}
   {% comment %}data-bulk-offpage is the URL-borne selection not on this page, which a client
@@ -23,19 +27,34 @@ Params: choices — ledger.Ledger.choices; bulk — the selection tools (the vie
     </div>
   </div>
   {% else %}
-  <div class="bulk"><a href="?{{ select_query }}">Auswählen</a></div>
+  <div class="bulk">
+    <a href="?{{ select_query }}">Auswählen</a>
+  </div>
   {% endif %}
-  {% if active_collection %}<button class="menu-button" type="button" popovertarget="collection-edit">Bestand bearbeiten …</button>{% endif %}
+  {% endif %}
+  {% if is_archivist %}
+  {% if active_collection %}
+  <button class="menu-button" type="button" popovertarget="collection-edit">Bestand bearbeiten …</button>
+  {% endif %}
   <a href="{% url 'trash' %}">Papierkorb</a>
   {% endif %}
+  {% if choices %}
   <button class="menu-button" type="button" popovertarget="columns">Spalten …</button>
   <div class="toolpanel" id="columns" popover data-reset-on-close>
     <ul>
-      {% for choice in choices %}<li><label><input type="checkbox" name="column" value="{{ choice.key }}" form="columns-form"{% if choice.chosen %} checked{% endif %}> {{ choice.label }}</label></li>{% endfor %}
+      {% for choice in choices %}
+      <li>
+        <label>
+          <input type="checkbox" name="column" value="{{ choice.key }}" form="columns-form"{% if choice.chosen %} checked{% endif %}>
+          {{ choice.label }}
+        </label>
+      </li>
+      {% endfor %}
     </ul>
     <div class="actions">
       <button class="primary" type="submit" form="columns-form">Fertig</button>
       {% include "components/toolpanel_cancel.html" with panel="columns" only %}
     </div>
   </div>
+  {% endif %}
 </div>

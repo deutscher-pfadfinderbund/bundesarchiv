@@ -15,6 +15,11 @@ from tests.e2e._corpus import PAGE_ONLY_WORD, CorpusHandles
 #: The list's path, once for every browser file (the start page is "/").
 LIST = "/articles"
 
+#: A query whose Lesesaal shows every kind of row: a word only on a page, and "Lager…" (the trailing
+#: word is a prefix, ADR 0011) in a title (Lagerchronik), in a Schlagwort (Herbstlager 1963) and in a
+#: description (Sommerfahrt 1962).
+READING_QUERY = f"{PAGE_ONLY_WORD} or Lager"
+
 #: What an OVERLAY is, once — every walker reads it: each mechanism the app drops a panel with, as
 #: (its trigger, its panel, a JS expression resolving the trigger ``t`` to its panel). The facet
 #: dropdowns are ``<details>``, the menus popovers. A new mechanism is one line here.
@@ -211,6 +216,16 @@ SCREENS: tuple[Screen, ...] = (
         overlays=1,
     ),
     Screen(
+        "workbench-reading",
+        "workbench, a query in the Lesesaal: a hit named by its title, two by the field the word is"
+        " in (the why line), one with the matching page of its PDF",
+        True,
+        _at(f"{LIST}?q={READING_QUERY}"),
+        "workbench",
+        overlays=1,
+        control_rows=("header", "div[toolbar]"),
+    ),
+    Screen(
         "create-form",
         "the create step",
         True,
@@ -373,7 +388,7 @@ SCREENS: tuple[Screen, ...] = (
 
 #: The count pin: a walker over a shorter list stays green, and the route join cannot see a dropped
 #: screen because several share one route.
-SCREEN_COUNT = 30
+SCREEN_COUNT = 31
 
 
 def screens_for(*, archivist: bool) -> tuple[Screen, ...]:
