@@ -381,7 +381,7 @@ inventory.
 | Page footer | `.page-footer` | `workbench/base` (the light/dark toggle) | `layouts.css` page-footer | proposed |
 | Wordmark | `.wordmark` | `workbench/base`, `workbench/door` | `layouts.css` wordmark | proposed |
 | Door | `.door` | `workbench/door` | `layouts.css` door | proposed |
-| Dev stub | `.stub` | `dev.py` (the viewer switcher) | `layouts.css` dev stub | proposed |
+| Dev stub | `.stub` | `dev.py` (the dev realm's login page, ADR 0025) | `layouts.css` dev stub | proposed |
 | Back link | `.back` | none: no template emits it | `layouts.css` back link | proposed |
 
 
