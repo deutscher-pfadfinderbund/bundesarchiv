@@ -489,6 +489,9 @@ def _pages_of(hashes: list[str], by_hash: Mapping[str, list[int]]) -> tuple[Text
 #: strips them from the field first, so every one in an excerpt is a mark.
 _MARK_START = "\x02"
 _MARK_END = "\x03"
+#: Stands in for "<" while ts_headline reads a field: its parser drops a tag-like word
+#: ("<unleserlich>") from the excerpt, which then is no longer the field's text.
+_LT = "\x04"
 _MARKED_RUN = re.compile(f"{_MARK_START}(.*?){_MARK_END}", re.DOTALL)
 
 
@@ -509,20 +512,26 @@ def _with_headlines(
         )
         for f in HEADLINE_FIELDS
     }
-    rows = filtered.filter(ulid__in=[h.ulid for h in hits]).values("ulid", **texts, **marked)
+    rows = (
+        filtered.filter(ulid__in=[h.ulid for h in hits])
+        .annotate(**texts, **marked)
+        .values_list("ulid", *texts, *marked)
+    )
+    n = len(HEADLINE_FIELDS)
     by_ulid = {
-        row["ulid"]: tuple(
+        ulid: tuple(
             headline
-            for f in HEADLINE_FIELDS
-            if (headline := _headline(f, row[f"_text_{f}"], row[f"_headline_{f}"]))
+            for f, text, excerpt in zip(HEADLINE_FIELDS, cols[:n], cols[n:], strict=True)
+            if (headline := _headline(f, text, excerpt))
         )
-        for row in rows
+        for ulid, *cols in rows
     }
     return tuple(replace(hit, headlines=by_ulid.get(hit.ulid, ())) for hit in hits)
 
 
 def _headline_text(field: HeadlineField) -> Func:
-    """The field's text as its headline reads it: the Schlagworte joined, the marks stripped."""
+    """The field's text as its headline reads it: the Schlagworte joined, the marks stripped,
+    "<" stood in for."""
     column = (
         Func(F("tags"), Value(" · "), function="array_to_string", output_field=TextField())
         if field == "tags"
@@ -530,8 +539,8 @@ def _headline_text(field: HeadlineField) -> Func:
     )
     return Func(
         Coalesce(column, Value("")),
-        Value(_MARK_START + _MARK_END),
-        Value(""),
+        Value("<" + _MARK_START + _MARK_END + _LT),
+        Value(_LT),
         function="translate",
         output_field=TextField(),
     )
@@ -540,6 +549,7 @@ def _headline_text(field: HeadlineField) -> Func:
 def _headline(field: HeadlineField, text: str, excerpt: str) -> Headline | None:
     """The excerpt ts_headline cut from ``text`` as a ``Headline``, or ``None`` when it marks no
     word (the query matched elsewhere)."""
+    text, excerpt = text.replace(_LT, "<"), excerpt.replace(_LT, "<")
     pieces = _MARKED_RUN.split(excerpt)
     if len(pieces) == 1:
         return None

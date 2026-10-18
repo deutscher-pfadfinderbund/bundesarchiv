@@ -23,10 +23,10 @@ _LONG_TAG = (
     "Fahrtenbuch der Gruppe mit vielen Seiten über das Bundeslager des DPB 1960 auf Burg"
     " Königstein und danach noch weitere Fahrten in den Harz und an die See"
 )
-#: A bare "<", an entity, unicode, the headline's own marks and surrounding whitespace: the excerpt
-#: gives all of it back as plain text, only the matched word marked. (A tag-like "<b>" the German
-#: parser drops from an excerpt, so it never reaches one as markup.)
-_ODD_BODY = "  a < b &amp; \x02Wörter\x03 «Sonderlager» 💡 Ende  "
+#: A bare "<", a tag-like word (ts_headline drops one from its own excerpt), an entity, unicode,
+#: the control characters the headline uses itself, and surrounding whitespace: the excerpt gives
+#: it all back as plain text, only the matched word marked.
+_ODD_BODY = "  a < b <unleserlich> &amp; \x02Wörter\x03\x04 «Sonderlager» 💡 Ende  "
 
 
 def _build_store() -> InMemoryObjectStore:
@@ -124,5 +124,5 @@ def test_an_excerpt_gives_its_fields_text_back_verbatim_marking_only_the_word(
 ) -> None:
     body = _by_field(_hits("Sonderlager")["HL_ODD"])["body"]
     assert _marked(body) == ["Sonderlager"]
-    assert _plain(body).strip() == _ODD_BODY.replace("\x02", "").replace("\x03", "").strip()
+    assert _plain(body).strip() == _ODD_BODY.translate(dict.fromkeys(b"\x02\x03\x04")).strip()
     assert (body.cut_start, body.cut_end) == (False, False)
