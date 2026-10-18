@@ -32,8 +32,8 @@ Each journey builds its own corpus into a fresh store and runs against
 mutating journeys (create/edit/delete/bulk) from the read-only ones, so order
 never matters.
 
-Auth: the `archivist_page` fixture pre-sets the signed `dev_viewer` cookie (the
-same value the dev switcher POST writes), so a journey lands authenticated
+Auth: the `archivist_page` fixture pre-sets the access-token cookie a dev-realm
+login as an Archivist leaves (ADR 0025), so a journey lands authenticated
 without a login hop. `public_page` carries no cookie; `no_js_archivist_page` is
 the archivist with JavaScript disabled (the no-JS baseline).
 

@@ -1,217 +1,140 @@
-"""``viewer_of`` through the dev cookie: only a cookie signed with the dedicated dev key and salt,
-unexpired, and parsing to a known viewer yields a non-Public viewer; everything else is ``Public()``,
-never an exception.
+"""``viewer_of`` through a login's token cookies: only an access token the realm issued and still
+honours, or a refresh it accepts, yields a non-Public viewer; everything else is ``Public()``, never
+an exception.
 """
+
+from collections.abc import Iterator
 
 import pytest
 from django.core import signing
 from django.http import HttpRequest
 from django.test import RequestFactory, override_settings
-from tests.app.web._fixtures import DEV_KEY
+from pytest_django.fixtures import Settings
+from tests.app.web._fixtures import DEV_KEY, viewer_cookies
 
-from bundesarchiv.app.web.viewers import (
-    _DEV_VIEWER_SALT,
-    DEV_VIEWER_COOKIE,
-    _parse_viewer,
-    encode_viewer,
-    viewer_of,
-)
+from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
+from bundesarchiv.app.web.keycloak import KeycloakRealm
+from bundesarchiv.app.web.viewers import login_cookies, realm, viewer_of
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
-# A stand-in for a production SECRET_KEY: prod settings define none, so we supply one purely to
-# simulate the key-confusion scenario (a cookie signed with prod's key must NOT verify as a dev one).
+# A stand-in for a production SECRET_KEY: a token signed with any key but the dev realm's must not
+# verify.
 _PROD_SECRET_KEY = "totally-different-production-secret-key"
 
 # Stands in for the deployment's ``VIEWER_SIGNING_KEY``, which prod settings leave unset.
 _VIEWER_KEY = "test-web-viewer-signing-key"
 
+_COOKIES = login_cookies()
 
-def _request_with_cookie(value: str | None) -> HttpRequest:
+
+@pytest.fixture(autouse=True)
+def _dev_realm() -> Iterator[None]:
+    with override_settings(
+        DEV_VIEWER_SIGNING_KEY=DEV_KEY,
+        VIEWER_SIGNING_KEY=_VIEWER_KEY,
+        BUNDESARCHIV_REALM=DevRealm(),
+    ):
+        yield
+
+
+def _request(cookies: dict[str, str]) -> HttpRequest:
     request = RequestFactory().get("/")
-    if value is not None:
-        request.COOKIES[DEV_VIEWER_COOKIE] = value
+    request.COOKIES.update(cookies)
     return request
 
 
-def _sign(payload: str, *, key: str, salt: str = _DEV_VIEWER_SALT) -> str:
-    return signing.TimestampSigner(key=key, salt=salt).sign(payload)
+def _access(value: str) -> HttpRequest:
+    return _request({_COOKIES.access: value})
 
 
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
+def _archivist_access() -> str:
+    return viewer_cookies(Archivist())[_COOKIES.access]
+
+
 def test_no_cookie_is_public() -> None:
-    assert viewer_of(_request_with_cookie(None)) == Public()
+    assert viewer_of(_request({})) == Public()
 
 
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
 def test_empty_cookie_is_public() -> None:
-    assert viewer_of(_request_with_cookie("")) == Public()
+    assert viewer_of(_request({_COOKIES.access: "", _COOKIES.refresh: ""})) == Public()
 
 
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_valid_archivist_cookie() -> None:
-    cookie = _sign(encode_viewer(Archivist()), key=DEV_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Archivist()
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_valid_public_cookie() -> None:
-    cookie = _sign(encode_viewer(Public()), key=DEV_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Public()
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_valid_member_no_groups() -> None:
-    cookie = _sign(encode_viewer(Member(groups=())), key=DEV_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Member(groups=())
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_valid_member_single_group() -> None:
-    cookie = _sign(encode_viewer(Member(groups=("vorstand",))), key=DEV_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Member(groups=("vorstand",))
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_valid_member_multiple_groups() -> None:
-    cookie = _sign(encode_viewer(Member(groups=("vorstand", "archiv-ag"))), key=DEV_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Member(groups=("vorstand", "archiv-ag"))
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_tampered_signature_is_public() -> None:
-    cookie = _sign(encode_viewer(Archivist()), key=DEV_KEY)
-    tampered = cookie[:-1] + ("A" if cookie[-1] != "A" else "B")  # flip the last signature char
-    assert viewer_of(_request_with_cookie(tampered)) == Public()
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_expired_cookie_is_public(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("bundesarchiv.app.web.viewers._DEV_VIEWER_MAX_AGE", -1)
-    cookie = _sign(encode_viewer(Archivist()), key=DEV_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Public()
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-@pytest.mark.parametrize(
-    "payload",
-    [
-        pytest.param("superuser", id="unknown-shape"),
-        pytest.param("archivist", id="unnamed-archivist"),
-        pytest.param("v3:archivist:anna", id="versioned-payload"),
-    ],
-)
-def test_signed_garbage_shape_is_public(payload: str) -> None:
-    assert viewer_of(_request_with_cookie(_sign(payload, key=DEV_KEY))) == Public()
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_the_dev_key_under_another_salt_is_public() -> None:
-    cookie = _sign(encode_viewer(Archivist()), key=DEV_KEY, salt="viewer")
-    assert viewer_of(_request_with_cookie(cookie)) == Public()
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_cookie_signed_with_prod_secret_key_is_public() -> None:
-    cookie = _sign(encode_viewer(Archivist()), key=_PROD_SECRET_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Public()
-
-
-def test_no_dev_key_configured_is_public() -> None:
-    # no override: the test settings are prod's, which define no dev key
-    cookie = _sign(encode_viewer(Archivist()), key=DEV_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Public()
-
-
-@override_settings(VIEWER_SIGNING_KEY=_VIEWER_KEY, DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_a_value_signed_with_the_viewer_signing_key_is_public_in_the_dev_slot() -> None:
-    # The production key signs only the transient login state; it must not mint a dev identity.
-    cookie = _sign(encode_viewer(Archivist()), key=_VIEWER_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Public()
-
-
-@override_settings(VIEWER_SIGNING_KEY=_VIEWER_KEY, DEV_VIEWER_SIGNING_KEY=DEV_KEY)
-def test_a_stale_production_viewer_cookie_is_public() -> None:
-    # The signed ``__Host-viewer`` cookie was removed (ADR 0018). One still sitting in a browser,
-    # signed exactly as it used to be minted, must resolve as if it were absent.
-    stale = signing.TimestampSigner(key=_VIEWER_KEY, salt="viewer").sign("v3:archivist:anna")
-    request = RequestFactory().get("/")
-    request.COOKIES["__Host-viewer"] = stale
-    assert viewer_of(request) == Public()
-
-
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
 @pytest.mark.parametrize(
     "viewer",
     [
+        pytest.param(Archivist(), id="archivist"),
+        pytest.param(Member(groups=()), id="member-no-groups"),
+        pytest.param(Member(groups=("vorstand",)), id="member-single-group"),
+        pytest.param(Member(groups=("vorstand", "archiv-ag")), id="member-multiple-groups"),
         pytest.param(Archivist(username="jürgen: 50% ,x"), id="archivist-with-a-hostile-name"),
         pytest.param(Member(groups=("Sales, EU",)), id="group-with-a-delimiter"),
     ],
 )
-def test_hostile_names_survive_the_real_cookie(viewer: Viewer) -> None:
-    cookie = _sign(encode_viewer(viewer), key=DEV_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == viewer
+def test_the_access_token_names_the_viewer(viewer: Viewer) -> None:
+    assert viewer_of(_access(viewer_cookies(viewer)[_COOKIES.access])) == viewer
+
+
+def test_tampered_signature_is_public() -> None:
+    access = _archivist_access()
+    tampered = access[:-1] + ("A" if access[-1] != "A" else "B")  # flip the last signature char
+    assert viewer_of(_access(tampered)) == Public()
+
+
+def test_expired_access_without_refresh_is_public() -> None:
+    expired = DevRealm(lifetime=-1).mint_tokens(claims_of(Archivist()))
+    assert expired is not None
+    assert viewer_of(_access(expired.access)) == Public()
+
+
+def test_a_refresh_token_in_the_access_slot_is_public() -> None:
+    # The same key under another salt: a token minted for one purpose never passes for another.
+    refresh = viewer_cookies(Archivist())[_COOKIES.refresh]
+    assert viewer_of(_access(refresh)) == Public()
 
 
 @pytest.mark.parametrize(
-    "username",
-    [
-        pytest.param("anna", id="plain"),
-        pytest.param("", id="empty"),
-        pytest.param("a:b", id="colon"),
-        pytest.param("a,b", id="comma"),
-        pytest.param("%3A100%", id="percent"),
-        pytest.param(" anna ", id="leading-and-trailing-whitespace"),
-        pytest.param("jürgen.müller", id="unicode"),
-        pytest.param("member:vorstand", id="another-viewer-payload"),
-    ],
+    "key",
+    [pytest.param(_PROD_SECRET_KEY, id="prod-secret"), pytest.param(_VIEWER_KEY, id="viewer")],
 )
-def test_a_username_survives_the_payload_verbatim(username: str) -> None:
-    # The username is who a save is attributed to (ADR 0019): one that round-trips to another
-    # string credits the change to somebody else.
-    archivist = Archivist(username=username)
-    assert _parse_viewer(encode_viewer(archivist)) == archivist
+def test_a_token_signed_with_another_key_is_public(key: str) -> None:
+    # The viewer key signs only the transient login state; it must not mint an identity.
+    with override_settings(DEV_VIEWER_SIGNING_KEY=key):
+        forged = _archivist_access()
+    assert viewer_of(_access(forged)) == Public()
 
 
-@pytest.mark.parametrize(
-    "groups",
-    [
-        pytest.param(("Sales, EU",), id="comma-and-space"),
-        pytest.param(("a,b",), id="comma"),
-        pytest.param(("a:b",), id="colon"),
-        pytest.param(("50%",), id="percent"),
-        pytest.param(("Gruppe Nord",), id="space"),
-        pytest.param(("Überregional",), id="unicode"),
-        pytest.param(("Sales, EU", "a:b", "50%", "Überregional"), id="mixed"),
-    ],
-)
-def test_group_names_survive_the_payload_verbatim(groups: tuple[str, ...]) -> None:
-    # Keycloak group names may contain the payload's own delimiters, and a group name IS an
-    # authorization scope: a name that round-trips to something else silently moves the member
-    # between scopes. The encoding must be total over arbitrary names.
-    member = Member(groups=groups)
-    assert _parse_viewer(encode_viewer(member)) == member
+def test_no_dev_key_configured_is_public() -> None:
+    access = _archivist_access()
+    with override_settings(DEV_VIEWER_SIGNING_KEY=None):
+        assert viewer_of(_access(access)) == Public()
 
 
-def test_a_delimiter_free_group_encodes_to_itself() -> None:
-    # The escaping must not change the payload for any group name that exists today, or every
-    # outstanding cookie would become unreadable.
-    assert encode_viewer(Member(groups=("vorstand", "archiv-ag"))) == "member:vorstand,archiv-ag"
+def test_a_stale_production_viewer_cookie_is_public() -> None:
+    # The signed ``__Host-viewer`` cookie was removed (ADR 0018). One still sitting in a browser,
+    # signed exactly as it used to be minted, must resolve as if it were absent.
+    stale = signing.TimestampSigner(key=_VIEWER_KEY, salt="viewer").sign("v3:archivist:anna")
+    assert viewer_of(_request({"__Host-viewer": stale})) == Public()
 
 
-def test_empty_group_segments_are_dropped() -> None:
-    assert _parse_viewer("member:a,,b") == Member(groups=("a", "b"))
+def test_a_stale_dev_viewer_cookie_is_public() -> None:
+    # The dev switcher's cookie was removed (ADR 0025): one left in a dev browser names nobody.
+    stale = signing.TimestampSigner(key=DEV_KEY, salt="dev-viewer").sign("archivist:anna")
+    assert viewer_of(_request({"dev_viewer": stale})) == Public()
 
 
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
 def test_the_viewer_is_resolved_once_per_request() -> None:
-    request = _request_with_cookie(_sign(encode_viewer(Archivist()), key=DEV_KEY))
+    request = _access(_archivist_access())
     resolved = viewer_of(request)
-    request.COOKIES[DEV_VIEWER_COOKIE] = _sign(encode_viewer(Member(groups=("v",))), key=DEV_KEY)
+    request.COOKIES.update(viewer_cookies(Member(groups=("v",))))
     assert viewer_of(request) == resolved == Archivist()
 
 
-@override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
 def test_each_request_resolves_its_own_viewer() -> None:
-    cookie = _sign(encode_viewer(Archivist()), key=DEV_KEY)
-    assert viewer_of(_request_with_cookie(cookie)) == Archivist()
-    assert viewer_of(_request_with_cookie(None)) == Public()
+    assert viewer_of(_access(_archivist_access())) == Archivist()
+    assert viewer_of(_request({})) == Public()
+
+
+def test_without_a_configured_realm_it_is_keycloak(settings: Settings) -> None:
+    # Production sets no realm: any other fallback would lock every login out, or let one in.
+    del settings.BUNDESARCHIV_REALM
+    assert isinstance(realm(), KeycloakRealm)

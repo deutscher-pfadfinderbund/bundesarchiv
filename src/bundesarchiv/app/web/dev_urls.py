@@ -10,7 +10,7 @@ from django.utils.csp import CSP
 from django.views.decorators.csp import csp_override
 
 from bundesarchiv.app.web.components_demo import component_library
-from bundesarchiv.app.web.dev import favicon, switch_viewer
+from bundesarchiv.app.web.dev import authorize, favicon
 from bundesarchiv.app.web.layouts_demo import layout_demo
 from bundesarchiv.app.web.media_views import page_not_found
 
@@ -25,7 +25,7 @@ _demo_csp = csp_override({**_PAGE_POLICY, "style-src": [CSP.SELF, CSP.UNSAFE_INL
 urlpatterns = [
     path("", include("bundesarchiv.app.web.urls")),
     path("favicon.ico", favicon, name="dev-favicon"),
-    path("_dev/viewer/", switch_viewer, name="dev-switch-viewer"),
+    path("_dev/viewer/", authorize, name="dev-switch-viewer"),
     path("_dev/components/", _demo_csp(component_library), name="dev-components"),
     path("_dev/layouts/split-narrow/", _demo_csp(layout_demo), name="dev-layout"),
 ]

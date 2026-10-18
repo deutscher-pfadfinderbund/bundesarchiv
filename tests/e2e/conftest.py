@@ -13,19 +13,22 @@ from pathlib import Path
 os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "1")
 
 import pytest
-from django.core import signing
 from django.test import override_settings
 from playwright.sync_api import Browser, BrowserContext, Page
 from pytest_django.live_server_helper import LiveServer
 from pytest_django.plugin import DjangoDbBlocker
 from tests.e2e._corpus import CorpusHandles, build_corpus
 
-from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
+from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
+from bundesarchiv.app.web.viewers import login_cookies
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import settings_dev
 
-# Any key works: the suite both signs and verifies the dev_viewer cookie with it.
+# Any key works: the suite both mints and verifies the dev realm's tokens with it.
 _DEV_KEY = "test-e2e-dev-viewer-key"
+
+#: Outlives the longest journey or gallery state, so one access token serves the whole test.
+_ACCESS_LIFETIME = 60 * 60
 
 
 _REPORT_CSP_VIOLATIONS = """
@@ -74,11 +77,13 @@ def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, obje
         # Non-manifest storage: live_server's StaticFilesHandler serves from the finders, so the e2e
         # run needs no collectstatic (ADR 0016).
         "STORAGES": settings_dev.STORAGES,
-        # off: anonymous browses as Public, as under the dev switcher
+        # off: anonymous browses as Public, as in dev
         "ANONYMOUS_GATE_ENABLED": settings_dev.ANONYMOUS_GATE_ENABLED,
-        # ...and its plain-http CSRF cookie: live_server is http, and prod's Secure flag only
-        # survives here because Chromium exempts localhost.
+        # ...and its plain-http switch: live_server is http, and prod's Secure flag only survives
+        # here because Chromium exempts localhost. It names the login cookies too (ADR 0025).
         "CSRF_COOKIE_SECURE": settings_dev.CSRF_COOKIE_SECURE,
+        "BUNDESARCHIV_REALM": settings_dev.BUNDESARCHIV_REALM,
+        "VIEWER_SIGNING_KEY": settings_dev.VIEWER_SIGNING_KEY,
         "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
         "BUNDESARCHIV_CANONICAL_ROOT": str(_e2e_root),
         "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_thumbs),
@@ -109,14 +114,15 @@ def live_workbench(
 
 
 def _archivist_cookie(base_url: str) -> dict[str, object]:
-    """A Playwright cookie dict carrying the signed dev_viewer=archivist value (same signer the dev
-    switcher uses), scoped to the live server's host so the browser sends it on every request."""
+    """A Playwright cookie dict carrying the access token a dev-realm login as an Archivist leaves,
+    scoped to the live server's host so the browser sends it on every request. Called under the
+    e2e settings, whose key and cookie names it mints with."""
     from urllib.parse import urlparse
 
-    signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
-    value = signer.sign(encode_viewer(Archivist()))
+    tokens = DevRealm(lifetime=_ACCESS_LIFETIME).mint_tokens(claims_of(Archivist()))
+    assert tokens is not None
     host = urlparse(base_url).hostname or "localhost"
-    return {"name": "dev_viewer", "value": value, "domain": host, "path": "/"}
+    return {"name": login_cookies().access, "value": tokens.access, "domain": host, "path": "/"}
 
 
 def _archivist_context_page(browser: Browser, base_url: str, *, javascript: bool) -> Iterator[Page]:

@@ -14,13 +14,15 @@ from tests.app.web._fixtures import DEV_KEY
 
 from bundesarchiv.app.web.dev_realm import Asked, DevRealm
 from bundesarchiv.app.web.viewers import (
-    ACCESS_COOKIE,
-    REFRESH_COOKIE,
     TokenCookieMiddleware,
     delete_token_cookies,
+    login_cookies,
     viewer_of,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
+
+#: The test settings serve https, so these are the ``__Host-`` names.
+_COOKIES = login_cookies()
 
 _ARCHIVIST: Mapping[str, object] = {
     "preferred_username": "anna",
@@ -68,7 +70,7 @@ def _served(
 
 def test_a_valid_access_token_is_the_viewer(asked: Asked) -> None:
     access, refresh = _tokens()
-    viewer, response = _served({ACCESS_COOKIE: access, REFRESH_COOKIE: refresh})
+    viewer, response = _served({_COOKIES.access: access, _COOKIES.refresh: refresh})
     assert viewer == Archivist(username="anna")
     assert _refreshed(asked) == []
     assert not response.cookies
@@ -76,7 +78,7 @@ def test_a_valid_access_token_is_the_viewer(asked: Asked) -> None:
 
 def test_groups_come_from_the_token(asked: Asked) -> None:
     access, _ = _tokens(_MEMBER)
-    viewer, _ = _served({ACCESS_COOKIE: access})
+    viewer, _ = _served({_COOKIES.access: access})
     assert viewer == Member(groups=("/DPB/Bundesführung",))
 
 
@@ -85,12 +87,12 @@ def test_groups_come_from_the_token(asked: Asked) -> None:
 )
 def test_a_refresh_renews_the_viewer_and_both_cookies(asked: Asked, expired_access: bool) -> None:
     expired, refresh = _tokens(lifetime=-1)
-    cookies = {REFRESH_COOKIE: refresh} | ({ACCESS_COOKIE: expired} if expired_access else {})
+    cookies = {_COOKIES.refresh: refresh} | ({_COOKIES.access: expired} if expired_access else {})
     viewer, response = _served(cookies)
     assert viewer == Archivist(username="anna")
-    assert DevRealm().verify_access(response.cookies[ACCESS_COOKIE].value) is not None
-    assert DevRealm().refresh(response.cookies[REFRESH_COOKIE].value) is not None
-    for name in (ACCESS_COOKIE, REFRESH_COOKIE):
+    assert DevRealm().verify_access(response.cookies[_COOKIES.access].value) is not None
+    assert DevRealm().refresh(response.cookies[_COOKIES.refresh].value) is not None
+    for name in (_COOKIES.access, _COOKIES.refresh):
         morsel = response.cookies[name]
         assert morsel["httponly"] and morsel["secure"] and morsel["samesite"] == "Lax"
         assert morsel["max-age"] == 30 * 24 * 60 * 60
@@ -100,10 +102,10 @@ def test_a_refresh_renews_the_viewer_and_both_cookies(asked: Asked, expired_acce
 
 def test_a_failed_refresh_is_public_and_drops_both_cookies(asked: Asked) -> None:
     expired, _ = _tokens(lifetime=-1)
-    viewer, response = _served({ACCESS_COOKIE: expired, REFRESH_COOKIE: "revoked"})
+    viewer, response = _served({_COOKIES.access: expired, _COOKIES.refresh: "revoked"})
     assert viewer == Public()
-    assert response.cookies[ACCESS_COOKIE].value == ""
-    assert response.cookies[REFRESH_COOKIE].value == ""
+    assert response.cookies[_COOKIES.access].value == ""
+    assert response.cookies[_COOKIES.refresh].value == ""
 
 
 def test_no_token_cookies_touch_nothing(asked: Asked) -> None:
@@ -115,7 +117,7 @@ def test_no_token_cookies_touch_nothing(asked: Asked) -> None:
 
 def test_one_request_refreshes_at_most_once(asked: Asked) -> None:
     _, refresh = _tokens()
-    _served({REFRESH_COOKIE: refresh})
+    _served({_COOKIES.refresh: refresh})
     assert _refreshed(asked) == [refresh]
 
 
@@ -128,9 +130,9 @@ def test_a_view_that_sets_its_own_token_cookies_wins(asked: Asked) -> None:
         delete_token_cookies(response)
         return response
 
-    _, response = _served({REFRESH_COOKIE: refresh}, logout_like)
-    assert response.cookies[ACCESS_COOKIE].value == ""
-    assert response.cookies[REFRESH_COOKIE].value == ""
+    _, response = _served({_COOKIES.refresh: refresh}, logout_like)
+    assert response.cookies[_COOKIES.access].value == ""
+    assert response.cookies[_COOKIES.refresh].value == ""
 
 
 def test_an_oversized_access_token_is_logged(
@@ -139,5 +141,5 @@ def test_an_oversized_access_token_is_logged(
     """Browsers drop a cookie over 4 kB without a word; every request would then refresh."""
     _, refresh = _tokens({**_ARCHIVIST, "padding": "x" * 4000})
     with caplog.at_level(logging.WARNING, logger="bundesarchiv.app.web.viewers"):
-        _, response = _served({REFRESH_COOKIE: refresh})
-    assert str(len(response.cookies[ACCESS_COOKIE].value)) in caplog.text
+        _, response = _served({_COOKIES.refresh: refresh})
+    assert str(len(response.cookies[_COOKIES.access].value)) in caplog.text

@@ -12,8 +12,8 @@ An archivist gate is `isinstance(viewer_of(request), Archivist)`, and a write ro
 Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `test_changed_by.py`
 and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 
-- `viewers.py` — Viewer, request kind, responses · interface: `viewer_of`, `realm`, `request_kind`, `render_screen`, `panel_response`, `TokenCookieMiddleware` · tests: `test_*viewer*.py`, `test_request_kind.py`
-- `auth_views.py` — the login surface: Keycloak in, two token cookies out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect` · tests: `tests/app/web/test_auth_views.py`
+- `viewers.py` — Viewer · interface: `viewer_of`, `realm`, `login_cookies`, `request_kind`, `render_screen`, `redirect_to`, `panel_response`, `TokenCookieMiddleware` · tests: `test_*viewer*.py`, `test_request_kind.py`
+- `auth_views.py` — the login surface: Keycloak in, two token cookies out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect`, `callback_uri` · tests: `tests/app/web/test_auth_views.py`
 - `keycloak.py` — the `Realm` adapter, the ONE place that talks to Keycloak; caches per URL (ADR 0018) · interface: `KeycloakRealm` · tests: `tests/app/web/test_keycloak_*.py`
 - `oidc.py` — the OIDC seam: the `Realm` port, its `Tokens`, claims → Viewer · interface: `Realm`, `Tokens`, `viewer_from_claims`, `ARCHIVIST_REALM_ROLE` · tests: `test_oidc_claims.py`, `test_auth_views.py`
 - `anonymous_gate.py` — the anonymous gate: one middleware check, never a per-view decorator (ADR 0018) · interface: `AnonymousGateMiddleware` · tests: `tests/app/web/test_anonymous_gate.py`
