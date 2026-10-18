@@ -98,11 +98,11 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 
 ## Each commit
 
-- One commit per logical step, `mise run check` green (ruff, format, pyrefly, Biome, the no-DB tests).
+- One commit per logical step; the commit hook runs what `mise run check` runs, so each commit is green.
 - pyrefly is always `uv run pyrefly check src tests scripts`; a bare `pyrefly check` resolves zero files in a worktree and passes vacuously.
 - One git command per call: in an isolated worktree a compound containing git is refused, and the destructive-git hook greps whole commands, heredoc text included. Write files and commit messages with the Write tool, then `git commit -F <file>`.
 - ruff's RUF001/RUF002 reject confusables (en dash, bullet) that German legacy text needs: write `"\N{EN DASH}"` / `"\N{BULLET}"` in code.
-- The commit hook runs uv-lock, ruff and pyrefly; no `--no-verify` except on a docs-only commit right after a code commit whose gates ran clean — never on a fixup.
+- No `--no-verify` except on a docs-only commit right after a code commit whose gates ran clean — never on a fixup.
 - Trim noisy hook output with `| tail` under `set -o pipefail` (a pipe returns `tail`'s status), or confirm with `git log -1` that the commit landed; the baseline is what the ledger records — never let it drop.
 - A module created, renamed or deleted, or its interface changed, updates its row in `src/bundesarchiv/<pkg>/CLAUDE.md` in the same commit, within 220 characters; an implementation-only change touches no map (`update-module-map` skill, `tests/test_module_map.py`).
 - A ruling that changes standing law (a testing rule, the deny shape, a workflow) updates `.claude/agents/`, `.claude/skills/`, `CLAUDE.md` and `tests/CLAUDE.md` in the same wave, because a contradicting definition regenerates the old behavior.

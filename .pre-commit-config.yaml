@@ -1,6 +1,7 @@
 # Hooks run through `uv run` so they use the project env (no duplicate dep envs,
 # no rev pinning to drift). Install once with: pre-commit install
-# Two stages: commit = fast (uv-lock, ruff, import contracts, pyrefly, mypy ~1-3s); push = the full gate
+# Two stages: commit = what `mise run check` runs (uv-lock, ruff, import contracts, pyrefly, mypy, Biome,
+# the no-DB tests; ~8s); push = the full gate
 # via `mise run gate`, which starts the dev Postgres itself.
 default_install_hook_types: [pre-commit, pre-push]
 repos:
@@ -49,6 +50,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(biome\.jsonc|\.claude/settings\.json|src/bundesarchiv/app/web/static/.*)$
+      # Green tests at every commit; a commit that touches no code, test or dependency skips them.
+      - id: no-db-tests
+        name: no-DB tests
+        entry: mise run test:nodb
+        language: system
+        pass_filenames: false
+        files: ^(src/|tests/|pyproject\.toml|uv\.lock|mise\.toml)
       - id: gate
         name: gate
         entry: mise run gate
