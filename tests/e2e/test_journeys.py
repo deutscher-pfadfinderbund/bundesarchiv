@@ -963,6 +963,19 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     page.wait_for_url(lambda url: url.endswith(LIST))
 
 
+# Each slide prints its own counter; the one shown is the slide snapped in the strip's middle.
+_SHOWN = """want => {
+  const strip = document.querySelector(".lightbox-strip");
+  const r = strip.getBoundingClientRect();
+  const slide = [...strip.children].find((f) => Math.abs(f.getBoundingClientRect().left - r.left) < 2);
+  return slide?.querySelector(".lightbox-count").textContent === want;
+}"""
+
+
+def _expect_shown(page: Page, want: str) -> None:
+    page.wait_for_function(_SHOWN, arg=want, timeout=5000)
+
+
 def test_an_image_tile_opens_the_lightbox_and_esc_returns_to_it(
     public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
@@ -972,30 +985,34 @@ def test_an_image_tile_opens_the_lightbox_and_esc_returns_to_it(
     tile = page.locator(".media-rows figure > a").nth(1)
     tile.click()
     box = page.locator(".lightbox")
-    expect(box).to_be_visible()
-    expect(box.locator(".lightbox-count")).to_have_text("3 / 7")
+    shown = box.locator(".lightbox-strip")  # the dialog box itself is empty; the strip shows
+    expect(shown).to_be_visible()
+    _expect_shown(page, "3 / 7")
+    announced = box.locator("[aria-live]")
+    expect(announced).to_have_text("3 / 7")
     page.keyboard.press("ArrowRight")
-    expect(box.locator(".lightbox-count")).to_have_text("4 / 7")
+    _expect_shown(page, "4 / 7")
+    expect(announced).to_have_text("4 / 7")
     box.get_by_role("button", name="Vorheriges Bild").click()
-    expect(box.locator(".lightbox-count")).to_have_text("3 / 7")
-    box.locator("figure img").nth(2).click()  # the picture is not the black
-    expect(box).to_be_visible()
-    shown = box.locator("figure img").nth(2).bounding_box()
-    assert shown is not None
-    page.mouse.click(shown["x"] / 2, shown["y"] + shown["height"] / 2)  # beside it: the black
-    expect(box).to_be_hidden()
+    _expect_shown(page, "3 / 7")
+    page.keyboard.press("Escape")
+    expect(shown).to_be_hidden()
     expect(tile).to_be_focused()
     tile.click()
+    _expect_shown(page, "3 / 7")
+    page.keyboard.press("ArrowRight")
+    _expect_shown(page, "4 / 7")
     page.keyboard.press("Escape")
-    expect(box).to_be_hidden()
-    expect(tile).to_be_focused()
+    expect(
+        page.locator('a[data-lightbox="3"]')
+    ).to_be_focused()  # the focus follows the shown slide
 
 
 def _open_lightbox_at_third(page: Page, live_workbench: str, e2e_corpus: CorpusHandles) -> Locator:
     page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
     page.locator(".media-rows figure > a").nth(1).click()
     box = page.locator(".lightbox")
-    expect(box.locator(".lightbox-count")).to_have_text("3 / 7")
+    _expect_shown(page, "3 / 7")
     page.wait_for_timeout(500)  # the opening transition ends; until then the page takes the pointer
     return box
 
@@ -1005,16 +1022,11 @@ def test_the_lightbox_counter_skips_nothing_and_focus_stays_in_it_at_the_ends(
 ) -> None:
     page = public_page
     box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
-    count = box.locator(".lightbox-count")
-    count.evaluate(
-        "el => { window.seen = []; new MutationObserver(() => window.seen.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true }); }"
-    )
     page.keyboard.press("ArrowRight")
     page.keyboard.press("ArrowRight")  # a second step while the first still scrolls
-    expect(count).to_have_text("5 / 7")
-    page.wait_for_timeout(600)  # the scroll ends; the observer must not have rewritten the counter
-    assert page.evaluate("window.seen") == ["4 / 7", "5 / 7"]
-    expect(count).to_have_text("5 / 7")
+    _expect_shown(page, "5 / 7")
+    page.wait_for_timeout(600)  # the scroll has ended and stays on the fifth
+    _expect_shown(page, "5 / 7")
     # a resize re-aligns the strip to the shown image
     page.set_viewport_size({"width": 900, "height": 700})
     page.wait_for_timeout(200)
@@ -1024,9 +1036,10 @@ def test_the_lightbox_counter_skips_nothing_and_focus_stays_in_it_at_the_ends(
     box.get_by_role("button", name="Nächstes Bild").focus()
     page.keyboard.press("Enter")
     page.keyboard.press("Enter")
-    expect(count).to_have_text("7 / 7")
-    page.wait_for_timeout(100)  # past the browser's own focus fix-up of a dead button
-    assert box.evaluate("el => el.contains(document.activeElement)")
+    _expect_shown(page, "7 / 7")
+    # the end arrow stays, disabled, and hands the focus to its pair
+    expect(box.get_by_role("button", name="Nächstes Bild")).to_be_disabled()
+    expect(box.get_by_role("button", name="Vorheriges Bild")).to_be_focused()
 
 
 def test_the_lightbox_closes_on_the_black_only_when_press_and_click_both_land_there(
@@ -1036,7 +1049,7 @@ def test_the_lightbox_closes_on_the_black_only_when_press_and_click_both_land_th
     box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
     # a selection that starts on text and ends on the black (an image drag would be the browser's
     # own drag-and-drop, which never clicks)
-    text = box.locator(".lightbox-count").bounding_box()
+    text = box.locator(".lightbox-count").nth(2).bounding_box()
     assert text is not None
     middle = text["y"] + text["height"] / 2
     page.mouse.move(text["x"] + text["width"] / 2, middle)
@@ -1047,6 +1060,26 @@ def test_the_lightbox_closes_on_the_black_only_when_press_and_click_both_land_th
     assert box.evaluate("d => d.open")
 
 
+def test_the_black_takes_the_wheel_and_a_click_but_the_picture_keeps_the_lightbox_open(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
+    picture = box.locator("figure img").nth(2).bounding_box()
+    assert picture is not None
+    black = (picture["x"] / 2, picture["y"] + 20)  # beside the picture, above the arrows
+    page.mouse.move(*black)
+    width = box.locator(".lightbox-strip").evaluate("s => s.clientWidth")
+    page.mouse.wheel(width * 0.7, 0)  # past half a slide: the snap goes on
+    _expect_shown(page, "4 / 7")
+    page.wait_for_timeout(600)  # the snap settles
+    box.locator("figure img").nth(3).click()
+    page.wait_for_timeout(400)  # past the exit fade, if it had closed
+    assert box.evaluate("d => d.open")
+    page.mouse.click(*black)
+    expect(box.locator(".lightbox-strip")).to_be_hidden()
+
+
 def test_modifier_keys_leave_the_lightbox_and_its_tiles_to_the_browser(
     public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
@@ -1055,10 +1088,121 @@ def test_modifier_keys_leave_the_lightbox_and_its_tiles_to_the_browser(
     page.keyboard.press("Shift+ArrowRight")
     page.keyboard.press("Alt+ArrowLeft")
     page.wait_for_timeout(300)
-    expect(box.locator(".lightbox-count")).to_have_text("3 / 7")
+    _expect_shown(page, "3 / 7")
     page.keyboard.press("Escape")
     page.locator(".media-rows figure > a").nth(1).click(modifiers=["Shift"])
-    expect(box).to_be_hidden()
+    expect(box.locator(".lightbox-strip")).to_be_hidden()
+
+
+def test_without_view_transition_types_the_lightbox_opens_and_closes_unmorphed(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    page.add_init_script(
+        "const supports = CSS.supports; CSS.supports = (q) => !q.includes('view-transition') && supports(q)"
+    )
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    tile = page.locator(".media-rows figure > a").nth(1)
+    tile.click()
+    _expect_shown(page, "3 / 7")
+    page.keyboard.press("Escape")
+    expect(page.locator(".lightbox-strip")).to_be_hidden()
+    expect(tile).to_be_focused()
+
+
+# Counts the view transitions the page starts: each morph is one.
+_COUNT_MORPHS = """
+window.morphs = 0;
+const start = document.startViewTransition.bind(document);
+document.startViewTransition = (options) => {
+  window.morphs += 1;
+  return start(options);
+};
+"""
+
+
+def test_reduced_motion_opens_and_closes_the_lightbox_without_a_morph(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    page.emulate_media(reduced_motion="reduce")
+    page.add_init_script(_COUNT_MORPHS)
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    page.locator('a[data-lightbox="2"]').click()
+    _expect_shown(page, "3 / 7")
+    page.keyboard.press("Escape")
+    expect(page.locator(".lightbox-strip")).to_be_hidden()
+    assert page.evaluate("window.morphs") == 0
+
+
+def test_the_last_tile_clicked_opens_even_when_an_earlier_one_loads_slower(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    # the third slide's picture decodes in 250 ms, inside the wait for it; the fourth fails to
+    # decode and so opens at once, unmorphed
+    page.add_init_script("""
+const decode = HTMLImageElement.prototype.decode;
+HTMLImageElement.prototype.decode = function () {
+  const slide = [...document.querySelector(".lightbox-strip").children].indexOf(this.parentElement);
+  if (slide === 3) {
+    return Promise.reject(new DOMException("broken", "EncodingError"));
+  }
+  const done = decode.call(this);
+  return slide === 2 ? done.then(() => new Promise((resolve) => setTimeout(resolve, 250))) : done;
+};
+""")
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    page.locator('a[data-lightbox="2"]').click()
+    page.locator('a[data-lightbox="3"]').click()
+    _expect_shown(page, "4 / 7")
+    page.wait_for_timeout(600)  # past the slow decode
+    _expect_shown(page, "4 / 7")
+
+
+def test_a_second_click_while_the_morph_starts_lets_it_play(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    page.add_init_script(_COUNT_MORPHS)
+    # the second click of a slow double-click lands as the first one's morph starts
+    page.add_init_script("""
+const start = document.startViewTransition.bind(document);
+let clicks = 1;
+document.startViewTransition = (options) => {
+  const transition = start(options);
+  if (clicks++ === 1) {
+    document.querySelector('a[data-lightbox="2"]').click();
+  }
+  return transition;
+};
+""")
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    page.locator('a[data-lightbox="2"]').click()
+    _expect_shown(page, "3 / 7")
+    page.wait_for_timeout(500)  # the morph ends
+    assert page.evaluate("window.morphs") == 1
+
+
+def test_the_lightbox_closes_unmorphed_onto_a_tile_out_of_view_and_keeps_its_picture(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    page.add_init_script(_COUNT_MORPHS)
+    box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
+    assert page.evaluate("window.morphs") == 1
+    # a turned phone: the viewport ends above the shown slide's tile
+    top = page.locator('a[data-lightbox="2"]').evaluate("a => a.getBoundingClientRect().top")
+    assert top > 100, "the tile sits too high to leave the view"
+    page.set_viewport_size({"width": 1280, "height": int(top) - 1})
+    # read in the closing task: the dialog fades out from here
+    fading = box.evaluate("""d => {
+  d.querySelector(".lightbox-close").requestSubmit();
+  return getComputedStyle(d.querySelectorAll(".lightbox-strip img")[2]).visibility;
+}""")
+    assert fading == "visible"
+    expect(box.locator(".lightbox-strip")).to_be_hidden()
+    assert page.evaluate("window.morphs") == 1
 
 
 def test_a_tile_is_a_plain_link_to_its_file_without_script(
@@ -1069,7 +1213,7 @@ def test_a_tile_is_a_plain_link_to_its_file_without_script(
     tile = page.locator(".media-rows figure > a").first
     assert (tile.get_attribute("href") or "").startswith("/media/")
     assert tile.get_attribute("target") == "_blank"
-    expect(page.locator(".lightbox")).to_be_hidden()
+    expect(page.locator(".lightbox-strip")).to_be_hidden()
 
 
 def test_download_saves_the_original_under_its_own_name(

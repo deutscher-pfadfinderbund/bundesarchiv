@@ -94,22 +94,23 @@
   }
 
   /* ---- the lightbox: the article's images one at a time on the band's black. A scroll-snap
-     strip, so a swipe or the arrow keys move natively; media.js keeps the counter and the
-     buttons. Opening and closing fade (the top layer needs overlay and display in the
-     transition; without overlay support it appears and goes at once). ---- */
+     strip, so a swipe or the arrow keys move natively; each slide prints its own counter. The
+     dialog box itself is empty (0x0); its parts sit fixed over the viewport, the strip under the
+     buttons covering all of it, so a swipe or a wheel moves it from anywhere on the black (the
+     ::backdrop shows through it; media.js closes on a click there). Opening and closing fade
+     (the top layer needs overlay and display in the transition; without overlay support it
+     appears and goes at once). ---- */
   .lightbox {
     --ink: var(--band-ink);
     --ink-2: var(--band-ink-2);
     --edge: var(--band-edge);
     inset: 0;
-    width: 100vw;
-    max-width: none;
-    height: 100dvh;
-    max-height: none;
+    width: 0;
+    height: 0;
     padding: 0;
     border: 0;
-    overflow: hidden;
-    background: var(--band-ground);
+    overflow: visible;
+    background: none;
     color: var(--ink);
     opacity: 0;
     transition:
@@ -117,8 +118,7 @@
       overlay 0.18s allow-discrete,
       display 0.18s allow-discrete; /* the fade lengths: no token names a duration */
     &[open] {
-      display: grid;
-      grid-template-rows: auto 1fr;
+      display: block;
       opacity: 1;
       @starting-style {
         opacity: 0;
@@ -126,18 +126,18 @@
     }
     &::backdrop {
       background: var(--band-ground);
+      opacity: 0;
+      transition: inherit;
+    }
+    &[open]::backdrop {
+      opacity: 1;
+      @starting-style {
+        opacity: 0;
+      }
     }
   }
   html:has(.lightbox[open]) {
     overflow: hidden; /* the page behind stays where it is */
-  }
-  .lightbox-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-3) var(--gutter);
-    color: var(--ink-2);
-    font: var(--type-meta);
   }
   .lightbox button {
     display: grid;
@@ -154,12 +154,17 @@
       cursor: default;
     }
   }
-  .lightbox-bar button {
-    border-color: transparent;
+  .lightbox-close {
+    position: fixed;
+    top: var(--space-3);
+    right: var(--gutter);
+    & button {
+      border-color: transparent;
+    }
   }
   .lightbox-prev,
   .lightbox-next {
-    position: absolute;
+    position: fixed;
     top: 50%;
     translate: 0 -50%;
   }
@@ -177,8 +182,9 @@
     }
   }
   .lightbox-strip {
+    position: fixed;
+    inset: 0;
     display: flex;
-    min-height: 0;
     overflow-x: auto;
     overscroll-behavior: contain;
     scroll-snap-type: x mandatory;
@@ -186,11 +192,20 @@
     & figure {
       flex: 0 0 100%;
       display: grid;
-      grid-template-rows: 1fr auto;
+      grid-template-rows: auto 1fr auto;
       min-height: 0;
       margin: 0;
       padding: 0 calc(var(--gutter) + var(--touch-target));
       scroll-snap-align: center;
+    }
+    & .lightbox-count {
+      justify-self: start;
+      display: flex;
+      align-items: center;
+      min-height: var(--touch-target);
+      margin: var(--space-3) 0 var(--space-3) calc(-1 * var(--touch-target));
+      color: var(--ink-2);
+      font: var(--type-meta);
     }
     & img {
       place-self: center;
@@ -227,10 +242,44 @@
     .lightbox-strip figure {
       padding: 0;
     }
+    .lightbox-strip .lightbox-count {
+      margin-left: var(--gutter);
+    }
+    .lightbox-strip figcaption {
+      padding-inline: var(--gutter);
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     .lightbox {
       transition-duration: 0.01s;
+    }
+  }
+  /* the morph (media.js marks the clicked pair [data-morph] and types the transition
+     "lightbox"): the tile's image grows into the shown one and back, by whichever side shows,
+     as long as the dialog fades. The page does not cross-fade under it: the dialog keeps its
+     own fade. */
+  :where(:root:active-view-transition-type(lightbox) .lightbox:not([open])) [data-morph] img {
+    visibility: hidden; /* while the dialog fades out, the morph carries the picture */
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    :root:active-view-transition-type(lightbox) {
+      & .lightbox[open] [data-morph] img,
+      &:not(:has(.lightbox[open])) main [data-morph] img {
+        view-transition-name: lightbox-image;
+      }
+    }
+  }
+  ::view-transition-group(lightbox-image),
+  ::view-transition-old(lightbox-image),
+  ::view-transition-new(lightbox-image) {
+    animation-duration: 0.18s;
+  }
+  :root:active-view-transition-type(lightbox) {
+    &::view-transition-old(root) {
+      display: none;
+    }
+    &::view-transition-new(root) {
+      animation: none;
     }
   }
 

@@ -165,7 +165,7 @@ def _reach_detail_in_trash_confirm_open(page: Page, base: str, corpus: CorpusHan
 def _reach_detail_lightbox_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.many_ulid}", wait_until="networkidle")
     page.locator(".media-rows a").nth(2).click()
-    page.locator(".lightbox").wait_for(state="visible")
+    page.locator(".lightbox-strip").wait_for(state="visible")
     # the shown picture is the fourth: cover, then the third row tile
     page.wait_for_function(
         "() => document.querySelectorAll('.lightbox-strip img')[3].naturalWidth > 0"
