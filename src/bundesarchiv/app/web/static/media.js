@@ -75,20 +75,28 @@ if (dialog) {
     arm(index);
   };
   // The morph: detail.css names the image of the [data-morph] tile and slide during a transition
-  // of type "lightbox". Without types the dialog only fades.
-  const morphs = CSS.supports("selector(:active-view-transition-type(lightbox))");
+  // of type "lightbox". Without types, or under reduced motion, the dialog only fades.
+  const typed = CSS.supports("selector(:active-view-transition-type(lightbox))");
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const morphs = () => typed && !reduced.matches;
+  const tileOf = (index) => document.querySelector(`a[data-lightbox="${index}"]`);
+  const inView = (element) => {
+    const box = element.getBoundingClientRect();
+    return box.bottom > 0 && box.right > 0 && box.top < innerHeight && box.left < innerWidth;
+  };
   const unmark = () => {
     for (const marked of document.querySelectorAll("[data-morph]")) {
       delete marked.dataset.morph;
     }
   };
+  // settles when the morph has played or was skipped (an Esc mid-morph): the update runs either way
   const morph = (index, update) => {
     unmark();
-    document.querySelector(`a[data-lightbox="${index}"]`).dataset.morph = "";
+    tileOf(index).dataset.morph = "";
     slides[index].dataset.morph = "";
     const transition = document.startViewTransition({ update, types: ["lightbox"] });
-    transition.ready.catch(() => {}); // skipped (a second click, an Esc mid-morph): the update still runs
-    transition.finished.catch(() => {});
+    transition.ready.catch(() => {});
+    return transition.finished.catch(() => {});
   };
   // The shown image is lazy in the closed dialog: it loads first, or the morph grows into an empty
   // box. A slow load opens without the morph.
@@ -102,6 +110,8 @@ if (dialog) {
       new Promise((resolve) => setTimeout(resolve, 300, false)),
     ]);
   };
+  let latest; // the last tile click: an earlier one still waiting for its picture gives way
+  let opening; // an open morph under way: a second click would restart it from the open dialog
   for (const link of document.querySelectorAll("a[data-lightbox]")) {
     link.addEventListener("click", async (event) => {
       if (event.button || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
@@ -110,15 +120,22 @@ if (dialog) {
       event.preventDefault();
       link.focus(); // Safari never focuses a clicked link
       const index = Number(link.dataset.lightbox);
-      if (morphs && (await loaded(slides[index].querySelector("img")))) {
-        morph(index, () => open(index));
+      const click = {};
+      latest = click;
+      const grow = morphs() && (await loaded(slides[index].querySelector("img")));
+      if (click !== latest || opening) {
+        return;
+      }
+      if (grow) {
+        opening = morph(index, () => open(index)).then(() => (opening = undefined));
       } else {
         open(index);
       }
     });
   }
+  // the morph lands on the shown slide's tile, so only on one in view
   const close = () => {
-    if (morphs) {
+    if (morphs() && inView(tileOf(on))) {
       morph(on, () => dialog.close());
     } else {
       dialog.close();
@@ -128,8 +145,6 @@ if (dialog) {
     if (event.cancelable) {
       event.preventDefault();
       close();
-    } else {
-      unmark(); // a cancel we may not stop (no user activation since the last) closes unmorphed
     }
   });
   dialog.querySelector(".lightbox-close").addEventListener("submit", (event) => {
@@ -137,9 +152,7 @@ if (dialog) {
     close();
   });
   // the focus lands where the morph does: on the shown slide's tile
-  dialog.addEventListener("close", () =>
-    document.querySelector(`a[data-lightbox="${on}"]`).focus(),
-  );
+  dialog.addEventListener("close", () => tileOf(on).focus());
   // the black: the press and the click both land on it, so a drag that began on the picture or
   // the text never closes
   const black = ".lightbox-strip, .lightbox-strip > figure, figcaption";

@@ -988,8 +988,11 @@ def test_an_image_tile_opens_the_lightbox_and_esc_returns_to_it(
     shown = box.locator(".lightbox-strip")  # the dialog box itself is empty; the strip shows
     expect(shown).to_be_visible()
     _expect_shown(page, "3 / 7")
+    announced = box.locator("[aria-live]")
+    expect(announced).to_have_text("3 / 7")
     page.keyboard.press("ArrowRight")
     _expect_shown(page, "4 / 7")
+    expect(announced).to_have_text("4 / 7")
     box.get_by_role("button", name="Vorheriges Bild").click()
     _expect_shown(page, "3 / 7")
     page.keyboard.press("Escape")
@@ -1105,6 +1108,101 @@ def test_without_view_transition_types_the_lightbox_opens_and_closes_unmorphed(
     page.keyboard.press("Escape")
     expect(page.locator(".lightbox-strip")).to_be_hidden()
     expect(tile).to_be_focused()
+
+
+# Counts the view transitions the page starts: each morph is one.
+_COUNT_MORPHS = """
+window.morphs = 0;
+const start = document.startViewTransition.bind(document);
+document.startViewTransition = (options) => {
+  window.morphs += 1;
+  return start(options);
+};
+"""
+
+
+def test_reduced_motion_opens_and_closes_the_lightbox_without_a_morph(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    page.emulate_media(reduced_motion="reduce")
+    page.add_init_script(_COUNT_MORPHS)
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    page.locator('a[data-lightbox="2"]').click()
+    _expect_shown(page, "3 / 7")
+    page.keyboard.press("Escape")
+    expect(page.locator(".lightbox-strip")).to_be_hidden()
+    assert page.evaluate("window.morphs") == 0
+
+
+def test_the_last_tile_clicked_opens_even_when_an_earlier_one_loads_slower(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    # the third slide's picture decodes in 250 ms, inside the wait for it; the fourth fails to
+    # decode and so opens at once, unmorphed
+    page.add_init_script("""
+const decode = HTMLImageElement.prototype.decode;
+HTMLImageElement.prototype.decode = function () {
+  const slide = [...document.querySelector(".lightbox-strip").children].indexOf(this.parentElement);
+  if (slide === 3) {
+    return Promise.reject(new DOMException("broken", "EncodingError"));
+  }
+  const done = decode.call(this);
+  return slide === 2 ? done.then(() => new Promise((resolve) => setTimeout(resolve, 250))) : done;
+};
+""")
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    page.locator('a[data-lightbox="2"]').click()
+    page.locator('a[data-lightbox="3"]').click()
+    _expect_shown(page, "4 / 7")
+    page.wait_for_timeout(600)  # past the slow decode
+    _expect_shown(page, "4 / 7")
+
+
+def test_a_second_click_while_the_morph_starts_lets_it_play(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    page.add_init_script(_COUNT_MORPHS)
+    # the second click of a slow double-click lands as the first one's morph starts
+    page.add_init_script("""
+const start = document.startViewTransition.bind(document);
+let clicks = 1;
+document.startViewTransition = (options) => {
+  const transition = start(options);
+  if (clicks++ === 1) {
+    document.querySelector('a[data-lightbox="2"]').click();
+  }
+  return transition;
+};
+""")
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    page.locator('a[data-lightbox="2"]').click()
+    _expect_shown(page, "3 / 7")
+    page.wait_for_timeout(500)  # the morph ends
+    assert page.evaluate("window.morphs") == 1
+
+
+def test_the_lightbox_closes_unmorphed_onto_a_tile_out_of_view_and_keeps_its_picture(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    page.add_init_script(_COUNT_MORPHS)
+    box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
+    assert page.evaluate("window.morphs") == 1
+    # a turned phone: the viewport ends above the shown slide's tile
+    top = page.locator('a[data-lightbox="2"]').evaluate("a => a.getBoundingClientRect().top")
+    assert top > 100, "the tile sits too high to leave the view"
+    page.set_viewport_size({"width": 1280, "height": int(top) - 1})
+    # read in the closing task: the dialog fades out from here
+    fading = box.evaluate("""d => {
+  d.querySelector(".lightbox-close").requestSubmit();
+  return getComputedStyle(d.querySelectorAll(".lightbox-strip img")[2]).visibility;
+}""")
+    assert fading == "visible"
+    expect(box.locator(".lightbox-strip")).to_be_hidden()
+    assert page.evaluate("window.morphs") == 1
 
 
 def test_a_tile_is_a_plain_link_to_its_file_without_script(

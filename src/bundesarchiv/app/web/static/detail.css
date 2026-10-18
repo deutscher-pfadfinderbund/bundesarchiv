@@ -258,7 +258,7 @@
      "lightbox"): the tile's image grows into the shown one and back, by whichever side shows,
      as long as the dialog fades. The page does not cross-fade under it: the dialog keeps its
      own fade. */
-  :where(.lightbox:not([open])) [data-morph] img {
+  :where(:root:active-view-transition-type(lightbox) .lightbox:not([open])) [data-morph] img {
     visibility: hidden; /* while the dialog fades out, the morph carries the picture */
   }
   @media (prefers-reduced-motion: no-preference) {
