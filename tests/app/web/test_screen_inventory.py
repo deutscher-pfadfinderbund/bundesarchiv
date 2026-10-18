@@ -25,6 +25,7 @@ _NOT_A_SCREEN: dict[str, str] = {
     "article-bulk-edit-document-types": "an HTMX fragment (the bulk chooser's options)",
     "tag-suggestions": "a fragment (the <li> options of the Schlagworte field's list)",
     "suggestions": "a fragment (the grouped options of the search field's list)",
+    "suggestions-list": "a fragment (the same options, for the list page's field)",
 }
 
 

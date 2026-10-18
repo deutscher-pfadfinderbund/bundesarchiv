@@ -74,6 +74,7 @@ _READS = {
     "article-document-types",
     "tag-suggestions",
     "suggestions",
+    "suggestions-list",
     "article-detail",
     "media",
     "media-thumb",

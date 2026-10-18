@@ -101,10 +101,12 @@ def build(
     return tuple(g for g in groups if g.entries)
 
 
-def suggestions(request: HttpRequest) -> HttpResponseBase:
+def suggestions(request: HttpRequest, *, all_option: bool = True) -> HttpResponseBase:
     """``GET /suggestions?q=&<the list's filters>`` — the option groups for the search field, and
-    the list Enter would submit, with its count. Members and Archivists only, GET only; else the
-    plain 404. Never cached in a shared cache."""
+    the list Enter would submit, with its count. The start page's field asks ``/suggestions``,
+    where that list is the last option; the list page's ``/suggestions/list`` (``all_option``
+    off) leaves it out, since the page already shows it. Members and Archivists only, GET only;
+    else the plain 404. Never cached in a shared cache."""
     viewer = viewer_of(request)
     if isinstance(viewer, Public) or request.method != "GET":
         return not_found()
@@ -132,6 +134,7 @@ def suggestions(request: HttpRequest) -> HttpResponseBase:
             "total": total,
             "total_label": vocab.count(total),
             "all_href": all_href,
+            "all_option": all_option,
         },
     )
     response["Cache-Control"] = "private"

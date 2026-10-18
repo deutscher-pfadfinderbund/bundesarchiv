@@ -94,8 +94,9 @@ def test_a_value_the_text_does_not_spell_is_left_unmarked() -> None:
 
 
 def test_a_public_viewer_and_a_post_are_denied(corpus: Corpus) -> None:
-    assert_denied(client_as(Public()).get("/suggestions?q=wald"), "GET as Public")
-    assert_denied(client_as(Member(())).post("/suggestions?q=wald"), "POST as a Member")
+    for path in ("/suggestions", "/suggestions/list"):
+        assert_denied(client_as(Public()).get(f"{path}?q=wald"), f"GET {path} as Public")
+        assert_denied(client_as(Member(())).post(f"{path}?q=wald"), f"POST {path} as a Member")
 
 
 def test_no_text_offers_nothing_and_is_never_shared_cached(corpus: Corpus) -> None:
@@ -140,6 +141,24 @@ def test_the_groups_and_the_all_link_stay_within_the_forms_filters(
     }
 
 
+@pytest.mark.django_db
+def test_only_the_start_pages_route_ends_with_the_all_option(
+    make_corpus: Callable[[], Corpus],
+) -> None:
+    corpus = make_corpus()
+    public = Audience(AudienceTier.PUBLIC)
+    corpus.add_collection(make_collection(_BUND, "Bund", parent_id=None, audience=public))
+    corpus.add_article(
+        make_article("01KX8A00000000000000000AR0", title="Sommerfahrt", collection_id=_BUND)
+    )
+    indexer.rebuild(corpus.store)
+    start = client_as(Member(())).get("/suggestions?q=sommer").content
+    on_list = client_as(Member(())).get("/suggestions/list?q=sommer").content
+    # the same options, and on the start page one more: the list Enter submits
+    assert on_list.count(b'role="option"') >= 1
+    assert start.count(b'role="option"') == on_list.count(b'role="option"') + 1
+
+
 @pytest.mark.parametrize("path", ["/", "/articles"])
 @pytest.mark.parametrize(
     ("viewer", "asks"),
@@ -153,3 +172,6 @@ def test_only_a_signed_in_viewers_search_field_asks_for_suggestions(
     assert response.status_code == 200
     (field,) = re.findall(r'<input[^>]*id="search-field"[^>]*>', response.content.decode())
     assert ("data-suggest=" in field) is asks
+    if asks:
+        route = "/suggestions" if path == "/" else "/suggestions/list"
+        assert f'data-suggest="{route}"' in field

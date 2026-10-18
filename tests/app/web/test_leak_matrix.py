@@ -257,6 +257,10 @@ def _p_suggestions(_c: _MatrixCorpus) -> str:
     return "/suggestions"
 
 
+def _p_suggestions_list(_c: _MatrixCorpus) -> str:
+    return "/suggestions/list"
+
+
 def _p_detail(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}"
 
@@ -452,6 +456,15 @@ _CONTRACT: dict[str, Route] = {
     # index; what each tier is offered is tests/index/test_leaks_suggestions.py's.
     "suggestions": Route(
         build_path=_p_suggestions,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=OK,
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=FOUR_OH_FOUR,  # POST disallowed
+        member_route=True,
+    ),
+    # The same view for the list page's field, without the "all" option.
+    "suggestions-list": Route(
+        build_path=_p_suggestions_list,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,

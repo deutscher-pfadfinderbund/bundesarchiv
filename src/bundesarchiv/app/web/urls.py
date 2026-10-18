@@ -80,6 +80,7 @@ urlpatterns = [
     ),
     path("tags/suggestions", tag_suggestions, name="tag-suggestions"),
     path("suggestions", suggestions, name="suggestions"),
+    path("suggestions/list", suggestions, {"all_option": False}, name="suggestions-list"),
     path("articles/<str:ulid>", article_detail, name="article-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),
