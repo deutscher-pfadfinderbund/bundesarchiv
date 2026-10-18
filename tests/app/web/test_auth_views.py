@@ -16,7 +16,13 @@ from django.conf import settings
 from django.core import signing
 from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied, assert_door
-from tests.app.web._fixtures import DEV_KEY, Asked, Corpus, RecordingRealm
+from tests.app.web._fixtures import (
+    VIEWER_KEY,
+    Asked,
+    Corpus,
+    RecordingRealm,
+    dev_realm_settings,
+)
 
 from bundesarchiv.app.web.auth_views import safe_next
 from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm
@@ -24,8 +30,6 @@ from bundesarchiv.app.web.viewers import login_cookies
 
 #: The test settings serve https, so these are the ``__Host-`` names.
 _COOKIES = login_cookies()
-
-_KEY = "test-viewer-signing-key"
 
 _ARCHIVIST_CLAIMS: Mapping[str, object] = {
     "preferred_username": "anna.schmidt",
@@ -42,11 +46,7 @@ _MEMBER_CLAIMS: Mapping[str, object] = {
 def asked() -> Iterator[Asked]:
     """What the dev realm the login runs on is asked, with both signing keys configured."""
     calls: Asked = []
-    with override_settings(
-        VIEWER_SIGNING_KEY=_KEY,
-        DEV_VIEWER_SIGNING_KEY=DEV_KEY,
-        BUNDESARCHIV_REALM=RecordingRealm(calls),
-    ):
+    with override_settings(**dev_realm_settings(RecordingRealm(calls))):
         yield calls
 
 
@@ -137,7 +137,7 @@ def test_login_plants_a_signed_state_cookie(asked: Asked) -> None:
     assert _COOKIES.state.startswith("__Host-")
     assert cookie["path"] == "/" and not cookie["domain"]
     assert (
-        signing.loads(cookie.value, key=_KEY, salt="oidc-state")["state"]
+        signing.loads(cookie.value, key=VIEWER_KEY, salt="oidc-state")["state"]
         == _last(asked, "authorization_url")["state"]
     )
 
@@ -225,7 +225,10 @@ def _state_cookie(*, key: str, issued: float) -> str:
 
 @pytest.mark.parametrize(
     ("label", "key", "age"),
-    [("state cookie under a foreign key", "another-key", 0), ("expired state", _KEY, 24 * 60 * 60)],
+    [
+        ("state cookie under a foreign key", "another-key", 0),
+        ("expired state", VIEWER_KEY, 24 * 60 * 60),
+    ],
 )
 def test_callback_denies_a_state_cookie_it_cannot_trust(
     asked: Asked, label: str, key: str, age: int

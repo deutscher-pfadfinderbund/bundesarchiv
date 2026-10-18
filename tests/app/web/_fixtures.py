@@ -30,7 +30,7 @@ from tests import _articles
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
-from bundesarchiv.app.web.oidc import Tokens
+from bundesarchiv.app.web.oidc import Realm, Tokens
 from bundesarchiv.app.web.viewers import login_cookies
 from bundesarchiv.domain.models import (
     ULID,
@@ -48,6 +48,7 @@ from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
 DEV_KEY = "test-web-dev-viewer-key"
+VIEWER_KEY = "test-web-viewer-signing-key"
 
 ROOT = ULID("ROOT")
 # A real ULID: the collection routes validate their ``<ulid>`` in-view, so a mnemonic literal
@@ -201,6 +202,16 @@ class RecordingRealm:
         return self._realm.logout_url(
             refresh_token=refresh_token, post_logout_redirect_uri=post_logout_redirect_uri
         )
+
+
+def dev_realm_settings(realm: Realm | None = None) -> dict[str, object]:
+    """The settings a login through the dev realm needs: both signing keys and the realm itself, a
+    plain ``DevRealm`` unless ``realm`` is given. For ``override_settings(**...)``."""
+    return {
+        "DEV_VIEWER_SIGNING_KEY": DEV_KEY,
+        "VIEWER_SIGNING_KEY": VIEWER_KEY,
+        "BUNDESARCHIV_REALM": realm or DevRealm(),
+    }
 
 
 def client_as(viewer: Viewer | None, *, enforce_csrf: bool = False) -> Client:

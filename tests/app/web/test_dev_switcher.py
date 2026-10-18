@@ -13,7 +13,7 @@ import pytest
 from django.test import Client, RequestFactory, override_settings
 from django.urls import NoReverseMatch, Resolver404, resolve, reverse
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import page_forms
+from tests.app.web._fixtures import dev_realm_settings, page_forms
 
 from bundesarchiv.app.web.dev_realm import DevRealm
 from bundesarchiv.app.web.viewers import realm, viewer_of
@@ -30,9 +30,7 @@ def _dev() -> Iterator[None]:
     with override_settings(
         ROOT_URLCONF="bundesarchiv.app.web.dev_urls",
         MIDDLEWARE=["django.middleware.csrf.CsrfViewMiddleware"],
-        DEV_VIEWER_SIGNING_KEY="test-dev-viewer-key",
-        VIEWER_SIGNING_KEY="test-viewer-signing-key",
-        BUNDESARCHIV_REALM=DevRealm(),
+        **dev_realm_settings(),
     ):
         yield
 
