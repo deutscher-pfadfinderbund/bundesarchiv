@@ -4,9 +4,11 @@ from collections.abc import Callable, Mapping
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from django.core import signing
 from pytest_django.fixtures import Settings
 from tests.app.web._fixtures import DEV_KEY
 
+from bundesarchiv.app.web import dev_realm
 from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, Asked, DevRealm, claims_of
 from bundesarchiv.app.web.oidc import viewer_from_claims
 from bundesarchiv.domain.viewer import Archivist, Member
@@ -151,6 +153,11 @@ def test_an_expired_value_is_refused(
     expired: DevRealm, minted: Callable[[DevRealm], str], use: Callable[[str], object]
 ) -> None:
     assert use(minted(expired)) is None
+
+
+def test_a_value_without_an_expiry_is_refused() -> None:
+    timeless = signing.dumps(dict(_CLAIMS), key=DEV_KEY, salt=dev_realm._ACCESS_SALT)
+    assert DevRealm().verify_access(timeless) is None
 
 
 def test_a_refresh_sets_its_own_expiries_whatever_the_claims_carry() -> None:

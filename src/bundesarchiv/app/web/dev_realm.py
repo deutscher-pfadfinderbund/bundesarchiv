@@ -55,8 +55,8 @@ def _signed(payload: Mapping[str, object], salt: str) -> str | None:
 
 
 def _current(raw: str | None, salt: str) -> dict[str, Any] | None:
-    """The payload of ``raw`` when this key signed it under ``salt`` and its ``exp`` (if it carries
-    one) lies ahead; ``None`` otherwise."""
+    """The payload of ``raw`` when this key signed it under ``salt`` and its ``exp`` lies ahead;
+    ``None`` otherwise, a payload without ``exp`` included."""
     key = _key()
     if not key or not raw:
         return None
@@ -64,7 +64,7 @@ def _current(raw: str | None, salt: str) -> dict[str, Any] | None:
         payload: dict[str, Any] = signing.loads(raw, key=key, salt=salt)
     except signing.BadSignature:
         return None
-    if "exp" in payload and payload["exp"] <= time.time():
+    if payload.get("exp", 0) <= time.time():
         return None
     return payload
 
