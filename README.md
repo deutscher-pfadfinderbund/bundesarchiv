@@ -36,8 +36,10 @@ DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserve
 ```
 
 Open <http://localhost:8000>. To try the archive as different people, open
-<http://localhost:8000/_dev/viewer/> and pick a role (archivist, member, public) —
-this switcher exists only in development.
+<http://localhost:8000/_dev/viewer/>: it starts a login through the dev login page,
+where you pick an archivist (with a username) or a member (with groups). The
+header's Abmelden makes you public again. That page exists only in development
+(ADR 0025).
 
 Optional, in a second terminal — the background worker (generates thumbnails,
 retries failed index updates):

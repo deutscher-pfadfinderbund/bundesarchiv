@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
-from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
 from django.test import Client
@@ -30,7 +29,8 @@ from django.urls import reverse
 from tests import _articles
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
+from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
+from bundesarchiv.app.web.viewers import login_cookies
 from bundesarchiv.domain.models import (
     ULID,
     Article,
@@ -40,7 +40,7 @@ from bundesarchiv.domain.models import (
     Lifecycle,
     Version,
 )
-from bundesarchiv.domain.viewer import Viewer
+from bundesarchiv.domain.viewer import Archivist, Member, Viewer
 from bundesarchiv.index.refresh import InMemoryIndex
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
@@ -145,13 +145,21 @@ def list_url(**params: str) -> str:
     return f"{reverse('workbench')}?{urlencode(params)}" if params else reverse("workbench")
 
 
+def viewer_cookies(viewer: Viewer | None) -> dict[str, str]:
+    """The token cookies a dev-realm login as ``viewer`` leaves, minted under the settings in force;
+    none for ``Public()`` or ``None`` (an anonymous visitor)."""
+    if not isinstance(viewer, Archivist | Member):
+        return {}
+    tokens = DevRealm().mint_tokens(claims_of(viewer))
+    assert tokens is not None, "no DEV_VIEWER_SIGNING_KEY: run under settings_for"
+    cookies = login_cookies()
+    return {cookies.access: tokens.access, cookies.refresh: tokens.refresh}
+
+
 def client_as(viewer: Viewer | None, *, enforce_csrf: bool = False) -> Client:
-    """A test client carrying the signed ``dev_viewer`` cookie for ``viewer`` — or, for ``None``,
-    no cookie at all (an anonymous visitor)."""
+    """A test client logged in as ``viewer`` through the dev realm."""
     client = Client(enforce_csrf_checks=enforce_csrf)
-    if viewer is not None:
-        signer = signing.TimestampSigner(key=DEV_KEY, salt=_DEV_VIEWER_SALT)
-        client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
+    client.cookies.load(viewer_cookies(viewer))
     return client
 
 
@@ -238,8 +246,8 @@ def standard_corpus(root: Path) -> Corpus:
 
 
 def settings_for(corpus: Corpus) -> dict[str, object]:
-    """The settings a web test runs under: the prod urlconf, the dev-viewer signing key
-    ``client_as`` signs with, ``corpus`` as the canonical store, and an in-memory index, so a write
+    """The settings a web test runs under: the prod urlconf, the dev realm ``client_as`` logs in
+    through and its key, ``corpus`` as the canonical store, and an in-memory index, so a write
     refreshes no Postgres row (a search test builds its rows itself).
 
     The ADR 0018 anonymous gate is OFF here, as it is in ``settings_dev``: these tests assert what
@@ -249,6 +257,7 @@ def settings_for(corpus: Corpus) -> dict[str, object]:
     return {
         "ROOT_URLCONF": "bundesarchiv.app.web.urls",
         "DEV_VIEWER_SIGNING_KEY": DEV_KEY,
+        "BUNDESARCHIV_REALM": DevRealm(),
         "ANONYMOUS_GATE_ENABLED": False,
         "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.root),
         "BUNDESARCHIV_INDEX": InMemoryIndex,

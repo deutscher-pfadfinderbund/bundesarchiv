@@ -17,18 +17,15 @@ from django.urls import reverse
 
 from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import (
-    REFRESH_COOKIE,
     delete_token_cookies,
+    login_cookies,
     realm,
     set_token_cookies,
 )
 
-#: The short-lived cookie carrying one login's ``state``/``nonce``/``next`` across the redirect to
-#: Keycloak and back. Signed with the viewer key under its OWN salt; it is transient by design and
-#: the callback drops it, so one cookie serves exactly one login. ``__Host-`` because Keycloak lives
-#: on a sibling host, and no sibling host may shadow it.
-STATE_COOKIE = "__Host-oidc_state"
-
+# The state cookie carries one login's ``state``/``nonce``/``next`` across the redirect to the realm
+# and back. Signed with the viewer key under its OWN salt; the callback drops it, so one cookie
+# serves exactly one login.
 _STATE_SALT = "oidc-state"
 
 #: How long a started login may take to come back. Long enough for a password manager and a second
@@ -63,7 +60,7 @@ def safe_next(raw: str | None) -> str | None:
     return raw
 
 
-def _callback_uri(request: HttpRequest) -> str:
+def callback_uri(request: HttpRequest) -> str:
     """The absolute callback URL — it must match the realm client's registered redirect URI exactly,
     and Keycloak checks that the token exchange repeats the one the authorize request used."""
     return request.build_absolute_uri(reverse("oidc-callback"))
@@ -75,7 +72,7 @@ def login(request: HttpRequest) -> HttpResponse:
     if request.method != "GET" or not key:
         return not_found()
     state, nonce = token_urlsafe(_TOKEN_BYTES), token_urlsafe(_TOKEN_BYTES)
-    url = realm().authorization_url(state=state, nonce=nonce, redirect_uri=_callback_uri(request))
+    url = realm().authorization_url(state=state, nonce=nonce, redirect_uri=callback_uri(request))
     if url is None:
         return not_found()
     payload = {
@@ -84,12 +81,13 @@ def login(request: HttpRequest) -> HttpResponse:
         "next": safe_next(request.GET.get("next")) or _DEFAULT_NEXT,
     }
     response = HttpResponseRedirect(url)
+    cookies = login_cookies()
     response.set_cookie(
-        STATE_COOKIE,
+        cookies.state,
         signing.dumps(payload, key=key, salt=_STATE_SALT),
         max_age=_STATE_MAX_AGE,
         httponly=True,
-        secure=True,
+        secure=cookies.secure,
         samesite="Lax",
     )
     return response
@@ -99,7 +97,7 @@ def _transient_of(request: HttpRequest) -> _Transient | None:
     """The in-flight login this request belongs to, or ``None`` when there is no verified one —
     absent, expired, tampered, signed with another key, or not the shape we wrote."""
     key = settings.VIEWER_SIGNING_KEY
-    raw = request.COOKIES.get(STATE_COOKIE)
+    raw = request.COOKIES.get(login_cookies().state)
     if not key or not raw:
         return None
     try:
@@ -136,13 +134,13 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
         # than onto a dead 404. It terminates: the restart mints the state it will match.
         return HttpResponseRedirect(login_redirect(transient.next_path))
     tokens = realm().fetch_tokens(
-        code=code, nonce=transient.nonce, redirect_uri=_callback_uri(request)
+        code=code, nonce=transient.nonce, redirect_uri=callback_uri(request)
     )
     if tokens is None:
         return not_found()
     response = HttpResponseRedirect(transient.next_path)
     set_token_cookies(tokens, response)
-    response.delete_cookie(STATE_COOKIE)
+    response.delete_cookie(login_cookies().state)
     return response
 
 
@@ -154,7 +152,7 @@ def logout(request: HttpRequest) -> HttpResponse:
         return not_found()
     home = request.build_absolute_uri(_DEFAULT_NEXT)
     url = realm().logout_url(
-        refresh_token=request.COOKIES.get(REFRESH_COOKIE), post_logout_redirect_uri=home
+        refresh_token=request.COOKIES.get(login_cookies().refresh), post_logout_redirect_uri=home
     )
     response = HttpResponseRedirect(url or _DEFAULT_NEXT)
     delete_token_cookies(response)

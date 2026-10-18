@@ -955,9 +955,13 @@ def test_an_anonymous_visitor_signs_in_through_the_door(
     public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     reach_door(public_page, live_workbench, e2e_corpus)
-    public_page.get_by_role("link", name="Anmelden mit DPB Login").click()
-    public_page.wait_for_url("**/login?**")
-    assert_login_target(public_page.url, f"/articles/{e2e_corpus.published_ulid}")
+    door = public_page.get_by_role("link", name="Anmelden mit DPB Login")
+    article = f"/articles/{e2e_corpus.published_ulid}"
+    assert_login_target(door.get_attribute("href") or "", article)
+    door.click()  # on through the dev realm's login page, back to where the visitor was going
+    public_page.check("input[name=kind][value=member]")
+    public_page.locator("main form button[type=submit]").click()
+    public_page.wait_for_url(live_workbench + article)
 
 
 def test_static_assets_serve_in_the_live_server(public_page: Page, live_workbench: str) -> None:
@@ -2471,3 +2475,17 @@ def test_the_theme_toggle_saves_the_opposite_of_the_system_and_returns_to_it(
     page.reload()
     expect(root).not_to_have_attribute("data-theme", "dark")
     assert not [c for c in page.context.cookies() if c["name"] == "theme"]
+
+
+def test_dev_logs_in_and_out_through_the_dev_realm(public_page: Page, live_workbench: str) -> None:
+    """The real flow dev runs (ADR 0025): the dev login page, the callback, the token cookies, and
+    the header's logout."""
+    page = public_page
+    page.goto(live_workbench + "/_dev/viewer/")  # a bookmark: starts a login
+    page.check("input[name=kind][value=archivist]")
+    page.locator("main form button[type=submit]").click()
+    page.wait_for_url(live_workbench + "/")
+    assert page.request.get(live_workbench + "/articles/new").status == 200
+    page.locator("form[action='/logout'] button").click()
+    page.wait_for_url(live_workbench + "/")
+    assert page.request.get(live_workbench + "/articles/new").status == 404

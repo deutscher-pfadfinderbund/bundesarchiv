@@ -1,30 +1,26 @@
 """``viewer_of(request) -> Viewer`` — THE request→Viewer trust boundary (Part 4.4).
 
 ONE function the whole web layer calls to answer *who is asking* (domain ``Viewer``: Archivist |
-Member(groups) | Public). TWO adapters answer it; the UI code above never knows which one spoke:
+Member(groups) | Public), through ONE path: a login's token cookies (ADR 0018), the access token
+checked by ``realm()`` on every request and refreshed server-side through
+``TokenCookieMiddleware`` when it has expired. Dev and the tests log in through the dev realm the
+same way (ADR 0025).
 
-- an OIDC login's token cookies (ADR 0018): Keycloak's access token, checked on every request and
-  refreshed server-side through ``TokenCookieMiddleware`` when it has expired;
-- the cookie the dev-only switcher sets (``dev`` module), keyed by ``DEV_VIEWER_SIGNING_KEY``,
-  which only ``settings_dev`` defines — never the production ``SECRET_KEY``, so a leaked dev
-  cookie is worthless against a deployment.
-
-Fail-closed everywhere: no cookie, no key configured, a tampered/expired signature, or a payload
-that does not parse to a known viewer shape ALL resolve to ``Public()``. A bad cookie is never an
-error — only ever an anonymous viewer.
+Fail-closed everywhere: no cookie, an unconfigured realm, or a token the realm rejects ALL resolve
+to ``Public()``. A bad cookie is never an error — only ever an anonymous viewer.
 """
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from enum import StrEnum
-from urllib.parse import quote, unquote
 
 from django.conf import settings
-from django.core import signing
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
 from django.utils.cache import patch_vary_headers
+from django.utils.module_loading import import_string
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import landing, vocab
@@ -32,26 +28,33 @@ from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.keycloak import KeycloakRealm
 from bundesarchiv.app.web.oidc import Realm, Tokens, viewer_from_claims
 from bundesarchiv.app.web.panels import FormPanel, header_panels
-from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
+from bundesarchiv.domain.viewer import Archivist, Public, Viewer
 
-#: Name of the signed cookie the dev switcher sets and this seam reads.
-DEV_VIEWER_COOKIE = "dev_viewer"
 
-_DEV_VIEWER_SALT = "dev-viewer"
+@dataclass(frozen=True, slots=True)
+class LoginCookies:
+    """The names of the three cookies a login leaves (the access and refresh tokens, and the
+    in-flight login's state) and whether they are Secure."""
 
-#: A working day.
-_DEV_VIEWER_MAX_AGE = 12 * 60 * 60
+    access: str
+    refresh: str
+    state: str
+    secure: bool
 
-#: The two cookies an OIDC login leaves the browser holding (ADR 0018): Keycloak's access token and
-#: its offline refresh token. The ``__Host-`` prefix is a browser-enforced lock, and this deployment
-#: needs it: Keycloak lives on a sibling host of the same registrable domain, and any such host could
-#: otherwise set a ``Domain=``-scoped cookie of this name that shadows ours — an unclearable login
-#: loop. The dev cookie above carries no prefix on purpose: ``__Host-`` requires Secure, which dev's
-#: plain http cannot satisfy.
-ACCESS_COOKIE = "__Host-access"
-REFRESH_COOKIE = "__Host-refresh"
 
-#: How long the browser keeps them. The realm's offline session idle (30 days) is the real limit;
+def login_cookies() -> LoginCookies:
+    """Where the site serves https (``CSRF_COOKIE_SECURE``), ``__Host-`` names and Secure: Keycloak
+    lives on a sibling host of the same registrable domain, and without the prefix any such host
+    could set a ``Domain=``-scoped cookie of these names that shadows ours, an unclearable login
+    loop. Over dev's plain http, project names without Secure: WebKit drops a Secure cookie set
+    over http, and cookies are not separated by port, so a bare name would clash with another
+    localhost app's (ADR 0025)."""
+    secure = settings.CSRF_COOKIE_SECURE
+    prefix = "__Host-" if secure else "bundesarchiv_"
+    return LoginCookies(prefix + "access", prefix + "refresh", prefix + "oidc_state", secure)
+
+
+#: How long the browser keeps the token cookies. The realm's offline session idle (30 days) is the real limit;
 #: each refresh sets them again.
 _TOKEN_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 
@@ -69,70 +72,14 @@ _log = logging.getLogger(__name__)
 _VIEWER_CACHE_ATTR = "_bundesarchiv_viewer"
 
 
-def _dev_signer() -> signing.TimestampSigner | None:
-    """The dev-viewer signer, keyed by ``settings.DEV_VIEWER_SIGNING_KEY`` — or ``None`` when that
-    setting is absent (i.e. under production settings, which never define it). Passing ``key``
-    explicitly is load-bearing: it structurally prevents Django from falling back to
-    ``SECRET_KEY``, so the dev cookie is signed/verified ONLY with the dedicated dev key."""
-    key = getattr(settings, "DEV_VIEWER_SIGNING_KEY", None)
-    if not key:
-        return None
-    return signing.TimestampSigner(key=key, salt=_DEV_VIEWER_SALT)
-
-
-def encode_viewer(viewer: Viewer) -> str:
-    """Serialize a ``Viewer`` to the cookie's plaintext payload (the value the signer then wraps):
-    ``archivist:<username>`` | ``member:group1,group2`` | ``public``. Every name is percent-escaped,
-    so it may carry the delimiters; a Member with no groups encodes as a bare ``member``."""
-    match viewer:
-        case Archivist(username=username):
-            return "archivist:" + quote(username, safe="")
-        case Member(groups=groups):
-            return "member:" + ",".join(quote(g, safe="") for g in groups) if groups else "member"
-        case Public():
-            return "public"
-
-
-def _parse_viewer(payload: str) -> Viewer | None:
-    """The inverse of ``encode_viewer``; ``None`` for any other shape, including a bare
-    ``archivist``."""
-    if payload.startswith("archivist:"):
-        return Archivist(username=unquote(payload.removeprefix("archivist:")))
-    if payload == "public":
-        return Public()
-    if payload == "member":
-        return Member(groups=())
-    if payload.startswith("member:"):
-        groups = tuple(unquote(g) for g in payload.removeprefix("member:").split(",") if g)
-        return Member(groups=groups)
-    return None
-
-
-def _unsign(signer: signing.TimestampSigner, raw: str | None, max_age: int) -> str | None:
-    """The verified payload of ``raw``, or ``None`` for anything the signer rejects — absent,
-    tampered or expired (``SignatureExpired`` is a ``BadSignature``)."""
-    if not raw:
-        return None
-    try:
-        return signer.unsign(raw, max_age=max_age)
-    except signing.BadSignature:
-        return None
-
-
-def _switched_viewer(request: HttpRequest) -> Viewer | None:
-    """The viewer of the dev switcher's cookie, or ``None`` — including under production settings,
-    which define no dev key at all."""
-    signer = _dev_signer()
-    if signer is None:
-        return None
-    payload = _unsign(signer, request.COOKIES.get(DEV_VIEWER_COOKIE), _DEV_VIEWER_MAX_AGE)
-    return _parse_viewer(payload) if payload is not None else None
-
-
 def realm() -> Realm:
     """The login realm: ``settings.BUNDESARCHIV_REALM`` when set (dev and tests; the WSGI entry
-    refuses to serve with it), else Keycloak."""
-    configured: Realm | None = getattr(settings, "BUNDESARCHIV_REALM", None)
+    refuses to serve with it), else Keycloak. A settings module names it by dotted path, since
+    settings may not import ``app``; a test passes the instance."""
+    configured: Realm | str | None = getattr(settings, "BUNDESARCHIV_REALM", None)
+    if isinstance(configured, str):
+        realm_class: type[Realm] = import_string(configured)
+        return realm_class()
     return configured if configured is not None else KeycloakRealm()
 
 
@@ -140,19 +87,21 @@ def set_token_cookies(tokens: Tokens, response: HttpResponse) -> None:
     """Set both token cookies on ``response`` (ADR 0018)."""
     if len(tokens.access) > _COOKIE_WARN_LENGTH:
         _log.warning("access token cookie is %d characters long", len(tokens.access))
-    for name, value in ((ACCESS_COOKIE, tokens.access), (REFRESH_COOKIE, tokens.refresh)):
+    cookies = login_cookies()
+    for name, value in ((cookies.access, tokens.access), (cookies.refresh, tokens.refresh)):
         response.set_cookie(
             name,
             value,
             max_age=_TOKEN_COOKIE_MAX_AGE,
             httponly=True,
-            secure=True,
+            secure=cookies.secure,
             samesite="Lax",
         )
 
 
 def delete_token_cookies(response: HttpResponse) -> None:
-    for name in (ACCESS_COOKIE, REFRESH_COOKIE):
+    cookies = login_cookies()
+    for name in (cookies.access, cookies.refresh):
         response.delete_cookie(name, samesite="Lax")
 
 
@@ -160,12 +109,12 @@ def _token_viewer(request: HttpRequest) -> Viewer | None:
     """The viewer of an OIDC login's token cookies, or ``None`` when they do not resolve to one. A
     rejected or missing access token is refreshed with the refresh cookie; the outcome waits on the
     request for ``TokenCookieMiddleware``."""
-    login = realm()
-    access = request.COOKIES.get(ACCESS_COOKIE)
+    login, cookies = realm(), login_cookies()
+    access = request.COOKIES.get(cookies.access)
     claims = login.verify_access(access) if access else None
     if claims is not None:
         return viewer_from_claims(claims)
-    refresh_token = request.COOKIES.get(REFRESH_COOKIE)
+    refresh_token = request.COOKIES.get(cookies.refresh)
     if not refresh_token:
         return None
     tokens = login.refresh(refresh_token)
@@ -183,7 +132,7 @@ class TokenCookieMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         response = self.get_response(request)
-        if not hasattr(request, _REFRESHED_ATTR) or ACCESS_COOKIE in response.cookies:
+        if not hasattr(request, _REFRESHED_ATTR) or login_cookies().access in response.cookies:
             return response
         tokens: Tokens | None = getattr(request, _REFRESHED_ATTR)
         if tokens is None:
@@ -199,7 +148,7 @@ def viewer_of(request: HttpRequest) -> Viewer:
     cached: Viewer | None = getattr(request, _VIEWER_CACHE_ATTR, None)
     if cached is not None:
         return cached
-    viewer = _token_viewer(request) or _switched_viewer(request) or Public()
+    viewer = _token_viewer(request) or Public()
     setattr(request, _VIEWER_CACHE_ATTR, viewer)
     return viewer
 

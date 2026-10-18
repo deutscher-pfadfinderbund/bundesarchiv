@@ -95,8 +95,8 @@ legacy values (commas inside a Schlagwort) among the adversarial inputs.
   (asset whitelist, unhashed and uncollected paths not served).
   Build the archive with the `corpus` / `make_corpus` fixtures and the
   `client_as` / `make_*` helpers from `app/web/_fixtures.py` — one `client_as`
-  signs every viewer, and no module keeps a local `_Corpus` / `_client_as` /
-  `_settings` to clone. Reach for the standard `corpus` and the `make_*`
+  logs every viewer in through the dev realm, and no module keeps a local
+  `_Corpus` / `_client_as` / `_settings` to clone. Reach for the standard `corpus` and the `make_*`
   builders first; wire something bespoke only when the standard shape genuinely
   does not fit. That shape is frozen — a test asserting a global count or
   listing builds its own content with `make_corpus`.

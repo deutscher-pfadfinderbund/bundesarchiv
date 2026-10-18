@@ -15,7 +15,8 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.core import signing
 
-from bundesarchiv.app.web.oidc import Tokens
+from bundesarchiv.app.web.oidc import ARCHIVIST_REALM_ROLE, Tokens
+from bundesarchiv.domain.viewer import Archivist, Member
 
 #: The page that stands in for Keycloak's login form.
 AUTHORIZE_PATH = "/_dev/viewer/"
@@ -24,8 +25,24 @@ _CODE_SALT = "dev-realm-code"
 _ACCESS_SALT = "dev-realm-access"
 _REFRESH_SALT = "dev-realm-refresh"
 
-#: One call to the realm: the operation's name and its arguments.
+#: Keycloak's offline session idle limit: each refresh issues a new refresh token.
+_REFRESH_LIFETIME = 30 * 24 * 60 * 60
+
+#: Every call to the realm, in order: each operation's name and its arguments.
 type Asked = list[tuple[str, dict[str, str | None]]]
+
+
+def claims_of(viewer: Archivist | Member) -> dict[str, object]:
+    """The claims a login as ``viewer`` carries, shaped as Keycloak's, so ``viewer_from_claims``
+    reads them back as ``viewer``."""
+    match viewer:
+        case Archivist(username=username):
+            return {
+                "realm_access": {"roles": [ARCHIVIST_REALM_ROLE]},
+                "preferred_username": username,
+            }
+        case Member(groups=groups):
+            return {"groups": list(groups)}
 
 
 def _key() -> str | None:
@@ -55,17 +72,19 @@ def _current(raw: str | None, salt: str) -> dict[str, Any] | None:
 @dataclass(frozen=True, slots=True)
 class DevRealm:
     """A ``Realm`` with no server. ``lifetime`` is how many seconds a code or an access token stays
-    good (negative mints expired ones); ``asked``, when given, records every call."""
+    good, ``refresh_lifetime`` a refresh token (negative mints expired ones); ``asked``, when given,
+    records every call."""
 
     lifetime: int = 60
+    refresh_lifetime: int = _REFRESH_LIFETIME
     asked: Asked | None = None
 
     def _ask(self, operation: str, **args: str | None) -> None:
         if self.asked is not None:
             self.asked.append((operation, args))
 
-    def _exp(self) -> int:
-        return int(time.time()) + self.lifetime
+    def _exp(self, lifetime: int | None = None) -> int:
+        return int(time.time()) + (self.lifetime if lifetime is None else lifetime)
 
     def mint_code(self, claims: Mapping[str, object], *, nonce: str) -> str | None:
         """The authorization code a login as ``claims`` answers with, bound to ``nonce``."""
@@ -75,7 +94,7 @@ class DevRealm:
         """``Tokens`` for ``claims``: a fresh access token and a refresh token that re-issues it."""
         access_claims = {**claims, "exp": self._exp()}
         access = _signed(access_claims, _ACCESS_SALT)
-        refresh = _signed(claims, _REFRESH_SALT)
+        refresh = _signed({**claims, "exp": self._exp(self.refresh_lifetime)}, _REFRESH_SALT)
         if access is None or refresh is None:
             return None
         return Tokens(access=access, refresh=refresh, claims=access_claims, id_token=None)

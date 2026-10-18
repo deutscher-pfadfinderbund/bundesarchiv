@@ -213,14 +213,10 @@ def test_remove_denied_leaves_media(corpus: _MediaCorpus, viewer: Viewer) -> Non
 
 
 def test_member_with_valid_csrf_still_gets_404(corpus: _MediaCorpus) -> None:
-    # the dev urlconf composes the prod routes and adds the switcher GET
     client = client_as(Member(groups=("vorstand",)), enforce_csrf=True)
-    with override_settings(
-        ROOT_URLCONF="bundesarchiv.app.web.dev_urls",
-        MIDDLEWARE=["django.middleware.csrf.CsrfViewMiddleware"],
-    ):
-        client.get("/_dev/viewer/")  # DB-free; renders a form → sets the csrf cookie
-        token = client.cookies["csrftoken"].value
+    token = "a" * 32  # an unmasked CSRF secret: the cookie and the field must match
+    client.cookies["csrftoken"] = token
+    with override_settings(MIDDLEWARE=["django.middleware.csrf.CsrfViewMiddleware"]):
         response = client.post(
             f"/articles/{_ULID}/media/remove",
             {

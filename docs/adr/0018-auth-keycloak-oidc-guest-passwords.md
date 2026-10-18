@@ -193,6 +193,7 @@ Ours to test is small and server-free:
   `settings.BUNDESARCHIV_REALM` when set, else Keycloak. The fake is the
   `DevRealm`, signing with the dev key; the WSGI entry refuses to serve with
   the setting set or with `DEBUG` on.
+  Dev and every web test log in through it: ADR 0025.
 
 The declarative authlib lines behind the port are not suite-tested: the
 realistic failure is Keycloak *client misconfiguration* (a missing mapper, a

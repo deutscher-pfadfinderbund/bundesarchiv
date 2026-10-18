@@ -46,7 +46,6 @@ UNREFERENCED: dict[str, str] = {
     "bundesarchiv/app/apps.py:AppServicesConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/index/apps.py:IndexConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/app/push_record.py:InMemoryPushRecord": "test fake",
-    "bundesarchiv/app/web/dev_realm.py:DevRealm": "test fake",
     "bundesarchiv/index/refresh.py:InMemoryIndex": "test fake",
     "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore": "test fake",
 }
@@ -254,10 +253,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         _DEBT,
     ),
     "app/web/test_media.py:test_authz_denies_before_lookup_for_a_version:bundesarchiv.app.web.media.thumbnail_response": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_viewer_of.py:test_expired_cookie_is_public:bundesarchiv.app.web.viewers._DEV_VIEWER_MAX_AGE": (
         1,
         _DEBT,
     ),

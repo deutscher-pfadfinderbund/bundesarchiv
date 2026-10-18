@@ -1,57 +1,58 @@
-"""Dev-only viewer switcher, signed under the dev-only key and mounted only by ``dev_urls``."""
+"""The dev realm's login page, mounted only by ``dev_urls``: where ``DevRealm.authorization_url``
+sends the browser, as Keycloak's login form would (ADR 0025)."""
 
 from html import escape
+from urllib.parse import urlencode
 
-from django.http import (
-    HttpRequest,
-    HttpResponse,
-    HttpResponseNotFound,
-    HttpResponseRedirect,
-)
+from django.http import HttpRequest, HttpResponse, HttpResponseNotFound, HttpResponseRedirect
 from django.middleware.csrf import get_token
 from django.urls import reverse
 
-from bundesarchiv.app.web.viewers import (
-    _DEV_VIEWER_MAX_AGE,
-    DEV_VIEWER_COOKIE,
-    _dev_signer,
-    encode_viewer,
-    viewer_of,
-)
+from bundesarchiv.app.web.auth_views import callback_uri, login_redirect
+from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
+from bundesarchiv.app.web.media_views import not_found
+from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
+
+#: What the realm's authorize request carries, and the form hands back on POST.
+_FLOW = ("state", "nonce", "redirect_uri")
 
 
 def favicon(request: HttpRequest) -> HttpResponse:
     return HttpResponseNotFound()
 
 
-def _viewer_from_post(request: HttpRequest) -> Viewer:
-    """Build the chosen ``Viewer`` from the switcher form POST. Unknown/absent kind -> ``Public()``
-    (fail-closed even in the dev switcher)."""
+def _viewer_from_post(request: HttpRequest) -> Archivist | Member | None:
     kind = request.POST.get("kind", "")
     if kind == "archivist":
         username = request.POST.get("username", "").strip()
         return Archivist(username=username) if username else Archivist()
     if kind == "member":
         raw = request.POST.get("groups", "")
-        groups = tuple(g for g in raw.replace(",", " ").split() if g)
-        return Member(groups=groups)
-    return Public()
+        return Member(groups=tuple(raw.replace(",", " ").split()))
+    return None
 
 
-def switch_viewer(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
-        signer = _dev_signer()
-        # only settings_dev mounts this, and it defines the key
-        if signer is None:
-            return HttpResponseRedirect(reverse("dev-switch-viewer"))
-        signed = signer.sign(encode_viewer(_viewer_from_post(request)))
-        response = HttpResponseRedirect(reverse("dev-switch-viewer"))
-        response.set_cookie(
-            DEV_VIEWER_COOKIE, signed, max_age=_DEV_VIEWER_MAX_AGE, httponly=True, samesite="Lax"
-        )
-        return response
-    return HttpResponse(_render_form(viewer_of(request), csrf_token=get_token(request)))
+def authorize(request: HttpRequest) -> HttpResponse:
+    """GET renders the login form for one login; POST answers it with a code for the chosen viewer,
+    back at ``redirect_uri``. That must be this site's own callback, so the page redirects nowhere
+    else. A GET without a login (a bookmark) starts one."""
+    if request.method not in ("GET", "POST"):
+        return not_found()
+    params = request.GET if request.method == "GET" else request.POST
+    flow = {name: params.get(name, "") for name in _FLOW}
+    if not all(flow.values()):
+        return HttpResponseRedirect(login_redirect("/")) if request.method == "GET" else not_found()
+    if flow["redirect_uri"] != callback_uri(request):
+        return not_found()
+    if request.method == "GET":
+        return HttpResponse(_render_form(viewer_of(request), flow, csrf_token=get_token(request)))
+    viewer = _viewer_from_post(request)
+    code = DevRealm().mint_code(claims_of(viewer), nonce=flow["nonce"]) if viewer else None
+    if code is None:
+        return not_found()
+    answer = urlencode({"code": code, "state": flow["state"]})
+    return HttpResponseRedirect(f"{flow['redirect_uri']}?{answer}")
 
 
 def _describe(viewer: Viewer) -> str:
@@ -65,23 +66,25 @@ def _describe(viewer: Viewer) -> str:
             return "Öffentlich (nicht angemeldet)"
 
 
-def _render_form(current: Viewer, *, csrf_token: str) -> str:
+def _render_form(current: Viewer, flow: dict[str, str], *, csrf_token: str) -> str:
+    hidden = "".join(
+        f'<input type=hidden name={name} value="{escape(value)}">' for name, value in flow.items()
+    )
     return (
         "<!doctype html><html lang=de><head><meta charset=utf-8>"
         '<link rel="stylesheet" href="/static/tokens.css">'
         '<link rel="stylesheet" href="/static/components.css">'
         '<link rel="stylesheet" href="/static/layouts.css">'
-        "<title>Dev: Betrachter wechseln</title></head><body>"
+        "<title>Dev: Anmelden</title></head><body>"
         '<main class="stub">'
-        "<h1>Betrachter wechseln (nur Entwicklung)</h1>"
+        "<h1>Anmelden als (nur Entwicklung)</h1>"
         f"<p>Aktuell: <strong>{escape(_describe(current))}</strong></p>"
         f'<form method=post action="{reverse("dev-switch-viewer")}">'
-        f'<input type=hidden name=csrfmiddlewaretoken value="{escape(csrf_token)}">'
+        f'<input type=hidden name=csrfmiddlewaretoken value="{escape(csrf_token)}">{hidden}'
         "<p><label><input type=radio name=kind value=archivist> Archivar</label>"
         " Benutzername: <input type=text name=username></p>"
         "<p><label><input type=radio name=kind value=member checked> Mitglied</label>"
         ' Gruppen: <input type=text name=groups placeholder="gruppe1, gruppe2"></p>'
-        "<p><label><input type=radio name=kind value=public> Öffentlich</label></p>"
-        '<p><button class="primary" type=submit>Übernehmen</button></p>'
+        '<p><button class="primary" type=submit>Anmelden</button></p>'
         "</form></main></body></html>"
     )
