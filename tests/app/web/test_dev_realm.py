@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from django.core import signing
+from django.urls import reverse
 from pytest_django.fixtures import Settings
 from tests.app.web._fixtures import DEV_KEY
 
@@ -53,6 +54,10 @@ def test_the_authorization_url_is_the_dev_page_carrying_the_login() -> None:
     parts = urlsplit(url)
     assert parts.path == AUTHORIZE_PATH
     assert parse_qs(parts.query) == {"state": ["s1"], "nonce": ["n1"], "redirect_uri": [_REDIRECT]}
+
+
+def test_the_authorize_path_is_the_dev_page_the_dev_urlconf_mounts() -> None:
+    assert reverse("dev-authorize", urlconf="bundesarchiv.app.web.dev_urls") == AUTHORIZE_PATH
 
 
 def test_logout_returns_to_the_post_logout_uri() -> None:
