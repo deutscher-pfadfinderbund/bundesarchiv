@@ -189,6 +189,10 @@ Ours to test is small and server-free:
   wrong-audience token resolves to `Public`. Tokens signed with a test key.
 - The views, the refresh and the logout run through a thin injected port with
   an in-memory fake, the pattern the mirror tests use instead of live WebDAV.
+  Built: the `Realm` port (`oidc.py`), chosen by `viewers.realm()` —
+  `settings.BUNDESARCHIV_REALM` when set, else Keycloak. The fake is the
+  `DevRealm`, signing with the dev key; the WSGI entry refuses to serve with
+  the setting set or with `DEBUG` on.
 
 The declarative authlib lines behind the port are not suite-tested: the
 realistic failure is Keycloak *client misconfiguration* (a missing mapper, a
