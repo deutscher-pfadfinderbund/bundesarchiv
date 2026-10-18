@@ -13,7 +13,7 @@ from django.core.management.base import CommandError
 from django.test import override_settings
 from PIL import Image
 from tests._pdfs import text_pdf
-from tests._queue import queued
+from tests._queue import MIRROR, queued, run_worker_once_in_test
 
 from bundesarchiv.app import jobs
 from bundesarchiv.app.archive import Archive
@@ -32,8 +32,6 @@ from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
-
-_MIRROR = "http://mirror.example/dav/"
 
 
 def _seeded[S: ObjectStore](store: S) -> S:
@@ -140,10 +138,9 @@ def test_reindex_subtree_job_recomputes_subtree(canonical: ObjectStore) -> None:
 @pytest.mark.django_db(transaction=True)
 def test_worker_execution_smoke_runs_deferred_reindex_article(canonical: ObjectStore) -> None:
     """``transaction=True``: the worker commits the task's write in its own transaction, outside pytest-django's per-test rollback, so the row would leak into later tests."""
-    import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.index.models import ArticleIndex
 
-    result = tasks_mod.run_worker_once_in_test(defer=lambda: enqueue_test_article())
+    result = run_worker_once_in_test(defer=lambda: enqueue_test_article())
     # After the one-shot drain, the deferred reindex_article has executed:
     assert ArticleIndex.objects.get(ulid="01FOTO").tier == "PUBLIC"
     assert result >= 1  # at least one job processed
@@ -258,28 +255,18 @@ def test_a_mirror_task_closes_the_remote_it_built_whether_the_job_succeeds_or_fa
 
     built = _fake_dav(monkeypatch, lambda _request: httpx2.Response(status))
     fails = pytest.raises(ArchiveError) if status == 500 else contextlib.nullcontext()
-    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=_MIRROR), fails:
+    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=MIRROR), fails:
         tasks_mod.mirror_delete_article.func(ulid="01FOTO")
 
     (client,) = built
     assert client.is_closed
 
 
-def _queued(enqueue: Callable[[], None], *, mirror: str | None) -> list[tuple[str, str]]:
-    """The (task, ulid) of every job ``enqueue`` queues with the system of record at ``mirror``."""
-    with override_settings(
-        BUNDESARCHIV_MIRROR_DAV_URL=mirror,
-        BUNDESARCHIV_MIRROR_DAV_USER="u",
-        BUNDESARCHIV_MIRROR_DAV_PASSWORD="p",
-    ):
-        return [(task, str(args["ulid"])) for task, args in queued(enqueue)]
-
-
 def test_enqueue_mirror_push_is_noop_when_mirror_unset() -> None:
     """No queue churn for a feature that is off."""
     import bundesarchiv.app.tasks as tasks_mod
 
-    assert _queued(lambda: tasks_mod.enqueue_mirror_push("01A"), mirror=None) == []
+    assert queued(lambda: tasks_mod.enqueue_mirror_push("01A")) == []
 
 
 def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -292,8 +279,8 @@ def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPat
     # ``from httpx2 import Client``) — this attribute IS what ``tasks.mirror_store`` calls.
     monkeypatch.setattr(httpx2, "Client", _boom)
 
-    queued = _queued(lambda: tasks_mod.enqueue_mirror_push("01A"), mirror=_MIRROR)
-    assert queued == [("mirror_push", "01A")]
+    jobs = queued(lambda: tasks_mod.enqueue_mirror_push("01A"), mirror=True)
+    assert jobs == [("mirror_push", {"ulid": "01A"})]
 
 
 def test_saves_of_one_record_share_one_queued_push_and_never_hold_back_its_delete() -> None:
@@ -307,10 +294,10 @@ def test_saves_of_one_record_share_one_queued_push_and_never_hold_back_its_delet
         tasks_mod.enqueue_mirror_push("01B")
         tasks_mod.enqueue_mirror_delete_article("01A")
 
-    assert _queued(saves_then_a_delete, mirror=_MIRROR) == [
-        ("mirror_push", "01A"),
-        ("mirror_push", "01B"),
-        ("mirror_delete_article", "01A"),
+    assert queued(saves_then_a_delete, mirror=True) == [
+        ("mirror_push", {"ulid": "01A"}),
+        ("mirror_push", {"ulid": "01B"}),
+        ("mirror_delete_article", {"ulid": "01A"}),
     ]
 
 
@@ -321,7 +308,6 @@ def test_a_hard_delete_reaches_the_system_of_record_through_the_worker(
     """The service enqueues the delete, the worker runs it: the Article's folder goes from the
     system of record, and its rows from the push record. ``transaction=True`` as in the reindex
     smoke."""
-    import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.app.articles import hard_delete_article
 
     archive = Archive.canonical()
@@ -339,10 +325,10 @@ def test_a_hard_delete_reaches_the_system_of_record_through_the_worker(
     def delete() -> None:
         hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
 
-    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=_MIRROR):
-        tasks_mod.run_worker_once_in_test(defer=delete)
+    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=MIRROR):
+        run_worker_once_in_test(defer=delete)
 
-    folder = urlsplit(_MIRROR).path + archive.articles.folder("01FOTO")
+    folder = urlsplit(MIRROR).path + archive.articles.folder("01FOTO")
     assert [path for method, path in sent if method == "DELETE"] == [folder]
     assert PostgresPushRecord().entries().keys() == set(canonical.list())
 
@@ -417,9 +403,9 @@ def test_one_page_text_job_is_queued_per_article_that_misses_text_and_no_pdf_is_
         articles.save(Article(ulid, "Heft", "FOTOS", media=refs), 0, changed_by="tester")
 
     enqueue = lambda: tasks_mod.enqueue_missing_text(Archive.of(store))
-    assert sorted(_queued(enqueue, mirror=None)) == [
-        ("extract_media_text", "01HEFT"),
-        ("extract_media_text", "01ZWEI"),
+    assert sorted(queued(enqueue), key=str) == [
+        ("extract_media_text", {"ulid": "01HEFT"}),
+        ("extract_media_text", {"ulid": "01ZWEI"}),
     ]
     assert MediaText.objects.count() == 0
 
@@ -450,4 +436,4 @@ def test_a_page_text_job_already_queued_stands_in_for_the_next() -> None:
         tasks_mod.enqueue_extract_media_text("01A")
         tasks_mod.enqueue_extract_media_text("01A")
 
-    assert _queued(two_saves, mirror=None) == [("extract_media_text", "01A")]
+    assert queued(two_saves) == [("extract_media_text", {"ulid": "01A"})]

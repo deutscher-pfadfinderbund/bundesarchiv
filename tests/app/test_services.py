@@ -30,7 +30,7 @@ from bundesarchiv.app.articles import (
     update_article,
 )
 from bundesarchiv.app.collections import create_collection, save_collection
-from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated
+from bundesarchiv.app.result import Conflicted, CreateResult, Missing, SaveResult, Updated
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
@@ -434,15 +434,18 @@ def test_hard_delete_article_removes_index_row(archive: Archive) -> None:
 
 @pytest.mark.django_db
 def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
+    archive: Archive,
 ) -> None:
-    def boom(_ulid: str) -> None:
-        raise RuntimeError("queue down")
+    version = archive.articles.load("01FOTO").version
+    results: list[SaveResult] = []
+    jobs = queued(
+        lambda: results.append(hard_delete_article(archive, "01FOTO", version)),
+        mirror=True,
+        refuse=frozenset({"mirror_delete_article"}),
+    )
+    (result,) = results
 
-    monkeypatch.setattr(after_write, "enqueue_mirror_delete_article", boom)
-
-    result = hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
-
+    assert jobs == []
     assert (result.index_updated, list(archive.articles.list_ulids())) == (True, [])
 
 
@@ -455,21 +458,24 @@ def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
 def test_save_article_index_failure_stands_canonical_and_enqueues(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    enqueued: list[str] = []
-
     def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
 
     monkeypatch.setattr(after_write, "index_article", boom)
-    monkeypatch.setattr(after_write, "enqueue_reindex_article", lambda ulid: enqueued.append(ulid))
 
     articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(archive, stored.article, stored.version, changed_by="tester")
+    results: list[SaveResult] = []
+    jobs = queued(
+        lambda: results.append(
+            save_article(archive, stored.article, stored.version, changed_by="tester")
+        )
+    )
+    (result,) = results
 
     assert result.index_updated is False
     assert result.version == 2  # canonical write STOOD despite the index failure
-    assert enqueued == ["01FOTO"]  # a reference job was enqueued for retry
+    assert jobs == [("reindex_article", {"ulid": "01FOTO"})]  # the retry, and no push: no mirror
     # canonical truth is durable at the new version:
     assert archive.articles.load("01FOTO").version == 2
 
@@ -481,15 +487,18 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
     def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
 
-    def enqueue_boom(_ulid: str) -> None:
-        raise RuntimeError("queue down")
-
     monkeypatch.setattr(after_write, "index_article", boom)
-    monkeypatch.setattr(after_write, "enqueue_reindex_article", enqueue_boom)
 
     articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(archive, stored.article, stored.version, changed_by="tester")
+    results: list[SaveResult] = []
+    queued(
+        lambda: results.append(
+            save_article(archive, stored.article, stored.version, changed_by="tester")
+        ),
+        refuse=frozenset({"reindex_article"}),
+    )
+    (result,) = results
 
     assert result.index_updated is False
     assert result.version == 2  # canonical write STOOD despite both failures
@@ -503,16 +512,19 @@ def test_save_collection_swallows_enqueue_failure_after_index_failure(
     def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
 
-    def enqueue_boom(_ulid: str) -> None:
-        raise RuntimeError("queue down")
-
     monkeypatch.setattr(after_write, "index_subtree", boom)
-    monkeypatch.setattr(after_write, "enqueue_reindex_subtree", enqueue_boom)
 
     stored = archive.collections.load("FOTOS")
-    result = save_collection(
-        archive, _narrowed(stored.collection), stored.version, changed_by="tester"
+    results: list[SaveResult] = []
+    queued(
+        lambda: results.append(
+            save_collection(
+                archive, _narrowed(stored.collection), stored.version, changed_by="tester"
+            )
+        ),
+        refuse=frozenset({"reindex_subtree"}),
     )
+    (result,) = results
 
     assert (result.version, result.index_updated) == (2, False)
     assert archive.collections.load("FOTOS").version == 2
@@ -528,8 +540,6 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(
 
     from bundesarchiv.index.indexer import _take_writer_lock
 
-    enqueued: list[str] = []
-    monkeypatch.setattr(after_write, "enqueue_reindex_article", enqueued.append)
     monkeypatch.setattr(after_write, "SYNC_LOCK_TIMEOUT_MS", 100)
     held, release = threading.Event(), threading.Event()
 
@@ -547,13 +557,19 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(
         holder = pool.submit(hold_lock)
         assert held.wait(timeout=5)
         started = time.monotonic()
-        result = save_article(archive, stored.article, stored.version, changed_by="tester")
+        results: list[SaveResult] = []
+        jobs = queued(
+            lambda: results.append(
+                save_article(archive, stored.article, stored.version, changed_by="tester")
+            )
+        )
         elapsed = time.monotonic() - started
         release.set()
         holder.result()
+    (result,) = results
 
     assert result.index_updated is False
-    assert enqueued == ["01FOTO"]
+    assert jobs == [("reindex_article", {"ulid": "01FOTO"})]
     assert elapsed < 2
 
 
@@ -702,85 +718,83 @@ def test_a_failed_thumbnail_enqueue_neither_breaks_the_save_nor_skips_the_page_t
 
 
 @pytest.mark.django_db
-def test_save_article_enqueues_one_push_of_the_article(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pushed: list[str] = []
-    monkeypatch.setattr(after_write, "enqueue_mirror_push", pushed.append)
-
+def test_save_article_enqueues_one_push_of_the_article(archive: Archive) -> None:
     stored = archive.articles.load("01FOTO")
-    save_article(archive, stored.article, stored.version, changed_by="tester")
-
-    assert pushed == ["01FOTO"]
-
-
-@pytest.mark.django_db
-def test_delete_article_enqueues_one_push_of_the_mark(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pushed: list[str] = []
-    monkeypatch.setattr(after_write, "enqueue_mirror_push", pushed.append)
-
-    stored = archive.articles.load("01FOTO")
-    delete_article(archive, stored.article, stored.version, changed_by="tester")
-
-    assert pushed == ["01FOTO"]
-
-
-@pytest.mark.django_db
-def test_hard_delete_article_enqueues_the_delete_and_no_push(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    jobs: list[tuple[str, str]] = []
-    monkeypatch.setattr(after_write, "enqueue_mirror_push", lambda u: jobs.append(("push", u)))
-    monkeypatch.setattr(
-        after_write, "enqueue_mirror_delete_article", lambda u: jobs.append(("delete", u))
+    jobs = queued(
+        lambda: save_article(archive, stored.article, stored.version, changed_by="tester"),
+        mirror=True,
     )
 
-    hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
-
-    assert jobs == [("delete", "01FOTO")]
+    assert jobs == [("mirror_push", {"ulid": "01FOTO"})]
 
 
 @pytest.mark.django_db
-def test_create_article_enqueues_the_push_of_the_new_article(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pushed: list[str] = []
-    monkeypatch.setattr(after_write, "enqueue_mirror_push", pushed.append)
+def test_a_write_enqueues_nothing_without_a_mirror(archive: Archive) -> None:
+    stored = archive.articles.load("01FOTO")
+    jobs = queued(
+        lambda: save_article(archive, stored.article, stored.version, changed_by="tester")
+    )
 
-    result = create_article(archive, title="Neu", collection_id="FOTOS", changed_by="tester")
-
-    assert pushed == [result.ulid]
+    assert jobs == []
 
 
 @pytest.mark.django_db
-def test_save_collection_enqueues_one_push_of_the_collection(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pushed: list[str] = []
-    monkeypatch.setattr(after_write, "enqueue_mirror_push", pushed.append)
+def test_delete_article_enqueues_one_push_of_the_mark(archive: Archive) -> None:
+    stored = archive.articles.load("01FOTO")
+    jobs = queued(
+        lambda: delete_article(archive, stored.article, stored.version, changed_by="tester"),
+        mirror=True,
+    )
 
+    assert jobs == [("mirror_push", {"ulid": "01FOTO"})]
+
+
+@pytest.mark.django_db
+def test_hard_delete_article_enqueues_the_delete_and_no_push(archive: Archive) -> None:
+    version = archive.articles.load("01FOTO").version
+    jobs = queued(lambda: hard_delete_article(archive, "01FOTO", version), mirror=True)
+
+    assert jobs == [("mirror_delete_article", {"ulid": "01FOTO"})]
+
+
+@pytest.mark.django_db
+def test_create_article_enqueues_the_push_of_the_new_article(archive: Archive) -> None:
+    created: list[CreateResult] = []
+    jobs = queued(
+        lambda: created.append(
+            create_article(archive, title="Neu", collection_id="FOTOS", changed_by="tester")
+        ),
+        mirror=True,
+    )
+
+    assert jobs == [("mirror_push", {"ulid": created[0].ulid})]
+
+
+@pytest.mark.django_db
+def test_save_collection_enqueues_one_push_of_the_collection(archive: Archive) -> None:
     stored = archive.collections.load("FOTOS")
-    save_collection(archive, stored.collection, stored.version, changed_by="tester")
+    jobs = queued(
+        lambda: save_collection(archive, stored.collection, stored.version, changed_by="tester"),
+        mirror=True,
+    )
 
-    assert pushed == ["FOTOS"]
+    assert jobs == [("mirror_push", {"ulid": "FOTOS"})]
 
 
 @pytest.mark.django_db
-def test_save_article_mirror_enqueue_failure_does_not_break_save(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_save_article_mirror_enqueue_failure_does_not_break_save(archive: Archive) -> None:
     """The reconcile heals a lost push (ADR 0020)."""
-
-    def boom(_ulid: str) -> None:
-        raise RuntimeError("queue down")
-
-    monkeypatch.setattr(after_write, "enqueue_mirror_push", boom)
-
     articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(archive, stored.article, stored.version, changed_by="tester")
+    results: list[SaveResult] = []
+    queued(
+        lambda: results.append(
+            save_article(archive, stored.article, stored.version, changed_by="tester")
+        ),
+        mirror=True,
+        refuse=frozenset({"mirror_push"}),
+    )
+    (result,) = results
 
     assert result.version == 2  # save succeeded despite the mirror-enqueue failure
     assert archive.articles.load("01FOTO").version == 2
@@ -823,20 +837,24 @@ def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The Bestand save path has the same bound as the Article save path."""
-    enqueued: list[str] = []
-    monkeypatch.setattr(after_write, "enqueue_reindex_subtree", enqueued.append)
     monkeypatch.setattr(after_write, "SYNC_LOCK_TIMEOUT_MS", 100)
 
     stored = archive.collections.load("FOTOS")
     with _index_lock_held():
         started = time.monotonic()
-        result = save_collection(
-            archive, _narrowed(stored.collection), stored.version, changed_by="tester"
+        results: list[SaveResult] = []
+        jobs = queued(
+            lambda: results.append(
+                save_collection(
+                    archive, _narrowed(stored.collection), stored.version, changed_by="tester"
+                )
+            )
         )
         elapsed = time.monotonic() - started
+    (result,) = results
 
     assert result.index_updated is False
-    assert enqueued == ["FOTOS"]
+    assert jobs == [("reindex_subtree", {"collection_ulid": "FOTOS"})]
     assert elapsed < 2
 
 
@@ -848,18 +866,26 @@ def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(
     index lock nor queues a reindex, and the renamed Bestand still finds its Article."""
     stored_article = archive.articles.load("01FOTO")
     save_article(archive, stored_article.article, stored_article.version, changed_by="tester")
-    enqueued: list[str] = []
-    monkeypatch.setattr(after_write, "enqueue_reindex_subtree", enqueued.append)
     monkeypatch.setattr(after_write, "SYNC_LOCK_TIMEOUT_MS", 100)
 
     stored = archive.collections.load("FOTOS")
     with _index_lock_held():
-        renamed = save_collection(
-            archive, replace(stored.collection, name="Lichtbilder"), stored.version, changed_by="t"
+        results: list[SaveResult | CreateResult] = []
+        jobs = queued(
+            lambda: results.extend(
+                (
+                    save_collection(
+                        archive,
+                        replace(stored.collection, name="Lichtbilder"),
+                        stored.version,
+                        changed_by="t",
+                    ),
+                    create_collection(archive, name="Neu", parent_id="FOTOS", changed_by="t"),
+                )
+            )
         )
-        created = create_collection(archive, name="Neu", parent_id="FOTOS", changed_by="t")
 
-    assert (renamed.index_updated, created.index_updated, enqueued) == (True, True, [])
+    assert ([result.index_updated for result in results], jobs) == ([True, True], [])
     for collection_ulid in ("FOTOS", "ROOT"):
         hits = search(PUBLIC, filters=SearchFilters(collection=collection_ulid)).hits
         assert [hit.ulid for hit in hits] == ["01FOTO"], collection_ulid
