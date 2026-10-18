@@ -25,21 +25,15 @@ from tests.app.web._fixtures import (
 )
 
 from bundesarchiv.app.web.auth_views import safe_next
-from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm
+from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm, claims_of
 from bundesarchiv.app.web.viewers import login_cookies
+from bundesarchiv.domain.viewer import Archivist, Member
 
 #: The test settings serve https, so these are the ``__Host-`` names.
 _COOKIES = login_cookies()
 
-_ARCHIVIST_CLAIMS: Mapping[str, object] = {
-    "preferred_username": "anna.schmidt",
-    "realm_access": {"roles": ["Bundesarchiv"]},
-}
-_MEMBER_CLAIMS: Mapping[str, object] = {
-    "sub": "u1",
-    "preferred_username": "max.mitglied",
-    "groups": ["vorstand"],
-}
+_ARCHIVIST_CLAIMS = claims_of(Archivist(username="anna.schmidt"))
+_MEMBER_CLAIMS = claims_of(Member(groups=("vorstand",)))
 
 
 @pytest.fixture

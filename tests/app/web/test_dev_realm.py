@@ -1,6 +1,6 @@
 """The dev realm: it signs in exactly what it minted itself, under the dev key, and nothing else."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -13,10 +13,7 @@ from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm, claims_of
 from bundesarchiv.app.web.oidc import viewer_from_claims
 from bundesarchiv.domain.viewer import Archivist, Member
 
-_CLAIMS: Mapping[str, object] = {
-    "preferred_username": "anna",
-    "realm_access": {"roles": ["Bundesarchiv"]},
-}
+_CLAIMS = claims_of(Archivist(username="anna"))
 _REDIRECT = "http://testserver/oidc/callback"
 
 

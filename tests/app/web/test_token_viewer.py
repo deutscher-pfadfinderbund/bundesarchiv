@@ -12,7 +12,7 @@ from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory, override_settings
 from tests.app.web._fixtures import Asked, RecordingRealm, dev_realm_settings
 
-from bundesarchiv.app.web.dev_realm import DevRealm
+from bundesarchiv.app.web.dev_realm import DevRealm, claims_of
 from bundesarchiv.app.web.viewers import (
     TokenCookieMiddleware,
     delete_token_cookies,
@@ -24,11 +24,8 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 #: The test settings serve https, so these are the ``__Host-`` names.
 _COOKIES = login_cookies()
 
-_ARCHIVIST: Mapping[str, object] = {
-    "preferred_username": "anna",
-    "realm_access": {"roles": ["Bundesarchiv"]},
-}
-_MEMBER: Mapping[str, object] = {"groups": ["/DPB/Bundesführung"]}
+_ARCHIVIST = claims_of(Archivist(username="anna"))
+_MEMBER = claims_of(Member(groups=("/DPB/Bundesführung",)))
 
 
 @pytest.fixture
