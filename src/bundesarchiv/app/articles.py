@@ -108,8 +108,7 @@ def create_article(
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
-def copy_article(archive: Archive, ulid: ULID, *, changed_by: str) -> CreateResult:
-    source = archive.articles.load(ulid).article
+def copy_article(archive: Archive, source: Article, *, changed_by: str) -> CreateResult:
     return create_article(
         archive,
         changed_by=changed_by,

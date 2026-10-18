@@ -40,7 +40,7 @@ governs new tests only.
   `requires_pg`) — `tests/conftest.py` derives the marker from each test's
   fixture closure. Mark by hand only for DB use that closure cannot see.
 - **A patch of our own code** (`monkeypatch.setattr` on a `bundesarchiv` name). Assert a core's
-  returned value; run a shell over `Archive.of(InMemoryObjectStore())`. Only true externals are
+  returned value; run a shell over `Archive.of(InMemoryObjectStore(), InMemoryIndex)`. Only true externals are
   patched: the `writer-discipline` skill, "Functional core, imperative shell". Gated:
   `TEST_PATCHES` in `tests/test_structure.py` (a new patch fails `check`).
 - **A second proof of a fact already pinned elsewhere.** One proof per fact, at

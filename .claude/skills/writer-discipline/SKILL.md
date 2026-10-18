@@ -54,9 +54,9 @@ Most review findings are a second caller restating a decision the first already 
 - Resources come in as arguments: a shell takes the `Archive`; only an edge (a task, a management command, a view) builds it, in one line (`Archive.canonical()`).
 - Postgres (the ORM) and the queue (Procrastinate's `app`) stay framework globals. `Archive` holds the canonical archive only; a new resource is its own argument.
 - A function does the one act its name says: an "extract" does not also store.
-- **Test depth follows the layer**: the core gets the many cases; a shell (an app service such as `save_article`, which orders effects under a contract) a few, through real I/O, so on Postgres; an edge none.
-- **Tests never patch our own code**: a core is tested on its returned value, a shell over `Archive.of(InMemoryObjectStore())` and the real ORM, the queue through Procrastinate's in-memory connector (`tests/_queue.py`).
-- `monkeypatch` stays only at true externals a test cannot run (the clock, a remote service, a simulated crash); existing patches of our code (the web suite's autouse index and enqueue stubs among them) go when their module is touched. Distrust a test that mostly asserts against its own mocks.
+- **Test depth follows the layer**: the core gets the many cases; a shell (an app service such as `save_article`, which orders effects under a contract) a few, through the real store and queue on `Archive.of(InMemoryObjectStore(), InMemoryIndex)` (`index/refresh.py`); on Postgres (`Archive.of(store)`) only where the test checks search rows, the index lock or timeout, or SQL; an edge none.
+- **Tests never patch our own code**: a core is tested on its returned value, a shell over `Archive.of(InMemoryObjectStore(), InMemoryIndex)`, the queue through Procrastinate's in-memory connector (`tests/_queue.py`).
+- `monkeypatch` stays only at true externals a test cannot run (the clock, a remote service, a simulated crash); existing patches of our code go when their module is touched. Distrust a test that mostly asserts against its own mocks.
 
 Example, `app/media_text.py`: the core `readable(media)` (the files text is read from, one per hash) and `parse(data, content_hash)` (`Pages | Unreadable | HashMismatch`); the single-item shells `read` (one file) and `record` (one outcome: rows, or the alarm); `fill` composes them with a comprehension. Likewise `articles.derived_jobs` returns the jobs and `_enqueue_derived` enqueues them.
 
