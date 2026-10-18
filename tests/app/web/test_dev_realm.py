@@ -9,7 +9,7 @@ from pytest_django.fixtures import Settings
 from tests.app.web._fixtures import DEV_KEY
 
 from bundesarchiv.app.web import dev_realm
-from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, Asked, DevRealm, claims_of
+from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm, claims_of
 from bundesarchiv.app.web.oidc import viewer_from_claims
 from bundesarchiv.domain.viewer import Archivist, Member
 
@@ -61,12 +61,6 @@ def test_the_authorization_url_is_the_dev_page_carrying_the_login() -> None:
 def test_logout_returns_to_the_post_logout_uri() -> None:
     realm = DevRealm()
     assert realm.logout_url(refresh_token=None, post_logout_redirect_uri="http://x/") == "http://x/"
-
-
-def test_every_call_is_recorded() -> None:
-    asked: Asked = []
-    DevRealm(asked=asked).refresh("r1")
-    assert asked == [("refresh", {"refresh_token": "r1"})]
 
 
 def test_a_code_bound_to_another_nonce_logs_nobody_in() -> None:

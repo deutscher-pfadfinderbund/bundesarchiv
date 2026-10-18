@@ -10,9 +10,9 @@ from collections.abc import Callable, Iterator, Mapping
 import pytest
 from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory, override_settings
-from tests.app.web._fixtures import DEV_KEY
+from tests.app.web._fixtures import DEV_KEY, Asked, RecordingRealm
 
-from bundesarchiv.app.web.dev_realm import Asked, DevRealm
+from bundesarchiv.app.web.dev_realm import DevRealm
 from bundesarchiv.app.web.viewers import (
     TokenCookieMiddleware,
     delete_token_cookies,
@@ -35,7 +35,7 @@ _MEMBER: Mapping[str, object] = {"groups": ["/DPB/Bundesführung"]}
 def asked() -> Iterator[Asked]:
     calls: Asked = []
     with override_settings(
-        DEV_VIEWER_SIGNING_KEY=DEV_KEY, BUNDESARCHIV_REALM=DevRealm(asked=calls)
+        DEV_VIEWER_SIGNING_KEY=DEV_KEY, BUNDESARCHIV_REALM=RecordingRealm(calls)
     ):
         yield calls
 

@@ -16,10 +16,10 @@ from django.conf import settings
 from django.core import signing
 from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied, assert_door
-from tests.app.web._fixtures import DEV_KEY, Corpus
+from tests.app.web._fixtures import DEV_KEY, Asked, Corpus, RecordingRealm
 
 from bundesarchiv.app.web.auth_views import safe_next
-from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, Asked, DevRealm
+from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm
 from bundesarchiv.app.web.viewers import login_cookies
 
 #: The test settings serve https, so these are the ``__Host-`` names.
@@ -45,7 +45,7 @@ def asked() -> Iterator[Asked]:
     with override_settings(
         VIEWER_SIGNING_KEY=_KEY,
         DEV_VIEWER_SIGNING_KEY=DEV_KEY,
-        BUNDESARCHIV_REALM=DevRealm(asked=calls),
+        BUNDESARCHIV_REALM=RecordingRealm(calls),
     ):
         yield calls
 
