@@ -1,0 +1,18 @@
+{% extends "workbench/base.html" %}
+{% load static %}
+{% comment %}
+The frame of an archivist column page: the header without its search, then one centred column.
+A page fills title, heading and column; it states its width (narrow) as a block, and overrides header
+to keep the search. The crumbs show where the view hands them, empty ones included (a root Bestand).
+{% endcomment %}
+{% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
+{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
+{% block body %}
+<main id="content" class="column {% block width %}{% endblock %}">
+  {% if crumbs is not None %}
+  <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
+  {% endif %}
+  <h1>{% block heading %}{% endblock %}</h1>
+  {% block column %}{% endblock %}
+</main>
+{% endblock %}

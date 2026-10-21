@@ -1,16 +1,13 @@
-{% extends "workbench/base.html" %}
-{% load static %}
+{% extends "workbench/column.html" %}
 {% comment %}
 The Papierkorb (ADR 0022). Archivist-only (the view gates it). One quiet row per record, as on the
 bulk result page: the record over one line of its facts, then its own two actions, so a phone
 needs no third column. "Endgültig löschen …" opens the confirm page, which names the record.
 {% endcomment %}
 {% block title %}Papierkorb — Bundesarchiv{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" %}{% endblock %}
-{% block body %}
-<main id="content" class="column">
-  <h1>Papierkorb</h1>
+{% block heading %}Papierkorb{% endblock %}
+{% block column %}
   {% include "components/index_lag.html" %}
   {% if rows %}
   <table class="affected">
@@ -33,5 +30,4 @@ needs no third column. "Endgültig löschen …" opens the confirm page, which n
   {% else %}
   {% include "components/empty_state.html" with title="Der Papierkorb ist leer." only %}
   {% endif %}
-</main>
 {% endblock %}
