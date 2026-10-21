@@ -252,10 +252,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _DEBT,
     ),
-    "persistence/test_webdav.py:no_retry_wait:bundesarchiv.persistence.adapters.webdav._RETRY_DELAYS": (
-        1,
-        _DEBT,
-    ),
 }
 
 

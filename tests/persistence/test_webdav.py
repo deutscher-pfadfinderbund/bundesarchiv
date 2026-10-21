@@ -79,9 +79,8 @@ def test_the_test_server_never_serves_an_unread_body_as_a_request(webdav_root: s
     assert b"HTTP/1.1 " not in rest, reply
 
 
-@pytest.fixture
-def no_retry_wait(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(webdav, "_RETRY_DELAYS", (0.0,) * len(webdav._RETRY_DELAYS))
+#: The production retry count, without the waits.
+_NO_WAIT = (0.0,) * len(webdav._RETRY_DELAYS)
 
 
 def _scripted_store(refusals: list[int]) -> tuple[WebDavObjectStore, list[bytes]]:
@@ -97,10 +96,9 @@ def _scripted_store(refusals: list[int]) -> tuple[WebDavObjectStore, list[bytes]
         return httpx2.Response(status, headers={"ETag": '"v"'} if status == 201 else None)
 
     client = httpx2.Client(base_url="http://dav.invalid/", transport=httpx2.MockTransport(handler))
-    return WebDavObjectStore(client), bodies
+    return WebDavObjectStore(client, retry_delays=_NO_WAIT), bodies
 
 
-@pytest.mark.usefixtures("no_retry_wait")
 @pytest.mark.parametrize("refusal", [423, 404])
 def test_a_refused_write_is_retried_until_it_lands(refusal: int) -> None:
     # 423 is Nextcloud's lock; 404 the transient answer right after creating a parent.
@@ -109,7 +107,6 @@ def test_a_refused_write_is_retried_until_it_lands(refusal: int) -> None:
     assert bodies == [b"data"] * 3
 
 
-@pytest.mark.usefixtures("no_retry_wait")
 def test_a_retried_streamed_write_resends_the_stream_from_where_it_stood() -> None:
     store, bodies = _scripted_store([423])
     data = b"x" * (3 * 1024 * 1024 + 7)
@@ -124,7 +121,6 @@ class _Unseekable(io.BytesIO):
         return False
 
 
-@pytest.mark.usefixtures("no_retry_wait")
 def test_a_stream_that_cannot_rewind_gets_one_attempt() -> None:
     store, bodies = _scripted_store([423])
     with pytest.raises(Busy):
@@ -132,12 +128,11 @@ def test_a_stream_that_cannot_rewind_gets_one_attempt() -> None:
     assert bodies == [b"data"]
 
 
-@pytest.mark.usefixtures("no_retry_wait")
 @pytest.mark.parametrize(("refusal", "busy"), [(423, True), (404, False), (409, False)])
 def test_spent_retries_raise_busy_only_for_contention(refusal: int, busy: bool) -> None:
     # A 404/409 that outlasts the retries is a missing root or a file in the way, not contention.
     # Each attempt answered so makes the parents and sends the body again.
-    puts = (len(webdav._RETRY_DELAYS) + 1) * (1 if busy else 2)
+    puts = (len(_NO_WAIT) + 1) * (1 if busy else 2)
     store, bodies = _scripted_store([refusal] * puts)
     with pytest.raises(ArchiveError) as refused:
         store.write_atomic("articles/01J0/README.md", b"data")

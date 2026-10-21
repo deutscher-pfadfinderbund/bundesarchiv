@@ -57,8 +57,11 @@ class WebDavObjectStore(ObjectStore):
     """Stores each blob as a WebDAV resource under the client's `base_url`. Owns the client's
     lifetime: call `close()` when done with the store."""
 
-    def __init__(self, client: httpx2.Client) -> None:
+    def __init__(
+        self, client: httpx2.Client, *, retry_delays: tuple[float, ...] = _RETRY_DELAYS
+    ) -> None:
         self._client = client
+        self._retry_delays = retry_delays
         self._root_path = urlsplit(str(client.base_url)).path
 
     def close(self) -> None:
@@ -70,7 +73,7 @@ class WebDavObjectStore(ObjectStore):
 
     def open_stream(self, key: str) -> BinaryIO:
         validate_key(key)
-        return io.BufferedReader(_retrying(lambda: self._open_once(key)))
+        return io.BufferedReader(_retrying(lambda: self._open_once(key), self._retry_delays))
 
     def _open_once(self, key: str) -> _Body:
         resp = self._request("GET", self._url(key), stream=True)
@@ -103,7 +106,7 @@ class WebDavObjectStore(ObjectStore):
                 validate_key(folder)
             except ArchiveError:
                 return []  # no stored key has an invalid segment
-        return _retrying(lambda: self._entries(folder, prefix))
+        return _retrying(lambda: self._entries(folder, prefix), self._retry_delays)
 
     def root_size(self) -> int | None:
         """The recursive size in bytes of everything under the root, as Nextcloud reports it
@@ -119,20 +122,20 @@ class WebDavObjectStore(ObjectStore):
             size = next((t for t in sizes if t.isdigit()), None)
             return None if size is None else int(size)
 
-        return _retrying(ask)
+        return _retrying(ask, self._retry_delays)
 
     def exists(self, key: str) -> bool:
         validate_key(key)
-        return _retrying(lambda: self._is_file(key))
+        return _retrying(lambda: self._is_file(key), self._retry_delays)
 
     def delete(self, key: str) -> None:
         validate_key(key)
         # Never recursively delete a collection: a directory-prefix key has no blob.
-        _retrying(lambda: self._delete_once(key, collection=False))
+        _retrying(lambda: self._delete_once(key, collection=False), self._retry_delays)
 
     def delete_prefix(self, prefix: str) -> None:
         validate_prefix(prefix)
-        _retrying(lambda: self._delete_once(prefix, collection=True))
+        _retrying(lambda: self._delete_once(prefix, collection=True), self._retry_delays)
 
     def _delete_once(self, path: str, *, collection: bool) -> None:
         """`DELETE` `path` if it is a resource of the given kind; else a no-op."""
@@ -147,7 +150,7 @@ class WebDavObjectStore(ObjectStore):
         """One `PUT` of `source`, retried while busy; `create` makes it `If-None-Match: *`."""
         validate_key(key)
         headers = {"If-None-Match": "*"} if create else {}
-        body, delays = _replayable(source)
+        body, delays = _replayable(source, self._retry_delays)
         put_first = bool(delays) and size <= _PUT_FIRST_MAX
 
         def send() -> httpx2.Response:
@@ -272,10 +275,10 @@ class _ParentNotVisible(ArchiveError):
     contention (a missing root, a file where a folder should be), so not `Busy`."""
 
 
-def _retrying[T](attempt: Callable[[], T], delays: tuple[float, ...] | None = None) -> T:
-    """Run `attempt`, again after each of `delays` (default `_RETRY_DELAYS`) while it raises
-    `Busy` or `_ParentNotVisible`; the last attempt's error reaches the caller."""
-    for delay in _RETRY_DELAYS if delays is None else delays:
+def _retrying[T](attempt: Callable[[], T], delays: tuple[float, ...]) -> T:
+    """Run `attempt`, again after each of `delays` while it raises `Busy` or `_ParentNotVisible`;
+    the last attempt's error reaches the caller."""
+    for delay in delays:
         try:
             return attempt()
         except Busy, _ParentNotVisible:
@@ -284,12 +287,12 @@ def _retrying[T](attempt: Callable[[], T], delays: tuple[float, ...] | None = No
 
 
 def _replayable(
-    source: bytes | BinaryIO,
+    source: bytes | BinaryIO, delays: tuple[float, ...]
 ) -> tuple[Callable[[], bytes | Iterator[bytes]], tuple[float, ...]]:
     """A body factory for each attempt, and the retry delays it allows, as
     `ObjectStore.create_large` promises."""
     if isinstance(source, bytes):
-        return (lambda: source), _RETRY_DELAYS
+        return (lambda: source), delays
     if not source.seekable():
         return (lambda: _iter_chunks(source)), ()
     start = source.tell()
@@ -298,7 +301,7 @@ def _replayable(
         source.seek(start)
         return _iter_chunks(source)
 
-    return rewound, _RETRY_DELAYS
+    return rewound, delays
 
 
 def _refuse_missing_parent(resp: httpx2.Response) -> None:
