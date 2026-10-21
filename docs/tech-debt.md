@@ -113,11 +113,12 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `catalog_views.py:277,615,756,691,942,634`, `catalog.py:347`, `collection_views.py:139-144`. Bite: `ab528a6`. ADR 0014 asks the warning on visibility changes.
 - **Sketch:** one lag result the post-write tail (#35) returns and the landing must handle.
 
-### 42. A broken Bestand chain: list shows, detail 404s, edit opens — Worth exploring
+### 42. A broken Bestand chain: list shows, detail 404s, edit opens — done (closed 2026-10-21)
 - **Indicator:** 1 carve-out breaks "list == detail == reference" (2026-10-01, A7)
 - **Evidence:** `access.py:36-43`, `catalog_views.py:76-89`, `test_equivalence.py:24-33` (ADR 0012).
 - **Sketch:** ruled 2026-10-01: Archivists see it. Detail, pane and media stop 404ing for them.
-- **2026-10-21:** nothing leaks; only the Archivist sees the inconsistency (list shows; detail, pane and media 404; edit opens). Our own code cannot produce the state. The owner chooses: close it, or build the ruled detail half. Status unchanged.
+- **2026-10-21:** nothing leaks; only the Archivist sees the inconsistency (list shows; detail, pane and media 404; edit opens). Our own code cannot produce the state. The owner chooses: close it, or build the ruled detail half.
+- **Closed 2026-10-21 (owner):** the state is unreachable through our own code (it needs a hand edit of the store; v1 is sole-writer) and nothing leaks; the detail half of the 2026-10-01 ruling is not built. Revisit when humans may edit the files or a Bestand delete or move is added.
 
 ### 26. A media route re-derives the version its own save started from — Worth exploring
 - **Indicator:** 1 site, `catalog_views._media_surface` (`version == held + 1`) (2026-10-01, stable; bit twice more: `eb71b4c`, `1452c38`)
@@ -307,12 +308,13 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `tasks.py:14,97-101,116` (two false docstring claims; job `reconcile` collides with `mirror.reconcile`).
 - **Deletion test:** both go, with their tests and map rows.
 
-### 48. `changed_by` is spelled several ways — Worth exploring
+### 48. `changed_by` is spelled several ways — done (closed 2026-10-21)
 - **Indicator:** 3 spellings: `hard_delete_article` takes none, `catalog_views.py:663` passes an unused `_by`, `mark_deleted(by=)` vs `save(changed_by=)` (2026-10-01)
 - **Evidence:** `articles.py:203`, `repository.py:68`; app law says every write names its author.
 - **Indicator 2026-10-01 (after Wave CLEAN):** 1 left, the unused `_by` at `catalog_views.py:663`; `mark_deleted` takes `changed_by`; app law now says every write that writes a version names its author.
 - **Sketch:** one keyword, `changed_by`, on every write.
-- **2026-10-21:** one `changed_by` keyword on every version write (articles, collections, `import_legacy`); `hard_delete` writes no version. Status unchanged; the owner decides on closing.
+- **2026-10-21:** one `changed_by` keyword on every version write (articles, collections, `import_legacy`); `hard_delete` writes no version.
+- **Closed 2026-10-21 (owner):** one `changed_by` keyword on every version write; hard delete writes no version.
 
 ### 19. Compositions style inside components — done
 - **Indicator:** 0 composition reach-ins, the lint's allow-list deleted (2026-09-26; 44 → 37 → 1 → 0
