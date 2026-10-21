@@ -94,7 +94,7 @@ lint (E) onto these rows; components still carrying retired cues are listed in `
 | 13 | Sort glyph | the direction glyph on the sortable head carrying the active sort; on other sortable heads only on hover / focus (`.ledger th > a`; mock `.ledger-sort`) | forbidden — no step-up of the sorted column |
 | 14 | Hairline row rule | `--rule` 1px between the rows of a register or ledger that have two ends (a lead and a figure) | forbidden — never above the first or below the last row, never under headers, filter bars or section heads |
 | 15 | Heavy rule | 3px, `--error`: the top of the edit-conflict notice only (`.record-meta-alert`) | forbidden — section rules were removed (`r3-linien`) |
-| 16 | Help mark ⓘ | the character U+24D8 at the end of a field hint (`.help`), opening a `.popover` | forbidden — no "?" glyphs, no hover-only tooltips |
+| 16 | Help mark ⓘ | the character U+24D8 at the end of a field hint (`.help`), opening a `.popover` | forbidden — no "?" glyphs, no hover-only tooltips; exception: a `<time>` that shows its date may add the time on hover (owner 2026-10-21, `docs/requirements/owner-interview-2026-08.md`, version history) |
 | 17 | Note | `.note` (note type, `--ink-3`) touching a label or heading ("intern") | forbidden — never at a far edge, never boxed |
 | 18 | Placeholder cross | `--placeholder` in `--faint` on an item without an image (`.media-item`, `.plate-item`, `.file-row-thumb`) | forbidden — no placeholder where no medium is expected |
 | 19 | Gray fill | **RETIRED** (owner 2026-09-27: the door's login is a primary button). | forbidden |

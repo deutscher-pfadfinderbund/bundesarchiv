@@ -307,7 +307,8 @@
   .mark {
     font: var(--type-label);
     color: var(--ink-2);
-    white-space: nowrap;
+    --_mark-wrap: var(--mark-wrap, nowrap);
+    white-space: var(--_mark-wrap);
   }
 
   /* ---- remove — the one × for every removal (DESIGN.md Remove); it carries .danger, so the ink it

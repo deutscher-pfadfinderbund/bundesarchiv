@@ -206,6 +206,11 @@ def day(at: datetime) -> str:
     return f"{at.astimezone(_BERLIN):%d.%m.%Y}"
 
 
+def day_and_time(at: datetime) -> str:
+    """A UTC timestamp to the minute, in Berlin: ``01.10.2026, 14:05 Uhr``."""
+    return f"{at.astimezone(_BERLIN):%d.%m.%Y, %H:%M} Uhr"
+
+
 _BERLIN = ZoneInfo("Europe/Berlin")
 
 

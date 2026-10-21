@@ -13,7 +13,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.urls import reverse
 
-from bundesarchiv.app import thumbnails
+from bundesarchiv.app import legacy, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import browse, bulk, landing, ledger, reading, vocab
@@ -26,7 +26,7 @@ from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
-from bundesarchiv.domain.models import ULID, Lifecycle, MediaRef, Version
+from bundesarchiv.domain.models import ULID, Change, Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.indexer import file_kind, mime_type
 from bundesarchiv.index.query import FacetCount, FileKind, SearchFilters, SearchPage, search
@@ -624,6 +624,8 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "is_template": article.template,
         # only an Archivist reaches a marked Article (ADR 0022): its page shows the Papierkorb state
         "deleted": None if mark is None else {"at": vocab.day(mark.at), "by": mark.by},
+        # a Papierkorb mark already is the last change
+        "last_change": None if mark is not None else _last_change(resolution.change),
         "version": resolution.version,
         # preview() names groups and ignores the lifecycle: archivists only (part-4-web.md)
         "publish_statement": (
@@ -658,6 +660,18 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         ),
         "location": article.physical_location or "",
         "custom": article.custom,
+    }
+
+
+def _last_change(change: Change | None) -> dict[str, object] | None:
+    if change is None:
+        return None
+    return {
+        "day": vocab.day(change.at),
+        "datetime": change.at.isoformat(),
+        "moment": vocab.day_and_time(change.at),
+        "by": change.by,
+        "imported": change.by == legacy.CHANGED_BY,
     }
 
 
