@@ -62,7 +62,7 @@ A Keycloak group. Naming one (or several, OR-combined) in an Audience narrows Me
 ### Cataloging
 
 **Media-type** (*Medienart*) and **Document-type** (*Dokumenttyp*):
-Descriptive classifications of an Article. Free-text with autocomplete, seeded with default values, open to new ones. Not managed entities.
+Descriptive classifications of an Article. Free-text with autocomplete, seeded with default values, open to new ones. Not managed entities. Being rethought (owner 2026-10-21): stored as levels in each record; the model is settled with the archivists.
 
 **Tag** (*Schlagwort*):
 Free-text keyword with autocomplete.
@@ -74,7 +74,7 @@ Who made the original, as free text.
 The place an Article concerns, as free text.
 
 **Physical location** (*Standort*):
-Where an Article's physical original is kept, as free text with a path convention (`Magazin 2 / Regal B / Mappe 14`) + autocomplete. The object's description lives in the Article body, not a separate field.
+Where an Article's physical original is kept: a path of levels, from the largest place to the smallest (Magazin 2 › Regal B › Mappe 14). Each level is a word, not a managed entry. Which levels exist is still open, and the Standort may move to each copy of an Article once one Article can have several copies in several places (to be settled with the archivists, owner 2026-10-21). The object's description lives in the Article body, not a separate field.
 
 **Custom fields**:
 Arbitrary key/value metadata an Archivist can attach for things the predefined fields don't cover. Always Archivist-only — never shown to Members or the public. To show a field to others, it must become a predefined field (a code change). See ADR 0009.
