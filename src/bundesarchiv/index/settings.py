@@ -42,6 +42,13 @@ def _databases_from_dsn(dsn: str) -> dict[str, dict[str, object]]:
     }
 
 
+def _mirror_dav_url(url: str | None) -> str | None:
+    """The mirror client sends Basic auth on every job, so only https may carry it."""
+    if url and urlparse(url).scheme != "https":
+        raise ValueError(f"BUNDESARCHIV_MIRROR_DAV_URL must be an https:// URL, got: {url!r}")
+    return url or None
+
+
 DATABASES = _databases_from_dsn(os.environ.get("BUNDESARCHIV_PG_DSN", _DEFAULT_PG_DSN))
 
 # Required to serve; only wsgi.py enforces it, so dev and tests need no env. The empty defaults
@@ -143,7 +150,7 @@ BUNDESARCHIV_X_ACCEL_PREFIX = os.environ.get("BUNDESARCHIV_X_ACCEL_PREFIX") or N
 BUNDESARCHIV_THUMBNAIL_ROOT = os.environ.get("BUNDESARCHIV_THUMBNAIL_ROOT", "var/thumbnails")
 
 # The system of record's WebDAV folder (ADR 0020); unset, every push job no-ops.
-BUNDESARCHIV_MIRROR_DAV_URL = os.environ.get("BUNDESARCHIV_MIRROR_DAV_URL") or None
+BUNDESARCHIV_MIRROR_DAV_URL = _mirror_dav_url(os.environ.get("BUNDESARCHIV_MIRROR_DAV_URL"))
 BUNDESARCHIV_MIRROR_DAV_USER = os.environ.get("BUNDESARCHIV_MIRROR_DAV_USER") or None
 BUNDESARCHIV_MIRROR_DAV_PASSWORD = os.environ.get("BUNDESARCHIV_MIRROR_DAV_PASSWORD") or None
 
