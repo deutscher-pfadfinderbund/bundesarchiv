@@ -9,6 +9,7 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, replace
 
 import pytest
+from pytest_django.plugin import DjangoDbBlocker
 from tests._articles import make_article
 from tests.index import fixtures
 
@@ -135,7 +136,7 @@ def _build() -> _Corpus:
 
 
 @pytest.fixture(scope="module")
-def _indexed(django_db_setup: None, django_db_blocker: pytest.FixtureRequest) -> Iterator[_Corpus]:
+def _indexed(django_db_setup: None, django_db_blocker: DjangoDbBlocker) -> Iterator[_Corpus]:
     yield from fixtures.indexed_corpus(django_db_blocker, _build)
 
 

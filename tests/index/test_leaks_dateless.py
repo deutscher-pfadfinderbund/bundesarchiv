@@ -3,6 +3,7 @@
 from collections.abc import Iterator
 
 import pytest
+from pytest_django.plugin import DjangoDbBlocker
 from tests.index import fixtures
 
 from bundesarchiv.domain.edtf import EdtfDate
@@ -100,7 +101,7 @@ def _build_indexed() -> indexer.RebuildReport:
 
 @pytest.fixture(scope="module")
 def _dateless_indexed(
-    django_db_setup: None, django_db_blocker: pytest.FixtureRequest
+    django_db_setup: None, django_db_blocker: DjangoDbBlocker
 ) -> Iterator[indexer.RebuildReport]:
     yield from fixtures.indexed_corpus(django_db_blocker, _build_indexed)
 

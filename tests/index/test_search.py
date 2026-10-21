@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from typing import get_args
 
 import pytest
+from pytest_django.plugin import DjangoDbBlocker
 from tests._articles import make_article
 from tests.index import fixtures
 from tests.index.fixtures import (
@@ -21,7 +22,7 @@ from bundesarchiv.index.query import _MAX_PAGE_SIZE, Facet, SearchFilters, Searc
 
 @pytest.fixture(scope="module")
 def _indexed(
-    django_db_setup: None, django_db_blocker: pytest.FixtureRequest
+    django_db_setup: None, django_db_blocker: DjangoDbBlocker
 ) -> Iterator[indexer.RebuildReport]:
     yield from fixtures.indexed_corpus(django_db_blocker, fixtures.build_index)
 

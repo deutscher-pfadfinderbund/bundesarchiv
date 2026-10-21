@@ -7,6 +7,7 @@ Its own module and corpus, because ``indexer.rebuild`` wipes the table (see
 from collections.abc import Iterator
 
 import pytest
+from pytest_django.plugin import DjangoDbBlocker
 from tests._articles import make_article
 from tests.index import fixtures
 
@@ -57,7 +58,7 @@ def _build_store() -> InMemoryObjectStore:
 
 @pytest.fixture(scope="module")
 def _indexed(
-    django_db_setup: None, django_db_blocker: pytest.FixtureRequest
+    django_db_setup: None, django_db_blocker: DjangoDbBlocker
 ) -> Iterator[indexer.RebuildReport]:
     yield from fixtures.indexed_corpus(django_db_blocker, lambda: indexer.rebuild(_build_store()))
 

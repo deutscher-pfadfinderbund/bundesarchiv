@@ -11,7 +11,7 @@ import io
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
 
-import pytest
+from pytest_django.plugin import DjangoDbBlocker
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -150,16 +150,14 @@ def build_index() -> indexer.RebuildReport:
     return indexer.rebuild(build_store())
 
 
-def indexed_corpus[T](
-    django_db_blocker: pytest.FixtureRequest, build: Callable[[], T]
-) -> Iterator[T]:
+def indexed_corpus[T](django_db_blocker: DjangoDbBlocker, build: Callable[[], T]) -> Iterator[T]:
     """``rebuild`` commits, so no test transaction rolls the rows back: this wipes ``ArticleIndex``
     at teardown. Every module-scoped corpus fixture yields from it and adds no wipe of its own; not
     autouse, so no-DB tests stay DB-free. One more row beside the corpus: ``index_beside_corpus``.
     """
     from bundesarchiv.index.models import ArticleIndex
 
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
+    with django_db_blocker.unblock():
         yield build()
         ArticleIndex.objects.all().delete()
 
