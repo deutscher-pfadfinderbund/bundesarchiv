@@ -1,17 +1,12 @@
-{% extends "workbench/base.html" %}
-{% load static %}
+{% extends "workbench/column.html" %}
 {% comment %}
 The bulk check page (a2 pruefen.html) and its error mode (pruefen-error.html). Archivist-only (the
 view gates it). The consequence disclosure: the new value once, one row per record with the value
 it loses. Hidden inputs carry selection, field and value into the commit (no server session state).
 {% endcomment %}
 {% block title %}Änderung prüfen{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
-{% block body %}
-<main id="content" class="column">
-  <h1>Änderung prüfen</h1>
-
+{% block heading %}Änderung prüfen{% endblock %}
+{% block column %}
   {% if error %}
   <p>{{ count }} ausgewählt</p>
   <form method="post" action="{% url 'article-bulk-edit' %}">
@@ -56,5 +51,4 @@ it loses. Hidden inputs carry selection, field and value into the commit (no ser
     </footer>
   </form>
   {% endif %}
-</main>
 {% endblock %}

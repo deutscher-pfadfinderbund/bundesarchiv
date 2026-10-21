@@ -1,17 +1,13 @@
-{% extends "workbench/base.html" %}
-{% load static %}
+{% extends "workbench/column.html" %}
 {% comment %}
 The delete confirm as a page (a3 loeschen.html): the direct link, and where a panel's confirm lands
 without JS when it was older than the record. Archivist-only (the view gates it). Words as the panel's
 (components/confirm.html); the record's place, its title and Signatur name WHICH record.
 {% endcomment %}
 {% block title %}{{ lead }}{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
-{% block body %}
-<main id="content" class="column narrow">
-  <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-  <h1>{{ lead }}</h1>
+{% block width %}narrow{% endblock %}
+{% block heading %}{{ lead }}{% endblock %}
+{% block column %}
   <header>
     <strong><a href="{% url 'article-detail' ulid %}">{{ title }}</a></strong>
     {% include "components/ref_code_tab.html" with ref_code=ref_code only %}
@@ -25,5 +21,4 @@ without JS when it was older than the record. Archivist-only (the view gates it)
     </form>
     <a class="button" href="{{ cancel_href }}">Abbrechen</a>
   </footer>
-</main>
 {% endblock %}

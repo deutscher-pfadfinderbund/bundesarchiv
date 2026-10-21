@@ -1,5 +1,4 @@
-{% extends "workbench/base.html" %}
-{% load static %}
+{% extends "workbench/column.html" %}
 {% comment %}
 Rename-Bestand form as a page (collection_edit.html): the direct link, and where the list's
 panel lands without JS when it was refused. Archivist-only (the view gates it). Name is the only
@@ -7,12 +6,9 @@ editable control; Eltern-Bestand and Sichtbarkeit are read-only, because moving 
 visibility move descendants' visibility and need the over-exposure machinery a rename does not.
 {% endcomment %}
 {% block title %}Bestand bearbeiten{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
-{% block body %}
-<main id="content" class="column narrow">
-  <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-  <h1>Bestand bearbeiten</h1>
+{% block width %}narrow{% endblock %}
+{% block heading %}Bestand bearbeiten{% endblock %}
+{% block column %}
   {% comment %}A racing rename (ADR 0013): the form below carries the refreshed version and the name
   just typed.{% endcomment %}
   {% if panel.current_name %}{% include "components/conflict_notice.html" with what="Bestand" current_name=panel.current_name only %}{% endif %}
@@ -33,5 +29,4 @@ visibility move descendants' visibility and need the over-exposure machinery a r
       <a class="button" href="{{ cancel_href }}">Abbrechen</a>
     </footer>
   </form>
-</main>
 {% endblock %}
