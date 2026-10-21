@@ -47,6 +47,7 @@ class GalleryState:
         True  # False for a full-viewport overlay: the shot is the viewport, not the page
     )
     widths: tuple[int, ...] = WIDTHS
+    height: int = 900
 
 
 def long_suggestions(route: Route) -> None:
@@ -324,6 +325,16 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_plus_filter_open,
     ),
     GalleryState(
+        "workbench-filter-fold-open",
+        "workbench on a phone, the folded 'Filter' open: between the gutters, a head over each"
+        " list, scrolling inside the viewport (an iPhone SE's height, so the corpus's lists overflow)",
+        True,
+        _reach_plus_filter_open,
+        full_page=False,
+        widths=PHONE,
+        height=667,
+    ),
+    GalleryState(
         "header-new-open",
         "workbench, header '+ Neu …' create menu open (Mock B popover)",
         True,
@@ -571,7 +582,7 @@ def render_state(
     written: list[Path] = []
     for width in state.widths:
         context = browser.new_context(
-            color_scheme=MODES[0], viewport={"width": width, "height": 900}
+            color_scheme=MODES[0], viewport={"width": width, "height": state.height}
         )
         try:
             if state.archivist:
