@@ -129,3 +129,20 @@ def test_a_page_carries_the_page_policy_with_the_keycloak_origin_as_form_target(
         "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; "
         "form-action 'self' https://auth.example.org"
     )
+
+
+@pytest.mark.parametrize(
+    "url", ["http://cloud.example/dav/", "ftp://x", "cloud.example/dav", "HTTP://x"]
+)
+def test_a_mirror_url_other_than_https_is_refused_at_settings_import(url: str) -> None:
+    """The mirror sends Basic auth on every job: plain http would put the password on the wire."""
+    with pytest.raises(ValueError, match="BUNDESARCHIV_MIRROR_DAV_URL"):
+        prod_settings._mirror_dav_url(url)
+
+
+def test_an_https_or_unset_mirror_url_is_accepted() -> None:
+    assert (
+        prod_settings._mirror_dav_url("https://cloud.example/dav/") == "https://cloud.example/dav/"
+    )
+    assert prod_settings._mirror_dav_url("") is None
+    assert prod_settings._mirror_dav_url(None) is None
