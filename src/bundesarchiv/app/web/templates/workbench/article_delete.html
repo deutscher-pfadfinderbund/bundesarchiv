@@ -14,11 +14,12 @@ without JS when it was older than the record. Archivist-only (the view gates it)
   </header>
   {% if stale %}<p role="alert">{{ stale }}</p>{% endif %}
   <p>{{ consequence }}</p>
-  <footer>
-    <form method="post" action="{{ action }}">
-      {% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}">
+  <form method="post" action="{{ action }}">
+    {% csrf_token %}
+    <input type="hidden" name="expected_version" value="{{ version }}">
+    <footer>
       <button class="{{ tone }}" type="submit">{{ button }}</button>
-    </form>
-    <a class="button" href="{{ cancel_href }}">Abbrechen</a>
-  </footer>
+      <a class="button" href="{{ cancel_href }}">Abbrechen</a>
+    </footer>
+  </form>
 {% endblock %}
