@@ -9,7 +9,7 @@ from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Change, Collection
 
 
-def _post(**overrides: object) -> dict[str, list[str]]:
+def _post(**overrides: str | list[str]) -> dict[str, list[str]]:
     """A minimally-valid create/edit POST as a QueryDict-shaped mapping (each value a list)."""
     base: dict[str, list[str]] = {
         "title": ["Wanderfahrt 1962"],
@@ -30,7 +30,7 @@ def _post(**overrides: object) -> dict[str, list[str]]:
         "expected_version": ["3"],
     }
     for key, value in overrides.items():
-        base[key] = value if isinstance(value, list) else [value]  # type: ignore[list-item]
+        base[key] = value if isinstance(value, list) else [value]
     return base
 
 

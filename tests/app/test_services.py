@@ -41,7 +41,7 @@ from bundesarchiv.domain.models import (
     Lifecycle,
     MediaRef,
 )
-from bundesarchiv.domain.viewer import Archivist, Member, Public
+from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index.query import SearchFilters, search
 from bundesarchiv.index.refresh import InMemoryIndex, PostgresIndex, Refresh
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
@@ -112,8 +112,8 @@ def _filled(archive: Archive) -> Archive:
     return archive
 
 
-def _pub_titles(viewer: object) -> set[str]:
-    return {hit.title for hit in search(viewer, page_size=200).hits}  # type: ignore[arg-type]
+def _pub_titles(viewer: Viewer) -> set[str]:
+    return {hit.title for hit in search(viewer, page_size=200).hits}
 
 
 # ---------------------------------------------------------------------------

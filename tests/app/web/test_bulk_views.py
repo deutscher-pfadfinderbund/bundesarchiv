@@ -10,6 +10,7 @@ from django.urls import reverse
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection, page_hrefs
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import browse, bulk
 from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -261,12 +262,12 @@ def test_commit_cas_race_loser_value_not_on_disk(
 
     real_save = articles.save_article
 
-    def _conflict_a(store_: object, article: Article, version: int, *, changed_by: str) -> object:
+    def _conflict_a(store_: Archive, article: Article, version: int, *, changed_by: str) -> object:
         from bundesarchiv.persistence.errors import Conflict
 
         if article.ulid == _A:
             raise Conflict("raced")
-        return real_save(store_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
+        return real_save(store_, article, version, changed_by=changed_by)
 
     monkeypatch.setattr(articles, "save_article", _conflict_a)
     response = client_as(Archivist()).post(

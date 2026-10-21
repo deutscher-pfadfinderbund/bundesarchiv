@@ -5,6 +5,7 @@ import contextlib
 import io
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 import httpx2
@@ -89,8 +90,8 @@ def _fake_dav(
     built: list[httpx2.Client] = []
     real = httpx2.Client
 
-    def client(**kwargs: object) -> httpx2.Client:
-        made = real(transport=httpx2.MockTransport(answer), **kwargs)  # type: ignore[arg-type]
+    def client(**kwargs: Any) -> httpx2.Client:
+        made = real(transport=httpx2.MockTransport(answer), **kwargs)
         built.append(made)
         return made
 

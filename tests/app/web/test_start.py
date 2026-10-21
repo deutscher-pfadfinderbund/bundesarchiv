@@ -137,7 +137,9 @@ def test_by_media_type_and_timeline_count_what_the_viewer_may_see(
 
 def test_by_media_type_names_the_top_media_types_each_a_media_type_preset() -> None:
     counts = {"media_type": tuple(FacetCount(f"Art {n}", 10 - n) for n in range(9))}
-    area = start.by_media_type_area(Archivist(), RequestFactory().get("/"), counts, None)  # type: ignore[arg-type]
+    area = start.by_media_type_area(
+        Archivist(), RequestFactory().get("/"), counts, CollectionChooser(lambda: ())
+    )
     tiles = cast("tuple[start.Tile, ...]", area["tiles"])
     assert [t.label for t in tiles] == [f"Art {n}" for n in range(7)]
     assert all("media_type=" in t.href for t in tiles)

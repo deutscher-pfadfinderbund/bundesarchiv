@@ -4,6 +4,7 @@ vendored in tests/e2e/vendor/ (MPL-2.0).
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from playwright.sync_api import Page
@@ -34,10 +35,10 @@ _RUN = f"""
 """
 
 
-def _report(screen: Screen, kind: str, entries: list[dict[str, object]]) -> list[str]:
+def _report(screen: Screen, kind: str, entries: list[dict[str, Any]]) -> list[str]:
     return [
         f"{screen.name}: [{entry['id']}] {kind}: {entry['help']} — "
-        + "; ".join(str(node["html"])[:120] for node in list(entry["nodes"])[:3])  # type: ignore[call-overload]
+        + "; ".join(str(node["html"])[:120] for node in list(entry["nodes"])[:3])
         for entry in entries
     ]
 
