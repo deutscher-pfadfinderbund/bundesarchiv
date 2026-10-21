@@ -12,6 +12,7 @@ from typing import BinaryIO
 
 from bundesarchiv.domain.models import ULID, Article, Change, MediaRef, Version
 from bundesarchiv.persistence import _front_matter, readme
+from bundesarchiv.persistence._change import from_front_matter
 from bundesarchiv.persistence._layout import (
     ARTICLES,
     Scan,
@@ -19,7 +20,14 @@ from bundesarchiv.persistence._layout import (
     media_folder,
     media_key,
 )
-from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order, remove
+from bundesarchiv.persistence._writer import (
+    StoredKey,
+    commit,
+    history_key,
+    history_version,
+    keys_in_save_order,
+    remove,
+)
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound, UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
 
@@ -122,6 +130,29 @@ class ArticleRepository:
         without materializing them. Raises `NotFound` if the file is not stored; the caller
         closes the stream."""
         return self._store.open_stream(media_key(ulid, ref))
+
+    def versions(self, current: Stored) -> tuple[tuple[Version, Change | None], ...]:
+        """Each version of `current`'s Article by number, with its change record: those kept under
+        `history/` (ADR 0019) below it, then `current`. Of a kept version only the change record is read;
+        one without a readable record gives None."""
+        ulid = current.article.ulid
+        folder = ARTICLES.folder(ulid)
+        kept = sorted(
+            version
+            for key in self._store.list(f"{folder}/history/")
+            if (version := history_version(folder, key)) is not None and version < current.version
+        )
+        return (
+            *((version, self._kept_change(ulid, history_key(folder, version))) for version in kept),
+            (current.version, current.change),
+        )
+
+    def _kept_change(self, ulid: ULID, key: str) -> Change | None:
+        try:
+            text = _front_matter.text_of(key, self._store.read(key))
+            return from_front_matter(_front_matter.parse(ulid, text)[0])
+        except ArchiveError, TypeError, ValueError:
+            return None
 
     def list_ulids(self) -> Iterable[ULID]:
         return ARTICLES.list_ulids(self._store)
