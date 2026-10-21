@@ -994,3 +994,16 @@ missing records; "N von M gespeichert"; the error pages' wording.
 - **The CSRF cookie keeps Django's default name.** The `__Host-` prefix does not hold under Django's
   cookie parser, and the Origin check already refuses cross-site posts. The login cookies keep
   `__Host-` (ADR 0025, `docs/tech-debt.md` #58).
+
+## Rulings of 2026-10-21 (version history, #71 slice 1)
+
+- **Only Archivists see who last changed a record and when.** Editor names are personal data;
+  Members and link holders see nothing of it, anywhere in the response.
+- **The article page shows the last change as one line:** "Zuletzt bearbeitet am <Datum> von
+  <Name>".
+- **Only the date shows; the full date and time appear on hover**, on a `<time>` element whose
+  `datetime` is the exact instant. This is a ruled exception to "no hover-only tooltips" in
+  `docs/design/design-review-law.md` (that row is about help marks; here the date stays visible and
+  only the time is on hover).
+- **A record whose current version the legacy import wrote** reads "Übernommen aus dem alten Archiv
+  am <Datum>" instead, until its first real edit.
