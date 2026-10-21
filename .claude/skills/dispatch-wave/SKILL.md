@@ -18,6 +18,7 @@ The architect thinks in modules and interfaces; writers implement one module eac
 ## Brief mechanics (each brief is a file on disk)
 
 - Run `python3 .claude/skills/dispatch-wave/scripts/check_brief.py BRIEF.md` before every dispatch and fix every finding; mark a path the task creates `path` (new). A name in prose the script cannot see is still yours to verify.
+- A brief that mixes Markdown with code comments names `quality:comments-only` for the Python/JS half only: the tool reports every `.md` file as beyond comments, and run before the commit it proves an empty diff.
 - **Dispatch by agent type**: `writer`, `writer-ui`, `reviewer` or `design-gate`. The brief names topic skills beyond the preloaded ones: `ui-build` for a writer touching a template; `adversarial-input` for a `writer-ui` unit that parses a form field, touches a fail-closed function or renames anything a browser sends — and it names those pairs and functions.
 - **Worktrees**: dispatch with `isolation: worktree`; it branches from your current HEAD where `worktree.baseRef: "head"` is set, else from origin — then create the worktree from local `main` yourself and name its absolute path in the brief. A controller pinned by `EnterWorktree` pins every agent it dispatches to its own worktree: leave the pin first.
 - State **deltas, not absolutes**; the writer reads current reality first. Cite the task's `docs/tech-debt.md` entry by number: its evidence pointers replace a grep sweep.
