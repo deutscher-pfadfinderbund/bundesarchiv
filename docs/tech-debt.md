@@ -447,6 +447,30 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `EditSurface.of(...).submitted(...)` -> `apply_media_fields`: the re-shown form overlays the losing editor's caption and alt onto the winner's media, so a second save can silently undo the winner's per-file edits
 - **Sketch:** carry the base version into the conflict re-render and overlay only the fields the loser changed against it
 
+### 60. `test:affected` runs no Postgres-backed web test for a template-only diff — Worth exploring
+- **Indicator:** `scripts/affected.py` RULES: `app/web/**/*.html|css|js` selects `test:gallery` and `test:e2e` only (2026-10-21)
+- **Evidence:** the 2026-10-21 template refactor wrote `tests/app/web` by hand (1464 passed); those tests render the templates
+- **Deletion test:** a template edit that breaks a rendered page asserted in `tests/app/web` goes red in `test:affected`
+- **Sketch:** the `UI` rule also names `test:db`
+
+### 61. No stock computed-style probe for pixel-neutral waves — Speculative
+- **Indicator:** each writer writes ~50 throwaway lines over `tests/e2e/_gallery.py` states (2026-10-21, one wave)
+- **Evidence:** `dispatch-wave` skill asks for the probe; no tool exists
+- **Deletion test:** a wave runs one command and gets a before/after computed-style diff
+- **Sketch:** a `tests/e2e` helper dumping computed styles per gallery state
+
+### 62. Private test helpers other suites want — Worth exploring
+- **Indicator:** 3 (2026-10-21): `_BLANK_FORM` (`tests/app/web/_fixtures.py`), `_article_whose_collection_chain_is_broken` (`test_catalog_actions.py`), the "orphan" fixture (`test_media.py`)
+- **Evidence:** `_BLANK_FORM` is a valid edit-form POST; a missing required field fails silently when only the stored record is asserted
+- **Deletion test:** one shared form and one broken-chain fixture replace the copies
+- **Sketch:** public names in `_fixtures.py`
+
+### 63. Template facts declared twice after the column frame — Worth exploring
+- **Indicator:** 3 pairs (2026-10-21): the crumbs `nav` in `workbench/detail.html` and `article_edit.html` besides `column.html`; the `filter_params` hidden-input loop in `_header.html` and `_search_field.html`; the `components_demo.html` menu sample (link entries) against the real header menu (`popovertarget` buttons)
+- **Evidence:** `workbench/column.html`, `workbench/_header.html`, `workbench/_search_field.html`
+- **Deletion test:** one include per fact; the demo shows the real entries
+- **Sketch:** a crumbs include and a filter-params include
+
 ## Process law
 
 - **Row budget friction** — `ROW_MAX_CHARS=220` forced 4 rewrites of one interface-rich row (collection_chooser.py, 2026-09-03, landed at exactly 220). One occurrence = instance, not evidence; if a second row fights the cap, investigate the budget (wrap the interface segment vs raise) per the framework-health rule. Indicator: rows within 10 chars of cap: 19 (2026-10-01, worse; 1 on 2026-09-03). Map rows are stale at every audit (review pattern 7): a framework-health trigger; owner 2026-10-01 chose a gate (every listed interface name exists, `5080d85`) over changing the rule.
