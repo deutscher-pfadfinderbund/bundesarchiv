@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-"""Django's management entrypoint. The web is served through ``bundesarchiv.index.wsgi``; see the
-README dev-setup section.
-"""
+"""Django's management entrypoint."""
 
 import os
 import sys

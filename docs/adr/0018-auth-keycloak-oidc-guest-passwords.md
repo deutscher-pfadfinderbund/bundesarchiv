@@ -150,6 +150,8 @@ logout ends the Keycloak session as well as ours:
 3. Redirect to the `end_session_endpoint` with that `id_token_hint`, so Keycloak
    ends its browser session without asking.
 4. Delete both token cookies.
+5. Send `Clear-Site-Data: "cache"` (added 2026-10-21), so gated pages and media do not outlive the
+   login. Not `"cookies"`: that clears the whole registrable domain, Keycloak's host included.
 
 Logout is the one route here that does **not** fail closed: when a Keycloak
 step fails, the cookies still go, because refusing to sign somebody out is not

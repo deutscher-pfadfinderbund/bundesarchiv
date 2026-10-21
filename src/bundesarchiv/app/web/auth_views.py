@@ -157,8 +157,6 @@ def logout(request: HttpRequest) -> HttpResponse:
     )
     response = HttpResponseRedirect(url or _DEFAULT_NEXT)
     delete_token_cookies(response)
-    # Gated pages and media must not outlive the login on a shared computer. Not "cookies": that
-    # clears the whole registrable domain, Keycloak's sibling host included.
     response["Clear-Site-Data"] = '"cache"'
     return response
 
