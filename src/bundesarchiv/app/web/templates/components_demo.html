@@ -353,7 +353,7 @@ list anchored to its own button. {% endcomment %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; --control-height: var(--touch-target)">
     <div class="split-button">
       <a class="button" href="#demo-split">Bearbeiten</a>
-      <button class="menu-button" type="button" popovertarget="demo-split-{{ mode }}" aria-label="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
+      <button class="menu-button" type="button" popovertarget="demo-split-{{ mode }}" aria-label="Weitere Aktionen" title="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
       <ul class="menu" id="demo-split-{{ mode }}" popover>
         <li><a href="#demo-split">Als Entwurf zurückziehen</a></li>
         <li><a class="danger" href="#demo-split">Löschen</a></li>
