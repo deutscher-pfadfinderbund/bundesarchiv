@@ -1,12 +1,28 @@
 """The viewer-facing access policy, fail-closed (ADR 0001)."""
 
 from dataclasses import fields, replace
+from datetime import UTC, datetime
 
 import pytest
 
-from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS, can_view, preview, project, visible
+from bundesarchiv.domain.access import (
+    ARCHIVIST_ONLY_FIELDS,
+    can_view,
+    preview,
+    project,
+    project_change,
+    visible,
+)
 from bundesarchiv.domain.collections import ResolvedChain
-from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import (
+    ULID,
+    Article,
+    Audience,
+    AudienceTier,
+    Change,
+    Collection,
+    Lifecycle,
+)
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 
@@ -193,6 +209,22 @@ def test_archivist_only_fields_floor_set_is_exactly_physical_location_and_custom
     # Pin the exact floor set: date/creator/subject_place are member-visible (NOT floored).
     # Adding a field to this set needs a deliberate decision, not an accidental inclusion.
     assert frozenset({"physical_location", "custom"}) == ARCHIVIST_ONLY_FIELDS
+
+
+_CHANGE = Change(datetime(2026, 10, 21, 9, 30, tzinfo=UTC), "anna")
+
+
+@pytest.mark.parametrize("viewer", [Public(), Member(), Member(groups=("Leitung",))])
+@pytest.mark.parametrize("change", [_CHANGE, None])
+def test_project_change_shows_no_non_archivist_who_changed_a_record(
+    viewer: Viewer, change: Change | None
+) -> None:
+    assert project_change(viewer, change) is None
+
+
+@pytest.mark.parametrize("change", [_CHANGE, None])
+def test_project_change_shows_an_archivist_the_change_as_stored(change: Change | None) -> None:
+    assert project_change(Archivist("bert"), change) == change
 
 
 def test_preview_shows_post_publish_audience_for_a_draft() -> None:
