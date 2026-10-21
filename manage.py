@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-"""Django's management entrypoint."""
 
 import os
 import sys

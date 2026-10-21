@@ -2,7 +2,7 @@ from dataclasses import replace
 from typing import Any
 
 import pytest
-from tests._articles import make_article
+from tests.app.web._fixtures import make_article
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import bulk
