@@ -1160,12 +1160,15 @@
   }
   /* the head over one list of the phone's "Filter" fold: which slot its entries set */
   .toolpanel > .toolpanel-head {
-    margin: var(--space-3) 0 var(--space-1);
+    margin-block-start: var(--space-3);
     font: var(--type-label);
     color: var(--ink-2);
   }
   .toolpanel > .toolpanel-head:first-child {
     margin-block-start: 0;
+  }
+  .toolpanel > .toolpanel-head + ul {
+    margin-block-start: var(--space-1);
   }
   /* the checkbox's UA margin would stand the entry taller than the panel's other controls (C8) */
   .toolpanel > ul label > input {
