@@ -32,8 +32,8 @@ from bundesarchiv.index.indexer import file_kind, mime_type
 from bundesarchiv.index.query import FacetCount, FileKind, SearchFilters, SearchPage, search
 from bundesarchiv.persistence.errors import ArchiveError
 
-#: The preview-pane selection param. NOT a search param — it is stripped from every search link so
-#: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
+#: The preview-pane selection param, not a search param. A denied, absent or malformed value shows
+#: no pane and reveals nothing (the deny contract).
 _PANE_PARAM = "article"
 
 
@@ -211,7 +211,7 @@ def _resolve_pane(
     request: HttpRequest, archive: Archive, chooser: CollectionChooser, *, is_archivist: bool
 ) -> _Pane | None:
     """The ``?article`` pane, or ``None`` when absent, malformed, denied or in the Papierkorb — all
-    alike, so the workbench renders byte-identically (no existence oracle)."""
+    alike, so the workbench shows no pane (no existence oracle)."""
     ulid = request.GET.get(_PANE_PARAM)
     if not ulid:
         return None

@@ -38,7 +38,7 @@ default stack; the tiny settings had simply omitted the whole list). The forms
 already carried `{% csrf_token %}`, and the HTMX layer sends the token via
 `hx-headers`, so enabling it was reversible and required no template changes. A
 tokenless cross-site POST now gets a 403 before the view runs — orthogonal to the
-archivist gate (a valid token still hits the byte-identical 404 for a
+archivist gate (a valid token still hits the plain deny 404 for a
 non-archivist). **Deferred to Part 6 (TLS deploy):** set `CSRF_COOKIE_SECURE = True`
 and `CSRF_TRUSTED_ORIGINS` once the service is behind HTTPS.
 
