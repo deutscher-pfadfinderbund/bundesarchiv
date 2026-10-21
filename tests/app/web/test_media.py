@@ -277,38 +277,20 @@ class _WatchedRoot:
 
 
 def test_authz_denies_before_any_blob_lookup(
-    corpus: _TierCorpus, recording_store: KeyRecordingStore, monkeypatch: pytest.MonkeyPatch
+    corpus: _TierCorpus, recording_store: KeyRecordingStore
 ) -> None:
-    reached: list[str] = []
-
-    def recorder(*args: object, **kwargs: object) -> object:
-        reached.append("media_response")
-        raise AssertionError("blob lookup reached for a forbidden request")
-
-    monkeypatch.setattr("bundesarchiv.app.web.media.media_response", recorder)
     response = client_as(Public()).get(corpus.url("members"))
     assert_denied(response)
-    assert reached == [], "the seam was reached for a forbidden article"
     assert recording_store.keys, "the recording store saw no call; the article was never loaded"
     assert corpus.blob_key("members") not in recording_store.keys, "the blob was probed first"
 
 
 @pytest.mark.parametrize("version", ["thumb", "display"])
-def test_authz_denies_before_lookup_for_a_version(
-    corpus: _TierCorpus, monkeypatch: pytest.MonkeyPatch, version: str
-) -> None:
+def test_authz_denies_before_lookup_for_a_version(corpus: _TierCorpus, version: str) -> None:
     root = _WatchedRoot(corpus.thumbnail_root)
-    reached: list[str] = []
-
-    def recorder(*args: object, **kwargs: object) -> object:
-        reached.append("thumbnail_response")
-        raise AssertionError("thumbnail lookup reached for a forbidden request")
-
-    monkeypatch.setattr("bundesarchiv.app.web.media.thumbnail_response", recorder)
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=root):
         response = client_as(Public()).get(corpus.url("members", version))
     assert_denied(response)
-    assert reached == []
     assert root.touched == 0, "the thumbnail cache was probed before the deny"
 
 

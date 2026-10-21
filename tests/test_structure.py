@@ -248,14 +248,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _CRASH,
     ),
-    "app/web/test_media.py:test_authz_denies_before_any_blob_lookup:bundesarchiv.app.web.media.media_response": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_media.py:test_authz_denies_before_lookup_for_a_version:bundesarchiv.app.web.media.thumbnail_response": (
-        1,
-        _DEBT,
-    ),
     "app/web/test_vocab.py:narrowed_vocabulary:bundesarchiv.app.web.vocab.MEDIA_TYPE_DOCUMENT_TYPES": (
         1,
         _DEBT,
