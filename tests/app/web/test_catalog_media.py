@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
 from django.test import override_settings
@@ -215,7 +216,7 @@ def test_remove_denied_leaves_media(corpus: _MediaCorpus, viewer: Viewer) -> Non
 def test_member_with_valid_csrf_still_gets_404(corpus: _MediaCorpus) -> None:
     client = client_as(Member(groups=("vorstand",)), enforce_csrf=True)
     token = "a" * 32  # an unmasked CSRF secret: the cookie and the field must match
-    client.cookies["csrftoken"] = token
+    client.cookies[settings.CSRF_COOKIE_NAME] = token
     with override_settings(MIDDLEWARE=["django.middleware.csrf.CsrfViewMiddleware"]):
         response = client.post(
             f"/articles/{_ULID}/media/remove",

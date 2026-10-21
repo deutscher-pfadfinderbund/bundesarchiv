@@ -76,6 +76,7 @@ def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, obje
         # ...and its plain-http switch: live_server is http, and prod's Secure flag only survives
         # here because Chromium exempts localhost. It names the login cookies too (ADR 0025).
         "CSRF_COOKIE_SECURE": settings_dev.CSRF_COOKIE_SECURE,
+        "CSRF_COOKIE_NAME": settings_dev.CSRF_COOKIE_NAME,
         "BUNDESARCHIV_REALM": settings_dev.BUNDESARCHIV_REALM,
         "VIEWER_SIGNING_KEY": settings_dev.VIEWER_SIGNING_KEY,
         "DEV_VIEWER_SIGNING_KEY": DEV_KEY,

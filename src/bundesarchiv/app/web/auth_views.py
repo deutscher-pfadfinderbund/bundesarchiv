@@ -146,8 +146,9 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
 
 def logout(request: HttpRequest) -> HttpResponse:
     """``POST /logout`` — end the Keycloak session as far as the server can (``logout_url``), drop
-    the token cookies, and continue through Keycloak's end-session endpoint (ADR 0018 "Logout").
-    With no realm to return through, the cookies still go."""
+    the token cookies and the browser's cache of this site, and continue through Keycloak's
+    end-session endpoint (ADR 0018 "Logout"). With no realm to return through, the cookies and the
+    cache still go."""
     if request.method != "POST":
         return not_found()
     home = request.build_absolute_uri(_DEFAULT_NEXT)
@@ -156,6 +157,9 @@ def logout(request: HttpRequest) -> HttpResponse:
     )
     response = HttpResponseRedirect(url or _DEFAULT_NEXT)
     delete_token_cookies(response)
+    # Gated pages and media must not outlive the login on a shared computer. Not "cookies": that
+    # clears the whole registrable domain, Keycloak's sibling host included.
+    response["Clear-Site-Data"] = '"cache"'
     return response
 
 
