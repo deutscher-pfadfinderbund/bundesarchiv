@@ -8,6 +8,8 @@ links** (deferred, issue #58); they supersede the app-local guest passwords
 this ADR first specified (owner, 2026-08) and choose their session mechanism
 when built. The file name keeps the old title for link stability.
 
+**Amended 2026-10-21:** logout also clears the browser's cache of the site ("Logout", step 5).
+
 ## Context
 
 The first design turned a login into one signed Viewer cookie: 30 days for a
@@ -150,13 +152,14 @@ logout ends the Keycloak session as well as ours:
 3. Redirect to the `end_session_endpoint` with that `id_token_hint`, so Keycloak
    ends its browser session without asking.
 4. Delete both token cookies.
-5. Send `Clear-Site-Data: "cache"` (added 2026-10-21), so gated pages and media do not outlive the
-   login. Not `"cookies"`: that clears the whole registrable domain, Keycloak's host included.
+5. Send `Clear-Site-Data: "cache"`, so gated pages and media do not outlive
+   the login. Not `"cookies"`: that clears the whole registrable domain,
+   Keycloak's host included.
 
 Logout is the one route here that does **not** fail closed: when a Keycloak
-step fails, the cookies still go, because refusing to sign somebody out is not
-a safe failure. The sign-out is offered to every signed-in viewer, Member
-included.
+step fails, the cookies and the cache still go, because refusing to sign
+somebody out is not a safe failure. The sign-out is offered to every
+signed-in viewer, Member included.
 
 The page policy's `form-action` names the issuer's origin next to `'self'`: the
 logout POST redirects on to the end-session endpoint, and the browser checks
