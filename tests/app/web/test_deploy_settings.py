@@ -87,9 +87,12 @@ def test_production_trusts_the_proxy_chain_for_the_scheme() -> None:
     assert prod_settings.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
 
 
-def test_csrf_cookie_is_secure_in_production_and_not_in_dev() -> None:
+def test_csrf_cookie_is_secure_and_host_prefixed_in_production_only() -> None:
+    """A browser drops a ``__Host-`` cookie without Secure, and every POST then fails (ADR 0025)."""
     assert prod_settings.CSRF_COOKIE_SECURE is True
+    assert prod_settings.CSRF_COOKIE_NAME.startswith("__Host-")
     assert settings_dev.CSRF_COOKIE_SECURE is False  # dev serves plain http
+    assert not settings_dev.CSRF_COOKIE_NAME.startswith("__Host-")
 
 
 def test_the_upload_ceiling_is_four_gibibytes_by_default() -> None:
