@@ -1,5 +1,7 @@
 import threading
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 from tests._readmes import UNREADABLE_README
@@ -16,15 +18,9 @@ from bundesarchiv.persistence.objectstore import ObjectStore
 ID_01J0 = ULID("01J0")
 
 
-def _collection(ulid: str = "01J0", **overrides: object) -> Collection:
-    defaults: dict[str, object] = {
-        "ulid": ulid,
-        "name": "Fotos",
-        "parent_id": None,
-        "audience": Audience(AudienceTier.MEMBERS),
-    }
-    defaults.update(overrides)
-    return Collection(**defaults)  # type: ignore[arg-type]
+def _collection(ulid: str = "01J0", **overrides: Any) -> Collection:
+    base = Collection(ULID(ulid), "Fotos", None, Audience(AudienceTier.MEMBERS))
+    return replace(base, **overrides)
 
 
 # --- conformance suite (parametrized over both stores) ---------------------------

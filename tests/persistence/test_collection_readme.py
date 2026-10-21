@@ -1,7 +1,9 @@
 """Collection README codec — Collection ⇄ front-matter bytes, tested directly (no store, no repo)."""
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from tests._readmes import HAND_SAVED
@@ -16,15 +18,14 @@ ID_01J0 = ULID("01J0")
 _CHANGE = Change(datetime(2026, 9, 25, 10, 30, tzinfo=UTC), "anna")
 
 
-def _collection(**overrides: object) -> Collection:
-    defaults: dict[str, object] = {
-        "ulid": "01J0",
-        "name": "Fotos",
-        "parent_id": "PARENT01",
-        "audience": Audience(AudienceTier.GROUPS, ("bundesfuehrung",)),
-    }
-    defaults.update(overrides)
-    return Collection(**defaults)  # type: ignore[arg-type]
+def _collection(**overrides: Any) -> Collection:
+    base = Collection(
+        ULID("01J0"),
+        "Fotos",
+        ULID("PARENT01"),
+        Audience(AudienceTier.GROUPS, ("bundesfuehrung",)),
+    )
+    return replace(base, **overrides)
 
 
 def test_encode_decode_round_trips_all_fields_and_version() -> None:

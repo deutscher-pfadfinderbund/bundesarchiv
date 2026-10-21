@@ -1,6 +1,7 @@
 """Domain value-object construction invariants (illegal states unrepresentable)."""
 
 from datetime import UTC, datetime, timedelta, timezone
+from typing import Any
 
 import pytest
 
@@ -25,7 +26,8 @@ def test_non_groups_tier_rejects_named_groups(tier: AudienceTier) -> None:
 def test_groups_is_normalized_to_a_tuple() -> None:
     # A frozen, hashable value object must not store a list (unhashable, and unequal to its
     # tuple twin) even when built from one via dynamic/untyped input.
-    built_from_list = Audience(AudienceTier.GROUPS, ["bundesfuehrung"])  # type: ignore[arg-type]
+    groups: Any = ["bundesfuehrung"]
+    built_from_list = Audience(AudienceTier.GROUPS, groups)
     assert isinstance(built_from_list.groups, tuple)
     assert built_from_list == Audience(AudienceTier.GROUPS, ("bundesfuehrung",))
     assert hash(built_from_list) == hash(Audience(AudienceTier.GROUPS, ("bundesfuehrung",)))
@@ -47,8 +49,13 @@ def test_duplicate_group_names_are_deduplicated() -> None:
     assert deduped == Audience(AudienceTier.GROUPS, ("vorstand",))
 
 
-def _article(**custom_pairs: object) -> Article:
-    return Article(ulid="01J0", title="t", collection_id="c", custom=tuple(custom_pairs.items()))  # type: ignore[arg-type]
+def _article(**custom_pairs: Any) -> Article:
+    return Article(
+        ulid=ULID("01J0"),
+        title="t",
+        collection_id=ULID("c"),
+        custom=tuple(custom_pairs.items()),
+    )
 
 
 def test_custom_fields_are_sorted_and_deduped() -> None:

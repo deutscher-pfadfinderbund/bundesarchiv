@@ -1,12 +1,15 @@
 import io
 import threading
 from collections.abc import Iterable
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
+from tests._articles import make_article
 from tests._readmes import UNREADABLE_README
 
-from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Lifecycle, MediaRef
+from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, MediaRef
 from bundesarchiv.persistence import readme
 from bundesarchiv.persistence._writer import history_key, readme_key
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
@@ -29,20 +32,18 @@ def repo(request: pytest.FixtureRequest, tmp_path: Path) -> ArticleRepository:
     return ArticleRepository(store)
 
 
-def _article(ulid: str = "01J0", **overrides: object) -> Article:
-    defaults: dict[str, object] = {
-        "ulid": ulid,
-        "title": "Zeltlager 1955",
-        "collection_id": "coll-fotos",
-        "body": "Ein Foto vom Zeltlager.\n\n## Details\n\n---\n\nSchwarz-weiß.",
-        "lifecycle": Lifecycle.PUBLISHED,
-        "audience": Audience(AudienceTier.GROUPS, ("bundesfuehrung",)),
-        "ref_code": "Foto-1955/007",
-        "tags": ("zeltlager", "1955"),
-        "physical_location": "Magazin 2 / Regal B / Mappe 14",
-    }
-    defaults.update(overrides)
-    return Article(**defaults)  # type: ignore[arg-type]
+def _article(ulid: str = "01J0", **overrides: Any) -> Article:
+    base = make_article(
+        ulid,
+        collection_id="coll-fotos",
+        title="Zeltlager 1955",
+        body="Ein Foto vom Zeltlager.\n\n## Details\n\n---\n\nSchwarz-weiß.",
+        audience=Audience(AudienceTier.GROUPS, ("bundesfuehrung",)),
+        ref_code="Foto-1955/007",
+        tags=("zeltlager", "1955"),
+        physical_location="Magazin 2 / Regal B / Mappe 14",
+    )
+    return replace(base, **overrides)
 
 
 def test_save_then_load_round_trips_the_article(repo: ArticleRepository) -> None:

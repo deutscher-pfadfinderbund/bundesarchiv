@@ -1,6 +1,9 @@
 """apply_bulk's two write-time guards: the pair re-checked against the freshly loaded Medienart,
 and a non-Conflict ArchiveError on save."""
 
+from dataclasses import replace
+from typing import Any
+
 import pytest
 
 from bundesarchiv.app import articles
@@ -14,10 +17,9 @@ ID_01A = ULID("01A")
 ID_01B = ULID("01B")
 
 
-def _article(**over: object) -> Article:
-    base: dict[str, object] = {"ulid": "01A", "title": "T", "collection_id": "C1"}
-    base.update(over)
-    return Article(**base)  # type: ignore[arg-type]
+def _article(**over: Any) -> Article:
+    base = Article(ulid=ID_01A, title="T", collection_id=ULID("C1"))
+    return replace(base, **over)
 
 
 def _archive_with(*articles_: Article) -> Archive:
@@ -50,11 +52,11 @@ def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
     real_save = articles.save_article
 
     def _save_error_first(
-        archive_: object, article: Article, version: int, *, changed_by: str
+        archive_: Archive, article: Article, version: int, *, changed_by: str
     ) -> object:
         if article.ulid == "01A":
             raise ArchiveError("media not stored before save")
-        return real_save(archive_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
+        return real_save(archive_, article, version, changed_by=changed_by)
 
     monkeypatch.setattr(articles, "save_article", _save_error_first)
     outcome = bulk.apply_bulk(archive, [ID_01A, ID_01B], "creator", "Y", changed_by="tester")
@@ -78,11 +80,11 @@ def test_apply_bulk_property_holds_across_pair_mismatch_and_archive_error(
     real_save = articles_mod.save_article
 
     def _save_error_for_c(
-        archive_: object, article: Article, version: int, *, changed_by: str
+        archive_: Archive, article: Article, version: int, *, changed_by: str
     ) -> object:
         if article.ulid == "01C":
             raise ArchiveError("media not stored before save")
-        return real_save(archive_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
+        return real_save(archive_, article, version, changed_by=changed_by)
 
     monkeypatch.setattr(articles_mod, "save_article", _save_error_for_c)
     outcome = bulk.apply_bulk(
