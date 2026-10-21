@@ -5,6 +5,7 @@ from dataclasses import replace
 from typing import Any
 
 import pytest
+from tests._articles import make_article
 
 from bundesarchiv.app import articles
 from bundesarchiv.app.archive import Archive
@@ -18,8 +19,7 @@ ID_01B = ULID("01B")
 
 
 def _article(**over: Any) -> Article:
-    base = Article(ulid=ID_01A, title="T", collection_id=ULID("C1"))
-    return replace(base, **over)
+    return replace(make_article("01A", collection_id="C1", title="T"), **over)
 
 
 def _archive_with(*articles_: Article) -> Archive:

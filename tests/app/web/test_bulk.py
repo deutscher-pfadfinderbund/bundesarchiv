@@ -2,6 +2,7 @@ from dataclasses import replace
 from typing import Any
 
 import pytest
+from tests._articles import make_article
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import bulk
@@ -47,8 +48,7 @@ _NO_BESTAND = CollectionChooser(lambda: ())
 
 
 def _article(**over: Any) -> Article:
-    base = Article(ulid=ID_01A, title="T", collection_id=ULID("C1"))
-    return replace(base, **over)
+    return replace(make_article("01A", collection_id="C1", title="T"), **over)
 
 
 def test_apply_scalar_empty_to_none() -> None:
