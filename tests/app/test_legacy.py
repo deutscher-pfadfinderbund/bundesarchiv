@@ -16,7 +16,6 @@ from PIL import Image
 
 from bundesarchiv.app import legacy
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.management.commands.import_legacy import CHANGED_BY
 from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import ULID, Lifecycle
@@ -610,7 +609,7 @@ def test_every_imported_version_names_the_import(tmp_path: Path) -> None:
         changes = [archive.articles.load(u).change for u in archive.articles.list_ulids()]
         changes += [archive.collections.load(c.ulid).change for c in archive.collections.load_all()]
     assert len(changes) == 5  # three Articles, two Bestände
-    assert {change.by if change else None for change in changes} == {CHANGED_BY}
+    assert {change.by if change else None for change in changes} == {legacy.CHANGED_BY}
 
 
 @pytest.mark.django_db

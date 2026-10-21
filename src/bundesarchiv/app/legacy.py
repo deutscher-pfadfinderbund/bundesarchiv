@@ -31,6 +31,10 @@ type Vocabulary = Collection[str]
 #: The Bestand for the rows whose `collection` is empty — a real, visible place, not a null.
 UNSORTED = "Unsortiert"
 
+#: The ``changed_by`` of every imported version (ADR 0019). Keycloak stores usernames lowercase,
+#: so the capitals keep it apart from any archivist's name.
+CHANGED_BY = "Legacy-Import"
+
 #: The custom key under which an unreadable date keeps its original words.
 DATE_TEMPLATE_KEY = "Datum (Vorlage)"
 
