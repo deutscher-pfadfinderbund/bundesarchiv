@@ -432,9 +432,9 @@ def _publish_post(corpus: Corpus, ulid: str, **overrides: str) -> dict[str, str]
 
 
 def test_publishing_an_unresolvable_chain_is_refused_by_the_SERVER(corpus: Corpus) -> None:
-    # The render half above hides the affordance; this is the half that actually holds. The state is
-    # reachable with ordinary UI actions: re-parent a Bestand under a missing parent (the article's
-    # own version is untouched, so CAS passes), then POST Veröffentlicht.
+    # The render half above hides the affordance; this is the half that actually holds. The broken chain
+    # needs a hand edit of the store (no UI re-parents a Bestand; v1 is sole-writer); the article's
+    # own version is untouched, so CAS passes.
     ulid = _article_whose_collection_chain_is_broken(corpus)
     before = corpus.articles.load(ULID(ulid))
     response = client_as(Archivist()).post(

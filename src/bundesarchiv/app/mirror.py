@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 #: How many keys of one finding a reconcile warning names.
 _SAMPLE = 20
 
-#: The `task` field of the reconcile's log lines, as the job summary in `tasks.py` has it.
+#: The `task` field of the reconcile's log lines, as the job summary in `jobs.py` has it.
 _TASK = "mirror_reconcile"
 
 #: Seconds between the progress lines of a reconcile.

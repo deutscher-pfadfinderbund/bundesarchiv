@@ -44,12 +44,16 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Indicator:** pair rules restated in 8 sites over 3 modules; 2 Dokumenttyp-option routes, 5 param aliases (2026-10-01, P5/W5)
 - **Evidence:** `catalog.py:149-160`, `bulk_views.py`, `bulk.py`, `catalog_views.py:995-1009`; `vocab.py` in `app/web` is imported by a command and injected into `legacy.py`. Every pair is valid today, so the refusal branches never run.
 - **Deletion test:** free text deletes all 8 pair rules and both routes; `vocab` lists become suggestions. `media_type` still names Medienart and MIME type: rename one.
+- **2026-10-21:** ruled in `docs/requirements/owner-interview-2026-08.md` ("Rulings of 2026-10-21"): Art becomes several independent questions (#72 folds in). The design waits on the archivists.
 
 ## Module map & packages
 
 ### 11. Cross-module private imports mark undeclared seams — Worth exploring
 - **Indicator:** 11 imports of 8 private names: 5 in `persistence/fixity.py`, 5 in `index`, 1 in `app/web`
-  (2026-10-01, better; 14 / 10 names on 2026-09-25; same AST count of `from bundesarchiv… import _name`)
+  (2026-10-01, better; 14 / 10 names on 2026-09-25; same AST count of `from bundesarchiv… import _name`).
+  2026-10-21, better: 2 cross-module, both from `index/scope.py` (`_viewer_scope`, `_scope_columns`); the strict
+  count is 6 imports of 4 names, the other 4 take the private `_front_matter`/`_change` modules inside `persistence`.
+  The 5 `module._name` reaches in `app/web/legacy_params.py` (`browse_views`, `landing`) are not counted.
 - **Evidence:** `media_views._not_found` ×5; `viewers`, `catalog`, `catalog_views`, `browse_views`,
   `index.models` and `index.scope` each hand one or two private names to siblings. Accreted.
 - **Sketch:** promote the deny helper to a public web-level name; each other name goes public on its
@@ -67,6 +71,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ### 34. Field labels are declared twice, "Typ" derived three ways — Worth exploring
 - **Indicator:** 6 labels in both `card.FIELDS` and `bulk.FIELDS`, a third time in `bulk.apply_field` (2026-10-01, W6)
 - **Evidence:** `card.py:138-293`, `bulk.py:61-71,153-168`, `ledger.py:39`, `browse_views.py:264,650`. Bite: `5c902a2`.
+- **Indicator 2026-10-21, partly better:** `card.LABELS` is one lookup (`reading.py`, `suggestions.py`); `bulk.FIELDS` and `ledger.COLUMNS` still restate labels.
 - **Sketch:** one label source both registries read; one rule for "Typ".
 
 ### 35. The post-write tail is written out six times — done (Wave LANDING, 2026-10-02: `app/after_write.py`)
@@ -82,6 +87,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ### 37. "What a non-Archivist may see" is declared in 7 places — Strong
 - **Indicator:** 7 declarations, 3 drift guards, 2 unguarded; 2 contradict on `audience` (2026-10-01, A2)
 - **Evidence:** `access.py:24,92`, `indexer.py:91,108-114`, `query.py:180-194`, `index/models.py:40-49`. Bite: `91900b3` (group names leaked), `ed4c054`.
+- **Indicator 2026-10-21, worse:** `query.HEADLINE_FIELDS` and `query._SUGGESTED_COLUMNS` declare member-visible subsets, each guarded by its own leak suite (`test_leaks_headlines.py`, `test_leaks_suggestions.py`), neither derived from `ARCHIVIST_ONLY_FIELDS`.
 - **Sketch:** one owner of the visible attributes; the Python/SQL scope pair stays two encodings.
 
 ### 38. One undecodable README stops every index writer — done (Wave CANON, 2026-10-01: `UnreadableReadme`, archivist-only row, CRLF/BOM decode; review UI flag not built)
@@ -97,6 +103,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ### 40. Persistence trusts a ulid as a key segment — Speculative
 - **Indicator:** `is_valid_ulid` checked 6× in web, 0× in persistence and domain (2026-10-01, P8)
 - **Evidence:** `repository.py:222`, `collections.py:103`.
+- **Indicator 2026-10-21, stable:** 6 call sites in `app/web`, 0 in persistence and domain.
 - **Sketch:** validate once where a key is built.
 
 ## Interfaces
@@ -110,6 +117,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Indicator:** 1 carve-out breaks "list == detail == reference" (2026-10-01, A7)
 - **Evidence:** `access.py:36-43`, `catalog_views.py:76-89`, `test_equivalence.py:24-33` (ADR 0012).
 - **Sketch:** ruled 2026-10-01: Archivists see it. Detail, pane and media stop 404ing for them.
+- **2026-10-21:** nothing leaks; only the Archivist sees the inconsistency (list shows; detail, pane and media 404; edit opens). Our own code cannot produce the state. The owner chooses: close it, or build the ruled detail half. Status unchanged.
 
 ### 26. A media route re-derives the version its own save started from — Worth exploring
 - **Indicator:** 1 site, `catalog_views._media_surface` (`version == held + 1`) (2026-10-01, stable; bit twice more: `eb71b4c`, `1452c38`)
@@ -173,7 +181,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ### 8. Trefferliste — name the results view-model — in progress (Wave LIST)
 - **Indicator:** ~20-key untyped dict; 6 `type: ignore` in `browse_views.py` (2026-09-02). Wave LIST:
   the `type: ignore`s are gone (`page: SearchPage`) and the ledger's rows and columns are typed
-  (`ledger.py`); the rest of `_results_context` is still a dict. 0 `type: ignore` (2026-10-01, stable).
+  (`ledger.py`); the rest of `_results_context` is still a dict. 0 `type: ignore` (2026-10-01, stable;
+  0 on 2026-10-21).
 - **Evidence:** `_results_context` + seven pure helpers inside the route; `page: object` although
   `SearchPage` is public. ~25 of ~60 workbench tests are pure link-algebra assertions each paying
   Postgres + corpus + rebuild + HTTP + HTML grep.
@@ -244,6 +253,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** n/a: a limit of the prefix, ruled out for the CSRF cookie by dropping its `__Host-` name (ADR 0025)
 - **Sketch:** ignore a login cookie whose raw name in the `Cookie` header is not its parsed name; or wait for Django to stop stripping
 
+### 59. Each test-only port override needs its own production refusal — Speculative
+- **Indicator:** 2 overrides (`BUNDESARCHIV_INDEX`, `BUNDESARCHIV_REALM`), each refused by hand in `index/wsgi.py` (2026-10-21)
+- **Evidence:** `app/archive.py` reads `BUNDESARCHIV_INDEX`, `app/web/viewers.py` reads `BUNDESARCHIV_REALM`. Bite: `5c4377ee` shipped the realm port without its refusal; `547a1e01` added it the same day.
+- **Sketch:** `tests/app/web/test_deploy_settings.py` derives its list from every `BUNDESARCHIV_*` override that prod settings do not define.
+
 ## Implementation patterns
 
 ### 51. Knobs are resolved at every use, not once per component — done (Wave KNOBS, 2026-10-01)
@@ -257,7 +271,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Residue:** `rebuild_thumbnails` stays the bulk build after a deploy; owner 2026-10-01: a normal step
 
 ### 27. The thumbnail root is resolved in six places — Worth exploring
-- **Indicator:** 6 `Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)` sites (2026-10-06; 5 on 2026-10-01 — `app/stats.py` joined)
+- **Indicator:** 6 `Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)` sites (2026-10-06; 5 on 2026-10-01 — `app/stats.py` joined; 6 on 2026-10-21, stable)
 - **Evidence:** `app/tasks.py`, `app/stats.py`, `app/web/media.py`, `import_legacy`, `browse_views`, `rebuild_thumbnails`
 - **Deletion test:** one `thumbnails.root()` removes five copies of the settings lookup
 - **Sketch:** `thumbnails.root() -> Path`; callers pass nothing
@@ -298,6 +312,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `articles.py:203`, `repository.py:68`; app law says every write names its author.
 - **Indicator 2026-10-01 (after Wave CLEAN):** 1 left, the unused `_by` at `catalog_views.py:663`; `mark_deleted` takes `changed_by`; app law now says every write that writes a version names its author.
 - **Sketch:** one keyword, `changed_by`, on every write.
+- **2026-10-21:** one `changed_by` keyword on every version write (articles, collections, `import_legacy`); `hard_delete` writes no version. Status unchanged; the owner decides on closing.
 
 ### 19. Compositions style inside components — done
 - **Indicator:** 0 composition reach-ins, the lint's allow-list deleted (2026-09-26; 44 → 37 → 1 → 0
@@ -315,7 +330,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ### 15. Archivist route gate spelled many ways — Strong
 - **Indicator:** 15 hand-written `request.method != …` re-checks in `app/web` (2026-10-01, worse; 8 on
-  2026-09-02); 13 `isinstance(…, Archivist)` sites in 9 modules (A8: the policy rework's real cost)
+  2026-09-02); 13 `isinstance(…, Archivist)` sites in 9 modules (A8: the policy rework's real cost).
+  2026-10-21, worse: 18 method checks (16 on 2026-10-07), a third gate shape in `suggestions.py` (Public or non-GET); 12 sites in 7 modules
 - **Evidence:** each write route gates itself; a forgotten gate is open to every Member at runtime
   (only the leak matrix catches it, in tests). Owner 2026-10-01: archivist-only is the default.
 - **Sketch:** a middleware after the anonymous gate makes every route archivist-only; a view opts
