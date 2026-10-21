@@ -16,6 +16,9 @@ _WEB_TEMPLATES = Path(__file__).resolve().parent.parent / "app" / "web" / "templ
 # via ``STATICFILES_DIRS`` (ADR 0016).
 _WEB_STATIC = Path(__file__).resolve().parent.parent / "app" / "web" / "static"
 
+# The one default for gunicorn's thread count: deploy/gunicorn.conf.py reads it from here.
+GUNICORN_THREADS = int(os.environ.get("GUNICORN_THREADS") or "8")
+
 
 def _databases_from_dsn(dsn: str) -> dict[str, dict[str, object]]:
     """No dj-database-url on purpose: the DSN shape is fixed."""
@@ -30,6 +33,11 @@ def _databases_from_dsn(dsn: str) -> dict[str, dict[str, object]]:
             "PASSWORD": unquote(url.password or ""),
             "HOST": url.hostname or "",
             "PORT": str(url.port or ""),
+            # A pooled connection may have died with a Postgres restart: check it before handing out.
+            "CONN_HEALTH_CHECKS": True,
+            # Each gunicorn thread holds at most one connection; a pool smaller than the threads
+            # makes a request wait for a free one, then fail.
+            "OPTIONS": {"pool": {"min_size": 1, "max_size": GUNICORN_THREADS}},
         }
     }
 
