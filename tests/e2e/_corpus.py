@@ -157,33 +157,33 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     minutes = articles.add_media(
         CEILING_ULID, MINUTES_FILENAME, BytesIO(_pdf()), media_type="application/pdf"
     )
-    articles.save(
-        Article(
-            ulid=PUBLISHED_ULID,
-            title="Sommerfahrt 1962",
-            collection_id=ID_FOTOS,
-            lifecycle=Lifecycle.PUBLISHED,
-            # A multi-paragraph body, so the detail states exercise the prose+card split.
-            body=(
-                "Die Sommerfahrt führte die Gruppe im Juli 1962 in den Harz.\n\n"
-                "Aufgenommen wurden Porträts am Lagerfeuer sowie ein Gruppenbild vor der Hütte.\n\n"
-                "Der Bestand dokumentiert die Ferienlager der frühen 1960er Jahre."
-            ),
-            ref_code="F12",
-            media_type="Foto(s)",
-            document_type="Zeitschrift",
-            tags=("fahrt", "sommer"),
-            date=EdtfDate("1962-07"),
-            creator="K. Meyer",
-            subject_place="Harz",
-            media=(
-                MediaRef(cover.filename, cover.content_hash, caption="Am Lagerfeuer"),
-                MediaRef(plate.filename, plate.content_hash, caption="Gruppenbild"),
-                report,
-            ),
+    sommerfahrt = Article(
+        ulid=PUBLISHED_ULID,
+        title="Sommerfahrt 1962",
+        collection_id=ID_FOTOS,
+        lifecycle=Lifecycle.PUBLISHED,
+        # A multi-paragraph body, so the detail states exercise the prose+card split.
+        body=(
+            "Die Sommerfahrt führte die Gruppe im Juli 1962 in den Harz.\n\n"
+            "Aufgenommen wurden Porträts am Lagerfeuer sowie ein Gruppenbild vor der Hütte.\n\n"
+            "Der Bestand dokumentiert die Ferienlager der frühen 1960er Jahre."
         ),
-        0,
-        changed_by="tester",
+        ref_code="F12",
+        media_type="Foto(s)",
+        document_type="Zeitschrift",
+        tags=("fahrt", "sommer"),
+        date=EdtfDate("1962-07"),
+        creator="K. Meyer",
+        subject_place="Harz",
+        media=(
+            MediaRef(cover.filename, cover.content_hash, caption="Am Lagerfeuer"),
+            MediaRef(plate.filename, plate.content_hash, caption="Gruppenbild"),
+            report,
+        ),
+    )
+    # two versions by two archivists: the article page's version list
+    articles.save(
+        sommerfahrt, articles.save(sommerfahrt, 0, changed_by="anna.k"), changed_by="tester"
     )
     articles.save(
         Article(

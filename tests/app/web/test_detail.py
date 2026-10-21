@@ -38,6 +38,7 @@ from bundesarchiv.domain.models import (
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence._layout import ARTICLES
+from bundesarchiv.persistence._writer import history_key
 
 # The detail page only PRINTS the Bestand id (as a ?collection= facet link) and never routes on it, so
 # a mnemonic reads better here than a ULID.
@@ -383,6 +384,51 @@ def test_a_readme_without_a_change_record_renders_without_the_line(edited: Corpu
     assert response.status_code == 200
     assert day not in response.content.decode()
     assert _EDITOR not in response.content.decode()
+
+
+# --- who edited when: every version, an archivist's alone (#71 slice 2) -----------
+
+_FIRST_EDITOR, _SECOND_EDITOR = "anna.k", "ben.m"
+
+
+@pytest.fixture
+def twice_edited(make_corpus: Callable[[], Corpus]) -> Corpus:
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    article = make_article(PUB, collection_id=FOTOS)
+    archive.articles.save(article, 0, changed_by=_FIRST_EDITOR)
+    archive.articles.save(article, 1, changed_by=_SECOND_EDITOR)
+    return archive
+
+
+@pytest.mark.parametrize("viewer", [Public(), Member(groups=()), Member(groups=("Leitung",))])
+def test_no_non_archivist_learns_who_edited_any_version(
+    twice_edited: Corpus, viewer: Viewer
+) -> None:
+    body = _body(viewer, PUB)
+    assert _FIRST_EDITOR not in body
+    assert _SECOND_EDITOR not in body
+
+
+def test_an_archivist_sees_every_version_with_its_date_and_editor(twice_edited: Corpus) -> None:
+    articles = twice_edited.articles
+    versions = articles.versions(articles.load(ULID(PUB)))
+    body = _body(Archivist(), PUB)
+    assert [number for number, _ in versions] == [1, 2]
+    for _, change in versions:
+        assert change is not None
+        assert change.by in body
+        assert change.at.isoformat() in body
+
+
+def test_an_unreadable_kept_version_leaves_the_page_standing(twice_edited: Corpus) -> None:
+    kept = twice_edited.root / history_key(ARTICLES.folder(ULID(PUB)), 1)
+    kept.write_bytes(b"\xff\xfe\x00")
+    response = client_as(Archivist()).get(f"/articles/{PUB}")
+    assert response.status_code == 200
+    assert _SECOND_EDITOR in response.content.decode()
 
 
 # --- draft visibility (archivist-only, §9) ----------------------------------------

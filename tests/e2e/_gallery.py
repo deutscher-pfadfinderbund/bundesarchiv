@@ -207,6 +207,11 @@ def _reach_detail_actions_open(page: Page, base: str, corpus: CorpusHandles) -> 
     page.click(".split-button .menu-button")
 
 
+def _reach_detail_versions_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
+    page.click('[popovertarget="versions"]')
+
+
 def _reach_detail_delete_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
     page.click(".split-button .menu-button")
@@ -444,6 +449,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the article page, the split button's menu open (Duplizieren, Löschen)",
         True,
         _reach_detail_actions_open,
+    ),
+    GalleryState(
+        "detail-versions-open",
+        "the article page of a record edited twice, its version list open (who edited when)",
+        True,
+        _reach_detail_versions_open,
     ),
     GalleryState(
         "detail-lightbox-open",

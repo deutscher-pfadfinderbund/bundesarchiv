@@ -625,7 +625,8 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         # only an Archivist reaches a marked Article (ADR 0022): its page shows the Papierkorb state
         "deleted": None if mark is None else {"at": vocab.day(mark.at), "by": mark.by},
         # a Papierkorb mark already is the last change
-        "last_change": None if mark is not None else _last_change(resolution.change),
+        "last_change": None if mark is not None else _change(resolution.change),
+        "versions": _versions(resolution.versions()),
         "version": resolution.version,
         # preview() names groups and ignores the lifecycle: archivists only (part-4-web.md)
         "publish_statement": (
@@ -663,7 +664,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     }
 
 
-def _last_change(change: Change | None) -> dict[str, object] | None:
+def _change(change: Change | None) -> dict[str, object] | None:
     if change is None:
         return None
     return {
@@ -673,6 +674,15 @@ def _last_change(change: Change | None) -> dict[str, object] | None:
         "by": change.by,
         "imported": change.by == legacy.CHANGED_BY,
     }
+
+
+def _versions(versions: tuple[tuple[Version, Change | None], ...]) -> tuple[dict[str, object], ...]:
+    """Newest first. One version alone would only repeat the last-change line: no list then."""
+    if len(versions) < 2:
+        return ()
+    return tuple(
+        {"number": number, "change": _change(change)} for number, change in reversed(versions)
+    )
 
 
 def trash(request: HttpRequest) -> HttpResponseBase:

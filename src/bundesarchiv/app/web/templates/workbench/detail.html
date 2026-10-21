@@ -3,7 +3,7 @@
 {% comment %}
 The article page (a3 mock, docs/design/explorations/2026-09-26-monochrome/a3-artikel). ONE template fed
 a visible-projected Article: project() floors the archivist-only values (Standort, Weitere Angaben)
-and project_change() the last change before they reach here, so the {% templatetag openblock %} if {% templatetag closeblock %} that omits an absent value omits a floored one — no
+and project_change() / project_versions() the last change and the versions before they reach here, so the {% templatetag openblock %} if {% templatetag closeblock %} that omits an absent value omits a floored one — no
 member/archivist fork (spec §4/§10). Only the tools are presentation-gated on is_archivist.
 {% endcomment %}
 {% block title %}{{ title }} — Bundesarchiv{% endblock %}
@@ -24,6 +24,26 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
             <time datetime="{{ last_change.datetime }}" title="{{ last_change.moment }}">{{ last_change.day }}</time>
             {% if not last_change.imported %}von {{ last_change.by }}{% endif %}
           </span>
+          {% endif %}
+          {% if versions %}
+          <button class="link" type="button" popovertarget="versions">{{ versions|length }} Versionen</button>
+          <div class="popover" id="versions" popover>
+            <dl>
+              {% for version in versions %}
+              <dt>Version {{ version.number }}</dt>
+              <dd>
+                {% if version.change %}
+                {% if version.change.imported %}Übernommen aus dem alten Archiv{% elif version.number == 1 %}Angelegt{% else %}Bearbeitet{% endif %}
+                am
+                <time datetime="{{ version.change.datetime }}" title="{{ version.change.moment }}">{{ version.change.day }}</time>
+                {% if not version.change.imported %}von {{ version.change.by }}{% endif %}
+                {% else %}
+                nicht vermerkt
+                {% endif %}
+              </dd>
+              {% endfor %}
+            </dl>
+          </div>
           {% endif %}
           {% if is_archivist and deleted %}
           <span class="mark">Gelöscht am {{ deleted.at }} von {{ deleted.by }}</span>
