@@ -78,9 +78,8 @@ amend/confirm ADR 0004; discard both prototypes.
   (nginx `internal;`), correct Content-Type from MediaRef, Range delegated to
   nginx. The public URL namespace never encodes filesystem paths; media URLs
   are `/media/<article-ulid>/<content-hash>` — resolution happens in the view.
-- Denial semantics: 404 (existence-hiding), **byte-identical** across "no such
-  article" / "no such blob" / "not permitted" — same headers, no Content-Type/
-  Content-Length divergence — and authorization runs and denies BEFORE any
+- Denial semantics: a plain 404 that reveals nothing (existence-hiding; the deny contract) for "no such
+  article" / "no such blob" / "not permitted", and authorization runs and denies BEFORE any
   blob/thumbnail existence lookup (no timing/metadata oracle).
 - Thumbnails: worker job per image blob (content-hash keyed, regenerable,
   pruned freely, NOT backed up); served through the same seam with the same
@@ -163,8 +162,9 @@ fixed in code for v1.
 ## 4.10 Hardening gate (part exit)
 
 - Route-level leak suite: every URL × every viewer tier (incl. anonymous →
-  login redirect), asserting both response status AND absence of floored
-  fields in any 200 body.
+  login redirect), asserting response status (the route x tier matrix); absence of floored
+  fields in a 200 body is asserted by the detail and list tests (`test_detail.py`,
+  `test_workbench.py`).
 - Staleness gate test green (4.2).
 - Media leak tests green (4.3).
 - `/simplify` + adversarial review pass (same discipline as Parts 1–3).
@@ -193,7 +193,7 @@ design-gate passes per wave):
   (every canonical state x 2 modes x 2 widths); the design-gate review medium.
 - **4.10 hardening gate** (this part-exit) — the route x tier leak matrix
   (`tests/app/web/test_leak_matrix.py`: every prod route x every viewer tier x
-  {GET, POST}, byte-identical-404 on every deny, exhaustive against the
+  {GET, POST}, the plain deny 404 on every deny, exhaustive against the
   urlconf, dev-by-absence proven); the whole-slice simplify pass; these docs.
 
 **Deferred (with a home):**
@@ -212,7 +212,7 @@ design-gate passes per wave):
 
 **Corrections to this plan's earlier text:** the 4.10 leak suite does NOT do an
 "anonymous → login redirect" (that assumed Keycloak); v1 floors an anonymous
-request to `Public()` and denies with the byte-identical 404. Login lands with
+request to `Public()` and denies with the plain 404. Login lands with
 Keycloak in Part 5. The **CSRF middleware** (absent under the Part 4.3 "tiny
 settings") was enabled at 4.7 — see the ADR 0004 update.
 

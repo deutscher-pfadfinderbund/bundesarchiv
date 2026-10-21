@@ -1,9 +1,6 @@
 #!/usr/bin/env python
-"""Django management entrypoint — migrations-only.
-
-Django is present solely as the search-index adapter (ADR 0004/0005); nothing serves
-HTTP. In practice this is used for ``migrate`` (and ``makemigrations`` / ``check``)
-against the derived Postgres index. See the README dev-setup section.
+"""Django's management entrypoint. The web is served through ``bundesarchiv.index.wsgi``; see the
+README dev-setup section.
 """
 
 import os

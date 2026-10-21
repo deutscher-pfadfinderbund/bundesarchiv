@@ -297,7 +297,7 @@ Every media/thumbnail byte is served ONLY by the authorized view at
 `/media/<article-ulid>/<content-hash>` (+ `/thumb`), which resolves the viewer and
 calls `can_view` on the resolved Collection chain before handing off to the one
 `media_response` seam. The media tree is never web-root reachable;
-denials/absence are byte-identical 404s.
+denials/absence are the plain 404 that reveals nothing (the deny contract).
 
 - `BUNDESARCHIV_X_ACCEL_PREFIX` — set in production (behind nginx):
   `media_response` returns an `X-Accel-Redirect` to
