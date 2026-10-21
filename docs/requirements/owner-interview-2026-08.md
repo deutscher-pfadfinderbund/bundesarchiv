@@ -974,3 +974,16 @@ missing records; "N von M gespeichert"; the error pages' wording.
 - The list's column cookie becomes `columns`; saved column choices reset once.
 - The Papierkorb's English term is **Trash**. The start page's areas are `timeline`, `by_media_type`
   and `recent`.
+
+## Rulings of 2026-10-21 (Art, Standort, CSRF cookie)
+
+- **Medienart and Dokumenttyp get rethought**, not just opened up to free text. Issue #72 (the
+  lists leave the web layer) is done as part of this rework.
+- **Art and Standort are stored structurally: as their levels, in each record**, in words — not as
+  one free string, and not as references to managed entries. Fully free text makes edits harder.
+- **The Art input (one field or two) is settled with the archivists** before anything is built.
+- **The physical Standort may become its own issue:** one Article can have several copies in several
+  places (#57), so the Standort may move to each copy. It is settled with the archivists too.
+- **The CSRF cookie keeps Django's default name.** The `__Host-` prefix does not hold under Django's
+  cookie parser, and the Origin check already refuses cross-site posts. The login cookies keep
+  `__Host-` (ADR 0025, `docs/tech-debt.md` #58).
