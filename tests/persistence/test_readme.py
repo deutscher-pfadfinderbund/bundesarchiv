@@ -5,8 +5,10 @@ import sys
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
+from tests._articles import make_article
 from tests._readmes import HAND_SAVED
 
 from bundesarchiv.domain.edtf import EdtfDate
@@ -29,21 +31,19 @@ ID_X = ULID("x")
 _CHANGE = Change(datetime(2026, 9, 25, 10, 30, tzinfo=UTC), "anna")
 
 
-def _article(**overrides: object) -> Article:
-    defaults: dict[str, object] = {
-        "ulid": "01J0",
-        "title": "Zeltlager 1955",
-        "collection_id": "coll-fotos",
-        "body": "Ein Foto.\n\n## Details\n\n---\n\nSchwarz-weiß.",
-        "lifecycle": Lifecycle.PUBLISHED,
-        "audience": Audience(AudienceTier.GROUPS, ("bundesfuehrung",)),
-        "ref_code": "Foto-1955/007",
-        "tags": ("zeltlager", "1955"),
-        "media": (MediaRef("photo.jpg", "a" * 64, "image/jpeg", 1234),),
-        "added_at": datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC),
-    }
-    defaults.update(overrides)
-    return Article(**defaults)  # type: ignore[arg-type]
+def _article(**overrides: Any) -> Article:
+    base = make_article(
+        "01J0",
+        collection_id="coll-fotos",
+        title="Zeltlager 1955",
+        body="Ein Foto.\n\n## Details\n\n---\n\nSchwarz-weiß.",
+        audience=Audience(AudienceTier.GROUPS, ("bundesfuehrung",)),
+        ref_code="Foto-1955/007",
+        tags=("zeltlager", "1955"),
+        media=(MediaRef("photo.jpg", "a" * 64, "image/jpeg", 1234),),
+        added_at=datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC),
+    )
+    return replace(base, **overrides)
 
 
 def test_encode_decode_round_trips_every_field() -> None:

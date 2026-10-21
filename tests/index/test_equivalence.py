@@ -6,6 +6,7 @@ The one allowed gap: a fail-closed row is index-visible to the Archivist but ``c
 from collections.abc import Iterator, Mapping
 
 import pytest
+from pytest_django.plugin import DjangoDbBlocker
 from tests.index import fixtures
 
 from bundesarchiv.domain.access import can_view
@@ -139,7 +140,7 @@ def _build_grid() -> _Grid:
 
 
 @pytest.fixture(scope="module")
-def grid(django_db_setup: None, django_db_blocker: pytest.FixtureRequest) -> Iterator[_Grid]:
+def grid(django_db_setup: None, django_db_blocker: DjangoDbBlocker) -> Iterator[_Grid]:
     yield from fixtures.indexed_corpus(django_db_blocker, _build_grid)
 
 

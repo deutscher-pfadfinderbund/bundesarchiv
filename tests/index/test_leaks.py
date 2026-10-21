@@ -5,6 +5,7 @@ decade.
 from collections.abc import Iterator
 
 import pytest
+from pytest_django.plugin import DjangoDbBlocker
 from tests.index import fixtures
 from tests.index.fixtures import (
     ARCHIVIST,
@@ -37,7 +38,7 @@ _NON_ARCHIVIST_TIERS = (
 
 @pytest.fixture(scope="module")
 def _indexed(
-    django_db_setup: None, django_db_blocker: pytest.FixtureRequest
+    django_db_setup: None, django_db_blocker: DjangoDbBlocker
 ) -> Iterator[indexer.RebuildReport]:
     yield from fixtures.indexed_corpus(django_db_blocker, fixtures.build_index)
 

@@ -3,8 +3,11 @@
 import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, wait
+from dataclasses import replace
+from typing import Any
 
 import pytest
+from tests._articles import make_article
 from tests._readmes import UNREADABLE_README
 
 from bundesarchiv.domain.edtf import EdtfDate
@@ -29,15 +32,8 @@ ID_FOTOS = ULID("FOTOS")
 ID_ROOT = ULID("ROOT")
 
 
-def _article(collection_id: str, ulid: str, **overrides: object) -> Article:
-    defaults: dict[str, object] = {
-        "ulid": ulid,
-        "title": "Ein Titel",
-        "collection_id": collection_id,
-        "lifecycle": Lifecycle.PUBLISHED,
-    }
-    defaults.update(overrides)
-    return Article(**defaults)  # type: ignore[arg-type]
+def _article(collection_id: str, ulid: str, **overrides: Any) -> Article:
+    return replace(make_article(ulid, collection_id=collection_id, title="Ein Titel"), **overrides)
 
 
 @pytest.fixture

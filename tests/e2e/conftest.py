@@ -5,6 +5,7 @@ middleware.
 import os
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 # Playwright's sync API runs an event loop in its worker thread; Django then flags any ORM call
@@ -36,8 +37,8 @@ def _no_csp_violations(browser: Browser, monkeypatch: pytest.MonkeyPatch) -> Ite
     violations: list[str] = []
     new_context = browser.new_context
 
-    def guarded(**kwargs: object) -> BrowserContext:
-        context = new_context(**kwargs)  # type: ignore[arg-type]
+    def guarded(**kwargs: Any) -> BrowserContext:
+        context = new_context(**kwargs)
         context.expose_binding("__cspViolation", lambda _source, v: violations.append(v))
         context.add_init_script(_REPORT_CSP_VIOLATIONS)
         return context

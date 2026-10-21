@@ -1,3 +1,6 @@
+from dataclasses import replace
+from typing import Any
+
 import pytest
 
 from bundesarchiv.app.archive import Archive
@@ -43,10 +46,9 @@ def test_allowed_field_accepted() -> None:
 _NO_BESTAND = CollectionChooser(lambda: ())
 
 
-def _article(**over: object) -> Article:
-    base: dict[str, object] = {"ulid": "01A", "title": "T", "collection_id": "C1"}
-    base.update(over)
-    return Article(**base)  # type: ignore[arg-type]
+def _article(**over: Any) -> Article:
+    base = Article(ulid=ID_01A, title="T", collection_id=ULID("C1"))
+    return replace(base, **over)
 
 
 def test_apply_scalar_empty_to_none() -> None:
@@ -150,11 +152,11 @@ def test_apply_bulk_conflict_buckets_and_does_not_abort(monkeypatch: pytest.Monk
     real_save = articles.save_article
 
     def _save_conflict_first(
-        archive_: object, article: Article, version: int, *, changed_by: str
+        archive_: Archive, article: Article, version: int, *, changed_by: str
     ) -> object:
         if article.ulid == "01A":
             raise Conflict("raced")
-        return real_save(archive_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
+        return real_save(archive_, article, version, changed_by=changed_by)
 
     monkeypatch.setattr(articles, "save_article", _save_conflict_first)
     outcome = bulk.apply_bulk(archive, [ID_01A, ID_01B], "creator", "Y", changed_by="tester")

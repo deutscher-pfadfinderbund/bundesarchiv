@@ -3,17 +3,18 @@
 import io
 import json
 import logging
+from typing import Any
 
 from bundesarchiv.app.jsonlog import JsonFormatter
 
 
-def _emit(log: logging.Logger, message: str, **kwargs: object) -> list[str]:
+def _emit(log: logging.Logger, message: str, **kwargs: Any) -> list[str]:
     stream = io.StringIO()
     handler = logging.StreamHandler(stream)
     handler.setFormatter(JsonFormatter())
     log.addHandler(handler)
     try:
-        log.error(message, **kwargs)  # type: ignore[arg-type]
+        log.error(message, **kwargs)
     finally:
         log.removeHandler(handler)
     return stream.getvalue().splitlines()

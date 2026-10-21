@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 import pytest
+from django.http import HttpRequest
 from django.test import RequestFactory
 from tests._login import viewer_cookies
 from tests.app.web._fixtures import PUB, Corpus, make_article, make_collection
@@ -34,7 +35,7 @@ def archive(make_corpus: Callable[[], Corpus]) -> Corpus:
     return corpus
 
 
-def _request(viewer: Viewer):  # type: ignore[no-untyped-def]
+def _request(viewer: Viewer) -> HttpRequest:
     request = RequestFactory().get(f"/articles/{PUB_ULID}")
     request.COOKIES.update(viewer_cookies(viewer))
     return request

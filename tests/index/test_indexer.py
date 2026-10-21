@@ -1,7 +1,10 @@
 import datetime
 import io
+from dataclasses import replace
+from typing import Any
 
 import pytest
+from tests._articles import make_article
 
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.edtf import EdtfDate
@@ -30,10 +33,8 @@ _CAP_YEAR = 2026
 # ---------------------------------------------------------------------------
 
 
-def _root(ulid: str = "ROOT", **overrides: object) -> Collection:
-    defaults: dict[str, object] = {"ulid": ulid, "name": "Root", "parent_id": None}
-    defaults.update(overrides)
-    return Collection(**defaults)  # type: ignore[arg-type]
+def _root(ulid: str = "ROOT", **overrides: Any) -> Collection:
+    return replace(Collection(ULID(ulid), "Root", None), **overrides)
 
 
 def _chain(*collections: Collection) -> ResolvedChain:
@@ -41,15 +42,9 @@ def _chain(*collections: Collection) -> ResolvedChain:
     return ResolvedChain(collections)
 
 
-def _article(collection_id: str = "ROOT", **overrides: object) -> Article:
-    defaults: dict[str, object] = {
-        "ulid": "01ART",
-        "title": "Ein Titel",
-        "collection_id": collection_id,
-        "lifecycle": Lifecycle.PUBLISHED,
-    }
-    defaults.update(overrides)
-    return Article(**defaults)  # type: ignore[arg-type]
+def _article(collection_id: str = "ROOT", **overrides: Any) -> Article:
+    base = make_article("01ART", collection_id=collection_id, title="Ein Titel")
+    return replace(base, **overrides)
 
 
 # ===========================================================================

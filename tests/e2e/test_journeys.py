@@ -3,6 +3,7 @@ import re
 import time
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -289,13 +290,19 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
 }"""
 
 
+def _left_edge(locator: Locator) -> float:
+    box = locator.bounding_box()
+    assert box is not None
+    return box["x"]
+
+
 def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]]]:
     """Keyed ``<name>#<index>`` because names repeat. Overlay entries are measurable only while
     open, so each overlay is opened in turn."""
-    rows: list[dict[str, object]] = page.evaluate(_CONTROL_ROW_WALKER_JS, OVERLAY_PANELS)
+    rows: list[dict[str, Any]] = page.evaluate(_CONTROL_ROW_WALKER_JS, OVERLAY_PANELS)
     walked: dict[str, list[dict[str, str | int | bool]]] = {}
     for i, row in enumerate(rows):
-        walked[f"{row['name']}#{i}"] = row["controls"]  # type: ignore[assignment]
+        walked[f"{row['name']}#{i}"] = row["controls"]
     triggers = page.locator(OVERLAY_TRIGGERS)
     for index in range(triggers.count()):
         trigger = triggers.nth(index)
@@ -1560,7 +1567,7 @@ def test_a_long_suggestion_list_holds_its_layout_on_a_phone(
     # a kind above its options sits on their text edge
     title = suggestions.locator("[role=option] > span").first
     kind = suggestions.locator(".autocomplete-kind").first
-    assert kind.evaluate(_TEXT_EDGE) == pytest.approx(title.bounding_box()["x"], abs=0.5)  # type: ignore[index]
+    assert kind.evaluate(_TEXT_EDGE) == pytest.approx(_left_edge(title), abs=0.5)
     # the list ends within the viewport, and the option the keys reach is scrolled into it
     for _ in range(suggestions.locator("[role=option]").count()):
         page.keyboard.press("ArrowDown")
@@ -1583,7 +1590,7 @@ def test_a_suggestion_kind_beside_its_options_shares_their_baseline(
     assert kind.evaluate(_BASELINE) == pytest.approx(title.evaluate(_BASELINE), abs=0.5)
     # the kind column starts on the text edge of the entry that spans the list
     every = suggestions.locator(".autocomplete-all > span")
-    assert kind.evaluate(_TEXT_EDGE) == pytest.approx(every.bounding_box()["x"], abs=0.5)  # type: ignore[index]
+    assert kind.evaluate(_TEXT_EDGE) == pytest.approx(_left_edge(every), abs=0.5)
     page.context.close()
 
 

@@ -1,8 +1,10 @@
 """The archive statistics record the reconcile logs: its fields on a tiny corpus."""
 
 import io
+from pathlib import Path
 
 import pytest
+from pytest_django.fixtures import Settings
 
 from bundesarchiv.app import stats
 from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Collection, Lifecycle
@@ -14,9 +16,9 @@ from bundesarchiv.persistence.repository import ArticleRepository
 
 @pytest.mark.django_db
 def test_the_stats_record_and_one_record_per_media_type(
-    caplog: pytest.LogCaptureFixture, tmp_path: pytest.TempPathFactory, settings: object
+    caplog: pytest.LogCaptureFixture, tmp_path: Path, settings: Settings
 ) -> None:
-    settings.BUNDESARCHIV_THUMBNAIL_ROOT = str(tmp_path)  # type: ignore[attr-defined]
+    settings.BUNDESARCHIV_THUMBNAIL_ROOT = str(tmp_path)
     store = InMemoryObjectStore()
     CollectionRepository(store).save(
         Collection(ULID("PUB"), "Offen", audience=Audience(AudienceTier.PUBLIC)), 0, changed_by="t"

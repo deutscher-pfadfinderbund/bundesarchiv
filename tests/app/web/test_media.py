@@ -7,7 +7,9 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from django.test import override_settings
+from django.http import HttpResponse, StreamingHttpResponse
+from django.http.response import HttpResponseBase
+from django.test import RequestFactory, override_settings
 from PIL import Image
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import (
@@ -140,12 +142,12 @@ def corpus(
         yield built
 
 
-def _body(response: object) -> bytes:
+def _body(response: HttpResponseBase) -> bytes:
     """The full response body whether streamed (FileResponse) or buffered (the 404)."""
-    if getattr(response, "streaming", False):
-        return b"".join(response.streaming_content)  # type: ignore[attr-defined]
-    content: bytes = response.content  # type: ignore[attr-defined]
-    return content
+    if isinstance(response, StreamingHttpResponse):
+        return response.getvalue()
+    assert isinstance(response, HttpResponse)
+    return response.content
 
 
 # --- fixtures for the per-tier grid ----------------------------------------------
@@ -359,13 +361,12 @@ def test_hostile_filename_cannot_inject_a_response_header(corpus: _TierCorpus) -
     article = Article(
         ulid=ULID(corpus.ulid_by_tier["public"]), title="x", collection_id=ULID("PUB"), media=(ref,)
     )
-    factory_request = None  # media_response ignores request for header building
     with override_settings(BUNDESARCHIV_X_ACCEL_PREFIX="/_protected"):
         response = media_response(
             Archive.of(corpus.store),
             article,
             ref,
-            factory_request,  # type: ignore[arg-type]
+            RequestFactory().get("/"),
         )
     disposition = response["Content-Disposition"]
     assert "\r" not in disposition and "\n" not in disposition
