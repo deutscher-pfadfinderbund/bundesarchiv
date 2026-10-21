@@ -21,13 +21,23 @@ from tests.app.web._fixtures import (
     page_hrefs,
 )
 
+from bundesarchiv.app import legacy
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import generate_thumbnail
+from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.media_urls import display_url, media_url, thumbnail_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle, MediaRef
+from bundesarchiv.domain.models import (
+    ULID,
+    Audience,
+    AudienceTier,
+    Change,
+    Lifecycle,
+    MediaRef,
+)
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
+from bundesarchiv.persistence._layout import ARTICLES
 
 # The detail page only PRINTS the Bestand id (as a ?collection= facet link) and never routes on it, so
 # a mnemonic reads better here than a ULID.
@@ -311,6 +321,68 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
         _CUSTOM_KEY,
         _CUSTOM_VALUE,
     }
+
+
+# --- the last change: an archivist's alone (owner ruling 2026-10-21) --------------
+
+_EDITOR = "anna.k"
+
+
+@pytest.fixture
+def edited(make_corpus: Callable[[], Corpus]) -> Corpus:
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    archive.articles.save(make_article(PUB, collection_id=FOTOS), 0, changed_by=_EDITOR)
+    return archive
+
+
+def _change_of(archive: Corpus, ulid: str) -> Change:
+    change = archive.articles.load(ULID(ulid)).change
+    assert change is not None
+    return change
+
+
+@pytest.mark.parametrize("viewer", [Public(), Member(groups=()), Member(groups=("Leitung",))])
+def test_no_non_archivist_learns_who_last_changed_a_record(edited: Corpus, viewer: Viewer) -> None:
+    assert _EDITOR not in _body(viewer, PUB)
+
+
+def test_an_archivist_sees_who_last_changed_a_record_and_when(edited: Corpus) -> None:
+    body = _body(Archivist(), PUB)
+    assert _EDITOR in body
+    assert vocab.day(_change_of(edited, PUB).at) in body
+
+
+def test_an_imported_version_names_the_old_archive_not_the_import(
+    make_corpus: Callable[[], Corpus],
+) -> None:
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    archive.articles.save(make_article(PUB, collection_id=FOTOS), 0, changed_by=legacy.CHANGED_BY)
+    body = _body(Archivist(), PUB)
+    assert vocab.day(_change_of(archive, PUB).at) in body
+    assert legacy.CHANGED_BY not in body
+
+
+def test_a_readme_without_a_change_record_renders_without_the_line(edited: Corpus) -> None:
+    """A README written before ADR 0019 carries no change record."""
+    day = vocab.day(_change_of(edited, PUB).at)
+    readme = edited.root / ARTICLES.readme_key(ULID(PUB))
+    readme.write_text(
+        "".join(
+            line
+            for line in readme.read_text().splitlines(keepends=True)
+            if not line.startswith(("changed_at:", "changed_by:"))
+        )
+    )
+    response = client_as(Archivist()).get(f"/articles/{PUB}")
+    assert response.status_code == 200
+    assert day not in response.content.decode()
+    assert _EDITOR not in response.content.decode()
 
 
 # --- draft visibility (archivist-only, §9) ----------------------------------------

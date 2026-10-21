@@ -45,6 +45,7 @@
   /* the tools are a control row (law C8) */
   .record-head > .actions {
     --control-height: var(--touch-target-compact);
+    --mark-wrap: normal; /* its marks name a person: a long name wraps instead of widening the page */
   }
 
   /* the Beschreibung: the record's lede, at reading measure */

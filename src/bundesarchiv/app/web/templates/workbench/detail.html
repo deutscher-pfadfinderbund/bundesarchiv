@@ -3,7 +3,7 @@
 {% comment %}
 The article page (a3 mock, docs/design/explorations/2026-09-26-monochrome/a3-artikel). ONE template fed
 a visible-projected Article: project() floors the archivist-only values (Standort, Weitere Angaben)
-before they reach here, so the {% templatetag openblock %} if {% templatetag closeblock %} that omits an absent value omits a floored one — no
+and project_change() the last change before they reach here, so the {% templatetag openblock %} if {% templatetag closeblock %} that omits an absent value omits a floored one — no
 member/archivist fork (spec §4/§10). Only the tools are presentation-gated on is_archivist.
 {% endcomment %}
 {% block title %}{{ title }} — Bundesarchiv{% endblock %}
@@ -15,16 +15,23 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
     <header>
       <div class="record-head">
         <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-        {% if is_archivist and deleted %}
+        {% if last_change or is_archivist %}
         <div class="actions">
+          {% if last_change %}
+          <span class="mark">
+            {% if last_change.imported %}Übernommen aus dem alten Archiv{% else %}Zuletzt bearbeitet{% endif %}
+            am
+            <time datetime="{{ last_change.datetime }}" title="{{ last_change.moment }}">{{ last_change.day }}</time>
+            {% if not last_change.imported %}von {{ last_change.by }}{% endif %}
+          </span>
+          {% endif %}
+          {% if is_archivist and deleted %}
           <span class="mark">Gelöscht am {{ deleted.at }} von {{ deleted.by }}</span>
           <form method="post" action="{% url 'article-restore' ulid %}">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}"><button class="primary" type="submit">Wiederherstellen</button></form>
           <button class="danger" type="button" popovertarget="delete-permanently">Endgültig löschen …</button>
           {% url 'article-delete-permanently' ulid as permanent_delete_href %}
           {% include "components/confirm.html" with id="delete-permanently" action=permanent_delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="danger" in_place=True %}
-        </div>
-        {% elif is_archivist %}
-        <div class="actions">
+          {% elif is_archivist %}
           <div class="split-button">
             <a class="button" href="{% url 'article-edit' ulid %}">Bearbeiten</a>
             <button class="menu-button" type="button" popovertarget="actions-menu" aria-label="Weitere Aktionen" title="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
@@ -39,6 +46,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
           <button class="primary" type="button" popovertarget="publish">Veröffentlichen</button>
           {% url 'article-publish' ulid as publish_href %}
           {% include "components/confirm.html" with id="publish" action=publish_href lead=publish_statement button="Jetzt veröffentlichen" tone="primary" %}
+          {% endif %}
           {% endif %}
         </div>
         {% endif %}

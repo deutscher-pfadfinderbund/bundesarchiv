@@ -7,7 +7,7 @@ from typing import assert_never
 from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 # `project` must floor exactly these.
@@ -68,6 +68,17 @@ def project(viewer: Viewer, article: Article) -> Article:
         case Public() | Member():
             # Explicit kwargs, not a loop over ARCHIVIST_ONLY_FIELDS, so each floor is type-checked.
             return replace(article, physical_location=None, custom=())
+        case _ as unreachable:
+            assert_never(unreachable)
+
+
+def project_change(viewer: Viewer, change: Change | None) -> Change | None:
+    """Who last changed a record is personal data: an Archivist's alone (owner ruling 2026-10-21)."""
+    match viewer:
+        case Archivist():
+            return change
+        case Public() | Member():
+            return None
         case _ as unreachable:
             assert_never(unreachable)
 
