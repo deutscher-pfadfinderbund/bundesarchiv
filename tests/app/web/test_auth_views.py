@@ -8,6 +8,7 @@ proves the login actually authenticated somebody.
 
 import time
 from collections.abc import Iterator, Mapping
+from types import ModuleType
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
@@ -28,6 +29,8 @@ from bundesarchiv.app.web.auth_views import safe_next
 from bundesarchiv.app.web.dev_realm import AUTHORIZE_PATH, DevRealm, claims_of
 from bundesarchiv.app.web.viewers import login_cookies
 from bundesarchiv.domain.viewer import Archivist, Member
+from bundesarchiv.index import settings as prod_settings
+from bundesarchiv.index import settings_dev
 
 _ARCHIVIST_CLAIMS = claims_of(Archivist(username="anna.schmidt"))
 _MEMBER_CLAIMS = claims_of(Member(groups=("vorstand",)))
@@ -294,9 +297,10 @@ def test_safe_next_of_nothing_is_nothing() -> None:
 # --- logout ---------------------------------------------------------------------------------------
 
 
-def test_logout_hands_the_refresh_cookie_on_and_clears_both_cookies(asked: Asked) -> None:
-    """Shared-computer ruling (ADR 0018): the cookies go AND the browser is sent through the realm's
-    end-session step, with what it needs to end the realm's session unasked."""
+def test_logout_hands_the_refresh_cookie_on_and_clears_cookies_and_cache(asked: Asked) -> None:
+    """Shared-computer ruling (ADR 0018): the cookies and the cached pages and media go AND the
+    browser is sent through the realm's end-session step, with what it needs to end the realm's
+    session unasked."""
     client = Client()
     _logged_in(client)
     assert client.get("/articles/new").status_code == 200
@@ -310,6 +314,7 @@ def test_logout_hands_the_refresh_cookie_on_and_clears_both_cookies(asked: Asked
         "post_logout_redirect_uri": "http://testserver/",
     }
     assert response["Location"] == "http://testserver/"
+    assert response["Clear-Site-Data"] == '"cache"'
     assert client.cookies[login_cookies().access].value == ""
     assert client.cookies[login_cookies().refresh].value == ""
 
@@ -321,6 +326,7 @@ def test_logout_clears_the_cookies_even_with_no_realm_to_return_through(asked: A
         response = client.post("/logout")
     assert response.status_code == 302
     assert response["Location"] == "/"
+    assert response["Clear-Site-Data"] == '"cache"'
     assert client.cookies[login_cookies().access].value == ""
     assert client.cookies[login_cookies().refresh].value == ""
 
@@ -400,3 +406,20 @@ def test_every_login_cookie_follows_the_https_switch(
     ]
     assert {morsel.key for morsel in sent} == set(names)
     assert all(bool(morsel["secure"]) is secure for morsel in sent)
+
+
+@pytest.mark.parametrize("layer", [prod_settings, settings_dev], ids=["prod", "dev"])
+def test_the_csrf_cookie_follows_the_https_switch(
+    corpus: Corpus, asked: Asked, layer: ModuleType
+) -> None:
+    """``__Host-`` where the site serves https, as the login cookies are (ADR 0025). The browser
+    drops a ``__Host-`` cookie without Secure or off ``/``, and every POST then fails."""
+    with override_settings(
+        CSRF_COOKIE_SECURE=layer.CSRF_COOKIE_SECURE, CSRF_COOKIE_NAME=layer.CSRF_COOKIE_NAME
+    ):
+        client = Client()
+        _logged_in(client)
+        cookie = client.get("/articles/new").cookies[layer.CSRF_COOKIE_NAME]
+    assert cookie.key.startswith("__Host-") is layer.CSRF_COOKIE_SECURE
+    assert bool(cookie["secure"]) is layer.CSRF_COOKIE_SECURE
+    assert (cookie["path"], cookie["domain"]) == ("/", "")
