@@ -213,6 +213,21 @@ def indexed_corpus(db: None, make_corpus: Callable[[], Corpus]) -> Corpus:
     return corpus
 
 
+def _fill_two_pages(corpus: Corpus) -> None:
+    """The workbench tree plus a page of public records, so every viewer's list runs to page 2."""
+    _fill(corpus)
+    for n in range(browse.PAGE_SIZE):
+        corpus.add_article(make_article(f"SEITE{n:03}", collection_id="FOTOS"))
+
+
+@pytest.fixture
+def two_pages(db: None, copy_of: Callable[[Callable[[Corpus], None]], Corpus]) -> Corpus:
+    """Indexed like ``indexed_corpus``."""
+    corpus = copy_of(_fill_two_pages)
+    indexer.rebuild(corpus.store)
+    return corpus
+
+
 def _get(
     viewer: Viewer,
     query: str = "",
@@ -653,11 +668,8 @@ def test_garbage_params_yield_200_defaults(indexed_corpus: Corpus) -> None:
 # --- pagination -------------------------------------------------------------------
 
 
-def test_pagination_second_page_via_page(
-    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(browse, "PAGE_SIZE", 2)
-    ulids = list(indexed_corpus.articles.list_ulids())
+def test_pagination_second_page_via_page(two_pages: Corpus) -> None:
+    ulids = list(two_pages.articles.list_ulids())
 
     def rows(query: str) -> set[str]:
         body = _get(Archivist(), query).content.decode()
@@ -677,14 +689,13 @@ _BACK = "\N{SINGLE LEFT-POINTING ANGLE QUOTATION MARK} Zurück"
 _CONTINUE = "Weiter \N{SINGLE RIGHT-POINTING ANGLE QUOTATION MARK}"
 
 
-def test_the_pager_holds_the_range_between_its_steps(
-    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_the_pager_holds_the_range_between_its_steps(two_pages: Corpus) -> None:
     # Zurück stays, disabled: it becomes active one click later
-    monkeypatch.setattr(browse, "PAGE_SIZE", 2)
-    total = len(list(indexed_corpus.articles.list_ulids()))  # the archivist sees every record
+    total = len(list(two_pages.articles.list_ulids()))  # the archivist sees every record
     pager = _pager(_get(Archivist()).content.decode())
-    assert f'1\N{EN DASH}2</data> von <data value="{total}">{total}</data>' in pager
+    assert (
+        f'1\N{EN DASH}{browse.PAGE_SIZE}</data> von <data value="{total}">{total}</data>' in pager
+    )
     assert f'<a role="link" aria-disabled="true">{_BACK}</a>' in pager
     assert re.search(rf'<a href="\?[^"]*page=2[^"]*" rel="next">{_CONTINUE}</a>', pager)
 
@@ -940,11 +951,10 @@ def test_selection_mode_shows_the_selection_column(indexed_corpus: Corpus) -> No
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=())])
 @pytest.mark.parametrize("query", ["", "selection=", f"selection={PANE_PUB_ULID}"])
 def test_non_archivists_never_get_the_selection(
-    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch, viewer: Viewer, query: str
+    two_pages: Corpus, viewer: Viewer, query: str
 ) -> None:
     # no column, no bulk form, no link into selection mode — a hand-crafted ?selection= included;
-    # one hit per page, so the pager's links are there to carry it
-    monkeypatch.setattr(browse, "PAGE_SIZE", 1)
+    # two pages, so the pager's links are there to carry it
     body = _get(viewer, query).content.decode()
     assert 'name="selection"' not in body
     assert "/articles/bulk-edit" not in _form_fields(body)[0]
@@ -981,25 +991,21 @@ def test_a_url_selection_ticks_its_row(indexed_corpus: Corpus) -> None:
     assert f'value="{PANE_PUB_ULID}" checked' in body
 
 
-def test_selection_survives_pagination_links(
-    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _steps(query: str) -> list[dict[str, list[str]]]:
+    """The pager's links on page 1 (Weiter) and on page 2 (Zurück) of the archivist's list."""
+    bodies = (_get(Archivist(), f"{query}&page={n}").content.decode() for n in (1, 2))
+    return [q for body in bodies for q in _queries(_pager(body))]
+
+
+def test_selection_survives_pagination_links(two_pages: Corpus) -> None:
     # the next/prev pagination links carry the ?selection= selection (no-JS persistence)
-    monkeypatch.setattr(browse, "PAGE_SIZE", 2)
-    body = _get(Archivist(), f"selection={PANE_PUB_ULID}&page=2").content.decode()
-    pager = body.split('aria-label="Seiten"', 1)[1].split("</nav>", 1)[0]
-    queries = [parse_qs(unescape(q)) for q in re.findall(r'href="\?([^"]*)"', pager)]
-    assert [q.get("page") for q in queries] == [["1"], ["3"]]
-    assert [q.get("selection") for q in queries] == [[PANE_PUB_ULID]] * 2
+    steps = _steps(f"selection={PANE_PUB_ULID}")
+    assert [q.get("page") for q in steps] == [["2"], ["1"]]
+    assert [[u for u in q["selection"] if u] for q in steps] == [[PANE_PUB_ULID]] * 2
 
 
-def test_paging_keeps_selection_mode_with_nothing_ticked(
-    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(browse, "PAGE_SIZE", 2)
-    body = _get(Archivist(), "selection=&page=2").content.decode()
-    pager = body.split('aria-label="Seiten"', 1)[1].split("</nav>", 1)[0]
-    assert [q.get("selection") for q in _queries(pager)] == [[""]] * 2
+def test_paging_keeps_selection_mode_with_nothing_ticked(two_pages: Corpus) -> None:
+    assert [q.get("selection") for q in _steps("selection=")] == [[""]] * 2
 
 
 def test_cancel_leaves_selection_mode_and_keeps_the_search(indexed_corpus: Corpus) -> None:

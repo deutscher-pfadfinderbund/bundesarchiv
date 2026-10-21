@@ -4,6 +4,7 @@ the job."""
 
 import threading
 from io import BytesIO
+from math import isqrt
 from pathlib import Path
 
 import pytest
@@ -166,11 +167,11 @@ def test_a_request_that_waited_on_the_lock_takes_its_peers_version(
     assert peers.read_bytes() == b"the peer's version"
 
 
-def test_an_image_over_the_pixel_cap_derives_no_version(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(thumbnails, "_MAX_PIXELS", 1200 * 900 - 1)
-    assert _display(tmp_path, "scan.png", _png((1200, 900)), "image/png") is None
+def test_an_image_over_the_pixel_cap_derives_no_version(tmp_path: Path) -> None:
+    side = isqrt(thumbnails._MAX_PIXELS) + 1
+    buf = BytesIO()
+    Image.new("1", (side, side)).save(buf, format="PNG")  # 1 bit a pixel: a 10 KB file
+    assert _display(tmp_path, "scan.png", buf.getvalue(), "image/png") is None
 
 
 def test_a_pdf_derives_no_display_version(tmp_path: Path) -> None:

@@ -175,10 +175,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _RACE,
     ),
-    "app/test_thumbnails.py:test_an_image_over_the_pixel_cap_derives_no_version:bundesarchiv.app.thumbnails._MAX_PIXELS": (
-        1,
-        _DEBT,
-    ),
     "app/web/conftest.py:recording_store:bundesarchiv.app.archive.Archive.canonical": (1, _DEBT),
     "app/web/test_bulk.py:test_apply_bulk_conflict_buckets_and_does_not_abort:bundesarchiv.app.articles.save_article": (
         1,
@@ -248,43 +244,7 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _CRASH,
     ),
-    "app/web/test_media.py:test_authz_denies_before_any_blob_lookup:bundesarchiv.app.web.media.media_response": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_media.py:test_authz_denies_before_lookup_for_a_version:bundesarchiv.app.web.media.thumbnail_response": (
-        1,
-        _DEBT,
-    ),
     "app/web/test_vocab.py:narrowed_vocabulary:bundesarchiv.app.web.vocab.MEDIA_TYPE_DOCUMENT_TYPES": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_workbench.py:test_pagination_second_page_via_page:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_workbench.py:test_the_pager_holds_the_range_between_its_steps:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_workbench.py:test_non_archivists_never_get_the_selection:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_workbench.py:test_selection_survives_pagination_links:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_workbench.py:test_paging_keeps_selection_mode_with_nothing_ticked:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
-    "persistence/test_localfs.py:test_commit_fsyncs_every_directory_it_creates:bundesarchiv.persistence.adapters.localfs.LocalFsObjectStore._fsync_dir": (
-        1,
-        _DEBT,
-    ),
-    "persistence/test_webdav.py:no_retry_wait:bundesarchiv.persistence.adapters.webdav._RETRY_DELAYS": (
         1,
         _DEBT,
     ),
