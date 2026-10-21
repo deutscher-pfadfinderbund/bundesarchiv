@@ -62,10 +62,10 @@ A Keycloak group. Naming one (or several, OR-combined) in an Audience narrows Me
 ### Cataloging
 
 **Media-type** (*Medienart*) and **Document-type** (*Dokumenttyp*):
-Descriptive classifications of an Article. Free-text with autocomplete, seeded with default values, open to new ones. Not managed entities. Being rethought (owner 2026-10-21): stored as levels in each record; the model is settled with the archivists.
+Descriptive classifications of an Article. Free-text with autocomplete, seeded with default values, open to new ones. Not managed entities. Being rethought (owner 2026-10-21): several independent questions (for example Art, Träger, Gattung), each answered on its own and stored in each record; the questions are settled with the archivists.
 
 **Tag** (*Schlagwort*):
-Free-text keyword with autocomplete.
+Free-text keyword with autocomplete. Unstructured: a search aid carried over from the old archive's weak search, not a classification.
 
 **Creator** (*Urheber*) — code field `creator`, URL param `creator`:
 Who made the original, as free text.

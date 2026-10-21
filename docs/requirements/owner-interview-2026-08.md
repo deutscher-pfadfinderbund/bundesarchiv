@@ -981,7 +981,11 @@ missing records; "N von M gespeichert"; the error pages' wording.
   lists leave the web layer) is done as part of this rework.
 - **Art and Standort are stored structurally: as their levels, in each record**, in words — not as
   one free string, and not as references to managed entries. Fully free text makes edits harder.
-- **The Art input (one field or two) is settled with the archivists** before anything is built.
+- **Art becomes several independent questions** (for example Art, Träger, Gattung), each answered
+  on its own, instead of one path that mixes them. Which questions, and the input, are settled with
+  the archivists before anything is built.
+- **The Schlagworte are unstructured:** they were a crutch for the old archive's weak search, not a
+  classification. Structured classification does not go into them.
 - **The physical Standort may become its own issue:** one Article can have several copies in several
   places (#57), so the Standort may move to each copy. It is settled with the archivists too.
 - **The CSRF cookie keeps Django's default name.** The `__Host-` prefix does not hold under Django's
