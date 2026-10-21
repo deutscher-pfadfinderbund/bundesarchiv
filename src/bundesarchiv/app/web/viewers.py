@@ -46,8 +46,9 @@ def login_cookies() -> LoginCookies:
     """Where the site serves https (``CSRF_COOKIE_SECURE``), ``__Host-`` names and Secure: Keycloak
     lives on a sibling host of the same registrable domain, and without the prefix any such host
     could set a ``Domain=``-scoped cookie of these names that shadows ours, an unclearable login
-    loop. Over dev's plain http, project names without Secure: WebKit drops a Secure cookie set
-    over http, and cookies are not separated by port, so a bare name would clash with another
+    loop; one whose name starts with Unicode whitespace still can (debt #58). Over dev's plain
+    http, project names without Secure: WebKit drops a Secure cookie set over http, and cookies are
+    not separated by port, so a bare name would clash with another
     localhost app's (ADR 0025)."""
     secure = settings.CSRF_COOKIE_SECURE
     prefix = "__Host-" if secure else "bundesarchiv_"

@@ -37,10 +37,16 @@ tests had two fakes for one boundary.
 - **The login cookies follow the https switch.** The access, refresh and login-state cookies are
   named in one place, `viewers.login_cookies()`, keyed on `CSRF_COOKIE_SECURE`, the repo's one
   "this site serves https" switch: on (production, the web tests) they are `__Host-` names with
-  Secure (ADR 0018: no sibling host may shadow them); off (dev, the browser suites) they are
-  `bundesarchiv_` names without Secure: WebKit drops a Secure cookie set over http, even on
-  localhost (probed 2026-10-18), and browsers do not separate cookies by port, so a bare `access`
-  would clash with another localhost app's, and a refresh failure here would delete it.
+  Secure, so a sibling host (Keycloak's) cannot set a `Domain=` cookie of the same name, an
+  unclearable login loop. The limit: a name that starts with Unicode whitespace is unprefixed to
+  the browser, and Django's cookie parser strips the space into ours (debt #58). Off (dev, the
+  browser suites) they are `bundesarchiv_` names without Secure: WebKit drops a Secure cookie set
+  over http, even on localhost (probed 2026-10-18), and browsers do not separate cookies by port,
+  so a bare `access` would clash with another localhost app's, and a refresh failure here would
+  delete it.
+- **The CSRF cookie keeps Django's name, `csrftoken`** (owner, 2026-10-21), Secure by the same
+  switch. A `__Host-` name does not hold under Django's cookie parser (above), and
+  `CsrfViewMiddleware`'s Origin check already refuses a cross-subdomain POST.
 - **A whitespace-only username folds to `Archivist()`**, as Keycloak's would: the claims mapping
   treats a blank `preferred_username` as absent, where the old dev cookie kept it verbatim.
 

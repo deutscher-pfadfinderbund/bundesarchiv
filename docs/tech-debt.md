@@ -238,6 +238,12 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** write side only (`index_article`, `rebuild`, `store_media_text`, `hashes_with_text`); the read side (`search`, facets) stays Postgres — a fake would be a second search engine and the leak tests prove only the real SQL. Owner 2026-10-11: build it when it pays, not for pluggability alone
 - **Outcome:** the port holds the two in-request refreshes only; `rebuild`, `store_media_text` and `hashes_with_text` stay direct on purpose (ADR 0024, Consequences)
 
+### 58. The `__Host-` login cookies can be shadowed through Django's cookie parser — Speculative
+- **Indicator:** `parse_cookie("\u2000__Host-access=x")` returns `{"__Host-access": "x"}`, a later duplicate wins (2026-10-21, Django 6.1.1)
+- **Evidence:** Django's `http.cookie.parse_cookie` (`key.strip()`); `viewers.login_cookies`. Needs control of a host on the registrable domain (Keycloak's sibling)
+- **Deletion test:** n/a: a limit of the prefix, ruled out for the CSRF cookie by dropping its `__Host-` name (ADR 0025)
+- **Sketch:** ignore a login cookie whose raw name in the `Cookie` header is not its parsed name; or wait for Django to stop stripping
+
 ## Implementation patterns
 
 ### 51. Knobs are resolved at every use, not once per component — done (Wave KNOBS, 2026-10-01)

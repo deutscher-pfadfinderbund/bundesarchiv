@@ -60,9 +60,7 @@ ALLOWED_HOSTS = [
 # (deploy/nginx/nginx.conf). Without this Django reads every request as http and refuses each POST
 # on the CSRF origin check against an https ``Referer``.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-# The name follows the https switch, as the login cookies' do (``viewers.login_cookies``, ADR 0025).
 CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_NAME = "__Host-csrftoken"
 
 INSTALLED_APPS = [
     "django.contrib.postgres",

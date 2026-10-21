@@ -123,8 +123,7 @@ def test_login_plants_a_signed_state_cookie(asked: Asked) -> None:
     response = _login(client)
     cookie = response.cookies[login_cookies().state]
     assert cookie["httponly"] and cookie["secure"] and cookie["samesite"] == "Lax"
-    # __Host-: no sibling host on the registrable domain (Keycloak's own lives on one) can shadow
-    # this cookie with a Domain=-scoped one of the same name.
+    # Why __Host-, and its limit: viewers.login_cookies (debt #58).
     assert login_cookies().state.startswith("__Host-")
     assert cookie["path"] == "/" and not cookie["domain"]
     assert (
