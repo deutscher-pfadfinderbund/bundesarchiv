@@ -61,6 +61,13 @@ A unit that adds or moves a `[popovertarget]` runs the overlay journey itself be
 (`mise run test:e2e -- -k overlays`, ~30 s): a panel anchored under the wrong trigger shows only
 there, and a finisher cycle costs far more.
 
+## Where a partial lives
+
+`templates/components/` holds inventoried components only (the gate
+`test_design_lint.py::test_every_component_template_has_an_inventory_row`). A partial that is no
+component goes under `templates/workbench/` as an underscore-prefixed file, like `_field.html`
+and `_copy.html`.
+
 ## Template source stays readable
 
 Django templates have no whitespace control, so the CSS must not depend on whitespace. Lay out inline

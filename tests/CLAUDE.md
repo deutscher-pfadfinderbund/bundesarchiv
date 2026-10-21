@@ -123,3 +123,5 @@ legacy values (commas inside a Schlagwort) among the adversarial inputs.
 
 The header's tool panels list every Bestand on every archivist page. A test asserting that a
 value reaches a page scopes itself to the region under test (`<main`), or it passes vacuously.
+The list lives at `/articles` (`/` is the start page), and its search field echoes `q`: assert a
+hit by its ulid inside `<main`, never by its title in the body.
