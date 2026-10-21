@@ -1,13 +1,14 @@
 """Viewer-facing access over `effective_audience` (ADR 0001); pure. `index.scope` must stay
 row-equivalent to `can_view`."""
 
+from collections.abc import Callable
 from dataclasses import dataclass, fields, replace
 from typing import assert_never
 
 from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle, Version
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 # `project` must floor exactly these.
@@ -74,11 +75,23 @@ def project(viewer: Viewer, article: Article) -> Article:
 
 def project_change(viewer: Viewer, change: Change | None) -> Change | None:
     """Who last changed a record is personal data: an Archivist's alone (owner ruling 2026-10-21)."""
+    return change if _sees_changes(viewer) else None
+
+
+def project_versions(
+    viewer: Viewer, read: Callable[[], tuple[tuple[Version, Change | None], ...]]
+) -> tuple[tuple[Version, Change | None], ...]:
+    """Each version names its editor, so the list is an Archivist's alone, as `project_change`;
+    `read` runs for no one else."""
+    return read() if _sees_changes(viewer) else ()
+
+
+def _sees_changes(viewer: Viewer) -> bool:
     match viewer:
         case Archivist():
-            return change
+            return True
         case Public() | Member():
-            return None
+            return False
         case _ as unreachable:
             assert_never(unreachable)
 

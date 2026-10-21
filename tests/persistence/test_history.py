@@ -207,3 +207,73 @@ def test_a_crash_mid_save_loses_nothing_and_the_retry_goes_on(
     assert store.read(readme_key(tree.folder)) == first
     assert tree.save("zwei", 1, "tester") == 2
     assert store.read(history_key(tree.folder, 1)) == first
+
+
+# --- reading the versions back: who edited when (#71) -----------------------------
+
+
+def _saved(repo: ArticleRepository, times: int) -> list[Change | None]:
+    """Save the Article `times` times, each by its own editor; each version's change record."""
+    changes = []
+    for expected in range(times):
+        repo.save(
+            Article(ARTICLE_ULID, "Titel", ULID("coll")), expected, changed_by=f"ed{expected}"
+        )
+        changes.append(repo.load(ARTICLE_ULID).change)
+    return changes
+
+
+def test_the_versions_are_every_version_in_order_with_its_change_record(
+    store: ObjectStore,
+) -> None:
+    repo = ArticleRepository(store)
+    changes = _saved(repo, 11)  # past 9: the order is by number, not by key text
+    assert repo.versions(repo.load(ARTICLE_ULID)) == tuple(enumerate(changes, start=1))
+
+
+_FOLDER = f"articles/{ARTICLE_ULID}"
+_NO_CHANGE = b"---\nulid: 01J0\nversion: 1\ntitle: Alt\ncollection_id: coll\n---\nText"
+
+
+@pytest.mark.parametrize(
+    "kept",
+    [
+        pytest.param(_NO_CHANGE, id="no change record"),
+        pytest.param(b"\xff\xfe\x00", id="not UTF-8"),
+        pytest.param(b"no front matter", id="no fence"),
+        pytest.param(b"---\n[unclosed\n---\n", id="not YAML"),
+        pytest.param(b"---\nchanged_at: 5\nchanged_by: anna\n---\n", id="instant not text"),
+        pytest.param(b"---\nchanged_at: gestern\nchanged_by: anna\n---\n", id="instant not ISO"),
+        pytest.param(b"---\nchanged_by: anna\n---\n", id="half a record"),
+    ],
+)
+def test_a_kept_version_without_a_readable_change_record_still_gives_its_number(
+    store: ObjectStore, kept: bytes
+) -> None:
+    repo = ArticleRepository(store)
+    changes = _saved(repo, 2)
+    store.write_atomic(history_key(_FOLDER, 1), kept)
+    assert repo.versions(repo.load(ARTICLE_ULID)) == ((1, None), (2, changes[1]))
+
+
+@pytest.mark.parametrize(
+    "kept",
+    [
+        pytest.param(2, id="the current version: a save cut off after its history write"),
+        pytest.param(3, id="above the current version: a hand-reverted README (ADR 0020)"),
+    ],
+)
+def test_a_kept_version_not_below_the_current_one_is_not_listed(
+    store: ObjectStore, kept: Version
+) -> None:
+    repo = ArticleRepository(store)
+    changes = _saved(repo, 2)
+    store.write_atomic(history_key(_FOLDER, kept), store.read(readme_key(_FOLDER)))
+    assert repo.versions(repo.load(ARTICLE_ULID)) == tuple(enumerate(changes, start=1))
+
+
+def test_a_file_in_history_that_keeps_no_version_is_no_version(store: ObjectStore) -> None:
+    repo = ArticleRepository(store)
+    changes = _saved(repo, 1)
+    store.write_atomic(f"{_FOLDER}/history/notiz.md", b"hand-written")
+    assert repo.versions(repo.load(ARTICLE_ULID)) == ((1, changes[0]),)

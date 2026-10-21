@@ -30,9 +30,16 @@ def history_key(folder: str, version: Version) -> str:
     return f"{folder}/history/{version}.md"
 
 
-def is_history_key(folder: str, key: str) -> bool:
+def history_version(folder: str, key: str) -> Version | None:
+    """The version ``key`` keeps, or None when it is no history key of ``folder``."""
     stem = PurePosixPath(key).stem
-    return stem.isdecimal() and history_key(folder, int(stem)) == key
+    if stem.isdecimal() and history_key(folder, int(stem)) == key:
+        return int(stem)
+    return None
+
+
+def is_history_key(folder: str, key: str) -> bool:
+    return history_version(folder, key) is not None
 
 
 @dataclass(frozen=True, slots=True)

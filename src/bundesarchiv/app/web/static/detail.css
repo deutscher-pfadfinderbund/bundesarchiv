@@ -47,6 +47,17 @@
     --control-height: var(--touch-target-compact);
     --mark-wrap: normal; /* its marks name a person: a long name wraps instead of widening the page */
   }
+  /* the version list hangs from its own button (components.css overlay placement) */
+  @supports (anchor-name: --anchor-probe) and
+    (inset-block-start: anchor(end)) and
+    (justify-self: anchor-center) {
+    [popovertarget="versions"] {
+      anchor-name: --versions;
+    }
+    .record-head .popover {
+      position-anchor: --versions;
+    }
+  }
 
   /* the Beschreibung: the record's lede, at reading measure */
   .prose {
