@@ -4,7 +4,7 @@ Law: pure core. No IO, no Django, no settings. Errors are the typed `DomainError
 `effective_audience` is the ONE visibility resolver (ADR 0001) — never recompute its answer ad hoc.
 
 - `models.py` — the domain shapes, valid by construction, no persistence DTO (ADR 0008) · interface: `ULID`, `Article`, `Collection`, `Audience`, `MediaRef`, `Lifecycle`, `Change` · tests: `tests/domain/test_models.py`
-- `access.py` — viewer-facing access decisions composed over the resolver · interface: `can_view`, `visible`, `project`, `project_change`, `preview` · tests: `tests/domain/test_access.py`
+- `access.py` — viewer-facing access decisions composed over the resolver · interface: `can_view`, `visible`, `project`, `project_change`, `project_versions`, `preview` · tests: `tests/domain/test_access.py`
 - `audience.py` — THE effective-Audience resolver: lifecycle/Trash gate + inherit walk, single pure source (ADR 0001) · interface: `effective_audience`, `ArchivistOnly` · tests: `tests/domain/test_audience.py`
 - `collections.py` — Collection-chain resolution with proven invariants · interface: `resolve_chain`, `ResolvedChain` · tests: `tests/domain/test_collections.py`
 - `viewer.py` — who is asking: the Viewer value union · interface: `Archivist`, `Member`, `Public` · tests: `tests/domain/` (no module of its own; every suite here builds one)

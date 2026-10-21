@@ -1,11 +1,13 @@
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 
 from django.http import HttpRequest
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import viewer_of
-from bundesarchiv.domain.access import project_change, visible
+from bundesarchiv.domain.access import project_change, project_versions, visible
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, Change, Version
@@ -16,13 +18,15 @@ from bundesarchiv.persistence.errors import ArchiveError
 @dataclass(frozen=True, slots=True)
 class DetailResolution:
     """``article`` is the ``visible`` projection; ``version`` the stored one the archivist's CAS
-    writes expect; ``change`` who wrote it, floored by ``project_change``."""
+    writes expect; ``change`` who wrote it, floored by ``project_change``; ``versions`` reads every
+    version with its change record when called, floored by ``project_versions``."""
 
     article: Article
     chain: ResolvedChain
     is_archivist: bool
     version: Version
     change: Change | None
+    versions: Callable[[], tuple[tuple[Version, Change | None], ...]]
 
 
 def resolve_visible_detail(
@@ -49,4 +53,5 @@ def resolve_visible_detail(
         is_archivist=isinstance(viewer, Archivist),
         version=loaded.version,
         change=project_change(viewer, loaded.change),
+        versions=partial(project_versions, viewer, partial(archive.articles.versions, loaded)),
     )

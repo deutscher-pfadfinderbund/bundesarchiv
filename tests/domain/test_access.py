@@ -11,6 +11,7 @@ from bundesarchiv.domain.access import (
     preview,
     project,
     project_change,
+    project_versions,
     visible,
 )
 from bundesarchiv.domain.collections import ResolvedChain
@@ -225,6 +226,22 @@ def test_project_change_shows_no_non_archivist_who_changed_a_record(
 @pytest.mark.parametrize("change", [_CHANGE, None])
 def test_project_change_shows_an_archivist_the_change_as_stored(change: Change | None) -> None:
     assert project_change(Archivist("bert"), change) == change
+
+
+_VERSIONS = ((1, None), (2, _CHANGE))
+
+
+def _unread() -> tuple[tuple[int, Change | None], ...]:
+    raise AssertionError("read the versions for a viewer who gets none")
+
+
+@pytest.mark.parametrize("viewer", [Public(), Member(), Member(groups=("Leitung",))])
+def test_project_versions_gives_no_non_archivist_a_version_and_reads_none(viewer: Viewer) -> None:
+    assert project_versions(viewer, _unread) == ()
+
+
+def test_project_versions_gives_an_archivist_every_version_as_read() -> None:
+    assert project_versions(Archivist("bert"), lambda: _VERSIONS) == _VERSIONS
 
 
 def test_preview_shows_post_publish_audience_for_a_draft() -> None:
