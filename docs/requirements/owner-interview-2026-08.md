@@ -921,6 +921,9 @@ missing records; "N von M gespeichert"; the error pages' wording.
   Archivists see, and the record is reported for review. A forensic view comes much later.
 - **An Archivist sees an Article whose Bestand chain is broken**, on the list and the detail page, so
   it can be repaired.
+  Amended (owner, 2026-10-21): the detail half is not built while the state is unreachable
+  (sole-writer v1); revisit with hand edits of the files or a Bestand delete or move (debt #42,
+  closed).
 - **Medienart and Dokumenttyp become free text** that archivists can extend (rework in progress).
 - **Semi-public access to single Articles via a special link** comes later; the Public viewer is kept
   for it.
