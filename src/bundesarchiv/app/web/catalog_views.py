@@ -217,8 +217,8 @@ def _handle_edit_post(
         and lifecycle is Lifecycle.PUBLISHED
         and chooser.chain_of(result.article.collection_id) is None
     ):
-        # fail-closed: a Bestand re-parent bumps no article version, so the CAS cannot catch a
-        # chain broken since the form loaded
+        # fail-closed: a broken Bestand chain bumps no article version, so the CAS cannot
+        # catch one broken since the form loaded
         result = replace(
             result,
             article=None,

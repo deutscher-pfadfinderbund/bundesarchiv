@@ -22,7 +22,8 @@ class BulkField:
     is_custom: bool
 
 
-#: In spec §1 order; never ``audience`` or ``lifecycle`` (spec §0.7).
+#: In spec §1 order; never ``audience`` or ``lifecycle`` (spec §0.7); a Bestand move still changes a published
+#: Article's inherited Sichtbarkeit (GitHub #73).
 FIELDS: tuple[BulkField, ...] = (
     BulkField("physical_location", "Standort", "Standorte", "value_text", False),
     BulkField("creator", "Autor", "Autoren", "value_text", False),

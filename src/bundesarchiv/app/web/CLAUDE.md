@@ -1,21 +1,21 @@
 # app/web — package map
 
-Law: `viewer_of(request)` is THE request→Viewer trust boundary — no view resolves identity another
-way. Deny is a plain 404 revealing and changing nothing (`assert_denied` is the test contract).
-Every route is enumerated by the leak matrix (`tests/app/web/test_leak_matrix.py`) — a new route
-must join its contract table. UI is German, code identifiers English (`CONTEXT.md`). ADR 0013's `Conflict` is caught at exactly four form
-sites here (`catalog.py`, `collection_views.py`, the delete confirm, restore), each re-displaying the winner; every non-form
-mutation goes through `app.articles.update_article` and matches on its outcome union instead.
-The edit form has ONE render (`catalog_views.EditSurface`), always built from the SAVED article and
-parameterised by a closed overlay union — a new panel joins that union, never a second context build.
-An archivist gate is `isinstance(viewer_of(request), Archivist)`, and a write route passes that
-Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `test_changed_by.py`
-and `test_index_lag.py` (it shows a lagging index, ADR 0014).
+Law: `viewer_of(request)` is THE request→Viewer trust boundary — no view resolves identity another way. Deny is a plain 404
+revealing and changing nothing (`assert_denied` is the test contract). Every route is enumerated by the leak matrix
+(`tests/app/web/test_leak_matrix.py`) — a new route must join its contract table. UI is German, code identifiers English
+(`CONTEXT.md`). ADR 0013's `Conflict` is caught at exactly four form sites here (`catalog.py`, `collection_views.py`, the
+delete confirm, restore), each re-displaying the winner; every non-form mutation goes through `app.articles.update_article`
+and matches on its outcome union instead. The edit form has ONE render (`catalog_views.EditSurface`), always built from the
+SAVED article and parameterised by a closed overlay union — a new panel joins that union, never a second context build. An
+archivist gate is `isinstance(viewer_of(request), Archivist)`, and a write route passes that Archivist's `username` on as
+`changed_by` (ADR 0019); a new write route joins `test_changed_by.py` and `test_index_lag.py` (it shows a lagging index, ADR
+0014).
 
 - `viewers.py` — Viewer · interface: `viewer_of`, `realm`, `login_cookies`, `request_kind`, `render_screen`, `redirect_to`, `panel_response`, `TokenCookieMiddleware` · tests: `test_*viewer*.py`, `test_request_kind.py`
 - `auth_views.py` — the login surface: Keycloak in, two token cookies out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect`, `callback_uri` · tests: `tests/app/web/test_auth_views.py`
 - `keycloak.py` — the `Realm` adapter, the ONE place that talks to Keycloak; caches per URL (ADR 0018) · interface: `KeycloakRealm` · tests: `tests/app/web/test_keycloak_*.py`
 - `oidc.py` — the OIDC seam: the `Realm` port, its `Tokens`, claims → Viewer · interface: `Realm`, `Tokens`, `viewer_from_claims`, `ARCHIVIST_REALM_ROLE` · tests: `test_oidc_claims.py`, `test_auth_views.py`
+- `dev_realm.py` — the second `Realm` adapter (ADR 0025): signed-cookie dev logins, the login seam of web and e2e tests · interface: `DevRealm`, `claims_of`, `AUTHORIZE_PATH` · tests: `tests/app/web/test_dev_realm.py`
 - `anonymous_gate.py` — the anonymous gate: one middleware check, never a per-view decorator (ADR 0018) · interface: `AnonymousGateMiddleware` · tests: `tests/app/web/test_anonymous_gate.py`
 - `slow_requests.py` — one WARNING record per request over `BUNDESARCHIV_SLOW_REQUEST_MS`, by route name · interface: `SlowRequestMiddleware` · tests: `tests/app/web/test_slow_requests.py`
 - `legacy_params.py` — a GET or HEAD naming an old German query param or value gets a 301 to its English URL · interface: `LegacyParamsMiddleware` · tests: `tests/app/web/test_legacy_params.py`
@@ -28,7 +28,7 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `ledger.py` — columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `SORT_LABELS`, `build`, `chosen`, `unfiltered`, `text_hits`, both marks · tests: `test_ledger.py`
 - `reading.py` — the Lesesaal: hits as rows to read, the why line chosen from the headlines · interface: `rows`, `why`, `Row`, `Why` · tests: `tests/app/web/test_reading.py`, `test_workbench.py`
 - `catalog.py` — the edit form's leak-sensitive parse + save · interface: `parse_edit_form`, `audience_choice`, `parse_audience`, `parse_lines`, `save_catalog_form`, `apply_media_fields` · tests: `test_catalog_form.py`
-- `card.py` — THE record card field registry: every field declared once, joined to a render (debt #2) · interface: `FIELDS`, `CardRow`, `card_fields` · tests: `tests/app/web/test_catalog_edit.py`
+- `card.py` — THE record card field registry: every field declared once, joined to a render (debt #2) · interface: `FIELDS`, `LABELS`, `CardRow`, `card_fields` · tests: `tests/app/web/test_catalog_edit.py`
 - `panels.py` — the small forms as tool panels; a leaf, so the header builds them (debt #24) · interface: `FormPanel`, `header_panels`, the three `*_panel` builders · tests: `test_collection_entrypoints.py`
 - `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete`/`_delete_permanently`/`_restore`, `tag_suggestions` · tests: `test_catalog_*.py`
 - `collection_views.py` — Bestand management routes · interface: `collection_create`, `collection_edit` · tests: `tests/app/web/test_collection_*.py`
@@ -42,4 +42,4 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `collection_chooser.py` — per-request Collection chooser · interface: `CollectionChooser.of` + `options`/`resolve`/`accepts`/`error`/`name_of`/`names`/`by_ulid`/`chain_of` · tests: `test_collection_chooser.py`
 - `theme.py` — the viewer's light/dark choice: the "theme" cookie (theme.js) as the render's scheme · interface: `theme` (context processor), `COOKIE` · tests: `tests/app/web/test_theme.py`
 
-Internal: `dev.py`, `dev_realm.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`
+Internal: `dev.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`

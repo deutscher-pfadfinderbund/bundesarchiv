@@ -16,7 +16,7 @@ Every write service that writes a version takes `changed_by`, who is acting; the
 - `collections.py` — Collection write service: canonical-then-subtree-index shell · interface: `create_collection`, `save_collection` · tests: `tests/app/test_services.py`
 - `mirror.py` — the push to the system of record, add-only but for hard delete (ADR 0020); port + injected record only · interface: `push`, `reconcile`, `delete_article`, `PushRecord` · tests: `tests/app/test_mirror.py`
 - `push_record.py` — the push record in Postgres, derived state (ADR 0020) · interface: `PostgresPushRecord`, `InMemoryPushRecord` · tests: `tests/app/test_push_record.py`
-- `tasks.py` — the queue's tasks: build deps from settings, call a job or core (ADR 0014) · interface: `reconcile`, `reindex_article`, `generate_thumbnail`, `extract_media_text`, `mirror_push` · tests: `test_tasks.py`
+- `tasks.py` — the queue's tasks: deps from settings, call a job or core (ADR 0014) · interface: `enqueue_reindex_article`, `enqueue_mirror_push`, `enqueue_generate_thumbnail`, `mirror_store` · tests: `test_tasks.py`
 - `jobs.py` — what the worker jobs do, given archive, remote, push record; no queue import · interface: `reconcile`, `mirror_push`, `mirror_delete_article`, `mirror_reconcile` · tests: `test_tasks.py`
 - `jsonlog.py` — the log format: one JSON object per record, `extra` merged in; wired through `LOGGING` · interface: `JsonFormatter` · tests: `tests/app/test_jsonlog.py`
 - `stats.py` — the operator statistics the hourly reconcile logs: archive-wide, never per user · interface: `log_archive_stats` · tests: `tests/app/test_stats.py`

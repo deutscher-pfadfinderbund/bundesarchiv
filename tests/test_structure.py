@@ -273,7 +273,7 @@ def test_tests_patch_no_bundesarchiv_name_beyond_the_allow_list() -> None:
 
 #: Outside text becomes a ULID only through the parse (``is_valid_ulid``) or the mint
 #: (``new_ulid``), both here; anywhere else a ``ULID(...)`` or ``cast(ULID, ...)`` is a named
-#: trusted boundary. A value typed ``Any`` (``SearchHit(**row)`` in ``index/query.py``) becomes a
+#: trusted boundary. A value a ``TypedDict`` declares as ULID (``_HitRow`` in ``index/query.py``) is a
 #: ULID with no cast at all: this gate does not see it.
 ULID_OWNER = "bundesarchiv/domain/identity.py"
 _README = "stored README: no validation on decode (persistence law); keys checked at the store port"
