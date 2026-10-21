@@ -260,26 +260,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _DEBT,
     ),
-    "app/web/test_workbench.py:test_pagination_second_page_via_page:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_workbench.py:test_the_pager_holds_the_range_between_its_steps:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_workbench.py:test_non_archivists_never_get_the_selection:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_workbench.py:test_selection_survives_pagination_links:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_workbench.py:test_paging_keeps_selection_mode_with_nothing_ticked:bundesarchiv.app.web.browse.PAGE_SIZE": (
-        1,
-        _DEBT,
-    ),
     "persistence/test_localfs.py:test_commit_fsyncs_every_directory_it_creates:bundesarchiv.persistence.adapters.localfs.LocalFsObjectStore._fsync_dir": (
         1,
         _DEBT,
