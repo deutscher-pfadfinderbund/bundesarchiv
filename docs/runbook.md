@@ -336,7 +336,8 @@ mirror retries with bounded exponential backoff, then parks — the next reconci
 heals it.
 
 - `BUNDESARCHIV_MIRROR_DAV_URL` — the WebDAV base URL. **Unset ⇒ mirror off** (no
-  store built, no jobs enqueued, reconcile no-ops).
+  store built, no jobs enqueued, reconcile no-ops). Set, it must be `https://`: the app and the
+  worker refuse to start otherwise, since the password goes out with every request.
   **WARNING: point this at a dedicated folder the app owns exclusively. Reconcile
   deletes everything under this root that is not in canonical — never share it
   with human-managed files.** (An anomalously large delete sweep logs a warning
