@@ -175,10 +175,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _RACE,
     ),
-    "app/test_thumbnails.py:test_an_image_over_the_pixel_cap_derives_no_version:bundesarchiv.app.thumbnails._MAX_PIXELS": (
-        1,
-        _DEBT,
-    ),
     "app/web/conftest.py:recording_store:bundesarchiv.app.archive.Archive.canonical": (1, _DEBT),
     "app/web/test_bulk.py:test_apply_bulk_conflict_buckets_and_does_not_abort:bundesarchiv.app.articles.save_article": (
         1,
