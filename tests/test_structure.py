@@ -248,10 +248,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _DEBT,
     ),
-    "persistence/test_localfs.py:test_commit_fsyncs_every_directory_it_creates:bundesarchiv.persistence.adapters.localfs.LocalFsObjectStore._fsync_dir": (
-        1,
-        _DEBT,
-    ),
 }
 
 

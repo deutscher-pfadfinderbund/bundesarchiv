@@ -83,14 +83,15 @@ def test_commit_fsyncs_every_directory_it_creates(
     # else a crash could lose a committed README despite the blob's own rename being durable.
     root = tmp_path / "root"
     store = LocalFsObjectStore(root)
-    synced: list[Path] = []
-    real = LocalFsObjectStore._fsync_dir
+    synced: set[tuple[int, int]] = set()  # (device, inode): a closed fd's number is reused
+    real = os.fsync
 
-    def recording(directory: Path) -> None:
-        synced.append(Path(directory))
-        real(directory)
+    def recording(fd: int) -> None:
+        stat = os.fstat(fd)
+        synced.add((stat.st_dev, stat.st_ino))
+        real(fd)
 
-    monkeypatch.setattr(LocalFsObjectStore, "_fsync_dir", staticmethod(recording))
+    monkeypatch.setattr(os, "fsync", recording)
     store.write_atomic("articles/01J0/media/blob", b"data")
 
     for directory in (
@@ -99,7 +100,8 @@ def test_commit_fsyncs_every_directory_it_creates(
         root / "articles/01J0",
         root / "articles/01J0/media",
     ):
-        assert directory in synced, f"{directory} was not fsynced after creation"
+        stat = directory.stat()
+        assert (stat.st_dev, stat.st_ino) in synced, f"{directory} was not fsynced after creation"
 
 
 def test_descend_through_a_file_key_is_not_found(tmp_path: Path) -> None:
