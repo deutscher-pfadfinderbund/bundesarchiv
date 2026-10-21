@@ -1007,3 +1007,11 @@ missing records; "N von M gespeichert"; the error pages' wording.
   only the time is on hover).
 - **A record whose current version the legacy import wrote** reads "Übernommen aus dem alten Archiv
   am <Datum>" instead, until its first real edit.
+
+## Rulings of 2026-10-22 (version history, #71 slice 2)
+
+- **Slice 2 is "who edited when":** every version of a record with its number, date and editor.
+  Viewing an old version, comparing, restoring and "which fields changed" stay out for now.
+- **It lives on the article page**, in a fold, a popover or a `<dialog>`, whichever fits the design
+  law best.
+- **Only Archivists see it**, as in slice 1.
