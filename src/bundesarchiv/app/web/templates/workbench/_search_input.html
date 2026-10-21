@@ -1,0 +1,6 @@
+{% comment %}
+The search field (q) of the header's search form and of the search sentence. Included without
+`only`: text (the search text) comes from the page when it has one. Params: sentence (the search
+sentence's field), suggest_url (the suggestions route combobox.js asks while typing), both optional.
+{% endcomment %}
+<input{% if sentence %} class="search-sentence-field" id="search-field"{% endif %} type="search" name="q" value="{% firstof text %}" placeholder="Titel, Ort, Autor …" aria-label="Suchbegriff"{% if suggest_url %} data-suggest="{{ suggest_url }}"{% endif %}>
