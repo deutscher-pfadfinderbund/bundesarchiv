@@ -5,7 +5,9 @@
 # both stay at /app in the runtime image, exactly where the builder put them: the settings derive
 # STATICFILES_DIRS and the template dir from the package's own location on disk.
 
-FROM python:3.14-slim AS builder
+ARG PYTHON_VERSION
+
+FROM python:${PYTHON_VERSION}-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -30,7 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV BUNDESARCHIV_STATIC_ROOT=/app/static
 RUN /app/.venv/bin/python manage.py collectstatic --noinput --clear
 
-FROM python:3.14-slim AS runtime
+FROM python:${PYTHON_VERSION}-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

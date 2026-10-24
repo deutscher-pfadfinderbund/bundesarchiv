@@ -19,6 +19,11 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  packages: read
+  pull-requests: read
+
 jobs:
   fast:
     runs-on: ubuntu-latest
