@@ -56,6 +56,10 @@ echo "Postgres did not become ready in time" >&2
 exit 1
 """
 
+[tasks.image]
+description = "Build the app image locally (Apple container CLI)"
+run = "container system start && container build -t bundesarchiv ."
+
 [tasks.dev]
 description = "Dev server on :8000"
 run = "DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver"
