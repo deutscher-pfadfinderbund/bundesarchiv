@@ -12,7 +12,6 @@ file_paths = ["compose.yml"]
 webhook_enabled = false
 
 env_file_path = "production.env"
-# [[NAME]] reads a Komodo Variable; lines here cannot reference each other.
 environment = """
 # Django
 BUNDESARCHIV_SECRET_KEY=[[BUNDESARCHIV_SECRET_KEY]]
