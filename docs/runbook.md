@@ -36,16 +36,11 @@ The app runs as uid 1000 inside the image, which is why the two writable mounts
 must belong to that id. `pgdata` belongs to Postgres and needs no chown:
 Postgres creates and owns its own `18/docker` subfolder inside it.
 
-Then create the Stack in Komodo:
-
-| Setting | Value |
-| --- | --- |
-| Name | `bundesarchiv` (the compose project, so containers are `bundesarchiv-app-1` etc.) |
-| Source | git repo `deutscher-pfadfinderbund/bundesarchiv`, branch `main` |
-| File paths | `compose.yml` |
-| Environment | `deploy/production.env.example`, filled in (below) |
-| Env file path | `production.env` |
-| Auto update | on |
+The Stack's settings live in `deploy/komodo.toml`. In Komodo, create a Resource
+Sync `bundesarchiv` on this repo, branch `main`, resource path
+`deploy/komodo.toml`, delete off; running it creates the Stack. Change settings
+in that file, not in Komodo's UI: the next sync run reverts UI edits. The Stack
+name is the compose project, so containers are `bundesarchiv-app-1` etc.
 
 Komodo writes the environment as `production.env` next to `compose.yml` and
 passes it to compose as `--env-file`. Compose needs both: the `env_file:` lines
@@ -59,9 +54,10 @@ serve at all, by design.
 
 ### Filling the environment
 
-`deploy/production.env.example` lists every variable with what it is for. Keep
-the secrets in Komodo Secrets and reference them from the environment. Three
-need thought:
+The environment is in `deploy/komodo.toml`; `deploy/production.env.example`
+says what each variable is for. Secrets are secret Komodo Variables, referenced
+as `[[NAME]]`; `KEYCLOAK_ISSUER` is a global Variable shared with other stacks.
+Three need thought:
 
 - `BUNDESARCHIV_SECRET_KEY` and `BUNDESARCHIV_VIEWER_SIGNING_KEY` are two
   DIFFERENT secrets. Generate each with
@@ -77,17 +73,14 @@ A push to `main` that passes CI is the deployment.
 `.github/workflows/app-image.yml` builds the image once CI is green on that
 commit, pushes it, and its `deploy` job runs a Komodo Deploy of the Stack. The
 Deploy pulls the checkout and `:latest`, recreates what changed, then runs the
-Stack's Post Deploy:
+Stack's Post Deploy (`deploy/komodo.toml`): `nginx -t`, an nginx reload,
+`rebuild_thumbnails`. Komodo chains these lines with `&&`, so a config that
+fails `nginx -t` is never loaded and the Deploy fails. The reload is how a
+changed `nginx.conf` takes effect: Compose does not recreate nginx when only a
+mounted file changed.
 
-```
-docker exec bundesarchiv-nginx-1 nginx -t
-docker exec bundesarchiv-nginx-1 nginx -s reload
-docker exec bundesarchiv-app-1 python manage.py rebuild_thumbnails
-```
-
-Komodo chains these lines with `&&`, so a config that fails `nginx -t` is never
-loaded and the Deploy fails. The reload is how a changed `nginx.conf` takes
-effect: Compose does not recreate nginx when only a mounted file changed.
+The Deploy does not run the sync: after a change to `deploy/komodo.toml`, run
+the Resource Sync before the next deploy.
 
 The `deploy` job runs in the GitHub environment `production`. That environment
 holds the Komodo API key, of a service user with Execute on this one Stack. The

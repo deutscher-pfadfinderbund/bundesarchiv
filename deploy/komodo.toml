@@ -1,0 +1,50 @@
+# The Komodo Stack, applied by a Resource Sync (docs/runbook.md, Deploy).
+[[stack]]
+name = "bundesarchiv"
+
+[stack.config]
+server = "bujubu"
+links = ["https://archiv.deutscher-pfadfinderbund.de"]
+
+# Deploys come from CI (.github/workflows/app-image.yml), not a webhook.
+repo = "deutscher-pfadfinderbund/bundesarchiv"
+file_paths = ["compose.yml"]
+webhook_enabled = false
+
+env_file_path = "production.env"
+environment = """
+# Django
+BUNDESARCHIV_SECRET_KEY=[[BUNDESARCHIV_SECRET_KEY]]
+BUNDESARCHIV_ALLOWED_HOSTS=archiv.deutscher-pfadfinderbund.de
+
+# Postgres
+POSTGRES_DB=bundesarchiv
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=[[BUNDESARCHIV_PG_PASSWORD]]
+BUNDESARCHIV_PG_DSN=postgresql://postgres:[[BUNDESARCHIV_PG_PASSWORD]]@postgres:5432/bundesarchiv
+
+# Media
+BUNDESARCHIV_CANONICAL_ROOT=/canonical
+BUNDESARCHIV_THUMBNAIL_ROOT=/thumbnails
+BUNDESARCHIV_X_ACCEL_PREFIX=/_media
+BUNDESARCHIV_VIEWER_SIGNING_KEY=[[BUNDESARCHIV_VIEWER_SIGNING_KEY]]
+
+# Login (Keycloak)
+BUNDESARCHIV_OIDC_ISSUER=[[KEYCLOAK_ISSUER]]
+BUNDESARCHIV_OIDC_CLIENT_ID=bundesarchiv
+BUNDESARCHIV_OIDC_CLIENT_SECRET=[[BUNDESARCHIV_OIDC_CLIENT_SECRET]]
+
+# Nextcloud mirror
+BUNDESARCHIV_MIRROR_DAV_URL=https://cloud.deutscher-pfadfinderbund.de/remote.php/dav/files/[[BUNDESARCHIV_MIRROR_DAV_USER]]/Bundesarchiv
+BUNDESARCHIV_MIRROR_DAV_USER=bundesarchiv-app
+BUNDESARCHIV_MIRROR_DAV_PASSWORD=[[BUNDESARCHIV_MIRROR_DAV_PASSWORD]]
+"""
+
+[stack.config.post_deploy]
+# shell_mode off: Komodo chains the lines with &&, so a failing nginx -t stops the reload.
+command = """
+docker exec bundesarchiv-nginx-1 nginx -t
+docker exec bundesarchiv-nginx-1 nginx -s reload
+docker exec bundesarchiv-app-1 python manage.py rebuild_thumbnails
+"""
+shell_mode = false
