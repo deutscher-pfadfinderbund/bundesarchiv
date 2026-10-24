@@ -2,7 +2,7 @@
 name = "bundesarchiv"
 version = "0.1.0"
 description = "DPB Bundesarchiv — multimedia archive"
-requires-python = ">=3.14"
+requires-python = "==3.14.*"
 dependencies = [
     "authlib>=1.8.0",
     "django>=6.0",
