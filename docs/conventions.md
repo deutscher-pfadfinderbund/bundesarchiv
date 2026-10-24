@@ -4,7 +4,7 @@ How code in this repo is written. Binds human contributors and AI agents alike.
 
 ## Stack & tooling
 
-- **Python ≥ 3.14**, managed by **uv** (`uv.lock` pinned, `.python-version`).
+- **Python 3.14**, managed by **uv**: `requires-python` names the one minor version, and uv installs it in dev, CI and the image (`uv.lock` pinned).
 - **Sync, not async** (WSGI) — see rationale below.
 - **ruff** = lint + format (line length 100; ruff's defaults `E4,E7,E9,F` extended with `I,UP,B,SIM,RUF,C4,FURB,PERF,PIE,PTH,RET`).
 - **mypy `--strict`** = the **canonical** type checker, gating at the commit hook and in `check` (incremental cache: ~0.3s warm, ~2.5s cold). `django-stubs` + `mypy_django_plugin` are wired in — it is the only checker today with first-class Django ORM typing.

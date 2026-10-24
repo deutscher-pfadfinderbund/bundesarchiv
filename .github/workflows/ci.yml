@@ -55,7 +55,7 @@ jobs:
       - name: Install mise
         uses: jdx/mise-action@v5
 
-      # uv installs the pinned Python (.python-version: 3.14) itself.
+      # uv installs the Python that requires-python names itself.
       - name: Install dependencies
         run: uv sync
 
