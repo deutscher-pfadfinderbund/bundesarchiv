@@ -79,11 +79,12 @@ fails `nginx -t` is never loaded and the Deploy fails. The reload is how a
 changed `nginx.conf` takes effect: Compose does not recreate nginx when only a
 mounted file changed.
 
-The Deploy does not run the sync: after a change to `deploy/komodo.toml`, run
-the Resource Sync before the next deploy.
+The `deploy` job runs the Resource Sync before the Deploy, so a change to
+`deploy/komodo.toml` lands with its push; a failed sync stops the Deploy.
 
 The `deploy` job runs in the GitHub environment `production`. That environment
-holds the Komodo API key, of a service user with Execute on this one Stack. The
+holds the Komodo API key, of a service user with Execute on this Stack and its
+Resource Sync. The
 job waits for Komodo's result: a failed Deploy turns the run and the
 `production` Deployment red, and GitHub sends its failed-run notification. The
 run log shows stage names only; the full log is in Komodo. To make every deploy
