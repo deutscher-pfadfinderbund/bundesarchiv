@@ -7,9 +7,8 @@
 # CHECK_CMD runs in a throwaway detached worktree (a sibling of the repo, where tools such as
 # mise already trust and cache) holding the merge result: a gate over a whole directory (module
 # map, leak matrix) only shows up there, never in a merge-tree dry run.
-# Green: merge exactly the commit that was checked, always as a merge commit (a unit stays one
-# first-parent step on main: escapes and per-unit numbers need that boundary), then
-# remove BRANCH's worktree and BRANCH. Red: nothing changes, the tail of CHECK_CMD's output is
+# Green: merge exactly the commit that was checked, as a fast-forward when BRANCH sits on the
+# current branch, else as a merge commit, then remove BRANCH's worktree and BRANCH. Red: nothing changes, the tail of CHECK_CMD's output is
 # printed. Never pushes and never force-deletes or rewinds anything.
 #
 # Exit codes: 0 merged and cleaned up; 1 refused or check red, nothing merged;
@@ -66,7 +65,7 @@ branch_wt=$(git worktree list --porcelain | awk -v b="refs/heads/$branch" '
   $1 == "worktree" { path = substr($0, 10) }
   $1 == "branch" && $2 == b { print path }')
 
-git merge --quiet --no-ff --no-edit -m "Merge branch '$branch'" "$sha" || die "merging $branch failed"
+git merge --quiet --ff --no-edit -m "Merge branch '$branch'" "$sha" || die "merging $branch failed"
 
 cleanup_failed() {
   echo "merge.sh: merged $sha; cleanup failed: $1" >&2
