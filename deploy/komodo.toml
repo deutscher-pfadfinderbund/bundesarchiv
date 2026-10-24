@@ -10,6 +10,7 @@ links = ["https://archiv.deutscher-pfadfinderbund.de"]
 repo = "deutscher-pfadfinderbund/bundesarchiv"
 file_paths = ["compose.yml"]
 webhook_enabled = false
+auto_update = true
 
 env_file_path = "production.env"
 environment = """
