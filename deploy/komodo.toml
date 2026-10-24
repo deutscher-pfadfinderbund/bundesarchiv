@@ -12,6 +12,7 @@ file_paths = ["compose.yml"]
 webhook_enabled = false
 
 env_file_path = "production.env"
+# [[NAME]] reads a Komodo Variable; lines here cannot reference each other.
 environment = """
 # Django
 BUNDESARCHIV_SECRET_KEY=[[BUNDESARCHIV_SECRET_KEY]]
@@ -35,7 +36,7 @@ BUNDESARCHIV_OIDC_CLIENT_ID=bundesarchiv
 BUNDESARCHIV_OIDC_CLIENT_SECRET=[[BUNDESARCHIV_OIDC_CLIENT_SECRET]]
 
 # Nextcloud mirror
-BUNDESARCHIV_MIRROR_DAV_URL=https://cloud.deutscher-pfadfinderbund.de/remote.php/dav/files/[[BUNDESARCHIV_MIRROR_DAV_USER]]/Bundesarchiv
+BUNDESARCHIV_MIRROR_DAV_URL=https://cloud.deutscher-pfadfinderbund.de/remote.php/dav/files/bundesarchiv-app/Bundesarchiv
 BUNDESARCHIV_MIRROR_DAV_USER=bundesarchiv-app
 BUNDESARCHIV_MIRROR_DAV_PASSWORD=[[BUNDESARCHIV_MIRROR_DAV_PASSWORD]]
 """
