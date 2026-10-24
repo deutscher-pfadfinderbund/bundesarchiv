@@ -48,3 +48,23 @@ docker exec bundesarchiv-nginx-1 nginx -s reload
 docker exec bundesarchiv-app-1 python manage.py rebuild_thumbnails
 """
 shell_mode = false
+
+[[procedure]]
+name = "bundesarchiv-nextcloud-sync"
+tags = ["bundesarchiv"]
+
+[[procedure.config.stage]]
+name = "Queue mirror_reconcile"
+enabled = true
+
+[[procedure.config.stage.executions]]
+enabled = true
+execution.type = "RunStackService"
+execution.params.stack = "bundesarchiv"
+execution.params.service = "worker"
+execution.params.command = [
+  "python", "manage.py", "procrastinate", "defer",
+  "--queueing-lock", "mirror_reconcile", "mirror_reconcile", "{}",
+]
+execution.params.no_tty = true
+execution.params.no_deps = true
