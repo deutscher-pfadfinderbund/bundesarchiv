@@ -19,6 +19,10 @@ carries the CSRF header of every htmx request (absent on the error page, which h
   <script src="{% static "list_address.js" %}" defer></script>
   <script src="{% static "theme.js" %}" defer></script>
   <script src="{% static "combobox.js" %}" defer></script>
+  {% comment %}sizes on the ICO makes Chrome take the SVG; without it Chrome picks the ICO.{% endcomment %}
+  <link rel="icon" href="{% static "favicon.ico" %}" sizes="32x32">
+  <link rel="icon" href="{% static "favicon.svg" %}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{% static "apple-touch-icon.png" %}">
   <link rel="stylesheet" href="{% static "tokens.css" %}">
   <link rel="stylesheet" href="{% static "components.css" %}">
   <link rel="stylesheet" href="{% static "layouts.css" %}">
