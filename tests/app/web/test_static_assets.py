@@ -20,12 +20,15 @@ _PLAIN = "django.contrib.staticfiles.storage.StaticFilesStorage"
 #: turn this red.
 _KNOWN_ASSETS = frozenset(
     {
+        "apple-touch-icon.png",
         "catalog_bulk.js",
         "catalog_form.js",
         "combobox.js",
         "components.css",
         "detail.css",
         "error_banner.js",
+        "favicon.ico",
+        "favicon.svg",
         "forms.css",
         "htmx.min.js",
         "hx-browser-indicator.min.js",
