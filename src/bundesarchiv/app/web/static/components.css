@@ -446,6 +446,32 @@
     --ink: var(--ink-2);
   }
 
+  /* ---- expandable list — a ranked list's first rows, the rest behind "Mehr …" / "Weniger"
+     (DESIGN.md). Parts: .expandable-rest (a folded row), .expandable-more, .expandable-less. ---- */
+  .expandable:has(details:not([open])) .expandable-rest,
+  .expandable [open] .expandable-more,
+  .expandable details:not([open]) .expandable-less {
+    display: none;
+  }
+  /* the row's line is the entry face's, so it stands exactly as tall as a register row; its words
+     are in the meta face. A block (not flex): a flex row would drop that line. */
+  .expandable summary {
+    display: block; /* no list-item, so no disclosure triangle */
+    padding-block: var(--space-2); /* a register row's */
+    font: var(--type-entry);
+  }
+  .expandable summary span {
+    font: var(--type-meta);
+  }
+  .expandable summary::-webkit-details-marker {
+    display: none;
+  }
+  .expandable summary:hover {
+    color: var(--ink);
+    text-decoration: underline;
+    text-underline-offset: var(--underline-offset);
+  }
+
   /* ---- resume — "Weiter bearbeiten:" and its links as one running line ---- */
   .resume {
     color: var(--ink-2);

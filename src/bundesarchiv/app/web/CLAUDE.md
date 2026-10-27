@@ -4,12 +4,11 @@ Law: `viewer_of(request)` is THE request→Viewer trust boundary — no view res
 revealing and changing nothing (`assert_denied` is the test contract). Every route is enumerated by the leak matrix
 (`tests/app/web/test_leak_matrix.py`) — a new route must join its contract table. UI is German, code identifiers English
 (`CONTEXT.md`). ADR 0013's `Conflict` is caught at exactly four form sites here (`catalog.py`, `collection_views.py`, the
-delete confirm, restore), each re-displaying the winner; every non-form mutation goes through `app.articles.update_article`
-and matches on its outcome union instead. The edit form has ONE render (`catalog_views.EditSurface`), always built from the
-SAVED article and parameterised by a closed overlay union — a new panel joins that union, never a second context build. An
-archivist gate is `isinstance(viewer_of(request), Archivist)`, and a write route passes that Archivist's `username` on as
-`changed_by` (ADR 0019); a new write route joins `test_changed_by.py` and `test_index_lag.py` (it shows a lagging index, ADR
-0014).
+delete confirm, restore), each re-displaying the winner; every non-form mutation goes through `app.articles.update_article` and
+matches on its outcome union instead. The edit form has ONE render (`catalog_views.EditSurface`), always built from the SAVED
+article and parameterised by a closed overlay union — a new panel joins that union, never a second context build. An archivist
+gate is `isinstance(viewer_of(request), Archivist)`, and a write route passes that Archivist's `username` on as `changed_by`
+(ADR 0019); a new write route joins `test_changed_by.py` and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 
 - `viewers.py` — Viewer · interface: `viewer_of`, `realm`, `login_cookies`, `request_kind`, `render_screen`, `redirect_to`, `panel_response`, `TokenCookieMiddleware` · tests: `test_*viewer*.py`, `test_request_kind.py`
 - `auth_views.py` — the login surface: Keycloak in, two token cookies out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect`, `callback_uri` · tests: `tests/app/web/test_auth_views.py`
@@ -25,6 +24,7 @@ archivist gate is `isinstance(viewer_of(request), Archivist)`, and a write route
 - `byline.py` — the linked value a byline line prints (Schlagworte, Im Volltext); a leaf · interface: `BylineLink` · tests: `test_detail.py`, `test_ledger.py`
 - `suggestions.py` — the search field's suggestions, a member route, `/suggestions`+`/list`; pure `build` · interface: `suggestions`, `build` · tests: `test_suggestions.py`, `tests/index/test_leaks_suggestions.py`
 - `start.py` — start page: areas (a function + a partial each) on one grid, one tuple per role · interface: `start`, `Area`, `ARCHIVIST`, `MEMBER` · tests: `tests/app/web/test_start.py`
+- `expandable.py` — the expandable list's fold rule: the first N rows show, a single row never folds · interface: `shown` · tests: `tests/app/web/test_expandable.py`
 - `ledger.py` — columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `SORT_LABELS`, `build`, `chosen`, `unfiltered`, `text_hits`, both marks · tests: `test_ledger.py`
 - `reading.py` — the Lesesaal: hits as rows to read, the why line chosen from the headlines · interface: `rows`, `why`, `Row`, `Why` · tests: `tests/app/web/test_reading.py`, `test_workbench.py`
 - `catalog.py` — the edit form's leak-sensitive parse + save · interface: `parse_edit_form`, `audience_choice`, `parse_audience`, `parse_lines`, `save_catalog_form`, `apply_media_fields` · tests: `test_catalog_form.py`

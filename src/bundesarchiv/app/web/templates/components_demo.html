@@ -91,6 +91,9 @@ components; this storyboard updates in lockstep with them.
       outline-offset: var(--focus-width);
     }
     .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+    /* the expandable list's caller list: the start page uses .tiles, which lives in layouts.css,
+       and this page does not load layouts.css (it restyles the page) — so a plain one-column list */
+    .demo-list { margin: 0; padding: 0; list-style: none; }
     /* squeezes the mark below a CEILING code (8 chars, no spaces — owner 2026-08-07) so its
        ellipsis is shown on a realistic value, not a fiction */
     .sig-narrow { max-width: 3.5rem; }
@@ -426,6 +429,29 @@ list anchored to its own button. {% endcomment %}
   {% endfor %}
 </div>
 <code class="doc">below 40rem (S, the space budget) the heads go and each row is its title over one line of its facts, "1962 · Fahrtenbericht · 2 Fotos · F12" in sans (round 10); a dot only between two present values; the tools and the selection are absent</code>
+
+<h2 id="demo-expandable">Expandable list <span class="status">{{ status.expandable_list }}</span></h2>
+{% for shown, open in expandable_samples %}
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="expandable">
+      <ul class="demo-list">
+        {% for tile in expandable %}
+        <li{% if forloop.counter > shown %} class="expandable-rest"{% endif %}>
+          {% include "start/_tile.html" with item=tile only %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% if expandable|length > shown %}
+      {% include "components/expandable_control.html" with open=open only %}
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+<code class="doc">the caller's element with class="expandable" around its list (ul, table, grid) and the control; each row past expandable.shown(rows, N) gets class="expandable-rest"; components/expandable_control.html [open=…] follows the list when a row is folded — closed: N rows, then "Mehr …"; open: every row in rank order, "Weniger" below the last; N + 1 or fewer rows: every row, no control</code>
 
 <h2>Pagination <span class="status">{{ status.pagination }}</span></h2>
 <div class="probe">

@@ -314,7 +314,8 @@ rail; they are split out only as swap units (law C7).
 | Skip link | `.skip` | inline (`workbench/base`) | `components.css` skip link | proposed |
 | Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add | approved (2026-10-11) |
 | Register | `.register` | inline (edit form: Medien) | `components.css` register | approved (2026-10-11) |
-| Register row | `.register-row` | `start/_collections`, `_by_media_type`, `_timeline` (bar: `.register-bar`), `_recent` (`.register-lead`, `.register-aside`) | `components.css` register-row | approved (2026-10-11) |
+| Register row | `.register-row` | `start/_tile` (Bestände, Nach Art), `_timeline` (bar: `.register-bar`), `_recent` (`.register-lead`, `.register-aside`) | `components.css` register-row | approved (2026-10-11) |
+| Expandable list | `.expandable` | the caller's list in `.expandable`, its folded rows `.expandable-rest` (`expandable.shown`), then the control `components/expandable_control` (words `.expandable-more`, `.expandable-less`); `start/_by_media_type`: Nach Art | `components.css` expandable list | approved (2026-10-27) |
 | Resume | `.resume` | `start/_search` ("Weiter bearbeiten") | `components.css` resume | approved (2026-10-11) |
 | File row | `.file-row` | inline (edit form: Medien) | `components.css` file-row | approved (2026-10-11) |
 | Upload | `.upload` | inline (edit form) | `components.css` upload | approved (2026-10-11) |

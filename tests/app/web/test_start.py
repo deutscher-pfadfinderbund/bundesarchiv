@@ -9,11 +9,20 @@ from typing import Any, cast
 from urllib.parse import unquote
 
 import pytest
+from django.template.loader import render_to_string
 from django.test import RequestFactory
-from tests.app.web._fixtures import Corpus, client_as, list_url, make_article, make_collection
+from tests.app.web._fixtures import (
+    Corpus,
+    client_as,
+    list_url,
+    make_article,
+    make_collection,
+    page_hrefs,
+)
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.web import start
+from bundesarchiv.app.web import browse, start
+from bundesarchiv.app.web.browse_views import preset_url
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
@@ -66,7 +75,9 @@ def _get(viewer: Viewer, path: str) -> Any:
 def _collection_counts(response: Any) -> dict[str, str]:
     """Each Bestand link in ``<main>`` and the count it carries."""
     main = response.content.decode().split("<main", 1)[1]
-    return dict(re.findall(r'href="/articles\?collection=(\w+)".*?<data value="(\d+)"', main))
+    return dict(
+        re.findall(r'href="/articles\?collection=(\w+)".*?<data value="(\d+)"', main, re.DOTALL)
+    )
 
 
 def _screen(response: Any) -> str:
@@ -135,14 +146,26 @@ def test_by_media_type_and_timeline_count_what_the_viewer_may_see(
     assert _preset_counts(response, "dateless") == {"1": undated}
 
 
-def test_by_media_type_names_the_top_media_types_each_a_media_type_preset() -> None:
-    counts = {"media_type": tuple(FacetCount(f"Art {n}", 10 - n) for n in range(9))}
+def _by_media_type(kinds: int) -> tuple[list[str], list[str], bool]:
+    """Nach Art over ``kinds`` Medienarten, most first: the presets it shows, the ones it folds, and
+    whether it offers to unfold."""
+    counts = {"media_type": tuple(FacetCount(f"Art {n}", 20 - n) for n in range(kinds))}
     area = start.by_media_type_area(
         Archivist(), RequestFactory().get("/"), counts, CollectionChooser(lambda: ())
     )
-    tiles = cast("tuple[start.Tile, ...]", area["tiles"])
-    assert [t.label for t in tiles] == [f"Art {n}" for n in range(7)]
-    assert all("media_type=" in t.href for t in tiles)
+    html = render_to_string("start/_by_media_type.html", {"area": area})
+    shown, _, folded = html.partition('class="expandable-rest"')
+    return page_hrefs(shown), page_hrefs(folded), "<details" in html
+
+
+@pytest.mark.parametrize(("kinds", "folded"), [(8, 0), (9, 2)])
+def test_by_media_type_shows_the_seven_most_used_and_folds_the_rest_in_rank_order(
+    kinds: int, folded: int
+) -> None:
+    """The fold rule itself: ``test_expandable``."""
+    presets = [preset_url(browse.PARAM_MEDIA_TYPE, f"Art {n}") for n in range(kinds)]
+    cut = kinds - folded
+    assert _by_media_type(kinds) == (presets[:cut], presets[cut:], folded > 0)
 
 
 def test_continue_editing_names_the_drafts_to_an_archivist_and_nothing_to_a_member(

@@ -1,0 +1,12 @@
+{% comment %}
+The expandable list's control (design-system.md inventory; the rule: DESIGN.md "Expandable list").
+Param: [open]. The caller places it after its list inside its `.expandable` element, only when a
+row is folded. It holds no rows, it only toggles them, so they stay one list in rank order and the
+control follows the last row.
+{% endcomment %}
+<details{% if open %} open{% endif %}>
+  <summary>
+    <span class="expandable-more">Mehr …</span>
+    <span class="expandable-less">Weniger</span>
+  </summary>
+</details>

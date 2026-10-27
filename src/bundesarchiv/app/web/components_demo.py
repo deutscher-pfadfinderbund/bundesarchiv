@@ -7,8 +7,9 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.templatetags.static import static
 
-from bundesarchiv.app.web import browse, ledger
+from bundesarchiv.app.web import browse, expandable, ledger, vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
+from bundesarchiv.app.web.start import Tile
 from bundesarchiv.domain.models import ULID
 from bundesarchiv.index.query import FileKind, SearchHit, TextPage
 
@@ -151,6 +152,25 @@ _PAGERS = tuple(
     )
 )
 
+#: Medienarten most first, for the expandable list: five rows, so N = 3 folds two.
+_EXPANDABLE = tuple(
+    Tile(label, count, vocab.count(count), "#demo-expandable")
+    for label, count in (
+        ("Foto(s)", 1840),
+        ("Dokument", 912),
+        ("Zeitschrift", 305),
+        ("Plakat", 41),
+        ("Tonband", 6),
+    )
+)
+#: The samples, each (rows shown, open): closed at N = 3, open at N = 3, and N = 4, which folds
+#: nothing.
+_EXPANDABLE_SAMPLES = (
+    (expandable.shown(len(_EXPANDABLE), 3), False),
+    (expandable.shown(len(_EXPANDABLE), 3), True),
+    (expandable.shown(len(_EXPANDABLE), 4), False),
+)
+
 #: Token swatches: (background role, text role) pairs, then the line roles.
 _SWATCH_PAIRS = (
     ("ground", "ink"),
@@ -177,6 +197,8 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "swatch_lines": _SWATCH_LINES,
             "ledger": _demo_ledger(),
             "pagers": _PAGERS,
+            "expandable": _EXPANDABLE,
+            "expandable_samples": _EXPANDABLE_SAMPLES,
             "status": {
                 row.name.lower().replace(" ", "_"): " · ".join(
                     [

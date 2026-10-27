@@ -15,7 +15,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponsePermanentRedirect
 from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.web import browse, vocab
+from bundesarchiv.app.web import browse, expandable, vocab
 from bundesarchiv.app.web.browse_views import preset_url
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
@@ -56,7 +56,7 @@ class Tile:
 
 #: How many titles "Weiter bearbeiten" names before it folds the rest into "und n weitere".
 _RESUME_TITLES = 3
-#: How many Medienarten "Nach Art" names.
+#: How many Medienarten "Nach Art" shows before "Mehr …" folds the rest (the expandable list).
 _MEDIA_TYPES = 7
 #: How many Articles "Zuletzt hinzugefügt" lists.
 _RECENT_COUNT = 5
@@ -111,8 +111,8 @@ def collections_area(
 def by_media_type_area(
     _viewer: Viewer, _request: HttpRequest, counts: Counts, _chooser: CollectionChooser
 ) -> Mapping[str, object]:
-    """The most-used Medienarten as tiles (``counts`` is viewer-scoped, most first). The rest get
-    no row: the list has no Medienart slot, so a catch-all could only open the whole list."""
+    """Every Medienart the viewer has Articles in as tiles, most first (``counts`` is
+    viewer-scoped), and how many show before the rest fold."""
     tiles = tuple(
         Tile(
             fc.value,
@@ -120,9 +120,9 @@ def by_media_type_area(
             vocab.count(fc.count),
             preset_url(browse.PARAM_MEDIA_TYPE, fc.value),
         )
-        for fc in counts["media_type"][:_MEDIA_TYPES]
+        for fc in counts["media_type"]
     )
-    return {"tiles": tiles}
+    return {"tiles": tiles, "shown": expandable.shown(len(tiles), _MEDIA_TYPES)}
 
 
 @dataclass(frozen=True, slots=True)

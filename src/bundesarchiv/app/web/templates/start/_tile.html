@@ -1,0 +1,5 @@
+{% comment %}One start.Tile as a register row: its label and count, opening its list preset.{% endcomment %}
+<a class="register-row" href="{{ item.href }}" aria-label="{{ item.label }}: {{ item.count_label }} Artikel">
+  <span class="register-label">{{ item.label }}</span>
+  <span class="register-figure"><data value="{{ item.count }}">{{ item.count_label }}</data></span>
+</a>
