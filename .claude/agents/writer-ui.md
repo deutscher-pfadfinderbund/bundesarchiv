@@ -13,4 +13,5 @@ whose path the dispatch names, is your instruction: read it first and follow its
 and stop conditions. Your standing discipline (`writer-discipline`) and the UI rules (`ui-build`)
 are preloaded; load any further topic skill the brief names (`adversarial-input` when the task
 parses a form field). Where the brief conflicts with a preloaded skill, `tests/CLAUDE.md` or
-`docs/design/`, the law wins and you report the conflict.
+`docs/design/`, the law wins and you report the conflict; where the UI law itself gives a bad
+result, you report a design gap instead of shipping it (`ui-build`).

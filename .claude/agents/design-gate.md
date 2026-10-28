@@ -39,9 +39,10 @@ The gallery is the supplement, not the verdict. Final judgment — interact, res
 happens on the live `:8000` pages. Judge against the review catechism and cue register in
 `docs/design/design-review-law.md` (questions 2–4 and 6–8 are the human half; the lintable subset
 is `tests/app/web/test_design_lint.py`) and the component rules in `docs/design/design-system.md`
-— a new component or variant ships `proposed` or owner-approved, never unlisted. Restart the dev
-server after ANY commit (`:8000` runs `--noreload` and serves stale code otherwise), then review the
-URLs the change touches.
+— a new component or variant ships `proposed` or owner-approved, never unlisted. A screen that
+follows the law but looks wrong fails, and the rule behind it is a design gap (`ui-build`).
+Restart the dev server after ANY commit (`:8000` runs `--noreload` and serves stale code
+otherwise), then review the URLs the change touches.
 
 ## 4. Critique the touched screens
 
@@ -54,4 +55,4 @@ the owner, beside your own.
 
 Findings come back to the writer as `--fixup` commits targeting the writer's own wave commits,
 folded in one `--autosquash` cycle. Security review is a separate pass and clean-or-blocking on its
-own.
+own. Design gaps get their own section, for the owner: a writer cannot fix a rule.

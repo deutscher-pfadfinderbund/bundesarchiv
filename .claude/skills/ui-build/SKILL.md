@@ -21,6 +21,15 @@ adapt or build a component, and when a new one needs the owner first ("Component
 inventory with each row's status is "Component inventory"). A UI wave ends with before/after
 gallery renders for the owner's verdict — never with prose claiming the UI is good.
 
+## When the law gives a bad result
+
+The UI law is in development and has known flaws (`docs/design/decisions.md`); the existing CSS is
+the current state, not a precedent. When a rule makes a screen worse, two rules fight, or the only
+precedent is CSS that looks wrong: never fit around it, never invent an exception. Stop on that
+part, finish the rest (or stop the task if the rest needs it), and report a **design gap**: the
+screen or state, the rule (cite it), what it pushed you to, what you would do instead, and the
+decision the owner must make. A screen that follows the law but looks wrong is a design gap too.
+
 ## Design critique through impeccable
 
 Design critique, audit and polish go through the `impeccable` skill (`impeccable:impeccable`;
