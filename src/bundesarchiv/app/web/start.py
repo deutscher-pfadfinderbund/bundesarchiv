@@ -15,7 +15,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponsePermanentRedirect
 from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.web import browse, expandable, vocab
+from bundesarchiv.app.web import browse, vocab
 from bundesarchiv.app.web.browse_views import preset_url
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
@@ -108,11 +108,15 @@ def collections_area(
     return {"tiles": tuple(tiles)}
 
 
+def shown(rows: int, n: int) -> int:
+    """How many of ``rows`` ranked rows show closed: the first ``n``, but a single row never folds."""
+    return rows if rows <= n + 1 else n
+
+
 def by_media_type_area(
     _viewer: Viewer, _request: HttpRequest, counts: Counts, _chooser: CollectionChooser
 ) -> Mapping[str, object]:
-    """Every Medienart the viewer has Articles in as tiles, most first (``counts`` is
-    viewer-scoped), and how many show before the rest fold."""
+    """Every Medienart the viewer has Articles in as tiles, most first."""
     tiles = tuple(
         Tile(
             fc.value,
@@ -122,7 +126,7 @@ def by_media_type_area(
         )
         for fc in counts["media_type"]
     )
-    return {"tiles": tiles, "shown": expandable.shown(len(tiles), _MEDIA_TYPES)}
+    return {"tiles": tiles, "shown": shown(len(tiles), _MEDIA_TYPES)}
 
 
 @dataclass(frozen=True, slots=True)

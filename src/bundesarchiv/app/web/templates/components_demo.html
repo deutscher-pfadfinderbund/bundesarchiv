@@ -437,10 +437,7 @@ list anchored to its own button. {% endcomment %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="expandable">
       <ul class="demo-list">
-        {% for tile in expandable %}
-        <li{% if forloop.counter > shown %} class="expandable-rest"{% endif %}>
-          {% include "start/_tile.html" with item=tile only %}
-        </li>
+        {% for tile in expandable %}<li{% if forloop.counter > shown %} class="expandable-rest"{% endif %}><a class="register-row" href="{{ tile.href }}" aria-label="{{ tile.label }}: {{ tile.count_label }} Artikel"><span class="register-label">{{ tile.label }}</span><span class="register-figure"><data value="{{ tile.count }}">{{ tile.count_label }}</data></span></a></li>
         {% endfor %}
       </ul>
       {% if expandable|length > shown %}
@@ -451,7 +448,7 @@ list anchored to its own button. {% endcomment %}
   {% endfor %}
 </div>
 {% endfor %}
-<code class="doc">the caller's element with class="expandable" around its list (ul, table, grid) and the control; each row past expandable.shown(rows, N) gets class="expandable-rest"; components/expandable_control.html [open=…] follows the list when a row is folded — closed: N rows, then "Mehr …"; open: every row in rank order, "Weniger" below the last; N + 1 or fewer rows: every row, no control</code>
+<code class="doc">the caller's element with class="expandable" around its list (ul, table, grid) and the control; each row past start.shown(rows, N) gets class="expandable-rest"; components/expandable_control.html [open=…] follows the list when a row is folded — closed: N rows, then "Mehr …"; open: every row in rank order, "Weniger" below the last; N + 1 or fewer rows: every row, no control</code>
 
 <h2>Pagination <span class="status">{{ status.pagination }}</span></h2>
 <div class="probe">

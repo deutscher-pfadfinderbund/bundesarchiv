@@ -383,7 +383,7 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
   control reads "Weniger" and stays at the end, below the last row. It folds two rows or more,
   never one: with N + 1 rows or fewer every row shows and there is no "Mehr …". Native `<details>`, no JS (Nach Art).
 - The caller owns its list markup (a list, a table, a grid of tiles): it wraps the list and the
-  control in `.expandable`, marks each row past `expandable.shown(rows, N)` as `.expandable-rest`,
+  control in `.expandable`, marks each row past `start.shown(rows, N)` as `.expandable-rest`,
   and, when a row is folded, places `components/expandable_control` after the list.
 - It never folds a message, a focus target or a permanent fact. When the rest lives elsewhere, link
   there instead ("und n weitere Entwürfe").

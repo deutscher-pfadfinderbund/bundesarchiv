@@ -7,7 +7,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.templatetags.static import static
 
-from bundesarchiv.app.web import browse, expandable, ledger, vocab
+from bundesarchiv.app.web import browse, ledger, start, vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.start import Tile
 from bundesarchiv.domain.models import ULID
@@ -166,9 +166,9 @@ _EXPANDABLE = tuple(
 #: The samples, each (rows shown, open): closed at N = 3, open at N = 3, and N = 4, which folds
 #: nothing.
 _EXPANDABLE_SAMPLES = (
-    (expandable.shown(len(_EXPANDABLE), 3), False),
-    (expandable.shown(len(_EXPANDABLE), 3), True),
-    (expandable.shown(len(_EXPANDABLE), 4), False),
+    (start.shown(len(_EXPANDABLE), 3), False),
+    (start.shown(len(_EXPANDABLE), 3), True),
+    (start.shown(len(_EXPANDABLE), 4), False),
 )
 
 #: Token swatches: (background role, text role) pairs, then the line roles.

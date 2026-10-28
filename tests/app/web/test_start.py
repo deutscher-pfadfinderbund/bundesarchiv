@@ -162,7 +162,6 @@ def _by_media_type(kinds: int) -> tuple[list[str], list[str], bool]:
 def test_by_media_type_shows_the_seven_most_used_and_folds_the_rest_in_rank_order(
     kinds: int, folded: int
 ) -> None:
-    """The fold rule itself: ``test_expandable``."""
     presets = [preset_url(browse.PARAM_MEDIA_TYPE, f"Art {n}") for n in range(kinds)]
     cut = kinds - folded
     assert _by_media_type(kinds) == (presets[:cut], presets[cut:], folded > 0)
