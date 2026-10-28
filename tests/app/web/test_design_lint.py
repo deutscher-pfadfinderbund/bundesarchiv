@@ -4,10 +4,12 @@ opener."""
 
 import itertools
 import re
+from collections import Counter
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import pytest
+from tests.app.web._design_system import COMPONENT, LAYOUT, contract, link, project
 
 from bundesarchiv.app.web import components_demo
 
@@ -798,15 +800,202 @@ def test_every_layout_primitive_has_an_inventory_row() -> None:
     assert not missing, "layout primitive without an inventory row: " + ", ".join(missing)
 
 
-def test_every_inventory_row_has_a_status() -> None:
-    rows: tuple[components_demo.InventoryRow | components_demo.FamilyRow, ...] = (
-        *components_demo.inventory("Component inventory"),
-        *components_demo.inventory("Layout primitives"),
-        *components_demo.families(),
+_MARK = re.compile(r"approved \(\d{4}-\d{2}-\d{2}\)|proposed")
+
+
+def _status_problems(
+    document: Path = components_demo.DESIGN_SYSTEM, contracts: Path = components_demo.CONTRACTS
+) -> list[str]:
+    """What breaks the Status rule (component rule 3): a cell is the row's own mark or the link
+    to its contract; a linked contract exists with the id of its file and one of the three
+    statuses; every contract file is linked by exactly one row."""
+    rows = (
+        *(
+            ("components", r.name, r.status)
+            for r in components_demo.inventory("Component inventory", document)
+        ),
+        *(("components", r.name, r.status) for r in components_demo.families(document)),
+        *(
+            ("layouts", r.name, r.status)
+            for r in components_demo.inventory("Layout primitives", document)
+        ),
     )
-    bad = [
-        row.name
-        for row in rows
-        if not re.fullmatch(r"approved \(\d{4}-\d{2}-\d{2}\)|proposed", row.status)
+    problems: list[str] = []
+    linked: Counter[tuple[str, str]] = Counter()
+    for directory, name, cell in rows:
+        link = components_demo.contract_link(cell)
+        if link is None:
+            if not _MARK.fullmatch(cell):
+                problems.append(f"{name}: Status is neither a mark nor a contract link")
+            continue
+        linked[link] += 1
+        kind, stem = link
+        path = contracts / kind / f"{stem}.md"
+        if kind != directory:
+            problems.append(
+                f"{name}: links into {kind}/, its table's contracts are in {directory}/"
+            )
+        elif not path.is_file():
+            problems.append(f"{name}: contract {kind}/{stem}.md does not exist")
+        else:
+            try:
+                contract = components_demo.parse_contract(path.read_text())
+            except ValueError as error:
+                problems.append(f"{name}: contract {kind}/{stem}.md: {error}")
+            else:
+                if contract.id != stem:
+                    problems.append(f"{name}: contract {kind}/{stem}.md has id {contract.id!r}")
+    on_disk = {
+        (directory, path.stem)
+        for directory in ("components", "layouts")
+        for path in (contracts / directory).glob("*.md")
+    }
+    problems += [
+        f"contract {kind}/{stem}.md is linked by {linked[kind, stem]} rows, not one"
+        for kind, stem in sorted(on_disk)
+        if linked[kind, stem] != 1
     ]
-    assert not bad, "inventory row without a status: " + ", ".join(bad)
+    return problems
+
+
+def test_every_inventory_row_has_a_status_or_its_contract() -> None:
+    assert not _status_problems()
+
+
+_BUTTON = f"{COMPONENT}/button"
+
+
+def _problems(tmp_path: Path, **kwargs: Any) -> list[str]:
+    return _status_problems(*project(tmp_path, **kwargs))
+
+
+@pytest.mark.parametrize("status", ["hidden", "discoverable", "deprecated"])
+def test_well_formed_links_in_every_table_pass(tmp_path: Path, status: str) -> None:
+    problems = _problems(
+        tmp_path,
+        components=(link(COMPONENT, "button"), "proposed"),
+        families=(link(COMPONENT, "group"),),
+        layouts=(link(LAYOUT, "frame"), "approved (2026-10-11)"),
+        contracts={
+            _BUTTON: contract(status=status),
+            f"{COMPONENT}/group": contract("group", status),
+            f"{LAYOUT}/frame": contract("frame", status),
+        },
+    )
+    assert not problems
+
+
+def test_a_linked_row_shows_its_contracts_status_in_the_library(tmp_path: Path) -> None:
+    document, root = project(
+        tmp_path,
+        components=(link(COMPONENT, "button"),),
+        families=(link(COMPONENT, "group"),),
+        contracts={_BUTTON: contract(), f"{COMPONENT}/group": contract("group", "hidden")},
+    )
+    assert components_demo.library_status(document, root) == {
+        "button_0": "contract: discoverable \N{MIDDLE DOT} Group 0: contract: hidden"
+    }
+
+
+def test_a_row_with_a_mark_shows_the_mark_in_the_library(tmp_path: Path) -> None:
+    document, root = project(tmp_path)
+    assert components_demo.library_status(document, root) == {
+        "button_0": "proposed \N{MIDDLE DOT} Group 0: proposed"
+    }
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "reason"),
+    [
+        pytest.param({"components": ("done",)}, "neither a mark nor", id="foreign-cell"),
+        pytest.param(
+            {"components": (link(COMPONENT, "button") + " approved",)},
+            "neither a mark nor",
+            id="link-with-extra-text",
+        ),
+        pytest.param(
+            {"components": (link(COMPONENT, "button"),)}, "does not exist", id="missing-file"
+        ),
+        pytest.param(
+            {
+                "components": (link(COMPONENT, "button"),),
+                "contracts": {_BUTTON: "no frontmatter\n"},
+            },
+            "no frontmatter",
+            id="no-frontmatter",
+        ),
+        pytest.param(
+            {
+                "components": (link(COMPONENT, "button"),),
+                "contracts": {_BUTTON: "---\nid: [unclosed\n---\n"},
+            },
+            "does not parse",
+            id="unparsable-frontmatter",
+        ),
+        pytest.param(
+            {
+                "components": (link(COMPONENT, "button"),),
+                "contracts": {_BUTTON: "---\nstatus: hidden\n---\n"},
+            },
+            "has no id",
+            id="missing-id",
+        ),
+        pytest.param(
+            {
+                "components": (link(COMPONENT, "button"),),
+                "contracts": {_BUTTON: contract("knob")},
+            },
+            "has id 'knob'",
+            id="id-differs-from-stem",
+        ),
+        pytest.param(
+            {
+                "components": (link(COMPONENT, "button"),),
+                "contracts": {_BUTTON: contract(status="approved")},
+            },
+            "is not one of",
+            id="foreign-status",
+        ),
+        pytest.param(
+            {
+                "layouts": (link(COMPONENT, "button"),),
+                "contracts": {_BUTTON: contract()},
+            },
+            "its table's contracts are in layouts/",
+            id="wrong-directory-for-the-table",
+        ),
+        pytest.param(
+            {"contracts": {_BUTTON: contract()}},
+            "linked by 0 rows",
+            id="unlinked-contract",
+        ),
+        pytest.param(
+            {
+                "components": (link(COMPONENT, "button"), link(COMPONENT, "button")),
+                "contracts": {_BUTTON: contract()},
+            },
+            "linked by 2 rows",
+            id="contract-linked-twice",
+        ),
+        pytest.param(
+            {
+                "components": (link(COMPONENT, "button"),),
+                "families": (link(COMPONENT, "button"),),
+                "contracts": {_BUTTON: contract()},
+            },
+            "linked by 2 rows",
+            id="contract-linked-across-tables",
+        ),
+        pytest.param(
+            {"contracts": {f"{LAYOUT}/frame": contract("frame")}},
+            "layouts/frame.md is linked by 0",
+            id="unlinked-layout-contract",
+        ),
+    ],
+)
+def test_a_status_rule_breach_is_reported(
+    tmp_path: Path, kwargs: dict[str, Any], reason: str
+) -> None:
+    problems = _problems(tmp_path, **kwargs)
+    assert len(problems) == 1
+    assert reason in problems[0]

@@ -1,8 +1,10 @@
 """Dev-only component library: English chrome, German samples, inert data."""
 
+import re
 from pathlib import Path
 from typing import NamedTuple
 
+import yaml
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.templatetags.static import static
@@ -13,7 +15,13 @@ from bundesarchiv.app.web.start import Tile
 from bundesarchiv.domain.models import ULID
 from bundesarchiv.index.query import FileKind, SearchHit, TextPage
 
-DESIGN_SYSTEM = Path(__file__).resolve().parents[4] / "docs" / "design" / "design-system.md"
+ROOT = Path(__file__).resolve().parents[4]
+DESIGN_SYSTEM = ROOT / "docs" / "design" / "design-system.md"
+#: Holds ``components/`` and ``layouts/``: the contracts, which own a linked row's status.
+CONTRACTS = ROOT / "design-system"
+
+_LINK = re.compile(r"\[contract\]\(\.\./\.\./design-system/(\w+)/([^/()]+)\.md\)")
+_CONTRACT_STATUSES = ("hidden", "discoverable", "deprecated")
 
 
 class InventoryRow(NamedTuple):
@@ -31,24 +39,80 @@ class FamilyRow(NamedTuple):
     status: str
 
 
-def _cells(heading: str) -> list[list[str]]:
-    """The body cells of one table in design-system.md (its ``### heading``)."""
-    section = DESIGN_SYSTEM.read_text().split(f"### {heading}\n", 1)[1].split("\n#", 1)[0]
+class Contract(NamedTuple):
+    id: str
+    status: str
+
+
+def _cells(heading: str, document: Path) -> list[list[str]]:
+    """The body cells of one table in the design-system document (its ``### heading``)."""
+    section = document.read_text().split(f"### {heading}\n", 1)[1].split("\n#", 1)[0]
     rows = [line for line in section.splitlines() if line.startswith("|")][2:]
     return [[cell.strip() for cell in row.strip("|").split("|")] for row in rows]
 
 
-def inventory(heading: str) -> tuple[InventoryRow, ...]:
+def inventory(heading: str, document: Path = DESIGN_SYSTEM) -> tuple[InventoryRow, ...]:
     """The rows of one inventory table (components or layout primitives)."""
-    return tuple(InventoryRow(c[0], c[1].strip("`"), c[2], c[3], c[-1]) for c in _cells(heading))
+    return tuple(
+        InventoryRow(c[0], c[1].strip("`"), c[2], c[3], c[-1]) for c in _cells(heading, document)
+    )
 
 
-def families() -> tuple[FamilyRow, ...]:
+def families(document: Path = DESIGN_SYSTEM) -> tuple[FamilyRow, ...]:
     """The rows of the families table: components sharing one CSS section (component rule 4)."""
     return tuple(
         FamilyRow(c[0], tuple(m.strip(" `") for m in c[1].split(",")), c[2], c[-1])
-        for c in _cells("Families")
+        for c in _cells("Families", document)
     )
+
+
+def contract_link(status_cell: str) -> tuple[str, str] | None:
+    """The (directory, id) a Status cell links its contract by, or None for any other cell."""
+    link = _LINK.fullmatch(status_cell)
+    return (link[1], link[2]) if link else None
+
+
+def parse_contract(text: str) -> Contract:
+    """The id and status of a contract's frontmatter; ValueError names what is wrong."""
+    parts = text.split("---\n", 2)
+    if parts[0] or len(parts) < 3:
+        raise ValueError("no frontmatter")
+    try:
+        meta = yaml.safe_load(parts[1])
+    except yaml.YAMLError as error:
+        raise ValueError("frontmatter does not parse") from error
+    contract_id = meta.get("id") if isinstance(meta, dict) else None
+    status = meta.get("status") if isinstance(meta, dict) else None
+    if not contract_id:
+        raise ValueError("frontmatter has no id")
+    if status not in _CONTRACT_STATUSES:
+        raise ValueError(f"status {status!r} is not one of {', '.join(_CONTRACT_STATUSES)}")
+    return Contract(str(contract_id), status)
+
+
+def library_status(document: Path = DESIGN_SYSTEM, contracts: Path = CONTRACTS) -> dict[str, str]:
+    """Per component, the status line the library shows beside its samples: its own and its
+    families'. A linked row shows its contract's status, as is."""
+
+    def shown(cell: str) -> str:
+        link = contract_link(cell)
+        if link is None:
+            return cell
+        return (
+            "contract: "
+            + parse_contract((contracts / link[0] / f"{link[1]}.md").read_text()).status
+        )
+
+    family_rows = families(document)
+    return {
+        row.name.lower().replace(" ", "_"): " \N{MIDDLE DOT} ".join(
+            [
+                shown(row.status),
+                *(f"{f.name}: {shown(f.status)}" for f in family_rows if row.root in f.members),
+            ]
+        )
+        for row in inventory("Component inventory", document)
+    }
 
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.
@@ -185,7 +249,6 @@ _SWATCH_LINES = ("rule", "edge", "faint")
 
 
 def component_library(request: HttpRequest) -> HttpResponse:
-    family_rows = families()
     return render(
         request,
         "components_demo.html",
@@ -199,14 +262,6 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "pagers": _PAGERS,
             "expandable": _EXPANDABLE,
             "expandable_samples": _EXPANDABLE_SAMPLES,
-            "status": {
-                row.name.lower().replace(" ", "_"): " · ".join(
-                    [
-                        row.status,
-                        *(f"{f.name}: {f.status}" for f in family_rows if row.root in f.members),
-                    ]
-                )
-                for row in inventory("Component inventory")
-            },
+            "status": library_status(),
         },
     )
