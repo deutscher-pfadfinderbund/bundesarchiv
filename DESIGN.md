@@ -497,11 +497,10 @@ the gap journal.
    under `examples`. The partial shows every state and context the contract promises. The
    contract checker passes.
 7. **The owner decides:** approve, change or reject. On approval the status becomes
-   `discoverable`, the indexes are regenerated, the inventory row points to the contract, and the
-   branch merges.
-
-Before the first adoption, the design lint and the component library learn to read a contract's
-status, since the lint follows the contracts (ruling 2026-10-28).
+   `discoverable`, the indexes are regenerated, the row's Status cell becomes the link to the
+   contract (`[contract](../../design-system/components/<id>.md)`, relative to
+   `docs/design/design-system.md`; `layouts/` for a layout primitive), and the branch merges. The
+   row keeps its name, root, template and CSS section.
 
 ## Verification
 

@@ -67,12 +67,18 @@ simplicity checkable instead of a matter of taste.
      or rejects it in a UI review pass. A new view or layout primitive is
      never small.
   3. **Inventory.** Every component and every layout primitive has a row with
-     its status, `approved (date)` or `proposed` ("Component inventory",
-     "Layout primitives"); what has no row does not ship. Pages compose only
-     from inventoried layout primitives. The component library
+     its status ("Component inventory", "Families", "Layout primitives"); what
+     has no row does not ship. A Status cell is the row's own mark, `approved
+     (date)` or `proposed`, or, once the component has a contract, a link to it
+     (`[contract](../../design-system/components/<id>.md)`; `layouts/` for a
+     layout primitive) and nothing else: the contract owns the status
+     (`hidden`, `discoverable` or `deprecated`). Pages compose only from
+     inventoried layout primitives. The component library
      (`/_dev/components/`) shows the status and families of each component a
-     sample shows, and `tests/app/web/test_design_lint.py` fails on a
-     component template or a layout primitive without a row.
+     sample shows (`contract: <status>` for a linked row), and
+     `tests/app/web/test_design_lint.py` fails on a component template or a
+     layout primitive without a row, on a link whose contract is missing or
+     malformed, and on a contract no row links, or two rows do.
   4. **Families.** Components may share styling written once, in a family
      section. A family has a row in "Families": its member roots, its one CSS
      section, its status. In that section a rule may set any property on its
