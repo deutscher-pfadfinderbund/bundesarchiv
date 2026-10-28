@@ -15,7 +15,7 @@ listed there.
 
 1. **Docstrings** own only their module: no implementation narration, no history, no test
    docstring that restates its asserts, no ADR argument restated beside its citation
-   (`writer-discipline`, "Comment discipline").
+   (`.claude/skills/writer-discipline/SKILL.md`, "Comment discipline").
 2. **No deferral or "later" comments, no plan labels** ("Part N", wave or unit names) in code,
    tests or docs. A comment that promises a gate which does not exist is CONFIRMED.
 3. **Functional core, imperative shell**: I/O only in a shell, the core takes and returns plain

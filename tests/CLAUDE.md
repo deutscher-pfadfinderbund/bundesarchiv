@@ -39,10 +39,9 @@ governs new tests only.
 - **Hand-rolled DB gating** (a connection probe, a `skipif`, a manual
   `requires_pg`) — `tests/conftest.py` derives the marker from each test's
   fixture closure. Mark by hand only for DB use that closure cannot see.
-- **A patch of our own code** (`monkeypatch.setattr` on a `bundesarchiv` name). Assert a core's
-  returned value; run a shell over `Archive.of(InMemoryObjectStore(), InMemoryIndex)`. Only true externals are
-  patched: the `writer-discipline` skill, "Functional core, imperative shell". Gated:
-  `TEST_PATCHES` in `tests/test_structure.py` (a new patch fails `check`).
+- **A patch of our own code** (`monkeypatch.setattr` on a `bundesarchiv` name). Only true externals
+  are patched; how cores and shells are tested instead: the `writer-discipline` skill, "Functional
+  core, imperative shell". Gated: `TEST_PATCHES` in `tests/test_structure.py` (a new patch fails `check`).
 - **A second proof of a fact already pinned elsewhere.** One proof per fact, at
   the layer closest to the user (the `de_numeric` collation was once pinned in
   four files).
@@ -64,11 +63,10 @@ gate fails otherwise.
 ## The round-trip contract
 
 Every encode/decode or serialize/parse pair carries an adversarial round-trip
-test in the commit that introduces it — the delimiter itself, empty, unicode,
-percent, leading/trailing whitespace. Canonical bytes are the archive, so this
-sits inside the razor as loss-critical, not as codec-mechanics.
-A form field's pre-fill and its parse are such a pair: an unchanged field saves unchanged, with
-legacy values (commas inside a Schlagwort) among the adversarial inputs.
+test in the commit that introduces it; the cases and the form-field rule are in the
+`adversarial-input` skill. Canonical bytes are the archive, so this sits inside the razor as
+loss-critical, not as codec-mechanics. Legacy values (commas inside a Schlagwort) are among the
+adversarial inputs.
 
 ## What each suite owns
 

@@ -1,6 +1,6 @@
 ---
 name: adversarial-input
-description: Rules for code that parses, serializes or gates input — adversarial round-trip tests for every encode/decode pair, the full input contract for fail-closed and visibility functions, and the bar for which slips and states to guard. Preloaded by the writer agent.
+description: Rules for code that parses, serializes or gates input — adversarial round-trip tests for every encode/decode pair, the full input contract for fail-closed and visibility functions, and the bar for which slips and states to guard.
 when_to_use: Writing or changing an encode/decode pair, a form field's parse, or a fail-closed, visibility or security function.
 ---
 
@@ -14,9 +14,8 @@ Joining externally-controlled values with an in-band delimiter and no escaping i
 style call.
 
 A form field is such a pair: the value the form pre-fills is parsed back on save, so an unchanged
-field must save unchanged. Values from the legacy import count as external (Schlagworte contain
-commas). A pair older than this rule that you touch without such a test gets the test in your
-commit.
+field must save unchanged. Imported values count as external (they may contain the delimiter). A
+pair older than this rule that you touch without such a test gets the test in your commit.
 
 An absent field never means a value: a visibility-relevant field missing from a request keeps the
 stored value (a stale pre-deploy form posts old names).

@@ -77,8 +77,8 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 ### The deny contract
 
 - Every deny, absence, malformed param or disallowed method on a prod route is a plain 404 that reveals and changes nothing (`docs/requirements/owner-interview-2026-08.md`), via the shared `not_found()` — one constant German page, rendered once.
-- In tests a deny is `tests/app/web/_asserts.assert_denied` (404 + the constant `404.html`) plus a nothing-was-written assert on write routes.
-- A new route earns a leak-matrix entry (`tests/app/web/test_leak_matrix.py` fails otherwise); unauthorized content stays out of search results, listings and facet counts.
+- Unauthorized content stays out of search results, listings and facet counts.
+- How a deny is tested and how a new route joins the leak matrix: `tests/CLAUDE.md`, "The deny contract".
 
 ### Language
 
@@ -99,7 +99,6 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 ## Each commit
 
 - One commit per logical step; the commit hook runs what `mise run check` runs, so each commit is green.
-- pyrefly is always `uv run pyrefly check src tests scripts`; a bare `pyrefly check` resolves zero files in a worktree and passes vacuously.
 - One git command per call: in an isolated worktree a compound containing git is refused, and the destructive-git hook greps whole commands, heredoc text included. Write files and commit messages with the Write tool, then `git commit -F <file>`.
 - ruff's RUF001/RUF002 reject confusables (en dash, bullet) that German legacy text needs: write `"\N{EN DASH}"` / `"\N{BULLET}"` in code.
 - No `--no-verify` except on a docs-only commit right after a code commit whose gates ran clean — never on a fixup.

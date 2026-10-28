@@ -18,7 +18,7 @@ mise run test:gallery
 ```
 
 One invocation writes every canonical UI state (`STATES` in `tests/e2e/_gallery.py`) to
-`var/gallery/` as a PNG in BOTH color modes (`<state>.light.png` / `<state>.dark.png`). Override the
+`var/gallery/` as a PNG per color mode and width (`<state>.<mode>.<width>.png`). Override the
 output dir with `BUNDESARCHIV_GALLERY_DIR` (e.g. a scratchpad).
 
 ## 2. Run the journeys
