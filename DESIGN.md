@@ -472,6 +472,37 @@ component, never selects inside it. The stylesheets live in `src/bundesarchiv/ap
 tokens.css first. Product views live in `src/bundesarchiv/app/web/templates/` (`workbench/`,
 `start/`); UI changes go through the `writer-ui` agent and the `ui-build` skill.
 
+### Adopting a component
+
+One round adopts one component, or one family that belongs together (Menu and Menu button). There
+is no work list: the inventory is the list, a contract marks the progress, and a blocker goes to
+the gap journal.
+
+1. **Pick** the next component that does not depend on a control, parts before the components
+   that use them.
+2. **Scout.** A read-only agent writes a fact sheet: template, CSS section, knobs, states, call
+   sites, the inventory row, the law clauses that name it, name mismatches, overlap with other
+   components. Facts and paths, no code.
+3. **Tidy proposal.** From the sheet: is it a component at all? Does it do too much (split),
+   repeat another (merge), or carry names that disagree (rename)? Each finding is priced: what
+   changes, its cost, its gain.
+4. **The owner decides:** contract as it is, tidy first, or not a component.
+5. **Tidy**, only when chosen: a design-only change by the `writer-ui` agent, the design gate and
+   the owner's look on live pages; then a fresh fact sheet.
+6. **Draft.** The `writer-ui` agent writes the contract with status `hidden`. Every promise names
+   its source (a law clause, a ruling, this file); what no source settles stays an open question
+   at that promise. The component's demo moves into its own partial,
+   `src/bundesarchiv/app/web/templates/components_demo/<id>.html` (a layout's into
+   `templates/layouts_demo/<id>.html`), which the library page includes and the contract lists
+   under `examples`. The partial shows every state and context the contract promises. The
+   contract checker passes.
+7. **The owner decides:** approve, change or reject. On approval the status becomes
+   `discoverable`, the indexes are regenerated, the inventory row points to the contract, and the
+   branch merges.
+
+Before the first adoption, the design lint and the component library learn to read a contract's
+status, since the lint follows the contracts (ruling 2026-10-28).
+
 ## Verification
 
 - Contracts and indexes, with the skill's scripts in `~/.claude/skills/design-system/scripts/`:
