@@ -23,18 +23,15 @@ listed there.
    shell tests through real I/O, none for an edge.
 4. **No patch of our own code in tests** (`monkeypatch` on a `bundesarchiv` name). Only true
    externals are patched; a test that stubs the unit under review does not cover it.
-5. **Map rows moved with the code**: a module created, renamed, deleted or with a changed interface
-   updates its row in `src/bundesarchiv/<pkg>/CLAUDE.md` in the same commit,
-   within the row budget (`update-module-map`).
-6. **Component rules** (`docs/design/design-system.md`): a new component or variant is listed
+5. **Component rules** (`docs/design/design-system.md`): a new component or variant is listed
    `proposed` or owner-approved; a composition only places components and sets their knobs, never
    their own properties.
-7. **Deny contract and leak-sensitive inputs**: every deny, absence, malformed param or disallowed
+6. **Deny contract and leak-sensitive inputs**: every deny, absence, malformed param or disallowed
    method is the plain 404 that reveals and changes nothing (`assert_denied` plus a
    nothing-written assert on writes); a fail-closed function is tested on its least visible output
    for every invalid input shape; a new route has its leak-matrix entry.
-8. **Language**: German UI copy (informal du), English code, routes, URLs, comments, logs and docs.
-9. **One owner per decision**: two modules doing the same job two ways (sibling divergence), or a
+7. **Language**: German UI copy (informal du), English code, routes, URLs, comments, logs and docs.
+8. **One owner per decision**: two modules doing the same job two ways (sibling divergence), or a
    fact decided in two places, is a finding; name the owner it should collapse into.
 
 ## The bar for a finding

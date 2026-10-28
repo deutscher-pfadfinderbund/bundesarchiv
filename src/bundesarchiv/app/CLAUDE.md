@@ -1,4 +1,4 @@
-# app — package map
+# app — package law
 
 Law: `Archive.canonical()` is the ONLY place in `src/` that builds the CANONICAL store and its index
 from settings (ADR 0024) — new code takes an `Archive`, never constructs a store or an index.
@@ -9,22 +9,3 @@ failure must NOT re-raise, then the mirror enqueue), then the derived-file enque
 ADR 0013's split is which entry point you call: form saves carry the form's expected version straight to `save_article`, never
 through the retrying `update_article` (which owns the load-mutate-save cycle for internal mutations).
 Every write service that writes a version takes `changed_by`, who is acting; the version it writes records it (ADR 0019).
-
-- `archive.py` — the canonical store, its repositories, its index (ADR 0024) · interface: `Archive` (`.canonical()`, `.of()`, `.store`, `.articles`, `.collections`, `.index`), `IndexOver` · tests: `test_archive.py`
-- `after_write.py` — after a canonical write: index sync + retry, mirror job · interface: `run`, `Written` (`SavedArticle` | `RemovedArticle` | `SavedCollection` | `MovedCollection`) · tests: `test_services.py`
-- `articles.py` — Article writes, then derived jobs · interface: `save_article`, `update_article`, `create_article`, `copy_article`, `delete_`/`restore_`/`hard_delete_article`, `derived_jobs` · tests: `test_services.py`
-- `collections.py` — Collection write service: canonical-then-subtree-index shell · interface: `create_collection`, `save_collection` · tests: `tests/app/test_services.py`
-- `mirror.py` — the push to the system of record, add-only but for hard delete (ADR 0020); port + injected record only · interface: `push`, `reconcile`, `delete_article`, `PushRecord` · tests: `tests/app/test_mirror.py`
-- `push_record.py` — the push record in Postgres, derived state (ADR 0020) · interface: `PostgresPushRecord`, `InMemoryPushRecord` · tests: `tests/app/test_push_record.py`
-- `tasks.py` — the queue's tasks: deps from settings, call a job or core (ADR 0014) · interface: `enqueue_reindex_article`, `enqueue_mirror_push`, `enqueue_generate_thumbnail`, `mirror_store` · tests: `test_tasks.py`
-- `jobs.py` — what the worker jobs do, given archive, remote, push record; no queue import · interface: `reconcile`, `mirror_push`, `mirror_delete_article`, `mirror_reconcile` · tests: `test_tasks.py`
-- `jsonlog.py` — the log format: one JSON object per record, `extra` merged in; wired through `LOGGING` · interface: `JsonFormatter` · tests: `tests/app/test_jsonlog.py`
-- `stats.py` — the operator statistics the hourly reconcile logs: archive-wide, never per user · interface: `log_archive_stats` · tests: `tests/app/test_stats.py`
-- `thumbnails.py` — AVIF tile/display versions, local hash-keyed cache · interface: `Size`, `generate_thumbnail`, `cached`, `is_cached`, `tile_size`, `thumbnail_path`, `renders` · tests: `tests/app/test_thumbnails.py`
-- `pdf.py` — a PDF's first page as a picture, its pages' text; the only `pypdfium2` importer, swap the backend here · interface: `first_page`, `page_texts` · tests: `tests/app/test_thumbnails.py`, `tests/app/test_pdf.py`
-- `media_text.py` — PDF page text, read once per file (ADR 0023) · interface: `fill`, `missing`, `read`, `record`, `readable`, `parse` → `Parsed`, `reads`, `MAX_PAGES` · tests: `test_media_text.py`
-- `reindex.py` — deploy-startup config-version currency guard (ADR 0014) · interface: `ensure_index_current` · tests: `tests/app/test_config_version.py`
-- `legacy.py` — legacy CSV → Article mapping for the import; pure · interface: `ITEM_COLUMNS`, `CHANGED_BY`, `collection_names`, `map_item`, `plan`, `unknown_vocabulary`, `Report` · tests: `tests/app/test_legacy.py`
-- `result.py` — the write services' result shapes · interface: `SaveResult`, `CreateResult`, `UpdateOutcome` (`Updated` | `Conflicted` | `Missing`) · tests: `tests/app/test_services.py`
-
-Internal: `models.py`, `management/commands/ensure_index_current.py`, `management/commands/import_legacy.py`, `management/commands/rebuild_index.py`, `management/commands/rebuild_thumbnails.py`, `management/commands/verify.py`

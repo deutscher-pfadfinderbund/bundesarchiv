@@ -1032,3 +1032,8 @@ missing records; "N von M gespeichert"; the error pages' wording.
 - **Components that do not depend on a control are adopted first.** A component that only places
   a control does not depend on it; one whose CSS styles the control does. The controls stay one
   recorded gap until the clean-room design of the control primitives.
+
+## Ruling of 2026-10-28 (package docs)
+
+- **A package's `CLAUDE.md` holds only its law**, the rules the code cannot show. No row per module:
+  the code and its docstrings say what each file does.

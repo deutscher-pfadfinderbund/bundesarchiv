@@ -62,7 +62,7 @@ from scripts.quality.comments import inventory
 from scripts.quality.indicators import findings, in_scope
 from scripts.quality.patches import patch_sites
 
-_GATES = ("tests/test_structure.py", "tests/test_module_map.py")
+_GATES = ("tests/test_structure.py",)
 _FIX = re.compile(r"fix(\([^)]*\))?!?:")
 _HUNK = re.compile(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 _BLAME_HEADER = re.compile(r"([0-9a-f]{40}) \d+ \d+(?: \d+)?")

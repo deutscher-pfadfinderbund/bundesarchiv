@@ -1,11 +1,11 @@
 ---
 name: audit-architecture
-description: Periodic semantic audit of the module map and codebase architecture. Use every few waves, after a large merge, or when asked whether the architecture/map still holds. Finds shallow modules, sibling divergence, drift tests standing in for interfaces, and stale map rows.
+description: Periodic semantic audit of the codebase architecture. Use every few waves, after a large merge, or when asked whether the architecture still holds. Finds shallow modules, sibling divergence and drift tests standing in for interfaces.
 ---
 
 # Architecture audit
 
-The exhaustiveness gate catches *existence* drift mechanically. This skill is the *semantic* residue: is every map row still deep, is every seam still honest. Consumers: reviewers, architects.
+This skill checks meaning, not existence: is every module still deep, is every seam still honest. Consumers: reviewers, architects.
 
 ## Vocabulary
 
@@ -43,15 +43,15 @@ Unintentional + has bitten = rethink candidate. Intentional (ADR-backed) + repea
    - A result state the user must see (index lagged, conflict) that some callers drop?
    - A guard or leak fix on a field, function or route that nothing in `src/` reads?
    - A reader of canonical files with its own policy for an undecodable README?
-3. Deletion-test every map row in scope; flag rows that describe pass-throughs or whose hooks no longer match reality.
+3. Deletion-test every module in scope; flag modules that are pass-throughs or whose hooks no longer match reality.
 4. Do not re-litigate ADRs. Flag a conflict only when friction is severe enough to reopen one, and say so explicitly.
-5. Record in `docs/tech-debt.md` — the ONE checked-in ledger, one section per abstraction level (domain language, module map/package structure, interfaces, implementation patterns, tests, process law, build/CI). Every entry carries: the pattern, a measurable indicator with its date, intentional? (ADR ref or "accreted"), bite evidence inline (commit/finding refs), cost class, and options; module/interface entries additionally carry the deepening sketch and a strength rating (Strong / Worth exploring / Speculative). Apply map corrections directly (they are facts, not proposals). No fixes, no dispatches — the ledger is input to a think-first prioritization with the owner; entries chosen for action graduate to GitHub issues via the triage flow.
-6. Report: candidates by strength, map corrections made, what is already deep and should be left alone. Never start fixing during an audit — evaluation and action are separate decisions.
+5. Record in `docs/tech-debt.md` — the ONE checked-in ledger, one section per abstraction level (domain language, package structure, interfaces, implementation patterns, tests, process law, build/CI). Every entry carries: the pattern, a measurable indicator with its date, intentional? (ADR ref or "accreted"), bite evidence inline (commit/finding refs), cost class, and options; module/interface entries additionally carry the deepening sketch and a strength rating (Strong / Worth exploring / Speculative). No fixes, no dispatches — the ledger is input to a think-first prioritization with the owner; entries chosen for action graduate to GitHub issues via the triage flow.
+6. Report: candidates by strength, what is already deep and should be left alone. Never start fixing during an audit — evaluation and action are separate decisions.
 
 ## Maintenance duties
 
 - **Debt trend.** Re-measure every open ledger entry's indicator; record the new number and date and mark it better / worse / stable. Close entries whose pattern is gone. A trend check is re-measurement, not recollection.
-- **Records hygiene.** Law, map and ledger files are re-read for growth. Every sentence must change what a reader does — otherwise delete it. The conciseness pass is done by an agent that did NOT write the text; defending an existing sentence requires naming who reads it and when.
+- **Records hygiene.** Law and ledger files are re-read for growth. Every sentence must change what a reader does — otherwise delete it. The conciseness pass is done by an agent that did NOT write the text; defending an existing sentence requires naming who reads it and when.
 
 ### Framework health
 
@@ -59,7 +59,6 @@ The framework itself can fail, and that failure is the expensive one. It present
 
 - open-debt indicators trending worse across two consecutive audits, or the ledger only growing;
 - a finding class recurring after its prevention rule landed;
-- map rows stale at every audit despite the same-commit rule;
 - the same fence, budget or gate breached repeatedly.
 
 A framework investigation asks which assumption broke — wrong abstraction level, wrong owner, rule unenforceable, or rule wrong — and its outcome changes the framework (a rule, a level, a seam, this skill), not just the instance. A repeatedly-violated rule is evidence against the RULE at least as much as against its violators.

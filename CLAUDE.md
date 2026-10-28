@@ -1,7 +1,6 @@
-## Module map
+## Packages
 
-Each package has a `CLAUDE.md` with its law and one row per module (responsibility, interface,
-tests); pick the package(s) a task touches:
+Each package has a `CLAUDE.md` with its law; pick the package(s) a task touches:
 
 - `domain` — pure core: values, access decisions; no IO, no Django · `src/bundesarchiv/domain/CLAUDE.md`
 - `persistence` — files-canonical storage: README codecs, repositories, the ObjectStore port; no Django · `src/bundesarchiv/persistence/CLAUDE.md`
@@ -9,10 +8,7 @@ tests); pick the package(s) a task touches:
 - `app` — application services: the write shell, background jobs, the Archive handle · `src/bundesarchiv/app/CLAUDE.md`
 - `app/web` — Django+HTMX surface: views, auth seam, form parsing, media serving · `src/bundesarchiv/app/web/CLAUDE.md`
 
-- Update procedure: the `update-module-map` skill. Gate: `tests/test_module_map.py`
-  (every module has a row or an `Internal:` entry, every `tests:` pointer exists, this section
-  points at every package, prose budgets), part of `mise run check`.
-- Open architecture and process debt: `docs/tech-debt.md` (map rows cite it as `debt #n`).
+Open architecture and process debt: `docs/tech-debt.md`.
 
 ## Dev environment
 

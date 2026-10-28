@@ -9,7 +9,7 @@ The architect thinks in modules and interfaces; writers implement one module eac
 
 ## Decompose
 
-1. Read the relevant package `CLAUDE.md`s (root `CLAUDE.md`, "Module map"). A task that maps to no module means the module is missing: design its seam first (signature, invariants, error modes, callers), or record an architecture candidate instead of dispatching.
+1. Read the law of each package the task touches (root `CLAUDE.md`, "Packages"). A task no module owns means the module is missing: design its seam first (signature, invariants, error modes, callers), or record an architecture candidate instead of dispatching.
 2. **Interface-first**: for a cross-module feature the brief ships the seam and the writer fills in behind it; seam consumers dispatch after seam owners. A seam you cannot state crisply is not ready to dispatch.
 3. **Parallel when fences are disjoint**, each unit in its own worktree, merged in order. Sequence only units that share a file or consume another's seam; writers sharing one worktree always run in sequence (git index races).
 4. **Model per unit**: Sonnet for mechanical units (copy, CSS moves, test helpers, docs, render checks); Opus for seams, security, leak and data-loss paths, and finishers that must judge a red (pass `model` on the dispatch; all four agent files pin opus). Effort `high` or lower and one writer per screen part: the stream watchdog kills a turn that streams nothing for minutes, and every retry starts over.
@@ -77,4 +77,4 @@ Any rule breach or unexpected red stops the wave line. Find the cause chain firs
 - Merge from the main checkout with `.claude/skills/dispatch-wave/scripts/merge.sh <branch> -- mise run check`. The writer ran `test:affected`; the full gate runs once, in the pre-push hook — never per unit or per merge.
 - Land commits that append to a doc after the branches that append to the same file.
 - A rename merged while other writers run: at their merge, grep each branch's new test lines for the old spelling (a negative check passes vacuously, aliases keep old GETs green).
-- Wave hygiene: re-measure the indicator on every ledger entry the wave touched. Prose added to law or map files gets code scrutiny: an addition without a deletion is suspect.
+- Wave hygiene: re-measure the indicator on every ledger entry the wave touched. Prose added to law files gets code scrutiny: an addition without a deletion is suspect.

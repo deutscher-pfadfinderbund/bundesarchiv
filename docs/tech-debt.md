@@ -46,7 +46,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** free text deletes all 8 pair rules and both routes; `vocab` lists become suggestions. `media_type` still names Medienart and MIME type: rename one.
 - **2026-10-21:** ruled in `docs/requirements/owner-interview-2026-08.md` ("Rulings of 2026-10-21"): Art becomes several independent questions (#72 folds in). The design waits on the archivists.
 
-## Module map & packages
+## Packages
 
 ### 11. Cross-module private imports mark undeclared seams — Worth exploring
 - **Indicator:** 11 imports of 8 private names: 5 in `persistence/fixity.py`, 5 in `index`, 1 in `app/web`
@@ -474,8 +474,6 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** a crumbs include and a filter-params include
 
 ## Process law
-
-- **Row budget friction** — `ROW_MAX_CHARS=220` forced 4 rewrites of one interface-rich row (collection_chooser.py, 2026-09-03, landed at exactly 220). One occurrence = instance, not evidence; if a second row fights the cap, investigate the budget (wrap the interface segment vs raise) per the framework-health rule. Indicator: rows within 10 chars of cap: 19 (2026-10-01, worse; 1 on 2026-09-03). Map rows are stale at every audit (review pattern 7): a framework-health trigger; owner 2026-10-01 chose a gate (every listed interface name exists, `5080d85`) over changing the rule.
 
 - **The second caller copies a decision instead of moving it** — 10 findings in the 2026-10-01 review (#9, #49, #31, #33–37, #43–44). Adopted: `writer-discipline` skill, "One owner per decision" (`e488814`); gated where mechanical by `tests/test_structure.py`. Indicator: 10 copies found (2026-10-01).
 
