@@ -25,7 +25,7 @@ listed there.
    externals are patched; a test that stubs the unit under review does not cover it.
 5. **Map rows moved with the code**: a module created, renamed, deleted or with a changed interface
    updates its row in `src/bundesarchiv/<pkg>/CLAUDE.md` in the same commit,
-   within the 220-character budget.
+   within the row budget (`update-module-map`).
 6. **Component rules** (`docs/design/design-system.md`): a new component or variant is listed
    `proposed` or owner-approved; a composition only places components and sets their knobs, never
    their own properties.
