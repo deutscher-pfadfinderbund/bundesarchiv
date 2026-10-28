@@ -81,6 +81,13 @@ Owner rulings live in `docs/requirements/` (`archivist-wishes-2025.md`, `owner-i
 
 Test depth is proportional to risk: extensive coverage only where a defect is domain-relevant, loses data, or leaks data (owner ruling 2026-08). The do-not-write list, the deny contract (`assert_denied`), and the per-suite ownership map: `tests/CLAUDE.md`.
 
+### Design system
+
+`DESIGN.md` is the entry: the visual digest, then the sources, contracts, checks and gaps. The
+`design-system` skill maintains the contracts in `design-system/`; each goes in only with the owner's
+approval. A component without one is governed by the inventory and the law. Design-system gaps go to
+`design-system/gaps.md`.
+
 ### Design gate / QA
 
 Before accepting any UI change: render the state gallery (`mise run test:gallery`) and run the journeys (`mise run test:e2e`), then judge on live `:8000` pages. The `design-gate` agent (`.claude/agents/design-gate.md`) runs it; `reviewer` does code review.

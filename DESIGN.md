@@ -424,3 +424,71 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
 - **Don't** frame an add action or draw a line that separates instead of connects.
 - **Don't** show counts at display size.
 - **Don't** use dashes as separators.
+
+## Intent and shared rules
+
+The intent is the Overview above. The required rules stay at their sources:
+`docs/design/design-system.md` (construction law, principles, tokens, and the component inventory,
+families and layout primitives that the design lint reads), `docs/design/design-review-law.md`
+(review catechism, cue register, cascade rules, lintable subset), `.claude/skills/ui-build/SKILL.md`
+(how UI is built and checked) and the owner rulings in `docs/requirements/`.
+
+In the design-system skill's words: a component is a row of the component inventory, a layout is
+a row of the layout primitives. A context (`.quiet`, `.danger`) re-points roles; it is not a
+variant and not a component (cascade rule C2).
+
+## Design-system sources
+
+- Components: [index](design-system/COMPONENTS.md)
+- Layouts: [index](design-system/LAYOUTS.md)
+- Patterns: [index](design-system/PATTERNS.md)
+- Tokens: `src/bundesarchiv/app/web/static/tokens.css`, the normative source; it also declares the
+  `@layer` order. The frontmatter above is the light-mode digest; `.impeccable/design.json` holds
+  the dark values. Roles, jobs and contrast floors: the Tokens section of `docs/design/design-system.md`.
+- Themes: light and dark through the `light-dark()` pairs in tokens.css; the viewer's choice is the
+  `theme` cookie (`src/bundesarchiv/app/web/static/theme.js`, `src/bundesarchiv/app/web/theme.py`).
+- Visual reference: the mock system in `docs/design/explorations/2026-09-26-monochrome/system/`;
+  the in-app gallery at `/_dev/components/` on the dev server.
+
+## Contracts and public use
+
+A contract in `design-system/components/` (layouts and patterns in their own folders) states when
+to use a component and what it promises; its frontmatter owns the id, the status and the source
+paths. Adoption is gradual (owner ruling 2026-10-28 in `docs/requirements/owner-interview-2026-08.md`):
+
+- A contract goes in only with the owner's approval.
+- Not every class is a component: a part, a text role or a utility is not. A component that does
+  too much is split, one that repeats another is merged, before its contract is written.
+- Components that do not depend on a control come first. One that only places a control does not
+  depend on it; one whose CSS styles the control does, and waits for the controls gap.
+- Once a component is adopted, its contract wins over its inventory row, and the design lint
+  follows the contracts. A component without a contract is unmanaged: the inventory and the law
+  govern it.
+
+Public use: a component with a template is included from
+`src/bundesarchiv/app/web/templates/components/`; the others are their class on semantic HTML.
+A component's custom-property knobs are its API: a composition sets knobs and places the
+component, never selects inside it. The stylesheets live in `src/bundesarchiv/app/web/static/`,
+tokens.css first. Product views live in `src/bundesarchiv/app/web/templates/` (`workbench/`,
+`start/`); UI changes go through the `writer-ui` agent and the `ui-build` skill.
+
+## Verification
+
+- Contracts and indexes, with the skill's scripts in `~/.claude/skills/design-system/scripts/`:
+  `node <scripts>/check-contract.mjs --kind component --inventory design-system/COMPONENTS.md --inventory design-system/LAYOUTS.md --inventory design-system/PATTERNS.md <contract>`
+  and `node <scripts>/generate-indexes.mjs --check .`
+- UI: the state gallery and the journeys (`mise run test:gallery`, `mise run test:e2e`) as the
+  `design-gate` agent runs them; `mise run test:gallery-diff` for a change meant to be
+  pixel-neutral. The design lint (`tests/app/web/test_design_lint.py`) is part of `mise run check`.
+- Accessibility: WCAG 2.2 AA (`docs/design/design-review-law.md`, section D); contrast floors in
+  the Tokens and Contrast sections of `docs/design/design-system.md`. Browsers: Baseline widely
+  available; newer features are feature-detected (section F).
+
+## Gaps and decisions
+
+Open gaps: [journal](design-system/gaps.md). A closed entry moves in full to
+`design-system/gaps-archive.md` (created with its first entry), with its disposition, closure date
+and basis. `docs/tech-debt.md` stays the general ledger.
+
+Owner decisions are recorded in `docs/requirements/`. Project policy: every UI change passes the
+design gate (the `design-gate` agent) before it is accepted.
