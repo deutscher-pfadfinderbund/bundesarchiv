@@ -1015,3 +1015,20 @@ missing records; "N von M gespeichert"; the error pages' wording.
 - **It lives on the article page**, in a fold, a popover or a `<dialog>`, whichever fits the design
   law best.
 - **Only Archivists see it**, as in slice 1.
+
+## Rulings of 2026-10-28 (design system)
+
+- **The design-system skill's contracts are the source** of the inventory of components, layouts
+  and patterns. Once a component is adopted, its contract wins over its row in
+  `docs/design/design-system.md`, and the design lint follows the contracts.
+- **Design-system gaps live in the skill's journal, `design-system/gaps.md`.** `docs/tech-debt.md`
+  stays the general ledger.
+- **Adoption is gradual and reviewed by the owner** ("I don't want to adopt every component
+  without my review, this is an opportunity to tidy up"). Not every class is a component: a part,
+  a text role or a utility is not. A component that does too much is split, one that repeats
+  another is merged, before its contract is written.
+- **A contract goes in only with the owner's approval.** Contracts are guardrails for future work,
+  so they have to rest on a solid foundation.
+- **Components that do not depend on a control are adopted first.** A component that only places
+  a control does not depend on it; one whose CSS styles the control does. The controls stay one
+  recorded gap until the clean-room design of the control primitives.

@@ -61,7 +61,7 @@ Data and runtime:
 ## Dispatch and read reports
 
 - Read deviations first: a good writer deviates where law beats brief; verify the reason, then accept or redirect.
-- Relay every design gap in a writer or gate report to the owner verbatim; never resolve one yourself. A gap the owner defers goes to `docs/tech-debt.md`.
+- Relay every design gap in a writer or gate report to the owner verbatim; never resolve one yourself. A gap the owner defers goes to the design-system journal, `design-system/gaps.md`.
 - Consume learnings in the same session: a brief-mechanics lesson goes into this skill, a law lesson into the law file, a pattern, missing-tool or fence report into `docs/tech-debt.md`. No retro archives.
 - A fixer applying review dispositions that involve a design choice stops and asks the owner, even under an announced silence rule.
 - A fix ruling from the controller gets the same scoped re-review as any fix round.
