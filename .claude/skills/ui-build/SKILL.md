@@ -80,8 +80,10 @@ touch follows this.
 ## Screenshots via the gallery, review on live pages
 
 For any UI change: restart the dev server after EVERY commit (`:8000` runs `--noreload` and serves
-stale code otherwise), then judge on the live pages — never ship PNGs to the owner (he browses live
-himself). Agents keep their own internal screenshot self-verification loop; the state gallery
+stale code otherwise), then judge on the live pages. Send the owner a screenshot only when it is
+cheap (the gallery or your own check already made it) and the work is UI work — never extra work
+nobody asked for; under Remote Control the owner cannot open live pages, so screenshots are the
+medium there. Agents keep their own internal screenshot self-verification loop; the state gallery
 (`mise run test:gallery`) is the shared review medium, and `mise run test:e2e` drives the journeys.
 
 A journey that races a debounce or a late answer drives time itself: `page.clock.install(time=0)`
