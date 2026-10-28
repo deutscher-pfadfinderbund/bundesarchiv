@@ -231,7 +231,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ## Tests
 
 ### 29. The gallery has no lead without a picture — Worth exploring
-- **Indicator:** 0 gallery states render `.platte:has(.blank)` (2026-10-01, stable)
+- **Indicator:** 0 gallery states render `.cover:has(.blank)` (2026-10-01, stable)
 - **Evidence:** every e2e corpus file now has a thumbnail (PDFTHUMBS); `static/detail.css`
 - **Deletion test:** a non-renderable corpus file (audio/video) brings the state back
 - **Sketch:** one audio file on a corpus article + a `detail-audio` gallery state
