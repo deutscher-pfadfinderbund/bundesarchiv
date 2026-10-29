@@ -165,13 +165,6 @@ def test_a_tile_shows_a_thumbnail_only_once_the_cache_holds_one(
     assert "data:image" not in after  # no bytes inlined
 
 
-def test_the_page_leads_with_the_original_of_an_image_a_browser_draws(
-    corpus: _DetailArchive,
-) -> None:
-    images = re.findall(r'<img\s[^>]*src="([^"]*)"', _body(Public(), corpus.pub))
-    assert images[0] == media_url(corpus.pub, corpus.cover_hash)  # sharp at any width
-
-
 def test_a_pdf_leads_the_page_with_its_first_page_once_derived(
     make_corpus: Callable[[], Corpus], tmp_path: Path
 ) -> None:
@@ -580,8 +573,8 @@ def test_an_images_alt_is_its_description_else_its_caption_else_its_file_name(
     archive.add_article(make_article(ulid, collection_id=FOTOS, media=refs))
     body = client_as(Public()).get(f"/articles/{ulid}").content.decode()
     alts = re.findall(r'<img\s[^>]*alt="([^"]*)"', body)
-    # the cover (drawn from its original) and the lightbox (one figure per image)
-    assert sorted(alts) == ["Beschreibung", "Beschreibung", "Nur Unterschrift", "c.png", "d.png"]
+    # the lightbox, one figure per image (no thumbnail is cached, so no tile draws one)
+    assert sorted(alts) == ["Beschreibung", "Nur Unterschrift", "c.png", "d.png"]
 
 
 @pytest.mark.parametrize(

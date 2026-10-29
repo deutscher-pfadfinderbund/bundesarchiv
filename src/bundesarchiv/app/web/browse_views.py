@@ -721,7 +721,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     )
     tags = tuple(BylineLink(label=t, href=preset_url(browse.PARAM_TAG, t)) for t in article.tags)
     # the first file leads as the cover only with a picture to show; otherwise it joins the rows
-    cover = media[0] if media and (media[0].full_url or media[0].thumb_url) else None
+    cover = media[0] if media and media[0].thumb_url else None
     mark = article.deleted
     return {
         "ulid": article.ulid,

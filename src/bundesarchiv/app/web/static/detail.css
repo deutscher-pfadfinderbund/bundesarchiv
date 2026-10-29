@@ -72,25 +72,8 @@
 }
 
 @layer components {
-  /* ---- cover Platte — the focal point: a mounted photo with an edge ---- */
-  .cover {
-    padding: var(--space-3);
-    border: var(--line-width) solid var(--edge);
-  }
-  /* a lead is never drawn wider than its own pixels (a 480px thumbnail stays sharp), so the mount
-     hugs it; the caption wraps to the picture's width instead of widening it */
-  .cover:has(img) {
-    width: fit-content;
-  }
-  .cover :is(figcaption, .download) {
-    contain: inline-size;
-  }
-  .cover img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-  }
-  /* under a picture: its caption, then the download line, both quiet words */
+  /* ---- cover Platte — the focal point: the first file's tile, then its caption and the download
+     line, both quiet words ---- */
   .cover :is(figcaption, .download) {
     margin: var(--space-2) 0 0;
     color: var(--ink-2);
