@@ -58,7 +58,9 @@ requires demonstrating the original Expected result.
 - **Need:** a thumbnail that fills a wide box (the article page's cover) stays sharp.
 - **Actual result:** the tile's stand-in is the thumbnail (about 480px wide); the tile record
   carries no width for the display rendition, so the tile cannot offer it to the browser as a
-  larger candidate. The cover today shows the full-size original instead.
+  larger candidate. Since the cover's migration onto the tile, the cover shows the thumbnail at
+  its own size, so a photo cover is smaller than the full original it showed before, until a
+  display rendition is listed.
 - **Expected result:** the record carries the display rendition's width; the tile offers it in
   `srcset`; the browser picks it for a wide box.
 - **Evidence:** the writer-ui report of 2026-10-29 (Media tile round).
