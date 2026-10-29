@@ -19,7 +19,7 @@ without one), few (a photo, a PDF, two placeholders), long.{% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/media_tile.html · file=MediaTile [label=False] — the file decides the state: a thumbnail in its own shape (a photo, a PDF's first page); without one (Foto, PDF, Video, Audio, the unknown Datei) the placeholder cross, as long as the glyph per kind is undecided; a long name wraps anywhere. Box: an inline size only, so a placeholder is square</code>
+<code class="doc">components/media_tile.html · file=MediaTile [label=False] — the file decides the state: a thumbnail in its own shape, with no label (a photo, a PDF's first page); without one (Foto, PDF, Video, Audio, the unknown Datei) the placeholder cross with the kind and name at its foot, as long as the glyph per kind is undecided; a long name wraps anywhere. Box: an inline size only, so a placeholder is square</code>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -36,7 +36,7 @@ without one), few (a photo, a PDF, two placeholders), long.{% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">label=False — the label is hidden; the link keeps its name (kind · name). The consumer sets the name beside the tile, as here</code>
+<code class="doc">label=False — the placeholder's kind and name are hidden; the link keeps its name (kind · name). The consumer sets the name beside the tile, as here</code>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -68,14 +68,23 @@ without one), few (a photo, a PDF, two placeholders), long.{% endcomment %}
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    <div class="demo-tiles demo-label-foot">
+    <div class="demo-tiles">
       {% for file in few %}
-      <div class="demo-box demo-inline">
-        {% include "components/media_tile.html" with file=file only %}
+      <div class="demo-box demo-inline demo-mock">
+        {% include "components/media_tile.html" with file=file label=False only %}
+        <span>{{ file.kind }} · {{ file.name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="demo-tiles">
+      {% for file in few %}
+      <div class="demo-box demo-inline demo-mock demo-mock-foot">
+        {% include "components/media_tile.html" with file=file label=False only %}
+        <span>{{ file.kind }} · {{ file.name }}</span>
       </div>
       {% endfor %}
     </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">open decision, the label's form — the candidates: below the stand-in (as built, above); over the stand-in's foot, as Blank draws it (a mock of this page's style, not a tile option); off, with the name beside (label=False)</code>
+<code class="doc">open decision, the label's form — as built (above): a thumbnail shows no label, a placeholder shows the kind and name at its foot, label=False hides them. The candidates, drawn by this page around a tile with label=False (a mock, not a tile option): below every stand-in; over every stand-in's foot; off, with the name beside (label=False, above)</code>

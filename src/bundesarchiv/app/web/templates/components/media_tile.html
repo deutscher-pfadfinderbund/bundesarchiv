@@ -1,6 +1,6 @@
 {% comment %}One file as one link to its original, shown by the best stand-in the archive has for its
-kind. Params: file (a MediaTile); label (False hides it; the link keeps its name). Contract:
-design-system/components/media-tile.md.{% endcomment %}
+kind. Params: file (a MediaTile); label (False hides the placeholder's kind and name; the link keeps
+its name). Contract: design-system/components/media-tile.md.{% endcomment %}
 <a
   class="media-tile"
   href="{{ file.file_url }}"
@@ -23,9 +23,10 @@ design-system/components/media-tile.md.{% endcomment %}
     loading="lazy"
   >
   {% else %}
-  <span class="media-tile-placeholder"></span>
-  {% endif %}
-  {% if label is not False %}
-  <span class="media-tile-label">{{ file.kind }} · {{ file.name }}</span>
+  <span class="media-tile-placeholder">
+    {% if label is not False %}
+    <span class="media-tile-label">{{ file.kind }} · {{ file.name }}</span>
+    {% endif %}
+  </span>
   {% endif %}
 </a>

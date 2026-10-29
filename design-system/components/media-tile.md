@@ -1,5 +1,5 @@
 ---
-sourcesHash: bdafeda92ed88831740e299ddf02745d6eaea78eba34d1fb6595c47c6a5b62ec
+sourcesHash: 1a582be0372a198087374484c7b50b737c55c86e958821aa5229f09235299f1c
 id: media-tile
 description: >-
   It shows one file, using the best stand-in the archive has for the file's
@@ -50,9 +50,10 @@ that file.
   kind, name, original, thumbnail and its place in the page's Lightbox from it. A consumer never
   tells the tile which state to show; the record decides (ruling of 2026-10-28 (MediaTile): the
   stand-in follows the file's kind).
-- `label` (optional, default on): the file's kind and name, shown with the stand-in. Pass `False`
-  where the consumer sets the file's name beside the tile itself; the tile then hides its label
-  and keeps its own accessible name. The label's form is an open decision (below).
+- `label` (optional, default on): the file's kind and name, shown on the placeholder (a tile
+  with a thumbnail shows no label). Pass `False` where the consumer sets the file's name beside
+  the tile itself; the tile then hides that text and keeps its own accessible name. The label's
+  final form is an open decision (below).
 - No other input. There are no variants, no ratio knob and no overrides (ruling of 2026-10-29
   (MediaTile contract): "No ratio knob for now. The container gives the box").
 
@@ -79,13 +80,15 @@ The file decides the state; a consumer cannot choose one.
 - **A thumbnail exists** (ruled for images, PDFs and videos; a PDF's is its first page): the
   thumbnail shows in its own shape, never cropped and never letterboxed (ruling of 2026-09-28 (article media):
   "Images keep their own shape"; "A PDF shows as a thumbnail of its first page"). Its corners are
-  square (`DESIGN.md`, Shapes).
+  square (`DESIGN.md`, Shapes). It carries no visible label (owner, 2026-10-29: the label as
+  today).
 - **No thumbnail** (a file whose thumbnail is not made yet, a kind that has none, an unknown
   kind): the placeholder cross in Faint inside a thin frame, with the kind and name as text
   (ruling of 2026-10-01 (media tiles): "A missing thumbnail never looks broken"; `DESIGN.md`,
-  Shapes: "An item without an image draws a thin cross in Faint"). The ruled glyph per known kind
-  is not built yet (open decision below), so every kind without a thumbnail shows the cross for
-  now.
+  Shapes: "An item without an image draws a thin cross in Faint"). The kind and name sit at the
+  placeholder's foot; with `label=False` the placeholder shows the cross alone. The ruled glyph
+  per known kind is not built yet (open decision below), so every kind without a thumbnail shows
+  the cross for now.
 - **Access**: the whole tile is one link to the original, opened in a new tab, in every state
   (ruling of 2026-10-01 (media tiles): "The original file is always one click away").
 - **The Lightbox hook**: an image tile with a place in the page's Lightbox carries the hook the
@@ -102,7 +105,7 @@ The file decides the state; a consumer cannot choose one.
 The tile provides:
 
 - One focusable link, with the global focus ring. Its accessible name is the file's kind and
-  name, whether or not the label shows.
+  name in every state, whether or not the label shows.
 - The thumbnail keeps the record's alt text (ADR 0015: description, else caption, else file name);
   it does not take part in the link's name.
 - The placeholder's kind and name are real text when the label shows; the cross is decoration
@@ -119,9 +122,11 @@ The consumer provides:
 
 - **The label's form** (at Public API, `label`): the owner has not decided where the label sits
   and what it says (ruling of 2026-10-29 (MediaTile contract): "The tile's label is undecided").
-  The demo shows the candidates: below the stand-in (as built), over the stand-in's foot, and off
-  with the name beside. With the label below and a block size only, the label takes part of the
-  height, so a thumbnail is narrower than the tile.
+  As built it is the label as today (owner, 2026-10-29): no label on a thumbnail, the kind and
+  name at the placeholder's foot, none with `label=False`. The demo shows the candidates: below
+  every stand-in, over every stand-in's foot, and off with the name beside. With the label below
+  and a block size only, the label takes part of the height, so a thumbnail is narrower than the
+  tile.
 - **The thumbnail's edge** (at Behaviour and states, "A thumbnail exists"): `DESIGN.md` Shapes
   settles square corners and the line width, but not whether a thumbnail has an edge or in which line
   role. As built it has a thin edge in the Edge role, so a white page does not dissolve into the

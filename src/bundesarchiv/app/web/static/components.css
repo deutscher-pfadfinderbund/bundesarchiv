@@ -1498,15 +1498,15 @@
     overflow-wrap: break-word;
   }
 
-  /* ---- media tile — one file as one link to its original: its best stand-in over its kind and
-     name (contract: design-system/components/media-tile.md). The container sets the box on the
-     root (an inline size, a block size or both); the stand-in fills it in its own shape. Parts:
-     -thumb, -placeholder (the cross, where no thumbnail exists), -label. ---- */
+  /* ---- media tile — one file as one link to its original, shown by its best stand-in
+     (contract: design-system/components/media-tile.md). The container sets the box on the root (an
+     inline size, a block size or both); the stand-in fills it in its own shape. Parts: -thumb,
+     -placeholder (the cross, where no thumbnail exists), -label (the kind and name at the
+     placeholder's foot). ---- */
   .media-tile {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--space-1);
     inline-size: fit-content;
     max-inline-size: 100%;
   }
@@ -1520,17 +1520,22 @@
     border: var(--line-width) solid var(--edge);
   }
   .media-tile-placeholder {
+    display: flex;
+    align-items: flex-end;
     align-self: stretch;
     flex: 1 1 auto;
     block-size: 100%;
     min-block-size: 0;
     aspect-ratio: 1;
+    padding: var(--space-2);
+    overflow: hidden;
     border: var(--line-width) solid var(--faint);
     background: var(--placeholder);
   }
   .media-tile-label {
-    inline-size: 0;
-    min-inline-size: 100%;
+    min-inline-size: 0;
+    padding: var(--space-1);
+    background: var(--ground);
     font: var(--type-meta);
     color: var(--ink-2);
     overflow-wrap: anywhere;

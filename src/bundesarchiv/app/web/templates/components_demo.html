@@ -117,14 +117,15 @@ components; this storyboard updates in lockstep with them.
     .demo-row { block-size: 10rem; }
     .demo-row > .media-tile { inline-size: fit-content; block-size: 100%; }
     .demo-beside { display: flex; gap: var(--space-2); align-items: flex-start; font: var(--type-meta); }
-    /* a label candidate the tile does not offer (an open decision): Blank's label over the foot */
-    .demo-label-foot .media-tile { position: relative; }
-    .demo-label-foot .media-tile-label {
+    /* the label candidates the tile does not offer (an open decision), drawn by this page around
+       a tile with label=False: below every stand-in, or over every stand-in's foot */
+    .demo-mock { display: flex; flex-direction: column; gap: var(--space-1); }
+    .demo-mock > span { font: var(--type-meta); color: var(--ink-2); overflow-wrap: anywhere; }
+    .demo-mock-foot { position: relative; }
+    .demo-mock-foot > span {
       position: absolute;
       inset-inline: var(--space-2);
       inset-block-end: var(--space-2);
-      inline-size: auto;
-      min-inline-size: 0;
       padding: var(--space-1);
       background: var(--ground);
     }
