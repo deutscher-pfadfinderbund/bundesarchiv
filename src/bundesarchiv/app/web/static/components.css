@@ -499,10 +499,53 @@
     color: var(--ink);
   }
 
-  /* ---- file-row — one medium in a register: the thumb, then one column of the name (size and
-     marks on its line) over the caption field, the tools level with the caption input right after
-     it. The column stops at the query measure. Parts: -thumb, -name, -tools. Knob:
-     --file-row-thumb (the thumb's side). S: the tools under the caption. ---- */
+  /* ---- media tile — one file as one link to its original, shown by its best stand-in
+     (contract: design-system/components/media-tile.md). The container sets the box on the root (an
+     inline size, a block size or both); the stand-in fills it in its own shape. Parts: -thumb,
+     -placeholder (the cross, where no thumbnail exists), -label (the kind and name at the
+     placeholder's foot). ---- */
+  .media-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    inline-size: fit-content;
+    max-inline-size: 100%;
+  }
+  .media-tile-thumb {
+    display: block;
+    inline-size: auto;
+    block-size: auto;
+    max-inline-size: 100%;
+    max-block-size: 100%;
+    min-block-size: 0;
+    border: var(--line-width) solid var(--edge);
+  }
+  .media-tile-placeholder {
+    display: flex;
+    align-items: flex-end;
+    align-self: stretch;
+    flex: 1 1 auto;
+    block-size: 100%;
+    min-block-size: 0;
+    aspect-ratio: 1;
+    padding: var(--space-2);
+    overflow: hidden;
+    border: var(--line-width) solid var(--faint);
+    background: var(--placeholder);
+  }
+  .media-tile-label {
+    min-inline-size: 0;
+    padding: var(--space-1);
+    background: var(--ground);
+    font: var(--type-meta);
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+  }
+
+  /* ---- file-row — one medium in a register: its media tile, then one column of the name (size
+     and marks on its line) over the caption field, the tools level with the caption input right
+     after it. The column stops at the query measure. Parts: -name, -tools. Knob:
+     --file-row-thumb (the tile's width). S: the tools under the caption. ---- */
   .file-row {
     --file-row-thumb: 8rem; /* the mock's --measure-thumb */
     display: grid;
@@ -512,15 +555,9 @@
     gap: var(--space-2) var(--space-5);
     padding-block: var(--space-3);
   }
-  .file-row-thumb {
+  .file-row > .media-tile {
     grid-row: 1 / -1;
-  }
-  .file-row-thumb > img {
-    display: block;
     inline-size: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    border: var(--line-width) solid var(--faint);
   }
   .file-row > .field {
     grid-column: 2;
@@ -548,7 +585,7 @@
       grid-template-columns: var(--file-row-thumb) minmax(0, 1fr);
       grid-template-rows: auto;
     }
-    .file-row-thumb {
+    .file-row > .media-tile {
       grid-row: 1 / span 3;
     }
     .file-row-tools {
@@ -1496,49 +1533,6 @@
     color: var(--ink-2);
     /* a name wraps at the <wbr> after its separators; only a segment wider than the tile breaks */
     overflow-wrap: break-word;
-  }
-
-  /* ---- media tile — one file as one link to its original, shown by its best stand-in
-     (contract: design-system/components/media-tile.md). The container sets the box on the root (an
-     inline size, a block size or both); the stand-in fills it in its own shape. Parts: -thumb,
-     -placeholder (the cross, where no thumbnail exists), -label (the kind and name at the
-     placeholder's foot). ---- */
-  .media-tile {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    inline-size: fit-content;
-    max-inline-size: 100%;
-  }
-  .media-tile-thumb {
-    display: block;
-    inline-size: auto;
-    block-size: auto;
-    max-inline-size: 100%;
-    max-block-size: 100%;
-    min-block-size: 0;
-    border: var(--line-width) solid var(--edge);
-  }
-  .media-tile-placeholder {
-    display: flex;
-    align-items: flex-end;
-    align-self: stretch;
-    flex: 1 1 auto;
-    block-size: 100%;
-    min-block-size: 0;
-    aspect-ratio: 1;
-    padding: var(--space-2);
-    overflow: hidden;
-    border: var(--line-width) solid var(--faint);
-    background: var(--placeholder);
-  }
-  .media-tile-label {
-    min-inline-size: 0;
-    padding: var(--space-1);
-    background: var(--ground);
-    font: var(--type-meta);
-    color: var(--ink-2);
-    overflow-wrap: anywhere;
   }
 
   /* ---- honest empty state: words, no frame (row 6: a dashed edge marks only what reacts) ---- */
