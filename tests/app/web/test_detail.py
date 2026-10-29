@@ -160,15 +160,15 @@ def test_a_tile_shows_a_thumbnail_only_once_the_cache_holds_one(
         )
         after = _body(Public(), corpus.pub)
     assert second not in before
-    assert "b.<wbr>png" in before  # the blank tile names the file
-    assert second in re.findall(r'<img [^>]*src="([^"]*)"', after)
+    assert "b.<wbr>png" in before  # the placeholder names the file
+    assert second in re.findall(r'<img\s[^>]*src="([^"]*)"', after)
     assert "data:image" not in after  # no bytes inlined
 
 
 def test_the_page_leads_with_the_original_of_an_image_a_browser_draws(
     corpus: _DetailArchive,
 ) -> None:
-    images = re.findall(r'<img [^>]*src="([^"]*)"', _body(Public(), corpus.pub))
+    images = re.findall(r'<img\s[^>]*src="([^"]*)"', _body(Public(), corpus.pub))
     assert images[0] == media_url(corpus.pub, corpus.cover_hash)  # sharp at any width
 
 
@@ -190,7 +190,7 @@ def test_a_pdf_leads_the_page_with_its_first_page_once_derived(
     thumbs = tmp_path / "thumbs"
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
         assert generate_thumbnail(Archive.canonical().store, ulid, pdf.content_hash, thumbs)
-        images = re.findall(r'<img [^>]*src="([^"]*)"', _body(Public(), ulid))
+        images = re.findall(r'<img\s[^>]*src="([^"]*)"', _body(Public(), ulid))
     assert images[0] == thumbnail_url(ulid, pdf.content_hash)
 
 
@@ -579,7 +579,7 @@ def test_an_images_alt_is_its_description_else_its_caption_else_its_file_name(
     )
     archive.add_article(make_article(ulid, collection_id=FOTOS, media=refs))
     body = client_as(Public()).get(f"/articles/{ulid}").content.decode()
-    alts = re.findall(r'<img [^>]*alt="([^"]*)"', body)
+    alts = re.findall(r'<img\s[^>]*alt="([^"]*)"', body)
     # the cover (drawn from its original) and the lightbox (one figure per image)
     assert sorted(alts) == ["Beschreibung", "Beschreibung", "Nur Unterschrift", "c.png", "d.png"]
 

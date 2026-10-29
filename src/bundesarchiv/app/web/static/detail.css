@@ -310,25 +310,14 @@
     min-width: 0;
     margin: 0;
   }
-  .media-rows figure > a {
-    display: block;
+  .media-rows figure > .media-tile {
+    block-size: var(--_row-height);
   }
   /* under a picture: its caption, then the download line, both quiet words, as under the cover */
   .media-rows :is(figcaption, .download) {
     margin: var(--space-2) 0 0;
     color: var(--ink-2);
     font: var(--type-meta);
-  }
-  .media-rows img {
-    display: block;
-  }
-  .media-rows img,
-  .media-rows .blank {
-    height: var(--_row-height);
-    width: auto;
-  }
-  .media-rows img {
-    border: var(--line-width) solid var(--edge);
   }
   .media-rows figcaption {
     overflow: hidden;
@@ -347,9 +336,9 @@
     & figure {
       flex: var(--r) 1 calc(var(--r) * var(--_row-height));
     }
-    & :is(img, .blank) {
-      width: 100%;
-      height: auto;
-    }
+  }
+  .media-rows > [data-justified] figure > .media-tile {
+    inline-size: 100%;
+    block-size: auto;
   }
 }
