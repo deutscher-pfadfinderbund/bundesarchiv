@@ -12,7 +12,7 @@ The layout demo includes this file too.
       <h2>{{ pane.title }}</h2>
       <a href="{{ pane.close_href }}" aria-label="Vorschau schließen" title="Vorschau schließen">{% include "components/icon.html" with name="x" only %}</a>
     </header>
-    <div role="toolbar" aria-label="Eintragsaktionen">
+    <div role="toolbar" aria-label="Artikelaktionen">
       <a class="button primary" href="{{ pane.open_href }}">Öffnen</a>
       {% if pane.edit_href %}<a class="button" href="{{ pane.edit_href }}">Bearbeiten</a>{% endif %}
     </div>
@@ -26,7 +26,7 @@ The layout demo includes this file too.
     <ul>
       {% for m in pane.media %}
       <li>
-        <a href="{{ m.file_url }}" target="_blank" rel="noopener">{% if m.thumb_url %}<img src="{{ m.thumb_url }}" alt="{{ m.alt }}" loading="lazy">{% else %}{% include "components/blank.html" with kind=m.kind glyph=m.glyph name=m.breakable_name only %}{% endif %}</a>
+        {% include "components/media_tile.html" with file=m only %}
         <p>{% if m.caption %}<span>{{ m.caption }}</span>{% endif %}<a href="{{ m.file_url }}" download>Herunterladen</a></p>
       </li>
       {% endfor %}
