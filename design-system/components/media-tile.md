@@ -1,5 +1,5 @@
 ---
-sourcesHash: 1a582be0372a198087374484c7b50b737c55c86e958821aa5229f09235299f1c
+sourcesHash: e505bcc77ead67bc7e0c5b08786ee3e6225ddb867e49ea60a876795949a2a60d
 id: media-tile
 description: >-
   It shows one file, using the best stand-in the archive has for the file's
@@ -61,17 +61,19 @@ that file.
 
 The container owns the tile's place, its box and the spacing around it, and sets them on the
 tile's root only (`DESIGN.md`, "Contracts and public use": a composition sets knobs and places the
-component, never selects inside it). The box is given in one of three ways:
+component, never selects inside it). The box is a maximum: the stand-in is never drawn larger
+than its own pixels (owner, 2026-10-29: own pixels; today's cover). A placeholder has no pixels of
+its own; it takes those of the square a thumbnail fits in. The box is given in one of three ways:
 
-- **An inline size only.** The stand-in fills that width in its own shape; a placeholder is
-  square.
-- **An inline and a block size.** The stand-in fits inside the box in its own shape; a
-  placeholder fills the box.
+- **An inline size only.** The stand-in fills that width in its own shape, up to its own pixels;
+  a placeholder is square.
+- **An inline and a block size.** The stand-in fits inside the box in its own shape, up to its
+  own pixels; a placeholder is the largest square that fits.
 - **A block size only**, as a row of tiles of equal height gives it. The stand-in takes the
-  height and its own width; a placeholder takes the height.
+  height, up to its own pixels, and its own width; a placeholder is that square.
 
-With no size set, the tile is as wide as its stand-in allows and never wider than its container.
-The tile owns what is inside the box: the stand-in, its edge, the label and the link.
+With no size set, the stand-in shows at its own pixels, never wider than the tile's container. The
+tile owns what is inside the box: the stand-in, its edge, the label and the link.
 
 ## Behaviour and states
 
@@ -79,7 +81,8 @@ The file decides the state; a consumer cannot choose one.
 
 - **A thumbnail exists** (ruled for images, PDFs and videos; a PDF's is its first page): the
   thumbnail shows in its own shape, never cropped and never letterboxed (ruling of 2026-09-28 (article media):
-  "Images keep their own shape"; "A PDF shows as a thumbnail of its first page"). Its corners are
+  "Images keep their own shape"; "A PDF shows as a thumbnail of its first page"), and never
+  larger than its own pixels (owner, 2026-10-29: own pixels; today's cover). Its corners are
   square (`DESIGN.md`, Shapes). It carries no visible label (owner, 2026-10-29: the label as
   today).
 - **No thumbnail** (a file whose thumbnail is not made yet, a kind that has none, an unknown

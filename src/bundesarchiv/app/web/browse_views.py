@@ -185,6 +185,12 @@ class MediaTile:
         for it wraps it there, not mid-word."""
         return mark_safe(re.sub(r"([._-])", r"\1<wbr>", escape(self.name)))  # noqa: S308
 
+    @property
+    def pixels(self) -> tuple[int, int]:
+        """The stand-in's own width and height, the largest a tile draws it: the thumbnail's, else
+        the square a thumbnail fits in (a placeholder has no pixels of its own)."""
+        return self.aspect or (Size.TILE, Size.TILE)
+
 
 def media_tiles(ulid: ULID, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
     """``media`` as tiles, in its order (cover first, ADR 0015). One tile header read per file: the

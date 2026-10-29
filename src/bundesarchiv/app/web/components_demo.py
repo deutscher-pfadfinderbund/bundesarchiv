@@ -260,6 +260,12 @@ _PHOTO = _sample_image(
     '<rect width="480" height="320" fill="#9fb4c4"/>'
     '<path d="M0 230 140 150 260 210 360 140 480 200V320H0z" fill="#56664f"/>',
 )
+_SMALL_PHOTO = _sample_image(
+    150,
+    200,
+    '<rect width="150" height="200" fill="#c4b49f"/><circle cx="75" cy="80" r="34" fill="#6b5a48"/>'
+    '<path d="M15 200C20 140 130 140 135 200z" fill="#6b5a48"/>',
+)
 _PAGE = _sample_image(
     340,
     480,
@@ -298,8 +304,8 @@ def _media_tile(
     )
 
 
-#: Each file the tile shows: a photo and a PDF with a thumbnail, each known kind without one, the
-#: unknown kind.
+#: Each file the tile shows: a photo and a PDF with a thumbnail, a small photo's thumbnail (an
+#: original smaller than a thumbnail is not enlarged), each known kind without one, the unknown kind.
 _MEDIA_TILES = (
     _media_tile(
         FileKind.IMAGE,
@@ -309,14 +315,17 @@ _MEDIA_TILES = (
         alt="Zeltlager am Waldrand, im Hintergrund Hügel",
     ),
     _media_tile(FileKind.PDF, "gaubrief-herbst-1971.pdf", (_PAGE, (340, 480))),
-    _media_tile(FileKind.IMAGE, "lagerfeuer-1964.jpg", slot=1),
+    _media_tile(
+        FileKind.IMAGE, "passbild-1958.jpg", (_SMALL_PHOTO, (150, 200)), slot=1, alt="Passbild"
+    ),
+    _media_tile(FileKind.IMAGE, "lagerfeuer-1964.jpg", slot=2),
     _media_tile(FileKind.PDF, "vorstandsprotokoll-1980-03.pdf"),
     _media_tile(FileKind.VIDEO, "festumzug-1975.mp4"),
     _media_tile(FileKind.AUDIO, "aufnahme-1962.mp3"),
     _media_tile(FileKind.OTHER, "mitgliederliste.xlsx"),
 )
-#: The box samples: a thumbnail of each shape, then two files without one.
-_MEDIA_TILES_FEW = tuple(_MEDIA_TILES[i] for i in (0, 1, 5, 6))
+#: The box samples: a thumbnail of each shape, the small one, then a file without one.
+_MEDIA_TILES_FEW = tuple(_MEDIA_TILES[i] for i in (0, 1, 2, 6))
 _LONG_NAME = _media_tile(
     FileKind.OTHER, "Protokoll_der_Mitgliederversammlung_vom_12._März_1962_Abschrift.docx"
 )
