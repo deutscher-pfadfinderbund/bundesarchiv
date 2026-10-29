@@ -22,3 +22,55 @@ requires demonstrating the original Expected result.
   owner's approval.
 - **Decision needed:** when an action outside a menu takes a text look; the button size (DESIGN.md
   and the mock against the shipped CSS); a disabled state for the framed looks.
+
+### The kind glyphs have no decided icon set
+
+- **Source:** owner ruling 2026-10-28 (MediaTile): a file without a stand-in shows a placeholder
+  glyph matching its kind; owner, 2026-10-29: no icon set has been decided in this project.
+- **Need:** a decided source for icons before any glyph is drawn into a component.
+- **Actual result:** `src/bundesarchiv/app/web/templates/components/icon.html` calls itself "the one
+  vendored inline-SVG set" on the strength of a law row no owner decision backs; the Media tile
+  shows the cross for every file without a stand-in.
+- **Expected result:** the owner decides the icon set (or that there is none); the Media tile's
+  "No thumbnail" state gets its glyph per kind and the contract closes that open decision.
+- **Evidence:** `design-system/components/media-tile.md`, "Open decisions"; the doc audit of
+  2026-10-29.
+- **Next step:** the icon set is one line of the doc-sanction cleanup's verdict table; after it,
+  a craft round on the glyphs.
+
+### The Lightbox has no contract and is not on every page with image tiles
+
+- **Source:** owner ruling 2026-10-28 (MediaTile): opening the Lightbox is the tile's behaviour;
+  the Lightbox is its own component.
+- **Need:** a Media tile that promises "a plain click opens the Lightbox" needs the Lightbox
+  wherever image tiles are composed.
+- **Actual result:** the Lightbox (`workbench/_lightbox`) is included and scripted on the article
+  page only; on other pages an image tile is a plain link. It depends on a control (its buttons),
+  so it waits for the controls gap above.
+- **Expected result:** a Lightbox contract; every page that composes image tiles includes it, or
+  the tile's contract states the pages that do not.
+- **Evidence:** `design-system/components/media-tile.md`, "The Lightbox hook".
+- **Next step:** after the control primitives, a Lightbox adoption round.
+
+### A large tile shows a soft picture
+
+- **Source:** owner ruling 2026-09-28 (article media): images keep their own shape.
+- **Need:** a thumbnail that fills a wide box (the article page's cover) stays sharp.
+- **Actual result:** the tile's stand-in is the thumbnail (about 480px wide); the tile record
+  carries no width for the display rendition, so the tile cannot offer it to the browser as a
+  larger candidate. The cover today shows the full-size original instead.
+- **Expected result:** the record carries the display rendition's width; the tile offers it in
+  `srcset`; the browser picks it for a wide box.
+- **Evidence:** the writer-ui report of 2026-10-29 (Media tile round).
+- **Next step:** the migration of the cover onto the tile adds the width to the record.
+
+### Audio and video have no playback
+
+- **Source:** owner ruling 2026-10-28 (MediaTile): a playback control is audio's stand-in once
+  playback exists; the Lightbox may later take other kinds (an inline video player).
+- **Need:** playing a recording in place.
+- **Actual result:** audio and video open as downloads in a new tab; audio has no thumbnail.
+- **Expected result:** a decided player surface (in the Lightbox or the tile) and the tile's
+  playback state.
+- **Evidence:** `design-system/components/media-tile.md`, "Behaviour and states", last item.
+- **Next step:** a product decision; no round planned.
