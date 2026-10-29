@@ -230,9 +230,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Tests
 
-### 29. The gallery has no lead without a picture — Worth exploring
-- **Indicator:** 0 gallery states render `.cover:has(.blank)` (2026-10-01, stable)
-- **Evidence:** every e2e corpus file now has a thumbnail (PDFTHUMBS); `static/detail.css`
+### 29. The gallery has no media tile without a picture — Worth exploring
+- **Indicator:** 0 gallery states render `.media-tile-placeholder` (2026-10-01, stable; reworded
+  2026-10-29 when Blank retired into the media tile)
+- **Evidence:** every e2e corpus file now has a thumbnail (PDFTHUMBS); the placeholder shows only
+  in the component library (`/_dev/components/`)
 - **Deletion test:** a non-renderable corpus file (audio/video) brings the state back
 - **Sketch:** one audio file on a corpus article + a `detail-audio` gallery state
 
