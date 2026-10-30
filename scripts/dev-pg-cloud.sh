@@ -1,7 +1,7 @@
 #!/bin/bash
 # Idempotent Postgres bootstrap for sandboxes WITHOUT a container runtime (Claude Code on the
-# web and similar). Local dev uses the container image instead (README); this script steps
-# aside when a runtime is available. Safe to re-run any time — including mid-session when the
+# web and similar). Local dev uses the mise Postgres daemon instead (README); this script steps
+# aside when a container runtime is available. Safe to re-run any time — including mid-session when the
 # sandbox reclaimed the server ("connection refused ... 5434" from the test guard).
 #
 # What it builds: the same thing docker/postgres/ builds — a plain Postgres — except from the distro Postgres

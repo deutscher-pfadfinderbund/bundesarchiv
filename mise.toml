@@ -1,8 +1,24 @@
 # Task runner (mise). `mise run check` = the fast pre-commit checks,
 # `mise run gate` = the full gate (see CLAUDE.md for when each applies).
 
+[settings]
+# mise daemons are experimental; a project setting is enough for `mise daemons`.
+experimental = true
+
 [tools]
 biome = "2.5.15"
+
+# The dev Postgres: a native server, one for all worktrees (each checkout makes its own test
+# database on it, tests/conftest.py). Tasks reach it through `pg`, never `daemons`: see there.
+[daemons.postgres]
+preset = "postgres"
+version = "18.6"
+port = 5434
+data_dir = "~/.local/share/bundesarchiv/postgres"
+options.database = "bundesarchiv"
+# initdb takes encoding and locale from the caller's environment; pinned to the postgres image's
+# (UTF8, en_US) — a SQL_ASCII cluster cannot hold the ICU collation (ADR 0011).
+env = { LANG = "en_US.UTF-8" }
 
 [tasks.check]
 description = "Fast commit check (no Postgres): ruff, format, import contracts, pyrefly, mypy, biome, pytest"
@@ -18,7 +34,7 @@ run = [
 
 [tasks.gate]
 description = "Full gate: ruff, format, import contracts, pyrefly, biome, mypy, pytest"
-depends = ["pg:wait"]
+depends = ["pg"]
 run = [
   "uv run ruff check",
   "uv run ruff format --check .",
@@ -34,27 +50,10 @@ description = "Mutation proof: -- FILE OLD NEW PYTEST_ARGS (always restores FILE
 run = "uv run python scripts/mutate.py"
 
 [tasks.pg]
-description = "Start the dev Postgres (Apple container CLI, host port 5434)"
-run = "container system start && container start bundesarchiv-pg"
-
-[tasks."pg:wait"]
-description = "Block until the dev Postgres accepts connections"
-depends = ["pg"]
-run = """
-# Both sides, because Postgres reports ready INSIDE the container a moment before
-# `container` publishes host port 5434 — and every suite connects from the host.
-if command -v pg_isready >/dev/null 2>&1; then
-  host_ready() { pg_isready -h localhost -p 5434 -U postgres >/dev/null 2>&1; }
-else
-  host_ready() { nc -z localhost 5434 >/dev/null 2>&1; }
-fi
-for i in $(seq 1 30); do
-  container exec bundesarchiv-pg pg_isready -U postgres >/dev/null 2>&1 && host_ready && exit 0
-  sleep 1
-done
-echo "Postgres did not become ready in time" >&2
-exit 1
-"""
+description = "Start the dev Postgres (port 5434), the one server for all worktrees"
+# mise ties a running daemon to the checkout that started it and refuses its port to every other
+# checkout, so each worktree starts it from the main checkout. Stop it there too.
+run = 'cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && mise daemons start postgres'
 
 [tasks.image]
 description = "Build the app image locally (Apple container CLI)"
@@ -66,7 +65,7 @@ run = "DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py r
 
 [tasks."dev:legacy"]
 description = "Dev server on :8000 over the imported legacy archive (rebuilds the index first)"
-depends = ["pg:wait"]
+depends = ["pg"]
 # The search index is one table for every root, so it is rebuilt from the legacy tree on each start.
 # `manage.py rebuild_index` without the env var hands it back to the dev archive (README).
 env = { BUNDESARCHIV_CANONICAL_ROOT = "var/legacy/canonical", DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings_dev" }
@@ -81,7 +80,7 @@ run = [
 
 [tasks.test]
 description = "Full default pytest run (needs Postgres)"
-depends = ["pg:wait"]
+depends = ["pg"]
 run = "uv run pytest"
 
 [tasks."test:nodb"]
@@ -90,7 +89,7 @@ run = "uv run pytest -m \"not requires_pg\" -n 4"
 
 [tasks."test:db"]
 description = "Only the Postgres-backed tests"
-depends = ["pg:wait"]
+depends = ["pg"]
 # A command-line -m REPLACES the addopts deselection, so e2e/gallery must be re-excluded here.
 run = "uv run pytest -m \"requires_pg and not e2e and not gallery\""
 
@@ -104,12 +103,12 @@ run = "uv run pytest tests/persistence"
 
 [tasks."test:index"]
 description = "Viewer-scoped search: leaks, equivalence, indexer (needs Postgres)"
-depends = ["pg:wait"]
+depends = ["pg"]
 run = "uv run pytest tests/index"
 
 [tasks."test:app"]
 description = "Service layer + HTTP surface incl. leak matrix (needs Postgres)"
-depends = ["pg:wait"]
+depends = ["pg"]
 run = "uv run pytest tests/app"
 
 [tasks."test:affected"]
@@ -118,7 +117,7 @@ run = "uv run python scripts/affected.py"
 
 [tasks."legacy:import"]
 description = "One-time import of the legacy CSV export (pass -- --dry-run first)"
-depends = ["pg:wait"]
+depends = ["pg"]
 # Its own canonical root: the import is one-time and refuses a root that already holds Articles, so
 # it must not aim at the dev archive by accident. Both paths stay overridable from the environment.
 # The search INDEX is not isolated with it — one Postgres table per database, rebuilt here from the
@@ -135,17 +134,17 @@ run = "uv run playwright install chromium"
 
 [tasks."test:e2e"]
 description = "Real-browser journeys (excluded from default run)"
-depends = ["pg:wait", "e2e:browsers"]
+depends = ["pg", "e2e:browsers"]
 run = "uv run pytest -m e2e -n 4"
 
 [tasks."test:gallery"]
 description = "State gallery, renders screenshots (excluded from default run)"
-depends = ["pg:wait", "e2e:browsers"]
+depends = ["pg", "e2e:browsers"]
 run = "uv run pytest -m gallery -s -n 4"
 
 [tasks."test:gallery-diff"]
 description = "Pixel-diff the gallery: a git ref (default main) vs the working tree. -- REF"
-depends = ["pg:wait", "e2e:browsers"]
+depends = ["pg", "e2e:browsers"]
 run = "uv run python scripts/gallery_diff.py"
 
 # Code-quality clues (scripts/quality/): the reports always exit 0; only comments-only gates.

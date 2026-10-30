@@ -16,11 +16,11 @@ tests); pick the package(s) a task touches:
 
 ## Dev environment
 
-- Search database (Postgres, host port 5434) runs via Apple's `container` CLI —
-  or the same `build`/`run` commands under `docker` when `container` is not
-  installed. There is no dev compose file; `compose.yml` is the VPS deploy stack:
-  `container system start && container start bundesarchiv-pg`
-  (first-time setup: see README).
+- Search database (Postgres 18, host port 5434) is a native mise daemon (`[daemons]` in
+  `mise.toml`), one server for all worktrees, owned by the main checkout: `mise run pg`
+  starts it from any worktree (tasks that need it do so themselves); stop it with
+  `mise daemons stop postgres` in the main checkout. There is no dev compose file;
+  `compose.yml` is the VPS deploy stack.
 - Dev server: `mise run dev`
   (`DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver`).
 - `mise.toml` is the single source of what each command runs.
@@ -29,7 +29,7 @@ tests); pick the package(s) a task touches:
 
 | Moment | Command |
 | --- | --- |
-| Inner loop | `mise run test:nodb` (~6s under `-n 4`, no container; `-- -n 0` runs it serially, for `--pdb` and debugging), or path-scoped `uv run pytest tests/<suite>/...` |
+| Inner loop | `mise run test:nodb` (~6s under `-n 4`, no Postgres; `-- -n 0` runs it serially, for `--pdb` and debugging), or path-scoped `uv run pytest tests/<suite>/...` |
 | One suite | `mise run test:domain` / `test:persistence` / `test:index` / `test:app` |
 | Suites a diff needs | `mise run test:affected [-- BASE] [--dry-run]` — runs the suites `BASE...HEAD` plus uncommitted changes need, stops at the first red; not `check`. |
 | Change touches index, search or schema (`src/bundesarchiv/index/`, migrations, search-relevant persistence) | `mise run test:index` and `mise run test:db` — the full gate runs once, at the push |

@@ -4,9 +4,9 @@
 # — the same command a developer runs before every commit — plus mypy, which is
 # deliberately push-time-only locally and so stays its own step here.
 #
-# `db` runs the Postgres-backed tests and does NOT go through mise: the mise pg
-# tasks drive Apple's `container` CLI, which the runners do not have — they have
-# docker. The Postgres image (docker/postgres/Dockerfile, plain
+# `db` runs the Postgres-backed tests and does NOT go through mise: mise's `pg`
+# task runs a native Postgres for local dev, while this job tests against the
+# image the VPS runs. The Postgres image (docker/postgres/Dockerfile, plain
 # Postgres 18) is built and published to GHCR by
 # postgres-image.yml and only pulled here, so CI runs the same bytes as the VPS.
 # The pytest marker expressions are the shared source of truth, so this job and
