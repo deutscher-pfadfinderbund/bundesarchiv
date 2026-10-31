@@ -16,7 +16,7 @@ _Avoid_: Item, entry, document.
 
 **Collection** (*Bestand*):
 The single owning, nestable division an Article belongs to, and the source of its Audience. Collections form a single-parent tree (shallow in practice: a handful of top Bestände, ≤2–3 levels — owner 2026-08-22). Exactly one per Article. May carry an optional description (owner 2026-08-22).
-_Avoid_: Sammlung (superseded UI label — owner ruling 2026-08-22: "Bestand" is law), Catalogue, Fonds; do not also use "Collection" for thematic grouping (see Album).
+_Avoid_: Sammlung (superseded UI label, owner 2026-08-22), Catalogue, Fonds; do not also use "Collection" for thematic grouping.
 
 **Reference code** (*Signatur*) — code field `ref_code`:
 The identifier an Archivist assigns to an Article and writes on the physical object (e.g. `F12/3-b2`). Optional, free-text, sorts numeric-aware, soft-unique (duplicates warned, not blocked). It is human-facing metadata, **not** the Article's stable identity (which is an internal ULID). Audience note (owner, 2026-08-23): Signaturen matter to Archivists; **Members don't really care for them at all** — on shared views the mark's visual rank follows the archivist's need, never above a member's disinterest. **Shape (owner, 2026-08-07):** a Signatur carries **no spaces**, and **8 characters is the practical ceiling** ("they could get longer, but I don't expect them to") — demo corpora and layout renders use codes at or under that ceiling; where a layout needs stressing, the unbounded field is the Titel.

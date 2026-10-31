@@ -122,12 +122,6 @@ components:
     typography: "{typography.body}"
     rounded: "{rounded.none}"
     padding: "0.5rem 0.75rem"
-  chip:
-    backgroundColor: "{colors.paper-white}"
-    textColor: "{colors.print-black}"
-    typography: "{typography.meta}"
-    rounded: "{rounded.none}"
-    padding: "0 0 0 0.5rem"
   menu:
     backgroundColor: "{colors.paper-white}"
     textColor: "{colors.print-black}"
@@ -158,7 +152,7 @@ reviewed, which cues are licensed). The mock system that proves both lives in
 The archive looks like a well-set printed catalogue: black ink on white paper, and nothing a
 printer would not have. Type carries the order. Alignment and space make the structure, so lines
 are rare: a hairline appears only where a row has two ends that the eye must connect, and a frame
-only where things have no natural line between them (an input's edge, a chip). There is no second
+only where things have no natural line between them (an input's edge). There is no second
 hue, no gray fill, no shadow, no rounded corner. Red is the only colour, and it means "this is
 wrong" or "this is about to remove something".
 
@@ -199,7 +193,7 @@ A monochrome palette: two inks on paper, three grays with one job each, and one 
   ("intern").
 - **Hairline** (#dcdcdc, ~1.4:1): the one connecting line, drawn only between the two ends of a
   row. Too faint to be an affordance on purpose.
-- **Control Edge** (#8f8f8f, ≥3:1): the edge of an input or a chip box. An
+- **Control Edge** (#8f8f8f, ≥3:1): the edge of an input. An
   affordance, so it meets the 3:1 non-text contrast floor; it is not a connector.
 - **Faint** (#d0d0d0): present but inactive: disabled arrows, the placeholder cross of an item
   without an image. Tuned brighter in dark, where the hairline would vanish.
@@ -300,8 +294,8 @@ from space.
 
 ## Shapes
 
-Square corners everywhere (radius 0): buttons, inputs, chips, panels, thumbnails. Lines are 1px
-(the heavy notice rule is 3px). Frames are rare and each earns its place: an input's edge, a chip,
+Square corners everywhere (radius 0): buttons, inputs, panels, thumbnails. Lines are 1px
+(the heavy notice rule is 3px). Frames are rare and each earns its place: an input's edge,
 a floating panel, a placeholder tile. An item without an image draws a thin cross in Faint inside
 its tile. There is no bevel, no pill, no circle; the help mark is the text character ⓘ.
 
@@ -346,7 +340,7 @@ Behaviour: `src/bundesarchiv/app/web/static/combobox.js`; the list's surface:
 - Without JS, or without popover support, it is the plain field.
 
 ### Remove
-- One × for every removal (media rows, Weitere Angaben rows, chips): Secondary Ink at rest, ink
+- One × for every removal (media rows, Weitere Angaben rows): Secondary Ink at rest, ink
   on hover. It carries the **danger** context, so that ink turns Correction Red on hover, press and
   focus. Where it deletes for good it also asks first (`hx-confirm`; without JS the server's
   two-step).
