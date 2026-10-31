@@ -1,10 +1,10 @@
-# Owner interview 2026-08 — ratified requirements and audit consequences
+# Owner conversations 2026-08-05 to 2026-10-28 — a record, frozen
 
-Source: project-review interview with the owner (2026-08-05), conducted to
-separate real requirements from accumulated assumptions. Statements below are
-the owner's rulings; each section ends with the concrete consequences for the
-codebase. This document is binding input in the same way as
-`archivist-wishes-2025.md`.
+Status: RECORD, frozen 2026-10-31. Agents wrote every section in their own words after
+sessions with the owner; nothing below quotes the owner. The file began as the record of one
+interview (2026-08-05) and was appended to for 24 days. It binds nothing: a rule holds only
+where the owner decided it, recorded where it binds (root `CLAUDE.md`, "Decisions and
+records"). Read it as evidence of what was said; append nothing.
 
 ## Rollout plan (definitive)
 

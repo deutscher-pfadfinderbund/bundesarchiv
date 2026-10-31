@@ -15,7 +15,7 @@ contact-person workflow details); this file is the durable extract.
 | Attachment limit (old: max 3 files, zip workaround) | `media` tuple is unbounded and ordered |
 | Member catalog search broken (subcategories, "Felder leeren") | Workbench replaces it wholesale |
 
-## Feeds Part 4.7 (cataloging form) — binding input
+## Feeds Part 4.7 (cataloging form) — input
 
 - **View first, edit deliberately.** Items open read-only (the 4.6 detail
   view); editing is an explicit route. Matches their overwrite-protection

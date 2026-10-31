@@ -1,7 +1,8 @@
-# Search UI rulings 2026-10
+# Search UI review 2026-10-18 — a record, frozen
 
-Owner rulings from the review of the search units (Lesesaal, suggestions), 2026-10-18. Binding
-input like the other files in this folder.
+Status: RECORD, frozen 2026-10-31. An agent's notes from the review of the search units
+(Lesesaal, suggestions) with the owner, 2026-10-18; no quotes. Binds nothing (root
+`CLAUDE.md`, "Decisions and records"); the code and its tests are what holds.
 
 1. **A table sort carries into the Lesesaal, and the Lesesaal shows it.** Switching views keeps
    `sort=`; the Lesesaal states the active sort visibly, so a non-relevance order never looks like
