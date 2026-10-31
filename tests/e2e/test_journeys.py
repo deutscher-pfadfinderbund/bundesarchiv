@@ -1,9 +1,7 @@
-import json
 import re
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -16,15 +14,18 @@ from tests.e2e._gallery import long_suggestions
 from tests.e2e._pages import (
     BULK_COMMIT,
     LIST,
-    OVERLAY_CENTRED_PANEL,
-    OVERLAY_PANEL_OF_JS,
-    OVERLAY_PANELS,
-    OVERLAY_TRIGGERS,
     SCREENS,
     Screen,
     reach_door,
     reach_tag_suggestions,
     screens_for,
+)
+from tests.e2e._walks import (
+    control_row_walk,
+    measure_control_rows,
+    overlay_walk,
+    serve_css_without_anchor_positioning,
+    toolbar_buttons,
 )
 from tests.e2e.conftest import add_archivist_cookies
 
@@ -178,12 +179,20 @@ def _draft_edit_url(base: str, corpus: CorpusHandles) -> str:
     return base + f"/articles/{corpus.draft_ulid}/edit"
 
 
+def _until(
+    done: Callable[[], bool], step: Callable[[], None], what: str | Callable[[], str]
+) -> None:
+    """Steps until ``done``; ``what`` names the failure after 10 s (a callable is read then)."""
+    deadline = time.monotonic() + 10
+    while not done():
+        assert time.monotonic() < deadline, what if isinstance(what, str) else what()
+        step()
+
+
 def _held(page: Page, held: list[Route]) -> Route:
     """The first request the test's route holds, once it is out."""
-    deadline = time.monotonic() + 5
-    while not held:
-        assert time.monotonic() < deadline, "the held request never went out"
-        page.wait_for_timeout(10)  # the sync API dispatches the route only while it waits
+    # the sync API dispatches the route only while it waits
+    _until(lambda: bool(held), lambda: page.wait_for_timeout(10), "the held request never went out")
     return held[0]
 
 
@@ -253,199 +262,10 @@ def test_ledger_headers_compute_one_uniform_treatment(
     assert len(set(treatments)) == 1, f"non-uniform header treatments: {sorted(set(treatments))}"
 
 
-#: Law C8's walker (design-review-law E), the one proof: no per-instance copies.
-_CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
-    const declaresKnob = (el) => {
-        const own = getComputedStyle(el).getPropertyValue('--control-height').trim();
-        if (!own) return false;  // unset, or reset to the guaranteed-invalid value
-        const parent = el.parentElement;
-        const inherited = parent
-            ? getComputedStyle(parent).getPropertyValue('--control-height').trim() : '';
-        return own !== inherited;
-    };
-    const rows = [];
-    for (const el of document.querySelectorAll('*')) {
-        // an overlay panel is a row of its own even when its height equals its trigger row's: it
-        // re-declares the knob either way (components.css), so a value match must not hide it
-        if (el.matches('[role=toolbar]') || el.matches(overlayPanels) || declaresKnob(el)) {
-            rows.push(el);
-        }
-    }
-    const name = (el) => (el.tagName.toLowerCase()
-        + (el.id ? '#' + el.id : '')
-        + (el.className && typeof el.className === 'string'
-            ? '.' + el.className.trim().split(/\\s+/).join('.') : '')
-        + (el.matches('[role=toolbar]') ? '[toolbar]' : ''));
-    const target = (el) => (el.matches('input[type=checkbox], input[type=radio]')
-        && el.closest('label')) || el;
-    return rows.map((row) => ({
-        name: name(row),
-        knob: getComputedStyle(row).getPropertyValue('--control-height').trim(),
-        controls: Array.from(row.querySelectorAll(
-            'a[href], button, input, select, textarea, summary'))
-            // an OVERLAY panel's entries belong to the panel, never to the row the panel hangs from
-            // (the law is explicit: a toolbar may own a disclosure, and its dropped contents are
-            // overlay contents). The panel is a row in its own right, so its entries are measured
-            // there — counting them twice would tie the panel's height to the chrome row's.
-            .filter((el) => {
-                const panel = el.closest(overlayPanels);
-                return panel === null || panel === row;
-            })
-            // rendered only — checkVisibility, not offsetParent: a CLOSED <details> keeps its
-            // contents in the box tree (Chromium renders ::details-content with
-            // content-visibility:hidden), so offsetParent still resolves for a panel item that is
-            // not on screen. Opacity is deliberately NOT considered: a control resting at
-            // opacity 0 until its row is hovered is still a control of its row.
-            .filter((el) => el.checkVisibility({
-                checkVisibilityCSS: true, contentVisibilityAuto: true}))
-            .map((el) => {
-                const s = getComputedStyle(el);
-                return {
-                    label: (el.getAttribute('aria-label') || el.textContent).trim(),
-                    // The ACTIVE panel entry carries register row 3's inversion mark, and what row 3
-                    // licenses is the fg/bg swap plus its SEMIBOLD — one axis. So it is exempt on
-                    // font-weight and compared on the other four; a blanket exemption made a
-                    // different face, size, transform or tracking inside that row unfindable.
-                    inverted: !!el.closest('li:has(> [aria-current])'),
-                    // ...and the row's TEXT OCCUPANTS, which share its height but not its control
-                    // treatment: the wordmark carries the owner's ONE display face
-                    // (tokens.css --type-wordmark, 2026-08-07) and the sentence's clear-all is a quiet
-                    // text link (owner 2026-09-30). Two named
-                    // selectors, not a category — anything else IS compared.
-                    text: el.matches('.wordmark, .filterset > a'),
-                    // a checkbox or radio inside its <label> is hit anywhere on the label, so the
-                    // label is its target (WCAG 2.5.8); the native box alone stays 13px
-                    height: target(el).offsetHeight,
-                    width: target(el).offsetWidth,
-                    // FACE and WEIGHT are separate, because their exemptions are (see above).
-                    face: [s.fontSize, s.fontFamily, s.textTransform, s.letterSpacing].join('|'),
-                    weight: s.fontWeight,
-                };
-            }),
-    }));
-}"""
-
-
 def _left_edge(locator: Locator) -> float:
     box = locator.bounding_box()
     assert box is not None
     return box["x"]
-
-
-def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]]]:
-    """Keyed ``<name>#<index>`` because names repeat. Overlay entries are measurable only while
-    open, so each overlay is opened in turn."""
-    rows: list[dict[str, Any]] = page.evaluate(_CONTROL_ROW_WALKER_JS, OVERLAY_PANELS)
-    walked: dict[str, list[dict[str, str | int | bool]]] = {}
-    for i, row in enumerate(rows):
-        walked[f"{row['name']}#{i}"] = row["controls"]
-    triggers = page.locator(OVERLAY_TRIGGERS)
-    for index in range(triggers.count()):
-        trigger = triggers.nth(index)
-        if not trigger.is_visible():  # e.g. "Feld ändern …" before any row is picked
-            continue
-        trigger.click()
-        for i, row in enumerate(page.evaluate(_CONTROL_ROW_WALKER_JS, OVERLAY_PANELS)):
-            if row["controls"]:
-                walked[f"{row['name']}#{i}"] = row["controls"]
-        trigger.click()  # close before opening the next one
-    return walked
-
-
-#: WCAG 2.2 AA target size (law D).
-_AA_TARGET_FLOOR = 24
-
-
-def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) -> list[str]:
-    """Defects against law C8 and the AA target floor."""
-    defects: list[str] = []
-    for name, controls in by_name.items():
-        defects.extend(
-            f"row '{name}' control '{c['label']}' is {c['width']}x{c['height']}px — under the"
-            f" WCAG 2.2 AA {_AA_TARGET_FLOOR}px target floor"
-            for c in controls
-            if min(int(str(c["width"])), int(str(c["height"]))) < _AA_TARGET_FLOOR
-        )
-        if len(controls) < 2:
-            continue
-        # Keyed by position: labels repeat.
-        heights = {f"{i}:{c['label']}": int(str(c["height"])) for i, c in enumerate(controls)}
-        if max(heights.values()) - min(heights.values()) > 1:
-            defects.append(f"row '{name}' computes more than one height: {heights}")
-        compared = [c for c in controls if not c["text"]]
-        faces = {c["face"] for c in compared}
-        if len(faces) > 1:
-            defects.append(f"row '{name}' computes mixed control faces: {faces}")
-        weights = {c["weight"] for c in compared if not c["inverted"]}
-        if len(weights) > 1:
-            defects.append(f"row '{name}' computes mixed control weights: {weights}")
-    return defects
-
-
-@pytest.mark.parametrize("screen", screens_for(archivist=True), ids=lambda s: s.name)
-def test_control_rows_compute_one_height_source(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles, screen: Screen
-) -> None:
-    page = archivist_page
-    screen.reach(page, live_workbench, e2e_corpus)
-    by_name = _walk_control_rows(page)
-    for prefix in screen.control_rows:
-        found = [n for n in by_name if n.startswith(prefix)]
-        assert found, f"no control row named {prefix!r}: {sorted(by_name)}"
-    defects = _control_row_defects(by_name)
-    assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
-    ink_defects = _toolbar_button_defects(page, screen.name)
-    assert not ink_defects, "a toolbar button lost its button roles:\n" + "\n".join(ink_defects)
-
-
-#: Roles resolve on a probe: a token's raw value is a light-dark() expression only a rendered
-#: element resolves.
-_TOOLBAR_BUTTON_JS = """() => {
-    const probe = document.createElement('span');
-    probe.style.position = 'absolute';
-    probe.style.visibility = 'hidden';
-    document.body.appendChild(probe);
-    const role = (name) => {
-        probe.style.color = 'var(' + name + ')';
-        return getComputedStyle(probe).color;
-    };
-    const roles = {ground: role('--ground'), ink: role('--ink')};
-    probe.remove();
-    const buttons = [...document.querySelectorAll('[role=toolbar] a.button')].map((a) => {
-        const s = getComputedStyle(a);
-        return {label: a.textContent.trim(), primary: a.classList.contains('primary'),
-                color: s.color, background: s.backgroundColor};
-    });
-    return {roles: roles, buttons: buttons};
-}"""
-
-
-def _toolbar_buttons(page: Page) -> tuple[dict[str, str], list[dict[str, str | bool]]]:
-    """The resolved colour roles plus one record per toolbar `a.button` on the current page."""
-    facts: dict[str, dict[str, str] | list[dict[str, str | bool]]] = page.evaluate(
-        _TOOLBAR_BUTTON_JS
-    )
-    roles = facts["roles"]
-    buttons = facts["buttons"]
-    assert isinstance(roles, dict) and isinstance(buttons, list)
-    return roles, buttons
-
-
-def _toolbar_button_defects(page: Page, where: str) -> list[str]:
-    roles, buttons = _toolbar_buttons(page)
-    defects: list[str] = []
-    for button in buttons:
-        want = (
-            (roles["ground"], roles["ink"])
-            if button["primary"]
-            else (roles["ink"], roles["ground"])
-        )
-        got = (button["color"], button["background"])
-        if got != want:
-            defects.append(
-                f"{where}: '{button['label']}' computes {got}, not the button roles {want}"
-            )
-    return defects
 
 
 def test_the_primary_toolbar_button_keeps_its_button_roles_under_the_pointer(
@@ -459,7 +279,7 @@ def test_the_primary_toolbar_button_keeps_its_button_roles_under_the_pointer(
     primary = page.locator(".pane [role=toolbar] a.button.primary")
     expect(primary).to_be_visible()
     primary.hover()
-    roles, buttons = _toolbar_buttons(page)
+    roles, buttons = toolbar_buttons(page)
     marks = [b for b in buttons if b["primary"]]
     assert marks and all(
         (b["color"], b["background"]) == (roles["ink"], roles["ground"]) for b in marks
@@ -471,18 +291,18 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
 ) -> None:
     page = archivist_page
     page.goto(live_workbench + f"{LIST}?tag=sommer&article={e2e_corpus.published_ulid}")
-    buttons = len(_toolbar_buttons(page)[1])
+    buttons = len(toolbar_buttons(page)[1])
     assert buttons >= 2, (
         f"the walk measured {buttons} toolbar buttons — the ink check proves nothing"
     )
-    filtered = _walk_control_rows(page)
+    filtered = measure_control_rows(page)
     header = next(n for n in filtered if n.startswith("header"))
     assert "+ Neu …" in [c["label"] for c in filtered[header]], filtered[header]
     panels = [n for n in filtered if n.startswith("ul#") and len(filtered[n]) >= 2]
-    assert panels, f"the walker measured no panel entries: {sorted(filtered)}"
+    assert panels, f"measure_control_rows saw no panel entries: {sorted(filtered)}"
 
     page.goto(live_workbench + f"/articles/{e2e_corpus.published_ulid}/edit")
-    edit = _walk_control_rows(page)
+    edit = measure_control_rows(page)
     row = next(n for n in edit if "record-meta-actions" in n)
     # Speichern and "Mehr …"
     assert len(edit[row]) >= 2, f"the edit form's action row was not found: {edit[row]}"
@@ -491,108 +311,13 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     assert len(media) >= 3, f"the media register's row toolbars were not walked: {sorted(edit)}"
 
 
-#: Per overlay, opened in turn: its geometry plus the entries a centre hit-test misses (on-viewport
-#: is not reachable: a sticky row can paint over a panel).
-_OVERLAY_WALK_JS = (
-    (
-        """(triggers) => {
-    const panelOf = PANEL_OF;
-    const facts = [];
-    for (const trigger of document.querySelectorAll(triggers)) {
-        const panel = panelOf(trigger);
-        // a trigger inside a closed panel ("Löschen …" in a menu) is reached through that panel
-        const host = trigger.parentElement.closest('[popover]:not(:popover-open)');
-        if (host) host.showPopover();
-        const opened = !panel.checkVisibility();
-        if (opened) trigger.click();
-        const r = panel.getBoundingClientRect();
-        // opening the panel closed its menu, so it hangs from the menu's own button (menu.js)
-        const from = host && !host.matches(':popover-open')
-            ? document.querySelector('[popovertarget="' + host.id + '"]') : trigger;
-        const edge = from.getBoundingClientRect();
-        const d = document.documentElement;
-        const covered = [];
-        for (const entry of panel.querySelectorAll('a, button, input, select')) {
-            const b = entry.getBoundingClientRect();
-            if (b.width === 0 || b.height === 0) continue;   // not rendered — nothing to reach
-            const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
-            if (!(hit === entry || entry.contains(hit)
-                  || entry.contains(hit && hit.parentElement))) {
-                covered.push((entry.textContent || entry.getAttribute('aria-label') || '?').trim()
-                    + ' <- ' + (hit ? hit.tagName.toLowerCase()
-                        + (typeof hit.className === 'string' && hit.className
-                            ? '.' + hit.className.trim().split(/\\s+/).join('.') : '')
-                        : 'nothing'));
-            }
-        }
-        facts.push({
-            label: trigger.textContent.trim(),
-            centred: panel.matches(CENTRED),
-            top: Math.round(r.top), triggerBottom: Math.round(edge.bottom),
-            left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
-            viewport: d.clientWidth,
-            docOverflow: d.scrollWidth - d.clientWidth,
-            covered: covered,
-        });
-        if (opened) trigger.click();
-        if (host) host.hidePopover();
-    }
-    return facts;
-}"""
-    )
-    .replace("PANEL_OF", OVERLAY_PANEL_OF_JS)
-    .replace("CENTRED", json.dumps(OVERLAY_CENTRED_PANEL))
-)
-
-#: 360 the narrowest phone; 540/680/900 straddle the header and rail wraps; 1100 sits just below
-#: the pane's 80rem switch.
-_CONTAINMENT_WIDTHS = (360, 540, 680, 900, 1100, 1440)
-
-
-def _overlay_containment_defects(page: Page, *, anchored: bool) -> list[str]:
-    """The reached screen's overlays at every containment width. ``anchored`` also checks the
-    anchored tier's promise: each panel hangs from its own trigger."""
-    defects: list[str] = []
-    for width in _CONTAINMENT_WIDTHS:
-        page.set_viewport_size({"width": width, "height": 900})
-        for rect in page.evaluate(_OVERLAY_WALK_JS, OVERLAY_TRIGGERS):
-            where = f"{width}px · {rect['label']}"
-            if rect["covered"]:
-                defects.append(f"{where}: entries painted over: {rect['covered']}")
-            # unanchored, a popover panel (help, menu) is the centred native one by design
-            centred = rect["centred"] and not anchored
-            if not centred and float(str(rect["top"])) < float(str(rect["triggerBottom"])) - 1:
-                defects.append(
-                    f"{where}: panel top {rect['top']}px covers its trigger "
-                    f"(bottom {rect['triggerBottom']}px)"
-                )
-            # the drop gap is --space-1 (4px); the slack covers rounding
-            if anchored and float(str(rect["top"])) > float(str(rect["triggerBottom"])) + 8:
-                defects.append(
-                    f"{where}: panel top {rect['top']}px does not hang from its trigger "
-                    f"(bottom {rect['triggerBottom']}px)"
-                )
-            if float(str(rect["left"])) < -1:
-                defects.append(f"{where}: panel starts off-viewport at {rect['left']}px")
-            if float(str(rect["right"])) > float(str(rect["viewport"])) + 1:
-                defects.append(f"{where}: panel ends at {rect['right']}px > {rect['viewport']}px")
-            if float(str(rect["docOverflow"])) > 1:
-                defects.append(f"{where}: the open panel scrolls the document {rect}")
-    return defects
-
-
-#: The one pre-Baseline @supports condition, in every stylesheet that carries it, and a
-#: falsification of it. Serving the REAL stylesheets with just this condition negated is how the
-#: walker reaches the FALLBACK tier — no fallback CSS is restated in the test, and Chromium's own
-#: anchor-positioning support (which no browser flag turns off any more) is left alone.
-_ANCHOR_SUPPORTS_CONDITION = "(anchor-name: --anchor-probe)"
-_ANCHOR_SUPPORTS_FALSIFIED = "(anchor-name: 0)"
-
-
-def _serve_css_without_anchor_positioning(route: Route) -> None:
-    response = route.fetch()
-    patched = response.text().replace(_ANCHOR_SUPPORTS_CONDITION, _ANCHOR_SUPPORTS_FALSIFIED)
-    route.fulfill(response=response, body=patched)
+@pytest.mark.parametrize("screen", screens_for(archivist=True), ids=lambda s: s.name)
+def test_control_rows_compute_one_height_source(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles, screen: Screen
+) -> None:
+    screen.reach(archivist_page, live_workbench, e2e_corpus)
+    defects = control_row_walk(archivist_page, screen)
+    assert not defects, "control rows:\n" + "\n".join(defects)
 
 
 @pytest.mark.parametrize("anchored", [True, False], ids=["anchored", "fallback"])
@@ -604,42 +329,19 @@ def test_overlays_stay_inside_the_viewport(
     screen: Screen,
     anchored: bool,
 ) -> None:
-    # both tiers (law F): anchored, and the fallback
+    # both tiers (law F)
     page = archivist_page
     if not anchored:
-        page.route("**/static/*.css", _serve_css_without_anchor_positioning)
+        page.route("**/static/*.css", serve_css_without_anchor_positioning)
     screen.reach(page, live_workbench, e2e_corpus)
-    found = page.locator(OVERLAY_TRIGGERS).count()
-    assert found >= screen.overlays, f"the overlay walker found only {found} panels"
-    if anchored:
-        assert page.evaluate("() => CSS.supports('anchor-name: --a')"), (
-            "this browser has no anchor positioning — the anchored tier would go unproven"
-        )
-    else:
-        live = _anchoring(page)
-        assert not live, (
-            f"the enhancement is still live — the fallback tier would go unproven: {live}"
-        )
-    defects = _overlay_containment_defects(page, anchored=anchored)
+    defects = overlay_walk(page, screen, anchored=anchored)
     assert not defects, "overlays leaving the viewport:\n" + "\n".join(defects)
-
-
-def _anchoring(page: Page) -> list[str]:
-    """The elements that take part in anchor positioning."""
-    anchoring: list[str] = page.evaluate(
-        "() => [...document.querySelectorAll('*')].flatMap((e) => {"
-        " const s = getComputedStyle(e);"
-        " return [s.anchorName, s.anchorScope, s.positionAnchor]"
-        "  .filter((v) => v.startsWith('--')).map((v) => `${e.localName}.${e.className} ${v}`);"
-        "})"
-    )
-    return anchoring
 
 
 def test_the_header_create_button_is_clickable_on_the_edit_screen(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # Sticky-overlay regression class (CLAUDE.md): the walker's hit-test covers it generically; this
+    # Sticky-overlay regression class (CLAUDE.md): overlay_walk's hit-test covers it generically; this
     # is the archivist's real click.
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
@@ -2349,10 +2051,11 @@ def test_a_finish_refused_after_every_retry_names_its_file(
 
     page.route("**/media/upload", refuse)
     page.set_input_files('#media-drawer input[type="file"]', _EINS)
-    deadline = time.monotonic() + 10
-    while len(finishes) < 5:  # the first finish and its four retries
-        assert time.monotonic() < deadline, f"only {len(finishes)} finishes went out"
-        page.clock.run_for(1000)
+    _until(  # the first finish and its four retries
+        lambda: len(finishes) >= 5,
+        lambda: page.clock.run_for(1000),
+        lambda: f"{len(finishes)} of 5 finishes went out",
+    )
     expect(page.locator("#upload-notice")).to_contain_text("eins.png")
     assert len(finishes) == 5
 
