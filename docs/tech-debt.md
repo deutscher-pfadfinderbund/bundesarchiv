@@ -26,7 +26,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ### 30. Who may read a Bestand's name is unruled — Worth exploring
 - **Indicator:** 1 site shows any Bestand's name, or an unknown ulid, to a Member: the list's Bestand slot (2026-10-01)
-- **Evidence:** `browse_views.py` slot label from `collection_chooser.names()` (all Collections); `article_auth.py` asserts "names are member-safe" without a ruling. Owner 2026-10-01: OK for now, revisit
+- **Evidence:** `browse_views.py` slot label from `collection_chooser.names()` (all Collections); `article_auth.py` asserts "names are member-safe" without a ruling. 2026-10-01: OK for now, revisit
 - **Deletion test:** n/a — a missing rule, not a module
 - **Sketch:** decide with group access / the policy rework; if names are scoped, the slot label comes from the viewer-scoped facet only
 
@@ -38,13 +38,13 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ### 32. "Public" and "Archivist" have several definitions — Speculative
 - **Indicator:** 3 definitions of Public; 118 tests build `Public()`; the form still offers "Öffentlich" (2026-10-01, A5)
 - **Evidence:** `viewer.py:14,30`, `oidc.py:20`, `anonymous_gate.py:56-61`, `vocab.py:141,177`. Archivist is a group in `CONTEXT.md`, a realm role in code.
-- **Sketch:** owner 2026-10-01: Public stays for future link access. Docs only: `CONTEXT.md` states both terms as built.
+- **Sketch:** Public stays for future link access. Docs only: `CONTEXT.md` states both terms as built.
 
 ### 33. Medienart / Dokumenttyp: fixed lists in code, free text by ruling — Worth exploring
 - **Indicator:** pair rules restated in 8 sites over 3 modules; 2 Dokumenttyp-option routes, 5 param aliases (2026-10-01, P5/W5)
 - **Evidence:** `catalog.py:149-160`, `bulk_views.py`, `bulk.py`, `catalog_views.py:995-1009`; `vocab.py` in `app/web` is imported by a command and injected into `legacy.py`. Every pair is valid today, so the refusal branches never run.
 - **Deletion test:** free text deletes all 8 pair rules and both routes; `vocab` lists become suggestions. `media_type` still names Medienart and MIME type: rename one.
-- **2026-10-21:** owner: Art becomes several independent questions (#72 folds in). The design waits on the archivists.
+- **2026-10-21:** Art becomes several independent questions (#72 folds in). The design waits on the archivists.
 
 ## Packages
 
@@ -59,25 +59,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** promote the deny helper to a public web-level name; each other name goes public on its
   module or moves to its one importer.
 
-### 49. The fixity check reads the repositories' private layout — done
-- **Indicator:** 5 private imports, all in `persistence/fixity.py` (2026-10-01, stable; the count of #11)
-- **Evidence:** `_folder` and `_ulid_of_readme` from both repositories, and `repository._digest` —
-  the key layout and the hash the check re-reads (ADR 0019 "Fixity"). Accreted. P2 adds: the
-  repositories repeat the key scheme byte-identically (`repository.py:222-244`, `collections.py:103-113`).
-- **Sketch:** a named internal layout module beside `_writer` (record folders, README keys, the
-  media digest) that both repositories and `fixity` import.
-- **Done 2026-10-01:** `persistence/_layout.py` owns record folders, README keys and the media digest; both repositories and `fixity` import it (Wave CLEAN).
-
 ### 34. Field labels are declared twice, "Typ" derived three ways — Worth exploring
 - **Indicator:** 6 labels in both `card.FIELDS` and `bulk.FIELDS`, a third time in `bulk.apply_field` (2026-10-01, W6)
 - **Evidence:** `card.py:138-293`, `bulk.py:61-71,153-168`, `ledger.py:39`, `browse_views.py:264,650`. Bite: `5c902a2`.
 - **Indicator 2026-10-21, partly better:** `card.LABELS` is one lookup (`reading.py`, `suggestions.py`); `bulk.FIELDS` and `ledger.COLUMNS` still restate labels.
 - **Sketch:** one label source both registries read; one rule for "Typ".
-
-### 35. The post-write tail is written out six times — done (Wave LANDING, 2026-10-02: `app/after_write.py`)
-- **Indicator:** 6 copies of mirror enqueue, index sync, reindex fallback in 2 modules (2026-10-01, P3)
-- **Evidence:** `articles.py:61-64,145-148,187-189,210-212`, `collections.py:46-47,70-72`. Bite: `bbad5ee`, `d72d266`, `d3c2c12` co-edited both.
-- **Sketch:** one `after_write(...)` returning the lag result; see #41.
 
 ### 36. Group strings have no owner — Strong
 - **Indicator:** exact-equality group match in 3 places; 0 value types (2026-10-01, A1)
@@ -85,19 +71,14 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** a `Group` value type: one parse of the claim, one match rule.
 
 ### 37. "What a non-Archivist may see" is declared in 7 places — Strong
-- **Indicator:** 7 declarations, 3 drift guards, 2 unguarded; 2 contradict on `audience` (2026-10-01, A2)
-- **Evidence:** `access.py:24,92`, `indexer.py:91,108-114`, `query.py:180-194`, `index/models.py:40-49`. Bite: `91900b3` (group names leaked), `ed4c054`.
+- **Indicator:** 7 declarations, 3 drift guards, 2 unguarded; 2 contradict on `audience` (2026-10-01, A2; not re-measured 2026-10-31)
+- **Evidence:** `domain/access.py:ARCHIVIST_ONLY_FIELDS`, `index/indexer.py:_BUILDER_FIELDS`, `index/query.py:HEADLINE_FIELDS`/`_SUGGESTED_COLUMNS`, `index/models.py:archivist_text`. Bite: `91900b3` (group names leaked), `ed4c054`.
 - **Indicator 2026-10-21, worse:** `query.HEADLINE_FIELDS` and `query._SUGGESTED_COLUMNS` declare member-visible subsets, each guarded by its own leak suite (`test_leaks_headlines.py`, `test_leaks_suggestions.py`), neither derived from `ARCHIVIST_ONLY_FIELDS`.
 - **Sketch:** one owner of the visible attributes; the Python/SQL scope pair stays two encodings.
 
-### 38. One undecodable README stops every index writer — done (Wave CANON, 2026-10-01: `UnreadableReadme`, archivist-only row, CRLF/BOM decode; review UI flag not built)
-- **Indicator:** 0 handlers in `rebuild`/`index_article`/`index_subtree`/`load_all`; 5 policies for one broken file (2026-10-01, P4)
-- **Evidence:** `indexer.py:256-260,292,317`, `collections.py:75`, `repository.py:214`; `UnicodeDecodeError` escapes `load`. A visibility narrowing then never reaches the index.
-- **Sketch:** ruled policy (owner 2026-10-01): archivist-only, flagged for review. One loader that returns it.
-
 ### 39. Mirror push overwrites a remote README without checking its token — Worth exploring
-- **Indicator:** 1 unchecked path; only reconcile compares (2026-10-01, P6)
-- **Evidence:** `mirror.py:227-235` vs `:151-156`. Bites when the StorageShare is canonical (hand edits).
+- **Indicator:** 1 unchecked path; only reconcile compares (2026-10-01, P6; not re-measured 2026-10-31)
+- **Evidence:** `app/mirror.py`: `_replaceable` calls `write_atomic` without comparing the remote version; `ReconcileReport.changed` is the only comparison. Bites when the StorageShare is canonical (hand edits).
 - **Sketch:** push compares the remote version token first, as reconcile does.
 
 ### 40. Persistence trusts a ulid as a key segment — Speculative
@@ -108,76 +89,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Interfaces
 
-### 41. "Index lagged" has no owner — done (Wave LANDING, 2026-10-02: `landing.py`, `test_index_lag.py`)
-- **Indicator:** `index_updated` is a bool on 3 result types; 4 routes drop it (media actions, create, copy, Bestand rename) (2026-10-01, W2)
-- **Evidence:** `catalog_views.py:277,615,756,691,942,634`, `catalog.py:347`, `collection_views.py:139-144`. Bite: `ab528a6`. ADR 0014 asks the warning on visibility changes.
-- **Sketch:** one lag result the post-write tail (#35) returns and the landing must handle.
-
-### 42. A broken Bestand chain: list shows, detail 404s, edit opens — done (closed 2026-10-21)
-- **Indicator:** 1 carve-out breaks "list == detail == reference" (2026-10-01, A7)
-- **Evidence:** `access.py:36-43`, `catalog_views.py:76-89`, `test_equivalence.py:24-33` (ADR 0012).
-- **Sketch:** ruled 2026-10-01: Archivists see it. Detail, pane and media stop 404ing for them.
-- **2026-10-21:** nothing leaks; only the Archivist sees the inconsistency (list shows; detail, pane and media 404; edit opens). Our own code cannot produce the state. The owner chooses: close it, or build the ruled detail half.
-- **Closed 2026-10-21 (owner):** the state is unreachable through our own code (it needs a hand edit of the store; v1 is sole-writer) and nothing leaks; the detail half of the 2026-10-01 ruling is not built. Revisit when humans may edit the files or a Bestand delete or move is added.
-
 ### 26. A media route re-derives the version its own save started from — Worth exploring
 - **Indicator:** 1 site, `catalog_views._media_surface` (`version == held + 1`) (2026-10-01, stable; bit twice more: `eb71b4c`, `1452c38`)
 - **Evidence:** `app/result.py::Updated` carries only the new version; `app/articles.update_article`
 - **Deletion test:** with `Updated.base`, the ADR 0013 counter arithmetic leaves the web layer
 - **Sketch:** `Updated(article, version, base)`; `_media_surface` advances iff `base == held`
-
-### 1. Archive handle — one construction site for the canonical store — done
-- **Indicator:** store constructed from settings at 8 sites → 1 (2026-09-02)
-- **Evidence:** landed as `app/archive.py` (`4b1da8b`), views (`8330afa`), services (`c00a784`).
-  Sketched as `persistence.archive`; it lives in `app/` because `canonical()` reads Django settings.
-- **Residue:** `tasks.mirror_store()` still builds the optional WebDAV mirror from settings —
-  deliberate (jobs carry references, never handles) and recorded in `app/CLAUDE.md`.
-
-### 2. Record card field registry — done
-- **Indicator:** the 17-field list declared 6× → 1 (2026-09-02)
-- **Evidence:** `9dfa4d0`; `_FIELDS` in `catalog_views.py` now carries label, control, section, seed
-  and diff spelling, and the card is a loop over `workbench/_field.html`.
-- **Residue:** `catalog.parse_edit_form` keeps its own enumeration on purpose (ADR 0008: the pure
-  leak-sensitive layer must not import the view module).
-
-### 3. EditSurface — one render, one overlay union — done
-- **Indicator:** render entry points 5 → 1, post-hoc context keys 3 → 0, `catalog_views.py`
-  1425 → 1367 lines (2026-09-02)
-- **Evidence:** `EditSurface.of`/`.submitted`/`.render` over `NoOverlay | Conflict | MediaError |
-  IndexLag | RemoveConfirm`; the three `_edit_context*` builders, `_rerender_edit` and
-  `_rerender_with_custom_removed` are gone, and `stored` is always the SAVED article.
-- **Residue:** `catalog.apply_captions` went public — the register's reconstruction has one site now.
-
-### 4. Lift the CAS retry to the layer owning the write cycle — done
-- **Indicator:** hand-rolled load-mutate-save loops 2 → 0; `except Conflict` in `app/web` 3 → 2, both
-  form saves ADR 0013 keeps there (2026-09-02)
-- **Evidence:** `app.articles.update_article` (`Updated | Conflicted | Missing`) over the real write
-  shell; `catalog_views._structural_save` and `bulk.apply_bulk` call it; `repository.update()` gone.
-- **Residue:** a structural save no longer reuses the Article its gate loaded — one extra README read.
-
-### 5. One authority for the media key layout — done
-- **Indicator:** `articles/<ulid>/media/<hash>` declared 3× → 1 (2026-09-02)
-- **Evidence:** `cddf3f8` (repository: `media_key`, `find_blob`, `open_media` over a new
-  `ObjectStore.open_stream`), `0e07a00` (the seam; `media._MEDIA_KEY`, the settings-derived dev path
-  and the drift test all deleted), plus this commit (thumbnails).
-- **Residue:** none since ADR 0019 — `find_blob` is gone; the thumbnail job reads the file through
-  its Article, and `media_key` takes the ref, not a bare hash.
-
-### 6. FeldWahl — one bulk chooser — done
-- **Indicator:** chooser copies 2 → 1, context vocabularies 2 → 1, `data-bulk-value` hand-typed 8 → 0;
-  the placeholder-blanks-the-value bug fixed (2026-09-02)
-- **Evidence:** `bulk.field_picker_context` + `workbench/_field_picker.html`; `browse_views._BULK_FELD_OPTIONS`
-  / `_bulk_collection_options` and `_reject`'s four option keys are gone, and the echo tests are one
-  parametrization over `bulk.FIELDS`.
-- **Residue:** `layouts.css` still enumerates the 9 targets in its `.chooser:has(…)` rules — CSS
-  cannot derive them; the widget-token gate covers the HTML half only.
-
-### 7. CollectionChooser — done
-- **Indicator:** chooser spelled 3× → 1, orderings 2 → 1 (name-sorted), the refusal string 3 → 1 (2026-09-02)
-- **Evidence:** `app/web/collection_chooser.py`; the article form, the Bestand form's parent select, the bulk
-  drawer and the rail's name lookups now hold one chooser per request.
-- **Residue:** two placeholders survive by design — `options()` refuses its empty value,
-  `parent_options()` accepts it (a top-level Bestand has no parent).
 
 ### 8. Trefferliste — name the results view-model — in progress (Wave LIST)
 - **Indicator:** ~20-key untyped dict; 6 `type: ignore` in `browse_views.py` (2026-09-02). Wave LIST:
@@ -213,7 +129,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** fails as written (pure forwarding).
 - **Sketch:** `create_article(archive, article: Article)`; the view mints the valid-by-construction
   Article, and `copy_article` becomes `replace(source, ulid=new_ulid(), …)`.
-- **Gate first (G1, owner-agreed 2026-10-02, before CLASSIFY):** one Article with every field set
+- **Gate first (G1, 2026-10-02, before CLASSIFY):** one Article with every field set
   adversarially, generated from `dataclasses.fields(Article)`, survives README encode→decode,
   `copy_article` and an unchanged edit-form save; a field the generator cannot fill fails.
 
@@ -233,21 +149,6 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   relayout (2026-10-16) ran with the app stopped.
 - **Sketch:** a boot-time assertion or store-level advisory lock so a second app process fails loud.
 
-### 18. The upload path buffers whole files in RAM — done
-- **Indicator:** upload peak memory = file size (2026-09-19) → flat: after a warm-up upload, the
-  `tracemalloc` peaks of a 4 MiB upload, a 32 MiB upload and a repeat of the 32 MiB file (the
-  reuse path) lie within 1 MiB of each other (2026-09-25); RSS not measured
-- **Evidence:** ADR 0019 "Streaming upload": `ArticleRepository.add_media` takes a seekable stream,
-  hashes it in 1 MiB chunks and stores it with `create_large`; the view hands it the upload file.
-  Pinned by `test_catalog_media.test_upload_memory_does_not_grow_with_the_file`.
-
-### 56. The index writer has no seam — done (2026-10-18: `index/refresh.py`, ADR 0024)
-- **Indicator:** shell tests that need Postgres only for the index write (`save_article` and the other write services); the web suite's autouse stubs of `after_write.index_article` and the enqueue functions (#55) (2026-10-11); `tests/app/test_services.py` 36 Postgres-backed tests → 15: 14 assert index rows or hold the real lock, 1 is the Postgres case of the adapters' shared contract; 0 web index stubs (2026-10-18)
-- **Evidence:** `index/indexer.py` is reached through the Django ORM directly; the mirror's push record already has the pattern (`PostgresPushRecord` / `InMemoryPushRecord`)
-- **Deletion test:** an index-writer port with a Postgres and an in-memory adapter lets shell tests run without Postgres and retires the web stubs; shared contract tests run against both adapters so the fake cannot accept what Postgres refuses
-- **Sketch:** write side only (`index_article`, `rebuild`, `store_media_text`, `hashes_with_text`); the read side (`search`, facets) stays Postgres — a fake would be a second search engine and the leak tests prove only the real SQL. Owner 2026-10-11: build it when it pays, not for pluggability alone
-- **Outcome:** the port holds the two in-request refreshes only; `rebuild`, `store_media_text` and `hashes_with_text` stay direct on purpose (ADR 0024, Consequences)
-
 ### 58. The `__Host-` login cookies can be shadowed through Django's cookie parser — Speculative
 - **Indicator:** `parse_cookie("\u2000__Host-access=x")` returns `{"__Host-access": "x"}`, a later duplicate wins (2026-10-21, Django 6.1.1)
 - **Evidence:** Django's `http.cookie.parse_cookie` (`key.strip()`); `viewers.login_cookies`. Needs control of a host on the registrable domain (Keycloak's sibling)
@@ -261,73 +162,18 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Implementation patterns
 
-### 51. Knobs are resolved at every use, not once per component — done (Wave KNOBS, 2026-10-01)
-- **Indicator:** 13 `var(--knob, fallback)` uses in `components.css`/`layouts.css`, 3 bare `var(--control-height)` with no default, 0 `--_` resolutions (2026-10-01)
-- **Evidence:** `components.css:244-245` repeats a 3-level fallback twice in one rule; law C3 (amended 2026-10-01). Bites: 23px hit areas
-- **Sketch:** pixel-neutral wave: each component resolves its knobs into `--_name` at the top of its section (proof: `test:gallery-diff`); then a lint in `test_design_lint.py`: a `var(--_x)` needs a `--_x:` in the same section, a public knob is read only on that line
-
-### 50. A missing thumbnail stays missing until someone runs a command — done (Wave MEDIA M1, 2026-10-06)
-- **Indicator:** done: the route heals a miss, so a deploy no longer needs `manage.py rebuild_thumbnails` for correctness (2026-10-06). Not yet measured: deploys that still run it, and first-request latency of a healed miss. Was 2 deploys in a row needing it (2026-10-01: 577, then ~2,300 PDFs)
-- **Evidence:** `media_views.serve_thumbnail` derives a missing tile or display version on the first authorized request (`thumbnails.cached`); the page links a tile only once it exists, so a lost cache still shows the placeholder until one request heals it
-- **Residue:** `rebuild_thumbnails` stays the bulk build after a deploy; owner 2026-10-01: a normal step
-
 ### 27. The thumbnail root is resolved in six places — Worth exploring
 - **Indicator:** 6 `Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)` sites (2026-10-06; 5 on 2026-10-01 — `app/stats.py` joined; 6 on 2026-10-21, stable)
 - **Evidence:** `app/tasks.py`, `app/stats.py`, `app/web/media.py`, `import_legacy`, `browse_views`, `rebuild_thumbnails`
 - **Deletion test:** one `thumbnails.root()` removes five copies of the settings lookup
 - **Sketch:** `thumbnails.root() -> Path`; callers pass nothing
 
-### 28. Thumbnails decode a whole image before downscaling — done (Wave MEDIA M1, 2026-10-06)
-- **Indicator:** a decode is capped at 80 M px (`_MAX_PIXELS`); a JPEG decodes reduced via `Image.draft` (2026-10-06); was ~179M px per image (2026-10-01)
-- **Evidence:** `app/thumbnails.py::_picture`; the corpus' largest file is a 58.7 MP JPEG, the cap sits below Pillow's bomb warning
-- **Residue:** a non-JPEG near the cap still decodes whole; the cap bounds it
-
-### 43. Landing state rides in four hand-spelled query params — done (Wave LANDING, 2026-10-02: `landing.py`)
-- **Indicator:** 4 params, 3 written in one module and read in another (2026-10-01, W3). Raised: the start page comes soon.
-- **Evidence:** `collection_views.py:74,186`, `catalog_views.py:151,198,635`, `browse_views.py:582`. `?created=` echoes any text from the URL.
-- **Sketch:** one landing vocabulary (encode/decode pair); the delete feedback would be a 5th param.
-
-### 44. "What kind of htmx request" is read raw in 8 places — done (Wave LANDING, 2026-10-02: `viewers.request_kind`)
-- **Indicator:** 8 raw `HX-` reads in 5 modules (2026-10-01, W7). Raised: the start page comes soon.
-- **Evidence:** `anonymous_gate.py:48`, `browse_views.py:113,115`, `catalog_views.py:127,710`, `collection_views.py:77,169`, `viewers.py:257`. Bite: `2675e6c`, `33a9d6a` (history restore missed twice).
-- **Sketch:** one `request_kind(request)`.
-
-### 45. The two README codecs are drifted copies — done (Wave CANON, 2026-10-01: `persistence/_front_matter.py`)
-- **Indicator:** 6 parallel definitions in `readme.py` and `collection_readme.py` (2026-10-01, A6/P2)
-- **Evidence:** `readme.py:31-153,225-238` vs `collection_readme.py:31-112`. `groups: vorstand` decodes to `('v','o','r',…)` in a Collection, raises in an Article. Bite: `db66d49` fixed one copy; `96e44cf`, `d6c8b22`.
-- **Indicator 2026-10-01 (after Wave CLEAN):** the group decoder is shared (scalar `groups` refused in both); `_MARKER`, `_FENCE`, `_parse_front_matter`, `_version_of` still twice.
-- **Sketch:** one front-matter module both import.
-
-### 46. `SearchHit.tier` and `.groups` have no reader — done (Wave CLEAN, 2026-10-01)
-- **Indicator:** 0 readers in `src/`, 25 test pins (2026-10-01, A3)
-- **Evidence:** `query.py:121,131,179,477`. The `91900b3` leak sat in this unread field.
-- **Deletion test:** delete both fields and the pins; nothing changes.
-
-### 47. Dead code: `tasks.full_rebuild` and `identity.slugify` — done (Wave CLEAN, 2026-10-01)
-- **Indicator:** 2 symbols with no caller in `src/` (2026-10-01, P7); `slugify` has only its own test
-- **Evidence:** `tasks.py:14,97-101,116` (two false docstring claims; job `reconcile` collides with `mirror.reconcile`).
-- **Deletion test:** both go, with their tests and map rows.
-
-### 48. `changed_by` is spelled several ways — done (closed 2026-10-21)
-- **Indicator:** 3 spellings: `hard_delete_article` takes none, `catalog_views.py:663` passes an unused `_by`, `mark_deleted(by=)` vs `save(changed_by=)` (2026-10-01)
-- **Evidence:** `articles.py:203`, `repository.py:68`; app law says every write names its author.
-- **Indicator 2026-10-01 (after Wave CLEAN):** 1 left, the unused `_by` at `catalog_views.py:663`; `mark_deleted` takes `changed_by`; app law now says every write that writes a version names its author.
-- **Sketch:** one keyword, `changed_by`, on every write.
-- **2026-10-21:** one `changed_by` keyword on every version write (articles, collections, `import_legacy`); `hard_delete` writes no version.
-- **Closed 2026-10-21 (owner):** one `changed_by` keyword on every version write; hard delete writes no version.
-
-### 19. Compositions style inside components — done
-- **Indicator:** 0 composition reach-ins, the lint's allow-list deleted (2026-09-26; 44 → 37 → 1 → 0
-  over WAVE-C); 0 wrapper-sensitive knob sites (Wave R U1 cut the record card's `.fach > .field`; the
-  form-sheet sets `--field-font` on its own root)
-- **Deletion test:** pages set knobs only; a wrapper or a new field changes no composition CSS
-
 ### 14. `catalog_views.py` is the wave's dumping ground — Strong (pointer entry)
 - **Indicator:** 1009 lines, 12 routes (2026-10-01, better; 1380 on 2026-09-02, ~970 before the
   registry landed)
 - **Evidence:** routes, the field registry, the structural-save retry, the media drawer and the
   Bestand chooser all live here. Accreted.
-- **Sketch:** no separate fix — #3 (EditSurface), #4 (CAS lift) and #7 (CollectionChooser) each carve
+- **Sketch:** no separate fix — #3 (done) (EditSurface), #4 (done) (CAS lift) and #7 (done) (CollectionChooser) each carve
   out a piece. Re-measure the line count after each.
 
 ### 15. Archivist route gate spelled many ways — Strong
@@ -335,7 +181,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   2026-09-02); 13 `isinstance(…, Archivist)` sites in 9 modules (A8: the policy rework's real cost).
   2026-10-21, worse: 18 method checks (16 on 2026-10-07), a third gate shape in `suggestions.py` (Public or non-GET); 12 sites in 7 modules
 - **Evidence:** each write route gates itself; a forgotten gate is open to every Member at runtime
-  (only the leak matrix catches it, in tests). Owner 2026-10-01: archivist-only is the default.
+  (only the leak matrix catches it, in tests). 2026-10-01: archivist-only is the default.
 - **Sketch:** a middleware after the anonymous gate makes every route archivist-only; a view opts
   wider with `@member` (and names its methods, e.g. `@member(methods=("GET",))`), the pattern of
   Django's `LoginRequiredMiddleware` + `@login_not_required`. A forgotten decorator fails closed.
@@ -354,10 +200,10 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   `--ink`). Fixed 2026-09-27: `.button-danger`, `.menu-destructive`, the red built into `.remove`
   and the chip × — all now the one `.danger` context; `.facts-quiet`, the set-apart register
   label and the `--section-head-ink` / `--register-ink` knobs — all now the one `.quiet` context;
-  `.button-sso` gone (owner: the door's login is just a primary button). Wave K1: `.badge.entwurf`,
+  `.button-sso` gone (the door's login is just a primary button). Wave K1: `.badge.entwurf`,
   the boxed `#dirty-flag` and the Titelbild rule — now the one `.mark`; the Bestand form's quiet
   facts — now `.quiet`; the record row's `<details class="menu">` — now the one popover menu, its
-  Löschen / Verwerfen under `.danger`. Owner 2026-09-27: `.badge` deleted (no production user left);
+  Löschen / Verwerfen under `.danger`. 2026-09-27: `.badge` deleted (no production user left);
   the empty Signatur shows nothing (no dash placeholder).
 - **Open, mock system** (`docs/design/explorations/2026-09-26-monochrome/system/system.css`):
   - `.button-primary`: a variant. Candidate: an inverse context (swap `--ground` / `--ink`); cost:
@@ -367,7 +213,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
     state and stays exempt.
 - **Open, app** (Wave T report, 2026-09-27; Wave T fixed `button.danger`, the Signatur tab, the
   amber ENTWURF mark and the Titelbild inversion):
-  - `.primary`: a button variant (candidate: an inverse context). Owner 2026-09-27: settle it in the
+  - `.primary`: a button variant (candidate: an inverse context). 2026-09-27: settle it in the
     list-page wave, together with the facet inversion below.
   - `.facet li:has(> [aria-current])`: an inversion register row 3 does not license.
   - lines row 14 forbids: the dashed `.column dd` decoration (row 6 licenses dashes only for hollow
@@ -383,16 +229,6 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **A context reaches only what reads the role:** `color: inherit` passes the resolved colour, so a
   part that should answer a context binds itself to `var(--ink)` (the menu entries had to).
 
-### 24. Web view modules import each other in a cycle — done
-- **Indicator:** 1 function-local import (`viewers.render_screen` → the header panel builders),
-  2026-09-30 → 0 (2026-09-30).
-- **The pattern:** `catalog_views` imports `browse_views` and `collection_views` imports
-  `catalog_views`, so a module both of them reach (`viewers`) cannot import the panel builders
-  at module level. Wave REST U2 worked around it with one local import.
-- **Evidence:** `app/web/card.py` (the field registry, `CardRow`) and `app/web/panels.py`
-  (`FormPanel`, `header_panels`) import no view module. The registry moved too: the "Neuer Artikel"
-  panel's rows come from it.
-
 ## Tests
 
 ### 29. The gallery has no lead without a picture — Worth exploring
@@ -400,33 +236,6 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** every e2e corpus file now has a thumbnail (PDFTHUMBS); `static/detail.css`
 - **Deletion test:** a non-renderable corpus file (audio/video) brings the state back
 - **Sketch:** one audio file on a corpus article + a `detail-audio` gallery state
-
-### 12. Pre-existing e2e failures on main — done
-- **Indicator:** 3 red journeys (2026-09-02); 0 red, 44/44 green (2026-09-26, the anchor-insets
-  fix for #53)
-- **Evidence:** `test_control_rows_compute_one_height_source`,
-  `test_the_control_row_walk_sees_what_the_screens_compose`,
-  `test_overlays_stay_inside_the_viewport` — the `+ Neu…` / `Mehr…` panels start off-viewport
-  (-98px) on every screen. Verified identical on untouched `main`, so not wave-introduced.
-- **Cost class:** defect (UI); it also blocks e2e as a signal — a wave cannot tell its own
-  regressions from this baseline until it is fixed.
-
-### 21. The e2e walkers hard-code what an overlay is — done
-- **Indicator:** 3 places spelled "overlay = `details:has(> ul)`" (Wave T, 2026-09-27): the count
-  selector, the walk JS and the control-row panel filter in `tests/e2e/`. 1 (Wave K1, 2026-09-27):
-  `_pages.OVERLAY_MECHANISMS`, which every walker reads; the next mechanism is one line.
-- **Also:** the design lint parses CSS that is formatted by hand (no CSS formatter); a mis-wrapped
-  rule can slip past it. Watch for a second occurrence before adding a formatter.
-
-### 25. The gallery is one test — Weak — done 2026-10-01
-- **Indicator:** 1 test renders every state, 2026-09-30.
-- **The pattern:** the first `_reach_*` exception aborts every render after it, so each red costs a
-  full ~2 min re-run (Wave REST U4 paid it twice).
-- **Sketch:** parametrize the gallery over its states, or collect reach failures and fail at the
-  end with all of them.
-- **Closed 2026-10-01:** one test per state (`-k <state>` renders one; a bad reach fails alone) and
-  `mise run test:gallery-diff` (a ref vs the tree, per-PNG verdict).
-- **Still open:** `mise run mutate` runs plain pytest, so it cannot prove an e2e pin (a `menu.js` mutation was done by hand).
 
 ### 55. Tests monkeypatch our own code — Strong
 - **Indicator:** `monkeypatch.setattr` on a `bundesarchiv` name: `tests/app` 56, `tests/app/web` 48, `tests/persistence` 2, `tests/e2e` 0 (2026-10-11, AST count); `tests/app` 48 once the page-text shells moved, then `tests/app` 47 and `tests/app/web` 47 once the page-text tests dropped theirs (2026-10-11); `tests/app` 25, `tests/app/web` 53, `tests/persistence` 2 once the jobs received their dependencies, 0 `_DEBT` patches on `app.tasks` left (2026-10-18); `tests/app` 11, `tests/app/web` 48, `tests/persistence` 2 once the tests read the in-memory queue, 0 patches of an `enqueue_*` name left (2026-10-18); `tests/app` 5, `tests/app/web` 43, `tests/persistence` 2 once the index sits behind a port, 0 patches on `after_write` left (2026-10-18); `tests/app/web` 30 once the login realm sits behind a port, 0 patches on `keycloak`, `auth_views` or the `viewers` realm calls left (2026-10-18); `tests/app/web` 29 once dev and the tests log in through the dev realm, 0 patches on `viewers` left (2026-10-18); `tests/app` 4, `tests/app/web` 22, `tests/persistence` 0 once the pager, media, pixel-cap, retry and fsync tests dropped theirs: `_DEBT` sites 16 → 6, all sites 36 → 26 (2026-10-21)
@@ -475,27 +284,20 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Process law
 
-- **The second caller copies a decision instead of moving it** — 10 findings in the 2026-10-01 review (#9, #49, #31, #33–37, #43–44). Adopted: `writer-discipline` skill, "One owner per decision" (`e488814`); gated where mechanical by `tests/test_structure.py`. Indicator: 10 copies found (2026-10-01).
+- **The second caller copies a decision instead of moving it** — 10 findings in the 2026-10-01 review (#9, #49 (done), #31, #33–37, #43–44 (done)). Adopted: `writer-discipline` skill, "One owner per decision" (`e488814`); gated where mechanical by `tests/test_structure.py`. Indicator: 10 copies found (2026-10-01).
 
 - **Left (2026-10-01):** each state rebuilds the corpus (`live_server` → `transactional_db` truncates the index), so the full run is ~9% slower (135 s) and `test:gallery-diff` takes ~4.5 min; a module-scoped corpus would cut both but changes the isolation `edit-conflict` relies on. The diff task's first version compared only the alpha band (always "identical"); fixed 2026-10-01 (RGB). A re-check of the rebuild (`f45b8db` vs `91a500b`) then showed 35 changed PNGs, all from the old single-test run leaking a bulk edit's author ("Sammel-Autor") into later states; per-state isolation removed that leak, so the new renders are the correct ones.
 ### 23. Tests pin UI copy and markup — Strong
 - **Indicator:** 109 `"…" in body`-style asserts in `tests/app`, 201 `get_by_*`/`locator(` calls in `tests/e2e` (2026-10-01; new grep, not comparable with 188 / 53 of 2026-09-30 — baseline reset)
-- **Evidence:** owner, 2026-09-30; the withdrawn exception came from `a08cbb6`
+- **Evidence:** 2026-09-30; the withdrawn exception came from `a08cbb6`
 - **Deletion test:** a copy or layout change stops breaking tests; behaviour tests and the leak suites keep their proofs
 - **Sketch:** sweep `tests/app` and `tests/e2e`: delete copy pins, rewrite the rest to behaviour. Open: how e2e finds elements (roles + names, or stable hooks) — owner decides
 
 ## Build & CI
 
-CI runs under 60s with no caching machinery (owner ruling); keep it that way.
+CI runs under 60s; caching that costs nothing is fine, machinery beyond that is not.
 
 ### 53. No dependency update policy — Speculative
 - **Indicator:** 0 written cadence for Django LTS or the `uv.lock` refresh (2026-10-06); parked on GH #19
 - **Evidence:** `pyproject.toml`, `uv.lock`, `docs/django6-notes.md`; a bump moves the Playwright chromium build (`CLAUDE.md`)
 - **Sketch:** a rule in `docs/runbook.md`: Django follows its LTS, lock refresh on a fixed rhythm, gate green before merge
-
-### 22. Parallel worktrees share one test database — done
-- **Indicator:** 1 collision (2026-09-28): a gate in one worktree failed 1743 setups with
-  `DROP DATABASE "test_bundesarchiv"` refused while another worktree's gate held the database.
-  0 (2026-09-30): two worktrees ran `mise run test:db` at once, both green.
-- **Cause:** every worktree's Postgres-backed suite used the same test database name.
-- **Fix:** `tests/conftest.py` suffixes the test database with the checkout's directory name.
