@@ -11,8 +11,7 @@ structure mirrors the production CSS, so it can later move into the app almost 1
 2. `r3-linien/` — the baseline: `style.css`, `start.html`, `archiv.html`, `artikel.html`.
 3. Production structure to mirror: `src/bundesarchiv/app/web/static/tokens.css` (the `@layer`
    order and `--type-*` / `--space-*` token idiom) and the owned-component law in
-   `docs/design/design-review-law.md` section C1 + `docs/requirements/owner-interview-2026-08.md`
-   "Component architecture rulings (owner, 2026-09-25)".
+   `docs/design/design-review-law.md` section C1 (owner, 2026-09-25).
 
 ## Deliverable (write ONLY in `system/` and `r4-system/` in this folder)
 

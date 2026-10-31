@@ -1,7 +1,6 @@
 # Reader (detail page) + media — brief (D1)
 
-Source: owner shape interview 2026-08-22 (rulings verbatim in
-`docs/requirements/owner-interview-2026-08.md` §Reader rulings). Design
+Source: owner shape interview 2026-08-22 (owner, 2026-08-22). Design
 record only — no implementation scheduled by this file.
 
 ## Job and audience

@@ -7,7 +7,7 @@ delete stays, but only as the Papierkorb's "Endgültig löschen".
 
 The archivists asked for a Papierkorb: restore what was deleted by mistake
 (`docs/requirements/archivist-wishes-2025.md`). The owner took it up on 2026-09-30
-(`owner-interview-2026-08.md`, "Rulings of 2026-09-30 (Papierkorb)"). Today "Löschen" removes the
+(owner, 2026-09-30). Today "Löschen" removes the
 Article's folder on the VPS, its index row, and then the folder on Nextcloud.
 
 ## Decision

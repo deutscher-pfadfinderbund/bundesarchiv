@@ -68,7 +68,7 @@ comparison found four gaps, all measured on the legacy import of 2026-09-24:
   `changes/<version>.json` holds only `{"ulid": …, "version": …}`, and `.snapshots/` was
   never built. Every `save` replaces `README.md`, so earlier states are gone. A bulk edit
   over hundreds of Articles cannot be undone, and backup is out of scope
-  (`docs/requirements/owner-interview-2026-08.md`, addendum 2026-09-19).
+  (owner, 2026-09-19).
 - **Nameless media.** Blobs live at `media/<sha256>`, with no name and no extension. The
   name exists only in the front matter, so a file browser cannot open the file.
 - **No self-description.** Nothing in the tree explains the layout to a reader without the

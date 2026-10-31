@@ -1,5 +1,5 @@
 """The German paths of before 2026-10-01 stay as aliases of the English ones
-(owner-interview-2026-08.md, "Ruling of 2026-10-01 (URLs)"): same view, no redirect. The English
+(owner, 2026-10-01): same view, no redirect. The English
 path is canonical: it is the only one ``reverse`` can yield."""
 
 import pytest

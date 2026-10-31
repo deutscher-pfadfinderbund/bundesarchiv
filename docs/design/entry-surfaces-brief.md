@@ -1,7 +1,6 @@
 # Entry surfaces — confirmed brief (D3)
 
-Source: owner shape interview 2026-08-22 (rulings verbatim in
-`docs/requirements/owner-interview-2026-08.md` §Entry-surface rulings).
+Source: owner shape interview 2026-08-22 (owner, 2026-08-22).
 Companion to ADR 0018 (auth: Keycloak OIDC + capability links — designed,
 not built; this brief is the missing UI half). Precedent format:
 `form-wave-brief.md`.

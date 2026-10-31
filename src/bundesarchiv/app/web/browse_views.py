@@ -499,8 +499,7 @@ def _sentence(
 
 def _order(params: dict[str, str], parsed: browse.ParsedQuery) -> _SetFilter | None:
     """The sort as a set filter where no column head shows it, its link back to relevance: the
-    start page's "Alle ansehen" order, and in the Lesesaal any sort (ruling 1,
-    docs/requirements/search-ui-rulings-2026-10.md). It is no filter: "alle entfernen" keeps it."""
+    start page's "Alle ansehen" order, and in the Lesesaal any sort (owner, 2026-10-18). It is no filter: "alle entfernen" keeps it."""
     if parsed.sort == "added":
         label = "neueste zuerst"
     elif parsed.reading and parsed.sort != "relevance":

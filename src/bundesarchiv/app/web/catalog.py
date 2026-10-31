@@ -228,8 +228,7 @@ def parse_version(raw: str) -> Version:
 
 def parse_lines(raw: str) -> tuple[str, ...]:
     """A list field (Schlagworte, Gruppen), one value per line → a tuple, each trimmed, empties
-    dropped. Never split on a comma: legacy Schlagworte carry commas (owner-interview-2026-08.md,
-    "Legacy import"), and so may a group name."""
+    dropped. Never split on a comma: legacy Schlagworte carry commas (owner, 2026-08), and so may a group name."""
     return tuple(t for line in raw.split("\n") if (t := line.strip()))
 
 

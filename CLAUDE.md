@@ -83,9 +83,10 @@ never argue it into force.
 A decision is recorded where it binds: a package rule in that package's `CLAUDE.md`, an
 architecture decision in a new ADR under `docs/adr/` (its status set by the owner), a component
 decision in its contract under `design-system/`, a test rule in `tests/CLAUDE.md`.
-`docs/requirements/` holds dated records of conversations (`archivist-wishes-2025.md`,
-`owner-interview-2026-08.md`, `search-ui-rulings-2026-10.md`), written by agents, frozen: read
-them as evidence of what was said, cite nothing from them as binding, append nothing.
+`docs/requirements/archivist-wishes-2025.md` is the extract of the archivists' wishes: an input,
+not a rule. The agent-written records of owner conversations were deleted on 2026-10-31
+(`git log --all -- docs/requirements/` finds them); nothing is appended to a record any more. A
+decision is recorded where it binds, or not at all.
 
 ### Testing razor
 

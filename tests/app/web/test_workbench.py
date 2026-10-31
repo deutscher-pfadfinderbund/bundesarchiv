@@ -916,7 +916,7 @@ def test_the_view_switch_shows_the_same_search_in_the_other_view(indexed_corpus:
 
 
 def test_the_lesesaal_shows_its_sort_with_a_way_back_to_relevance(indexed_corpus: Corpus) -> None:
-    # ruling 1, docs/requirements/search-ui-rulings-2026-10.md; the words are the owner's to judge
+    # owner, 2026-10-18; the words are the owner's to judge
     search = "q=fahrt&collection=FOTOS"
     to_relevance = {"q": ["fahrt"], "collection": ["FOTOS"]}
     for sort in ("-date", "ref_code", "title", "added"):

@@ -50,5 +50,4 @@ Chrome-only. The owner dropped the progress display rather than keep a
 hand-written XHR path. This weakens the 2026-07-05 argument against Datastar
 (upload progress); the owner chose htmx 4 with that trade-off known. Stack
 unchanged otherwise; web components and shadcn-style systems were weighed and
-rejected the same day (see `docs/requirements/owner-interview-2026-08.md`,
-component architecture rulings).
+rejected the same day (owner, 2026-08).

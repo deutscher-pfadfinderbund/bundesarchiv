@@ -31,8 +31,7 @@ simplicity checkable instead of a matter of taste.
   the spec demands it.
 - **Composition model, three layers** (owner, 2026-08-06; replaces the
   earlier atoms→molecules→layouts→pages ladder):
-  1. **Components** — owned components (owner, 2026-09-25 —
-     `owner-interview-2026-08.md`, "Component architecture rulings"). The
+  1. **Components** — owned components (owner, 2026-09-25). The
      outer element carries one class named for the component; its one CSS
      section, in the existing layer file and named like its template, styles
      only below that class. Its knobs — custom properties with a
@@ -116,7 +115,7 @@ simplicity checkable instead of a matter of taste.
 ## Rework-wave charter (owner interview, 2026-08-06)
 
 The one deliberate wave that dissolves the `c-*`/`l-*` taxonomy. Scope
-rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
+rulings (owner, 2026-08):
 
 1. **Markup may change.** Where a native element replaces a div
    construction, replace it in the same wave (`<dl>` for the Akte

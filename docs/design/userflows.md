@@ -168,7 +168,7 @@ Journey: `test_create_collection_then_file_an_article_under_it`.
 ## 7. Arrival and access
 
 How each viewer tier reaches the workbench, per ADR 0018 as amended by the
-2026-08 rulings (`docs/requirements/owner-interview-2026-08.md`). The Keycloak
+2026-08 rulings (owner). The Keycloak
 branch and the login redirect are built (2026-08-30); the capability link is
 still designed only. Dev keeps the viewer-switcher instead — the gate is off
 there.

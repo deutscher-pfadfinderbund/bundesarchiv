@@ -93,8 +93,7 @@ urlpatterns = [
 ]
 
 
-#: The German paths of before 2026-10-01 stay as ALIASES (owner-interview-2026-08.md, "Ruling of
-#: 2026-10-01 (URLs)"): each serves the same view as its English path. Segment by segment; a ULID
+#: The German paths of before 2026-10-01 stay as ALIASES (owner, 2026-10-01): each serves the same view as its English path. Segment by segment; a ULID
 #: never collides with a word here.
 _OLD_SEGMENTS = {
     "articles": "artikel",

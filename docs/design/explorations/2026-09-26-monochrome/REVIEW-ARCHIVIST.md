@@ -319,8 +319,7 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   description.
 - **Images:** justified rows (`gallery`, each item carries `--r` = width ÷ height): equal height per
   row, own shape, no crop, no letterbox, flush rows; a lone image is capped by the viewport height.
-  Caption under each image; alt text on each (mock text for now). Requirements recorded in
-  `docs/requirements/owner-interview-2026-08.md` (2026-09-28).
+  Caption under each image; alt text on each (mock text for now). Requirements (owner, 2026-09-28).
 - **Lightbox** (`lightbox`, `system/lightbox.js`, native `<dialog>`): ‹ › and the arrow keys, count,
   caption, Esc and focus return; without JS the link opens the image.
 - **PDF:** the first page as a thumbnail inside the gallery; the link opens the PDF in a new tab.

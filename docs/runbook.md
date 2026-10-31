@@ -317,7 +317,7 @@ store. The mirror is **never a read path** and **is NOT backup** — durability 
 restic (the go-live gate). Leave it UNSET (the default) and all mirror machinery
 no-ops cleanly.
 
-**Amended 2026-09-19** (`docs/requirements/owner-interview-2026-08.md`): backup is
+**Amended 2026-09-19** (owner): backup is
 outside this project's scope and restic is not an owner requirement, so it is no longer
 a go-live gate. The mirror is still not a read path and still not durability.
 

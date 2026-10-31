@@ -1,11 +1,10 @@
 # Form wave — audit, directions, rulings
 
-Status: DECIDED (owner rulings 2026-08-08 — verbatim in
-`docs/requirements/owner-interview-2026-08.md`; section C below records how each
+Status: DECIDED (owner rulings 2026-08-08; section C below records how each
 decision came out). Implementation wave in progress. The edit
 surface is the next screen after the workbench, per the owner's priority ruling
 ("let's do this screen first. Learn from it and then we can apply the learned to
-the other screens" — `docs/requirements/owner-interview-2026-08.md`).
+the other screens" — owner, 2026-08).
 
 Nothing in this file is law itself. Rulings land in `docs/requirements/`; cues and
 cascade rules land in `design-review-law.md` — and only after an owner decision.

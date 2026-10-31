@@ -223,7 +223,7 @@ MEMBER: tuple[Area, ...] = (_SEARCH, _COLLECTIONS, _BY_MEDIA_TYPE, _TIMELINE, _R
 
 def start(request: HttpRequest) -> HttpResponse:
     """``GET /`` — the start page. With a query string it redirects to the list with that query:
-    the list lived here until 2026-10-01, and its links stay valid (owner-interview-2026-08.md). A
+    the list lived here until 2026-10-01, and its links stay valid (owner, 2026-10-01). A
     redirect, not an alias: the list's links are relative (``?…``), so an empty query on ``/``
     would land here."""
     if query := request.META.get("QUERY_STRING"):

@@ -11,9 +11,7 @@ are the most important users. Static HTML mocks, German UI text, English comment
 2. `SCREEN-JOBS.md` — the method. Before building a screen, write its job table (who, what they
    try to achieve, success) and price every element (cost vs gain). Put the tables in your
    `NOTES.md`. Also price your fixes: a fix is a new element with its own cost.
-3. `docs/requirements/owner-interview-2026-08.md` — owner rulings. Especially: "Edit-form critique
-   (2026-08-29)", "Edit-form mock-gate verdicts + Signatur ruling", "Look, navigation and
-   design-rule rulings (2026-09-26)" and its navigation bullet. Named voice patterns in
+3. Owner rulings (2026-08-29 edit-form critique, 2026-09-26 look, navigation and design rules). Named voice patterns in
    `docs/design/design-system.md` ("Consequence disclosure", "Conflict is not an error").
 4. The real templates in `src/bundesarchiv/app/web/templates/workbench/` for the screen you mock:
    they are the source of the real fields, states, German strings and actions. Do not invent
