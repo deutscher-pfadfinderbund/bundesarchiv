@@ -128,32 +128,9 @@ def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> No
     triggers.filter(visible=True).click()
 
 
-def _reach_header_new_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles", wait_until="networkidle")
-    page.click(".menu-button")
-
-
-def _reach_header_panel(page: Page, base: str, path: str, entry: str) -> None:
-    page.goto(f"{base}{path}", wait_until="networkidle")
-    page.click("header .menu-button")
-    page.get_by_role("button", name=entry).click()
-
-
 def _reach_new_article_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    _reach_header_panel(page, base, LIST, "Neuer Artikel …")
-
-
-def _reach_new_collection_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # Spaces: the browser's `required` stops an empty Name before the server sees it.
-    _reach_header_panel(page, base, LIST, "Neuer Bestand …")
-    page.locator("#new-collection-name").fill("   ")
-    page.locator("#new-collection").get_by_role("button", name="Anlegen").click()
-    page.wait_for_selector("#new-collection .error")
-
-
-def _reach_collection_edit_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}{LIST}?collection={corpus.renamable_ulid}", wait_until="networkidle")
-    page.get_by_role("button", name="Bestand bearbeiten …").click()
+    page.goto(f"{base}{LIST}", wait_until="networkidle")
+    page.click("header .menu-button")
 
 
 def _reach_columns_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
@@ -174,9 +151,9 @@ def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_csrf_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/collections/new", wait_until="networkidle")
+    page.goto(f"{base}/articles/new", wait_until="networkidle")
     page.locator('main input[name="csrfmiddlewaretoken"]').evaluate("e => e.value = 'x'.repeat(64)")
-    page.locator('main input[name="name"]').fill("Abgelaufen")
+    page.locator('main textarea[name="title"]').fill("Abgelaufen")
     page.locator("main form").get_by_role("button", name="Anlegen").click()
     page.wait_for_load_state("networkidle")
 
@@ -340,12 +317,6 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         height=667,
     ),
     GalleryState(
-        "header-new-open",
-        "workbench, header '+ Neu …' create menu open (Mock B popover)",
-        True,
-        _reach_header_new_open,
-    ),
-    GalleryState(
         "workbench-columns-open",
         "workbench, the 'Spalten …' check list open at the tool row's end edge",
         True,
@@ -428,21 +399,9 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "new-article-open",
-        "the header's 'Neuer Artikel …' panel open from '+ Neu …' (Titel and Bestand)",
+        "the header's 'Neuer Artikel' panel open from '+ Neu …' (Titel and Bestand)",
         True,
         _reach_new_article_open,
-    ),
-    GalleryState(
-        "new-collection-refused",
-        "the header's 'Neuer Bestand …' panel after Anlegen without a Name: the error in place",
-        True,
-        _reach_new_collection_refused,
-    ),
-    GalleryState(
-        "collection-edit-open",
-        "the list scoped to one Bestand, its 'Bestand bearbeiten …' panel open (the rename)",
-        True,
-        _reach_collection_edit_open,
     ),
     GalleryState(
         "detail-actions-open",

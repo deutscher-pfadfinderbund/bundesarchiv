@@ -71,5 +71,5 @@ def test_an_english_url_is_served_where_it_is(query: str) -> None:
 
 def test_a_post_is_never_redirected() -> None:
     # a 301 turns a POST into a GET: the write would be lost
-    response = client_as(None).post("/collections/new?bestand=FOTOS", {"audience": ""})
+    response = client_as(None).post("/articles/new?bestand=FOTOS", {"title": ""})
     assert response.status_code != 301

@@ -2,12 +2,12 @@
 (ADR 0019)."""
 
 from collections.abc import Callable
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 import pytest
 from django.http import HttpResponse
 from django.urls import resolve
-from tests.app.web._fixtures import DRAFT_ULID, PUB, PUBLISHED_ULID, WRITES, Corpus, client_as
+from tests.app.web._fixtures import DRAFT_ULID, PUBLISHED_ULID, WRITES, Corpus, client_as
 
 from bundesarchiv.domain.models import ULID, Change
 from bundesarchiv.domain.viewer import Archivist
@@ -27,15 +27,6 @@ def _landed_article(response: HttpResponse, corpus: Corpus) -> Change | None:
     return corpus.articles.load(ULID(_ulid_in(response["Location"]))).change
 
 
-def _created_collection(response: HttpResponse, corpus: Corpus) -> Change | None:
-    [ulid] = parse_qs(urlparse(response["Location"]).query)["collection"]
-    return corpus.collections.load(ULID(ulid)).change
-
-
-def _chooser(_response: HttpResponse, corpus: Corpus) -> Change | None:
-    return corpus.collections.load(ULID(PUB)).change
-
-
 _CHANGED: dict[str, Callable[[HttpResponse, Corpus], Change | None]] = {
     "article-create": _landed_article,
     "article-edit": _article(DRAFT_ULID),
@@ -48,7 +39,6 @@ _CHANGED: dict[str, Callable[[HttpResponse, Corpus], Change | None]] = {
     "article-media-remove": _article(DRAFT_ULID),
     "article-bulk-edit": _article(DRAFT_ULID),
 }
-_COLLECTION_CHANGED = {"collection-create": _created_collection, "collection-edit": _chooser}
 
 
 @pytest.mark.parametrize("route", _CHANGED)
@@ -60,15 +50,5 @@ def test_the_version_an_article_route_writes_names_the_signed_in_archivist(
     assert change is not None and change.by == _ARCHIVIST.username
 
 
-@pytest.mark.django_db
-@pytest.mark.parametrize("route", _COLLECTION_CHANGED)
-def test_the_version_a_collection_route_writes_names_the_signed_in_archivist(
-    corpus: Corpus, route: str
-) -> None:
-    response = WRITES[route](client_as(_ARCHIVIST), corpus)
-    change = _COLLECTION_CHANGED[route](response, corpus)
-    assert change is not None and change.by == _ARCHIVIST.username
-
-
 def test_every_write_route_is_checked_here_or_leaves_no_version() -> None:
-    assert set(_CHANGED) | set(_COLLECTION_CHANGED) | {"article-delete-permanently"} == set(WRITES)
+    assert set(_CHANGED) | {"article-delete-permanently"} == set(WRITES)

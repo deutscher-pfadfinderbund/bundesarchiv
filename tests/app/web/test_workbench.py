@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
 from django.http import HttpResponse
+from django.urls import reverse
 from tests.app.web._fixtures import (
     Corpus,
     client_as,
@@ -320,9 +321,10 @@ def test_no_template_comment_syntax_leaks_into_page(indexed_corpus: Corpus) -> N
 def test_new_article_chrome_only_for_archivist(indexed_corpus: Corpus) -> None:
     # The ROUTE is archivist-gated regardless; this pins the CHROME — Public/Member must not be
     # shown an admin affordance that 404s when clicked (and must not learn it exists).
-    assert "Neuer Artikel" in _get(Archivist()).content.decode()
-    assert "Neuer Artikel" not in _get(Public()).content.decode()
-    assert "Neuer Artikel" not in _get(Member(groups=())).content.decode()
+    create = f'action="{reverse("article-create")}"'
+    assert create in _get(Archivist()).content.decode()
+    assert create not in _get(Public()).content.decode()
+    assert create not in _get(Member(groups=())).content.decode()
 
 
 @pytest.mark.parametrize("viewer", [Archivist(), Member(groups=())])
@@ -369,7 +371,7 @@ def test_floored_fields_present_for_archivist_only_where_intended(indexed_corpus
 def test_visibility_column_renders_for_nobody(indexed_corpus: Corpus) -> None:
     # owner ruling 2026-08-07: no visibility column
     page = _get(Archivist()).content.decode()
-    # the ledger alone: the header's "Neuer Bestand …" form offers a Sichtbarkeit of its own
+    # the ledger alone
     arch = page[page.index("<table") : page.index("</table>")]
     assert "Sichtbarkeit" not in arch
     # no audience caption of any rung, and no group name, in any spelling
@@ -559,7 +561,6 @@ def test_a_collection_empty_only_under_another_filter_is_not_an_empty_collection
     body = _get(Archivist(), "collection=AKTEN&digital=1").content.decode()
     assert _listed(body) == set()
     assert "Noch keine Artikel in diesem Bestand" not in body
-    assert 'popovertarget="collection-edit"' not in body  # the empty state's own button
 
 
 # --- facet click → filtered results + removable chip -----------------------------

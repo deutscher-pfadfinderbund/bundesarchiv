@@ -886,7 +886,7 @@
   }
 
   /* ---- menu: a button that opens a list of actions, a native popover (button.menu-button +
-     ul.menu[popover]) — the header's "+ Neu …" and the form margin's "Mehr …". ---- */
+     ul.menu[popover]) — the form margin's "Mehr …". ---- */
   /* the button is text, not a framed button (DESIGN.md "Menu"). Its ink binds to the role,
      because the elements layer's button hover would otherwise invert it. */
   .menu-button {
@@ -1147,7 +1147,7 @@
   .toolpanel > * + * {
     margin-block-start: var(--space-5);
   }
-  /* a form's fields stack, each the panel's width ("Neuer Bestand …") */
+  /* a form's fields stack, each the panel's width ("Neuer Artikel …") */
   .toolpanel > .field {
     --field-display: flex;
   }

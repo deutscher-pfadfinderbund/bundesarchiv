@@ -27,7 +27,7 @@ from bundesarchiv.app.web import landing, vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.keycloak import KeycloakRealm
 from bundesarchiv.app.web.oidc import Realm, Tokens, viewer_from_claims
-from bundesarchiv.app.web.panels import FormPanel, header_panels
+from bundesarchiv.app.web.panels import FormPanel, new_article_panel
 from bundesarchiv.domain.viewer import Archivist, Public, Viewer
 
 
@@ -168,15 +168,15 @@ def render_screen(
     chrome: dict[str, object] = {
         "is_archivist": is_archivist,
         "is_signed_in": not isinstance(viewer, Public),
-        "new": (),
+        "new": None,
         "index_lag": vocab.INDEX_LAG if is_archivist and landing.index_lagging(request) else "",
     }
     if is_archivist:
         active = context.get("active_collection")
         # a callable: the template calls it where the header prints the menu, so a partial pays nothing
-        chrome["new"] = lambda: header_panels(
+        chrome["new"] = lambda: new_article_panel(
             chooser or CollectionChooser.of(Archive.canonical()),
-            active=active if isinstance(active, str) else None,
+            collection_id=active if isinstance(active, str) else "",
         )
     return render(request, template, {**context, **chrome})
 

@@ -22,7 +22,6 @@ from bundesarchiv.app.web.catalog_views import (
     tag_suggestions,
     upload_gate,
 )
-from bundesarchiv.app.web.collection_views import collection_create, collection_edit
 from bundesarchiv.app.web.media_views import page_not_found, serve_media, serve_thumbnail
 from bundesarchiv.app.web.start import start
 from bundesarchiv.app.web.suggestions import suggestions
@@ -41,8 +40,6 @@ urlpatterns = [
     path("logout", logout, name="logout"),
     # /static/* is served by WhiteNoise middleware (ADR 0016), not the urlconf — hence no route here.
     path("articles/new", article_create, name="article-create"),
-    path("collections/new", collection_create, name="collection-create"),
-    path("collections/<str:ulid>/edit", collection_edit, name="collection-edit"),
     path(
         "articles/bulk-edit/document-types",
         bulk_document_types,
@@ -97,7 +94,6 @@ urlpatterns = [
 #: never collides with a word here.
 _OLD_SEGMENTS = {
     "articles": "artikel",
-    "collections": "bestand",
     "columns": "spalten",
     "new": "neu",
     "edit": "bearbeiten",
@@ -121,11 +117,11 @@ def _alias(route: URLPattern) -> URLPattern:
 
 
 # Registered after every English route and in their order, so ``artikel/neu`` keeps winning over
-# ``artikel/<ulid>``. Only the three renamed trees have aliases (``media/`` and ``trash`` did not move).
+# ``artikel/<ulid>``. Only the two renamed trees have aliases (``media/`` and ``trash`` did not move).
 urlpatterns += [
     _alias(route)
     for route in urlpatterns
     if isinstance(route, URLPattern)
-    and str(route.pattern).split("/")[0] in ("articles", "collections", "columns")
+    and str(route.pattern).split("/")[0] in ("articles", "columns")
     and route.name != "workbench"  # the list lived at /, which stays its alias (start.start)
 ]

@@ -1,16 +1,15 @@
 """THE Bestand chooser: one per-request answer to "which Bestände may this be filed into?".
 
-Every Bestand ``<select>`` on the archivist's surface — the create step, the record card, the
-Eltern-Bestand row of the Bestand form, the bulk chooser's Bestand widget — and every
-server-side check of a submitted Bestand value reads ONE of these, so the ordering, the placeholder
-wording, the refusal and the membership rule cannot drift apart again (debt #7).
+Every Bestand ``<select>`` on the archivist's surface — the create step, the record card, the bulk
+chooser's Bestand widget — and every server-side check of a submitted Bestand value reads ONE of
+these, so the ordering, the placeholder wording, the refusal and the membership rule cannot drift
+apart again (debt #7).
 
 The rules it owns:
 
 - ONE ordering: by name, ulid breaking a tie — the archivist reads names, not creation order.
-- One placeholder per ROLE, both verbatim user contract: ``options`` leads with a placeholder that
-  is always refused, ``parent_options`` with the top-level marker, whose empty value is a VALID
-  choice (a top-level Bestand has no parent). That difference is the reason for two methods.
+- One placeholder, verbatim user contract: ``options`` leads with a placeholder that is always
+  refused.
 - No existence oracle: empty, malformed and well-formed-but-unknown are one ``False`` carrying one
   ``error()``, so a POST can never learn whether a Bestand it may not have exists.
 
@@ -25,10 +24,6 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import ULID, Collection
-
-#: The Eltern-Bestand top-level marker — a Bestand with no parent. Public because the Bestand form's
-#: read-only parent row displays it too, and the two may not drift.
-TOP_LEVEL_LABEL = "Oberste Ebene"
 
 _PLACEHOLDER = "— Bestand wählen —"
 _REFUSAL = "Bitte einen Bestand wählen."
@@ -75,11 +70,6 @@ class CollectionChooser:
     def options(self) -> Options:
         """The Bestand select: the placeholder (empty value, always refused) then every Bestand."""
         return (("", _PLACEHOLDER), *self._by_name())
-
-    def parent_options(self) -> Options:
-        """The Eltern-Bestand select: the top-level marker (empty value — a real choice, not a
-        refusal) then every Bestand."""
-        return (("", TOP_LEVEL_LABEL), *self._by_name())
 
     def resolve(self, raw: str) -> ULID | None:
         """The ulid of the Bestand ``raw`` names, or ``None``: membership in the saved set is the

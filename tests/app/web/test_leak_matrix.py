@@ -29,8 +29,8 @@ def _png_bytes(color: tuple[int, int, int]) -> bytes:
     return buf.getvalue()
 
 
-# Real ULIDs: ``collection_edit`` validates the ulid in-view (a literal like "GRP" would 404 as
-# malformed), and the article routes do the same.
+# Real ULIDs: the article routes validate the ulid in-view (a literal like "GRP" would 404 as
+# malformed).
 _COLLECTION = "01M553AGABD8F8ZVQV43GRE7TN"
 _ARTICLE = ULID("01M553AGABD8F8ZVQV43GRE7TP")
 _MARKED = ULID("01M553AGABD8F8ZVQV43GRE7TQ")
@@ -69,7 +69,6 @@ def _fill(base: Corpus) -> None:
 class _MatrixCorpus:
     """The ``_fill`` content of ``base``, read back."""
 
-    collection_ulid = _COLLECTION
     article_ulid = _ARTICLE
     marked_ulid = _MARKED
 
@@ -113,7 +112,7 @@ _TIERS: dict[str, Viewer | None] = {
     "archivist": Archivist(),
 }
 
-#: The tiers that are NOT the trusted Archivist — every catalog/collection/bulk write route denies
+#: The tiers that are NOT the trusted Archivist — every catalog/bulk write route denies
 #: all of these with a 404, and the media/detail routes deny all but the matching-group Member on
 #: the GROUPS-tier corpus article.
 _NON_ARCHIVIST = ("anonymous", "public", "member", "member_matching")
@@ -187,14 +186,6 @@ def _p_logout(_c: _MatrixCorpus) -> str:
 
 def _p_new_article(_c: _MatrixCorpus) -> str:
     return "/articles/new"
-
-
-def _p_new_collection(_c: _MatrixCorpus) -> str:
-    return "/collections/new"
-
-
-def _p_collection_edit(c: _MatrixCorpus) -> str:
-    return f"/collections/{c.collection_ulid}/edit"
 
 
 def _p_bulk_doctype(_c: _MatrixCorpus) -> str:
@@ -340,7 +331,7 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=REDIRECT,
         post_arch=REDIRECT,
     ),
-    # Archivist-only cataloging/collection routes — every non-archivist gets a 404 on BOTH methods;
+    # Archivist-only cataloging routes — every non-archivist gets a 404 on BOTH methods;
     # the archivist status depends on the route's own method contract.
     "article-create": Route(
         build_path=_p_new_article,
@@ -348,20 +339,6 @@ _CONTRACT: dict[str, Route] = {
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # empty POST → validation re-render (200)
-    ),
-    "collection-create": Route(
-        build_path=_p_new_collection,
-        get_nonarch=FOUR_OH_FOUR,
-        get_arch=OK,
-        post_nonarch=FOUR_OH_FOUR,
-        post_arch=FOUR_OH_FOUR,  # empty POST names no Sichtbarkeit (catalog.audience_choice)
-    ),
-    "collection-edit": Route(
-        build_path=_p_collection_edit,
-        get_nonarch=FOUR_OH_FOUR,
-        get_arch=OK,
-        post_nonarch=FOUR_OH_FOUR,
-        post_arch=OK,  # blank-name POST → error re-render (200)
     ),
     "article-edit": Route(
         build_path=_p_edit,
@@ -735,7 +712,6 @@ def test_every_article_route_has_a_trash_contract() -> None:
         if isinstance(p, URLPattern)
         and not (p.name or "").startswith(ALIAS_PREFIX)
         and "<str:ulid>" in str(p.pattern)
-        and not str(p.pattern).startswith("collections/")
     }
     covered = {
         *_MARKED_PATHS,

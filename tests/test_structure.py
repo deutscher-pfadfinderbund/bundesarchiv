@@ -48,6 +48,8 @@ UNREFERENCED: dict[str, str] = {
     "bundesarchiv/app/push_record.py:InMemoryPushRecord": "test fake",
     "bundesarchiv/index/refresh.py:InMemoryIndex": "test fake",
     "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore": "test fake",
+    "bundesarchiv/app/collections.py:create_collection": "kept as the app's write interface for Collections; not replaced or superseded (owner, 2026-10-31)",
+    "bundesarchiv/app/collections.py:save_collection": "kept as the app's write interface for Collections; not replaced or superseded (owner, 2026-10-31)",
 }
 
 
