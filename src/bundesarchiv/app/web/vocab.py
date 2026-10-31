@@ -51,6 +51,10 @@ DOCUMENT_TYPES: tuple[str, ...] = (
     "Urkunde",
 )
 
+#: The Weitere Angaben keys the key field suggests; any other key stays allowed. Spelled as the
+#: legacy import writes them ("Anmerkungen").
+CUSTOM_KEYS: tuple[str, ...] = ("Anmerkungen", "Anzahl", "Besitzer", "Quelle", "Querverweis")
+
 #: Medienart → the Dokumenttypen it offers. Insertion order is the render order of the Medienart
 #: select. Uniform today: narrowing a Medienart is the archivists' call, and until they make it no
 #: legacy pair can be refused by a narrowing nobody asked for.

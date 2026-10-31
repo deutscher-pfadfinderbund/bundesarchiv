@@ -396,6 +396,7 @@ class EditSurface:
                     ),
                 ),
                 "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
+                "custom_keys": vocab.CUSTOM_KEYS,
                 "delete_confirm": vocab.TRASH_CONFIRM,
                 "crumbs": _crumbs(self.stored, self.chooser),
                 "conflict": isinstance(overlay, Conflict),

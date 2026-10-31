@@ -2211,6 +2211,23 @@ def test_more_details_adds_and_removes_rows_by_round_trip(
     expect(rows.first.locator('input[name="custom_key"]')).to_have_value("Fotograf")
 
 
+def test_every_key_field_offers_the_known_keys(archivist_page: Page, live_workbench: str) -> None:
+    # The suggestions are the browser's own <datalist>; headless Chromium draws no popup to pick
+    # from, so the journey checks what the browser attaches to each row, a swapped-in one included.
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Bezeichnung"))
+    keys = page.locator('#custom-bag input[name="custom_key"]')
+    page.click('button:has-text("+ Angabe hinzufügen")')
+    expect(keys.first).to_be_focused()
+    page.keyboard.type("Que")
+    page.click('button:has-text("+ Angabe hinzufügen")')
+    expect(keys.last).to_be_focused()
+    expect(keys).to_have_count(2)
+    offered = keys.evaluate_all("els => els.map(el => [...el.list.options].map(o => o.value))")
+    known = ["Anmerkungen", "Anzahl", "Besitzer", "Quelle", "Querverweis"]
+    assert offered == [known, known]
+
+
 def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
     archivist_page: Page, live_workbench: str
 ) -> None:

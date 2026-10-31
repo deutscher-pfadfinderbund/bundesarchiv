@@ -198,7 +198,7 @@ save gets HX-Redirect.{% endcomment %}
       <div class="pairs">
         <label class="field">
           <span>Feld</span>
-          <input type="text" name="custom_key" value="{{ key }}" form="edit-form"{% if forloop.last and autofocus == "custom_key" %} autofocus{% endif %}>
+          <input type="text" name="custom_key" value="{{ key }}" list="custom-keys" form="edit-form"{% if forloop.last and autofocus == "custom_key" %} autofocus{% endif %}>
         </label>
         <label class="field">
           <span>Wert</span>
@@ -209,6 +209,11 @@ save gets HX-Redirect.{% endcomment %}
       </div>
       {% endfor %}
       <button class="add" type="submit" name="custom_add" form="edit-form">+ Angabe hinzufügen</button>
+      <datalist id="custom-keys">
+        {% for custom_key in custom_keys %}
+        <option value="{{ custom_key }}"></option>
+        {% endfor %}
+      </datalist>
     </section>
   </div>
 </main>

@@ -385,6 +385,17 @@ def test_the_bag_renders_no_empty_pair_until_one_is_added(corpus: _EditCorpus) -
     assert "+ Angabe hinzufügen" in body
 
 
+def test_the_key_field_suggests_the_known_keys(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).get(f"/articles/{_ULID}/edit")
+    assert response.context["custom_keys"] == (
+        "Anmerkungen",
+        "Anzahl",
+        "Besitzer",
+        "Quelle",
+        "Querverweis",
+    )
+
+
 def test_add_detail_adds_one_empty_pair_without_saving(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/articles/{_ULID}/edit",
