@@ -1,7 +1,9 @@
 """Ground truth is ``fixtures.EXPECTED_VISIBILITY``."""
 
 import datetime
+import io
 from collections.abc import Iterator
+from dataclasses import replace
 from typing import get_args
 
 import pytest
@@ -18,6 +20,9 @@ from tests.index.fixtures import (
 from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Collection
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import _MAX_PAGE_SIZE, Facet, SearchFilters, SearchPage, search
+from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
+from bundesarchiv.persistence.collections import CollectionRepository
+from bundesarchiv.persistence.repository import ArticleRepository
 
 
 @pytest.fixture(scope="module")
@@ -131,6 +136,29 @@ def test_text_ranks_the_best_match_first_within_scope(corpus: None) -> None:
         "ART_PUBKARTE",
     ]
     assert "ART_MEMNOTIZ" in _ulids(search(PLAIN_MEMBER, text="Fahrten"))
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "filename", ["Liederheft_1998.pdf", "liederheft-1998.pdf", "Liederheft 1998.PDF"]
+)
+@pytest.mark.parametrize("text", ["Liederheft", "pdf", "1998"])
+def test_text_finds_an_article_by_a_word_of_its_filename(
+    corpus: None, filename: str, text: str
+) -> None:
+    store = InMemoryObjectStore()
+    CollectionRepository(store).save(
+        Collection(ulid=ULID("DATEI"), name="Dateien", parent_id=None), 0, changed_by="tester"
+    )
+    repo = ArticleRepository(store)
+    article = make_article(
+        "ART_DATEI", title="Heft", collection_id="DATEI", audience=Audience(AudienceTier.PUBLIC)
+    )
+    ref = repo.add_media(article.ulid, filename, io.BytesIO(b"heft"))
+    repo.save(replace(article, media=(ref,)), 0, changed_by="tester")
+    indexer.index_article(store, article.ulid)
+
+    assert "ART_DATEI" in _ulids(search(PUBLIC, text=text))
 
 
 # ===========================================================================
