@@ -1,5 +1,5 @@
 """THE screen inventory: every GET-reachable screen once, which the a11y pass, the control-row and
-overlay walks and the gallery all derive from (G.21; tests/CLAUDE.md).
+overlay walks and the gallery all derive from (tests/CLAUDE.md).
 ``tests/app/web/test_screen_inventory.py`` joins it to the leak matrix's routes. A screen has a
 ``reach``, not a path, because the two bulk surfaces exist only behind a POST.
 """

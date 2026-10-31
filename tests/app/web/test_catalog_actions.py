@@ -374,7 +374,7 @@ def test_the_trash_routes_deny_and_change_nothing(
     assert corpus.articles.load(ULID(PUBLISHED_ULID)) == before
 
 
-# --- fail-closed: no exposure, no publish affordance (learning G.34) ---------------
+# --- fail-closed: no exposure, no publish affordance ---------------
 
 _UNRESOLVABLE = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
 
@@ -398,7 +398,7 @@ def _article_whose_collection_chain_is_broken(
 
 
 def test_an_unresolvable_collection_chain_blocks_publishing(corpus: Corpus) -> None:
-    # With no resolvable audience chain there is no exposure, so Veröffentlicht is not on offer (G.34).
+    # With no resolvable audience chain there is no exposure, so Veröffentlicht is not on offer.
     ulid = _article_whose_collection_chain_is_broken(corpus)
     body = client_as(Archivist()).get(f"/articles/{ulid}/edit").content.decode()
     assert 'name="lifecycle"' in body  # the Status select is there...

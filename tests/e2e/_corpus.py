@@ -199,7 +199,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         0,
         changed_by="tester",
     )
-    # draft-ness is lifecycle state, never words in the title (G.6)
+    # draft-ness is lifecycle state, never words in the title
     articles.save(
         Article(
             ulid=DRAFT_ULID,

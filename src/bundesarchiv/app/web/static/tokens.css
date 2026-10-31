@@ -108,12 +108,12 @@
     --measure-query: 26rem; /* one query or caption field; a toolpanel's width */
     --measure-decade: 10ch; /* "Unbekannt" in the data face */
     --measure-date: 12ch; /* "1984-11-26" plus air, in the data face */
-    --measure-ref-code: 12ch; /* a Signatur of at most 8 characters (learning G.31), in the data face */
+    --measure-ref-code: 12ch; /* a Signatur of at most 8 characters, in the data face */
     --measure-word: 9rem; /* a word cell of the ledger: Typ, Digital, Bestand */
 
     /* THE STACKING MODEL (C5 one level down), lowest first:
        (auto)             everything in normal flow, plus the pane column's sticky sheet
-       --z-header         the page header — above every control row (learning G.36)
+       --z-header         the page header — above every control row
        --z-banner         the viewport-fixed failure banner: above everything
      A popover (the menus) sits in the top layer and needs no value. A new layer joins this
      scale. */

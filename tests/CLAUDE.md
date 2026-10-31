@@ -111,8 +111,7 @@ adversarial inputs.
   with its viewer tier, the minimum overlay panels it composes and the control
   rows it must show. The axe pass, both control-row walks, the overlay
   containment walk and the gallery's GET states all derive from it — a new screen
-  joins that tuple and is covered everywhere the same day (G.21 applied to page
-  coverage). Never re-type a page list in a test; add the screen.
+  joins that tuple and is covered everywhere the same day. Never re-type a page list in a test; add the screen.
   Some invariants are deliberately proven TWICE, at two layers — the server's
   decision in the fast suite, the browser's answer in `e2e/` (the folded-section
   rule is the canonical pair). That is layering, not duplication; the comment at

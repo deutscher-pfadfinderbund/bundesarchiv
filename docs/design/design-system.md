@@ -142,7 +142,7 @@ rulings (owner, 2026-08):
    gone; row anatomy never changes with pane state. *Addendum (owner,
    2026-08-07 round 2 — law C11 "intrinsic first"):* the drop steps
    themselves died the same day — their 60/52rem thresholds were invented
-   and hid columns with space to spare (learning G.23). The width behavior
+   and hid columns with space to spare. The width behavior
    is now INTRINSIC: mono columns sit at max-content, the Titel absorbs
    slack and ellipsizes first, every column stays visible above the fold;
    the ~32rem fold threshold carries its C9 content arithmetic.

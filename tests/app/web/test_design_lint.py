@@ -743,8 +743,8 @@ def test_a_private_knob_is_declared_in_its_own_section() -> None:
 
 def test_a_public_knob_is_read_only_where_it_is_resolved() -> None:
     # Law C3: the knob's fallback lives on its one `--_` line; every rule reads the `--_` name. A
-    # fallback elsewhere is a second default, and a bare read elsewhere skips the default (G.38,
-    # G.45). Handing the knob on to another knob (`--a: var(--b)`) is a parent setting a knob.
+    # fallback elsewhere is a second default, and a bare read elsewhere skips the default.
+    # Handing the knob on to another knob (`--a: var(--b)`) is a parent setting a knob.
     lines = [
         (name, lineno, line)
         for name in STYLESHEETS

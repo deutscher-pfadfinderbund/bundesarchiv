@@ -107,7 +107,7 @@
   }
   /* Knob: --field-font — the control type, set on an ancestor and inherited, so every STATE rule
      below still holds. Restating the chrome from a later layer would beat them whatever its
-     specificity (C13, G.47). */
+     specificity (C13). */
   textarea,
   select,
   input:not([type="checkbox"], [type="radio"], [type="file"]) {
@@ -224,7 +224,7 @@
   }
 
   /* ---- action rows: ONE pattern for a row of related actions. [role=toolbar] is the named,
-     extensible slot flavor (G.9); its icons come from the one vendored set (register row 9).
+     extensible slot flavor; its icons come from the one vendored set (register row 9).
      Knobs: --toolbar-opacity (its controls' resting opacity). ---- */
   .actions,
   [role="toolbar"] {
@@ -243,7 +243,7 @@
     }
   }
   /* A toolbar declares its FALLBACK hit size, never the row knob: it cannot know whether it IS the
-     control row or sits inside one, and inside one the row owns the height (C8, learning G.45). */
+     control row or sits inside one, and inside one the row owns the height (C8). */
   [role="toolbar"] {
     --hit-fallback: var(--touch-target-compact);
     --_toolbar-justify: var(--toolbar-justify, normal);
@@ -269,7 +269,7 @@
      DIRECT children: a toolbar may own a disclosure, and its dropped panel's links are overlay
      contents. `a:not(.button)` is load-bearing: a toolbar's `a.button` takes its look from @layer
      elements and this layer outranks that one, so a bare `a` here overrode the button even from
-     :where() — 14.98:1 down to 2.24:1 (learning G.47). ---- */
+     :where() — 14.98:1 down to 2.24:1. ---- */
   [role="toolbar"] > :is(a:not(.button), button.link),
   .actions > a:not(.button),
   .theme-toggle,
@@ -745,8 +745,7 @@
     }
   }
 
-  /* ---- Signatur mark: the plain mono code wherever it appears — repetition dilutes a mark
-     (G.2). ---- */
+  /* ---- Signatur mark: the plain mono code wherever it appears — repetition dilutes a mark. ---- */
   .c-sig {
     display: inline-flex;
     align-items: baseline;
@@ -773,7 +772,7 @@
        RE-DECLARED here, to a real value — the compact one, as every page action row (owner
        2026-10-05: one control height across rows and panels). Never `initial` — for a custom
        property that is the guaranteed-invalid value, so each consumer falls back to its OWN default
-       and one knob resolves to two things (learning G.38). */
+       and one knob resolves to two things. */
     --control-height: var(--touch-target-compact);
     /* re-declared too, so a panel nested in another starts from this default, not its host's knob;
        a panel's own section sets it later in this file */
@@ -827,7 +826,7 @@
      load-bearing): where anchor positioning exists a panel drops from its OWN trigger; where it
      does not, the browser centres it. Each container's anchor-scope (in its own section) keeps a
      disclosure resolving its own trigger, not a later sibling's. anchor() + anchor-center, never
-     position-area or position-try — learning G.50. `--anchor-probe` is also the e2e hook: the
+     position-area or position-try. `--anchor-probe` is also the e2e hook: the
      containment walker serves this stylesheet with that condition falsified, so the FALLBACK tier
      gets its own computed proof. ---- */
   @supports (anchor-name: --anchor-probe) and
@@ -1206,7 +1205,7 @@
      row, the Titel; every other cell one tier quieter, on one line, ending in "…" when it does not
      fit (round 10). A rule runs only between rows (register row 14). The last column shrinks to its
      content, so the rules end where the content ends (round 2). The root is a size container and
-     the last-resort scroll box: the page body never scrolls sideways (learning G.24). ---- */
+     the last-resort scroll box: the page body never scrolls sideways. ---- */
   .ledger {
     container-type: inline-size;
     /* the containing block of the sr-only texts, so the scroll box clips them */

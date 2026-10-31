@@ -19,10 +19,10 @@ Ranked by cost to the archivist; each names the law it fails.
 1. **The screen ignores the desk** (Q9, ruling D "archivist surfaces
    desktop-first"). Byte-identical layout at 680 and 1440 px: one 52rem column,
    2058 px tall, half a desktop empty.
-2. **Seven boxes for fourteen fields** (Q5, learning G.2). Each group draws a
+2. **Seven boxes for fourteen fields** (Q5). Each group draws a
    border plus a tab legend — the drawer-tab silhouette seven times on a screen
    whose sibling (the ledger) has no boxes at all.
-3. **Three places to act** (G.9, C10). The sticky Speichern band, a second band
+3. **Three places to act** (C10). The sticky Speichern band, a second band
    under it for the lifecycle action, three text links per media row. The sticky
    band also covers the field beneath it while scrolling.
 4. **Every input is the same width** (Q6, C11). An 8-character Signatur gets the
@@ -40,7 +40,7 @@ Ranked by cost to the archivist; each names the law it fails.
 
 All four render through the real token/cascade layer with the real corpus record
 (Sommerfahrt 1962 / F12 / two media), so no judgment rides on thin test data
-(G.6, H.7). Builder: kept in the session scratchpad, not the repo.
+(H.7). Builder: kept in the session scratchpad, not the repo.
 
 - **A · Der Bogen** — one sheet; sections separated by a rule and a margin
   label, never a box; a label column so values share one axis; two section

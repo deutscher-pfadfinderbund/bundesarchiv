@@ -29,7 +29,7 @@ Mode: Operate (the task is: get in). Phone-first for door and denied pages
   the originally requested URL (or the workbench as default).
 - A quiet line for the lost member: no account yet → **contact the
   archivists** (mailto/contact address — a human answers; no extra page).
-- **Material role (G.17): TRUE SHEET** — one sheet resting on the empty
+- **Material role: TRUE SHEET** — one sheet resting on the empty
   desk carrying the archive's name; register row 8 applies (tint, hairline
   edge, contact shadow). Nothing else on the surface.
 

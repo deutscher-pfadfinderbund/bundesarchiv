@@ -344,7 +344,7 @@
     --control-height: var(--touch-target-compact);
     /* the containing block for the overlay panels its controls drop (law C12) */
     position: relative;
-    /* ...and it must out-stack whatever sticky element its panels drop over (learning G.36). The
+    /* ...and it must out-stack whatever sticky element its panels drop over. The
        scale, in order: --z-* in tokens.css. */
     z-index: var(--z-header);
     display: flex;
@@ -546,13 +546,12 @@
   /* ---- the preview pane's place: the frame's second column ---- */
   .pane {
     /* HIDDEN BY DEFAULT: the pane switch at the bottom of this file switches the column on, and
-       nothing switches it off. A negated second query is a complement kept true by hand (learning
-       G.44). */
+       nothing switches it off. A negated second query is a complement kept true by hand. */
     --pane-display: none;
     grid-column: pane;
     /* stretch across the frame's ROW, against the frame's align-items: start. Without it a grid item
        is only as tall as its content, so the sheet's `position: sticky` below had no slack and never
-       stuck at all — dead styling that reads exactly like live styling (learning G.39). */
+       stuck at all — dead styling that reads exactly like live styling. */
     align-self: stretch;
   }
 
@@ -654,7 +653,7 @@
      THE PANE SWITCH: at/above it an open pane adds a second frame column (the ledger re-densifies
      by itself — it is a size container). Both consequences are declared inside this one query —
      the frame grows its pane track and the pane shows. The complement is the DEFAULTS above, so the
-     condition is read once instead of negated by hand (learning G.44).
+     condition is read once instead of negated by hand.
      ============================================================ */
   /* REM, not px: the ledger's S form is a 40rem CONTAINER query (components.css) whose "never
      folds while the pane is open" guarantee (decision 1) is an inequality against this switch —

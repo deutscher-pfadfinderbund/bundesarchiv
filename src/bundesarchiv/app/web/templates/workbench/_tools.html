@@ -17,7 +17,7 @@ view's bulk context).
   {% if bulk %}
   {% if selecting %}
   {% comment %}data-bulk-offpage is the URL-borne selection not on this page, which a client
-  counting checkboxes cannot see (learning G.25).{% endcomment %}
+  counting checkboxes cannot see.{% endcomment %}
   <div class="bulk" data-bulk-offpage="{{ selection_offpage_count }}">
     <a href="?{{ cancel_query }}">Abbrechen</a>
     <span role="status" data-bulk-count>{% if selection_count %}{{ selection_count }} ausgewählt{% endif %}</span>

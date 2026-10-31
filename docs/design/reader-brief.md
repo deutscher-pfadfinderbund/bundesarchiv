@@ -27,7 +27,7 @@ One composition for every article type, top to bottom:
    lightbox/thumbnail machinery. **Precondition (owner 2026-08-22):
    reader-size image derivatives (~1200–1600px or srcset) ship BEFORE the
    roll** — the current 480px thumbnails upscale blurry at full width
-   (critique P0; invisible on the flat-color corpus, G.6).
+   (critique P0; invisible on the flat-color corpus).
 4. **Akte facts** — the record's key/value list. Custom fields render for
    Archivists only (ADR 0009), layered into the same list. **The Umfang
    row is DROPPED** (owner 2026-08-22): it equals len(media), a
@@ -57,7 +57,7 @@ One composition for every article type, top to bottom:
 - i4: **Bearbeiten placement** — one quiet button at the identity header's
   end (no toolbar needed for a single action).
 - i5: **Desktop = the same sheet at a constrained reading measure,
-  centered on the desk.** Material role (G.17): TRUE SHEET — the pane's
+  centered on the desk.** Material role: TRUE SHEET — the pane's
   sheet laid flat; register row 8 applies.
 
 ## States (for whichever wave builds this)
@@ -72,7 +72,7 @@ images) · mixed media (image + audio + PDF) · custom fields present
   **No — edit screen only.** Exposure lives where it is changed; the
   reader carries no access chrome for any tier.
 - German copy (captions' empty state, file-card labels) — gate, on renders.
-- Datierung spelling on the reader (machine vs human German) — G.46
+- Datierung spelling on the reader (machine vs human German) — the law
   licenses both with one renderer each; which one the reader header uses
   is settled by precedent (pane prints the machine value) unless the owner
   rules otherwise.

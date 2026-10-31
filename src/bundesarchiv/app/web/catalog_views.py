@@ -694,7 +694,7 @@ def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
     return redirect_to(request, landing.noting_lag(page, result.index_updated))
 
 
-# --- who would see it once published (G.34) ----------------------------------------
+# --- who would see it once published ----------------------------------------
 
 
 def _exposure_audience(article: Article, chooser: CollectionChooser) -> str | None:

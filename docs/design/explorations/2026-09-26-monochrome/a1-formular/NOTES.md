@@ -48,7 +48,7 @@ sees the article.
 | "Titelbild" mark on the first row | low | mid: says why order matters | keep |
 | Native file input + "Hochladen" | low | high | keep; the pair is labelled "Dateien hinzufügen", with a hint about order |
 | Meta margin: state word | low | high: Entwurf or Veröffentlicht decides what the next button does | keep |
-| Meta margin: one line of consequence ("Sichtbar für alle Mitglieder.") | low | high: who sees it, always on screen (G.34) | keep |
+| Meta margin: one line of consequence ("Sichtbar für alle Mitglieder.") | low | high: who sees it, always on screen | keep |
 | Old exposure card, "Sichtbare Felder: …" list | high | low: the hidden field says so itself ("Nur intern sichtbar") | cut |
 | Signatur chip in the margin | mid | none (owner ruling) | cut |
 | Speichern (primary) | low | highest | margin, first submit button, sticky on L |

@@ -154,7 +154,7 @@ _PAST_SEARCH_DEBOUNCE_MS = 450
 def test_search_works_from_a_screen_without_the_results_region(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # htmx stays out of the header search off the workbench (G.32).
+    # htmx stays out of the header search off the workbench.
     page = archivist_page
     article = f"/articles/{e2e_corpus.published_ulid}"
     for path, submit in (
@@ -192,7 +192,7 @@ def test_the_edit_forms_small_swap_lands_its_own_partial(
     archivist_page: Page, live_workbench: str
 ) -> None:
     # htmx inherits hx-select: #edit-form's must not reach the Dokumenttyp swap inside it, whose
-    # <option> response has no #form-region (G.27/G.32).
+    # <option> response has no #form-region.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Teilschwenks")  # picks Medienart = Foto(s)
     document_type = page.locator("#document-type-select")
@@ -217,7 +217,7 @@ def test_ledger_headers_compute_one_uniform_treatment(
     assert len(set(treatments)) == 1, f"non-uniform header treatments: {sorted(set(treatments))}"
 
 
-#: Law C8's walker (design-review-law E; G.21), the one proof: no per-instance copies.
+#: Law C8's walker (design-review-law E), the one proof: no per-instance copies.
 _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
     const declaresKnob = (el) => {
         const own = getComputedStyle(el).getPropertyValue('--control-height').trim();
@@ -332,7 +332,7 @@ def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) 
         )
         if len(controls) < 2:
             continue
-        # Keyed by position: labels repeat (G.37).
+        # Keyed by position: labels repeat.
         heights = {f"{i}:{c['label']}": int(str(c["height"])) for i, c in enumerate(controls)}
         if max(heights.values()) - min(heights.values()) > 1:
             defects.append(f"row '{name}' computes more than one height: {heights}")
@@ -521,7 +521,7 @@ _CONTAINMENT_WIDTHS = (360, 540, 680, 900, 1100, 1440)
 def _walk_overlay_containment(
     page: Page, live_workbench: str, corpus: CorpusHandles, *, anchored: bool
 ) -> list[str]:
-    """``anchored`` also checks the anchored tier's promise (G.50): each panel hangs from its own
+    """``anchored`` also checks the anchored tier's promise: each panel hangs from its own
     trigger."""
     defects: list[str] = []
     for screen in SCREENS:
@@ -579,7 +579,7 @@ def _serve_css_without_anchor_positioning(route: Route) -> None:
 def test_overlays_stay_inside_the_viewport(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # G.26 in both tiers (law F): anchored, then the fallback.
+    # both tiers (law F): anchored, then the fallback.
     page = archivist_page
     assert page.evaluate("() => CSS.supports('anchor-name: --a')"), (
         "this browser has no anchor positioning — the anchored tier would go unproven"
@@ -604,7 +604,7 @@ def test_overlays_stay_inside_the_viewport(
         f"[fallback] {d}"
         for d in _walk_overlay_containment(page, live_workbench, e2e_corpus, anchored=False)
     ]
-    assert not defects, "overlays leaving the viewport (G.26):\n" + "\n".join(defects)
+    assert not defects, "overlays leaving the viewport:\n" + "\n".join(defects)
 
 
 def test_the_header_menu_is_clickable_on_the_edit_screen(
@@ -795,7 +795,7 @@ def test_on_a_phone_the_folded_slots_stay_reachable(
 def test_pane_open_never_folds_the_ledger(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # Decision 1 (owner 2026-08-07), proven computed (learning G.1): at the NARROWEST viewport
+    # Decision 1 (owner 2026-08-07), proven computed: at the NARROWEST viewport
     # that still shows the pane (the 80rem switch = 1280px at default root font), the pane-open
     # ledger keeps its one-line row anatomy — the header row stays visible (the phone fold is
     # the only state that hides it) and the tracks merely tighten (law C11 — no column drops).
@@ -806,7 +806,7 @@ def test_pane_open_never_folds_the_ledger(
     expect(page.locator(".ledger thead")).to_be_visible()  # the fold's signature is hidden heads
 
 
-#: Long content at each field's ceiling (G.24, G.6); the Titel, the one unbounded field, carries the
+#: Long content at each field's ceiling; the Titel, the one unbounded field, carries the
 #: pressure.
 _CEILING_REF_CODE = "B106/XVI"  # the Signatur's 8-character ceiling, no spaces (owner, 2026-08-07)
 _LONG_TITLE = (
@@ -904,7 +904,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
     _e2e_root: Path,
     django_db_blocker: DjangoDbBlocker,
 ) -> None:
-    # Law C11 (G.24).
+    # Law C11.
     _seed_long_content(_e2e_root, django_db_blocker)
     page = archivist_page
     for width, path in (
@@ -940,7 +940,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
         defects
     )
     # S (the space budget's container size): the heads go and each row is its title over one line
-    # of its facts. The fold is a form, not a drop: it hides no value (G.33).
+    # of its facts. The fold is a form, not a drop: it hides no value.
     page.set_viewport_size({"width": 500, "height": 900})
     page.goto(live_workbench + LIST)
     expect(page.locator(".ledger thead")).to_be_hidden()
@@ -2108,7 +2108,7 @@ def test_bulk_enhancement_survives_a_history_restore(
     page.check(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
     # the TYPE-TO-SEARCH enhancement has to survive the same restore: it lives on #results (the
-    # region it swaps), which the restore replaces, so the new #results must be processed (H.8/G.25).
+    # region it swaps), which the restore replaces, so the new #results must be processed (H.8).
     page.locator('input[name="q"]').press_sequentially("Herbstlager")
     page.wait_for_url("**q=Herbstlager**")
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
@@ -2178,7 +2178,7 @@ def test_bulk_fresh_ticks_survive_paging(
     # the URL carries the fresh state: the tick travelled, the untick stuck
     assert e2e_corpus.second_ulid in _selection_in_url(page)
     assert e2e_corpus.published_ulid not in _selection_in_url(page)
-    # ...and the off-page selection shows here, before any tick on this page (G.25)
+    # ...and the off-page selection shows here, before any tick on this page
     expect(page.locator('input[name="selection"]:checked')).to_have_count(0)
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
     # tick an item on page 2, go back — the rewritten Zurück link preserves BOTH pages' selections
@@ -2206,9 +2206,9 @@ def test_bulk_fresh_ticks_survive_paging(
 # --- edit form guards ----------------------------------------------------------------
 
 #: Every field on the edit surface that CARRIES AN ERROR, with its control's four border colors and
-#: the ink its own error message computes. Written as a WALKER over all errored fields (learning
-#: G.21 — never one instance), and comparing against the message's OWN ink rather than a colour
-#: constant, so the proof reads "the border is the error ink" in whatever mode/theme resolved it.
+#: the ink its own error message computes. Written as a WALKER over all errored fields (never one
+#: instance), and comparing against the message's OWN ink rather than a colour constant, so the
+#: proof reads "the border is the error ink" in whatever mode/theme resolved it.
 _ERROR_FIELD_WALKER_JS = """() => {
     const fields = document.querySelectorAll('.form-sheet .field:has(.error)');
     return [...fields].map((field) => {
@@ -2227,7 +2227,7 @@ _ERROR_FIELD_WALKER_JS = """() => {
 
 
 def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbench: str) -> None:
-    # C13/G.29: an outranked rule looks live in source, so only the computed border counts.
+    # C13: an outranked rule looks live in source, so only the computed border counts.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Fehlerhaft")
     page.select_option('select[name="media_type"]', "")  # Medienart is required
@@ -2241,7 +2241,7 @@ def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbe
         for f in fields
         if set(f["sides"]) != {f["ink"]}
     ]
-    assert not defects, "an error state lost to the resting look (C13/G.29):\n" + "\n".join(defects)
+    assert not defects, "an error state lost to the resting look (C13):\n" + "\n".join(defects)
 
 
 def test_a_groups_error_shows_in_the_margin_with_the_focus(
@@ -2411,8 +2411,7 @@ def test_the_edit_form_absorbs_long_content(
 ) -> None:
     _seed_long_content(_e2e_root, django_db_blocker)
     url = live_workbench + f"/articles/{_LONG_ULID}/edit"
-    # 360: a bare minmax(floor, 1fr) track cannot shrink below its floor and scrolls the page body
-    # (G.24).
+    # 360: a bare minmax(floor, 1fr) track cannot shrink below its floor and scrolls the page body.
     defects = _sideways_scroll_defects(
         archivist_page, tuple((width, url) for width in (360, 680, 1000, 1440))
     )

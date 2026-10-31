@@ -986,7 +986,7 @@ def test_the_head_box_submits_the_rows_of_its_page(indexed_corpus: Corpus) -> No
 def test_a_url_selection_ticks_its_row(indexed_corpus: Corpus) -> None:
     body = _get(Archivist(), f"selection={PANE_PUB_ULID}").content.decode()
     # the selected article IS on this page, so nothing is off-page — the enhancement adds its own
-    # live checkbox count to this number and must not double-count what it can already see (G.25)
+    # live checkbox count to this number and must not double-count what it can already see
     assert 'data-bulk-offpage="0"' in body
     assert f'value="{PANE_PUB_ULID}" checked' in body
 

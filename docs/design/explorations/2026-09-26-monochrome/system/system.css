@@ -114,7 +114,7 @@
     --measure-search-grow: 22rem; /* … and while typing */
     --measure-menu: 12rem;
     --measure-date: 12ch; /* "1984-11-26" plus air */
-    --measure-sig: 12ch; /* Signatur ≤ 8 characters (law G.31) */
+    --measure-sig: 12ch; /* Signatur ≤ 8 characters */
     --measure-decade: 10ch; /* "Unbekannt" */
     --measure-count: 5ch; /* "1.187" */
     --measure-type: 9rem;
