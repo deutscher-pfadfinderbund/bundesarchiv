@@ -16,10 +16,7 @@ _DEFAULT_PG_DSN = "postgresql://postgres:postgres@localhost:5434/bundesarchiv"
 
 _UNREACHABLE_HINT = (
     "DB-backed tests require a running Postgres on localhost:5434. Start it with:\n"
-    "  container build -t bundesarchiv-postgres docker/postgres/\n"
-    "  container run -d --name bundesarchiv-pg -p 5434:5432 "
-    "-e POSTGRES_DB=bundesarchiv -e POSTGRES_PASSWORD=postgres bundesarchiv-postgres\n"
-    "or (Docker VPS path): docker compose up -d\n"
+    "  mise run pg\n"
     "No container runtime (cloud sandbox)? bash scripts/dev-pg-cloud.sh (idempotent — also\n"
     "the fix when a sandbox reclaimed a previously running server mid-session).\n"
     "To run only the DB-free tests instead: mise run test:nodb"

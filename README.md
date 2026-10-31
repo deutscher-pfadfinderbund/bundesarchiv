@@ -7,9 +7,9 @@ archivists only).
 ## What you need
 
 - Python 3.14 or newer
-- [uv](https://docs.astral.sh/uv/) — installs everything else
-- Apple's [`container`](https://github.com/apple/container) CLI (or Docker) — runs
-  the search database
+- [uv](https://docs.astral.sh/uv/) — installs the Python dependencies
+- [mise](https://mise.jdx.dev/) — runs the tasks and the search database (a native
+  Postgres it installs itself)
 
 ## Setup
 
@@ -17,17 +17,18 @@ archivists only).
 uv sync   # install all dependencies
 ```
 
-Start the search database (a Postgres) and create its tables:
+Start the search database (Postgres 18 on port 5434) and create its tables:
 
 ```sh
-container build -t bundesarchiv-postgres docker/postgres/
-container run -d --name bundesarchiv-pg -p 5434:5432 \
-  -e POSTGRES_DB=bundesarchiv -e POSTGRES_PASSWORD=postgres bundesarchiv-postgres
+mise run pg                   # first start installs Postgres and creates the database
 uv run manage.py migrate
 ```
 
-(With Docker instead: the same `build` and `run` commands with `docker` in place
-of `container`. There is no dev compose file — `compose.yml` is the VPS stack.)
+Every mise task that needs the database starts it itself; it keeps running until
+`mise daemons stop postgres` in the main checkout. All worktrees of the repository
+share this one server (data in `~/.local/share/bundesarchiv/postgres`); each
+checkout makes its own test database on it. There is no dev compose file —
+`compose.yml` is the VPS stack.
 
 ## Start the app
 
