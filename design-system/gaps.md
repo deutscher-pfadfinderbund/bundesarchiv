@@ -8,8 +8,7 @@ requires demonstrating the original Expected result.
 
 ### The controls have no settled design
 
-- **Source:** owner ruling 2026-10-28 (`docs/requirements/owner-interview-2026-08.md`, "Rulings of
-  2026-10-28 (design system)"): the controls stay one recorded gap until the clean-room design of
+- **Source:** owner, 2026-10-28: the controls stay one recorded gap until the clean-room design of
   the control primitives. The Button pilot of 2026-10-27 left the decisions below open.
 - **Need:** a component whose CSS styles a control is adopted on a settled design of that control.
 - **Actual result:** the native controls (the button and its looks, input, select, textarea,

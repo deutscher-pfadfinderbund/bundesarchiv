@@ -1,14 +1,14 @@
-# Design review law
+# Design review rules
 
-Status: LIVE DOCUMENT (owner-ratified 2026-08-06). The enforceable half of
-`design-system.md`: how any UI change is reviewed, which visual cues are
-licensed and where, and when to use which styling mechanism. Written to bind
-an agent with NO other context — a reviewer gets this file and the code,
-nothing else (validated by a blind-agent test run, 2026-08-06).
+Status: agent-written working document (since 2026-08-06), not ratified by the owner as a
+whole; the owner may change any of it at any time. It is in force to the extent the design
+gate and the design lint (`tests/app/web/test_design_lint.py`, section E) run against it.
+The enforceable half of `design-system.md`: how any UI change is reviewed, which visual cues
+are licensed and where, and when to use which styling mechanism. Written to bind an agent
+with NO other context — a reviewer gets this file and the code, nothing else.
 
-Rules first, fixes later (owner ruling): existing CSS is *measured* against
-this document; bringing it into compliance is the rework wave's job, not a
-side effect of a review.
+Rules first, fixes later: existing CSS is *measured* against this document; bringing it
+into compliance is the rework wave's job, not a side effect of a review.
 
 **Framework vs. contents (owner, 2026-08-06):** this document is first and
 foremost a framework for agents. The *mechanisms* are binding — the
@@ -323,13 +323,12 @@ outside a deliberate `@layer` override; px media queries for component
 adaptation where a container query belongs; div-buttons and other
 re-implemented native elements (restates construction law).
 
-## G. Learnings register (append-only)
+## G. Learnings register (frozen 2026-10-31)
 
-Mechanism (owner, 2026-08-07): every design-gate round that corrects an
-agent decision appends its lesson here, GENERALIZED — the rule that would
-have prevented the correction, not the anecdote. Reviewers read this
-section as part of the law. Never rewrite or delete entries; supersede
-with a newer one.
+Lessons agents appended after design-gate rounds from 2026-08-07 on, generalized from the
+correction each round made. Frozen: nothing is appended, and reviewers are not bound by this
+section. A lesson worth keeping becomes a rule in A–F or a clause in a contract, with the
+owner's word; the rest is history.
 
 **2026-08-07, workbench composition rounds 1–3:**
 

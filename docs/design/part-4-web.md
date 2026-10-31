@@ -1,6 +1,6 @@
 # Part 4 — Web/UI + Worker: Plan
 
-Status: DRAFT (Fable-designed 2026-07-04). Infra half is fully specified and
+Status: HISTORIC PLAN (drafted 2026-07-04, frozen 2026-10-31); the code supersedes it. Infra half is fully specified and
 user-independent; UI half carries design constraints + open questions that
 resolve at Part 4 kickoff (see `part-4-ui-ideas.md` owner questions + the
 HTMX/Datastar prototype outcome). Companion ADR drafts: 0013 (CAS), 0014

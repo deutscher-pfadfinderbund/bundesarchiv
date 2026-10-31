@@ -145,7 +145,7 @@ components:
 
 # Design System: Bundesarchiv
 
-This file is the visual digest. The binding law is `docs/design/design-system.md` (principles
+This file is the visual digest. The rules are in `docs/design/design-system.md` (principles
 with their reasons, tokens, components) and `docs/design/design-review-law.md` (how a change is
 reviewed, which cues are licensed). The mock system that proves both lives in
 `docs/design/explorations/2026-09-26-monochrome/system/` (`system.css`, `gallery.html`,
@@ -454,7 +454,7 @@ variant and not a component (cascade rule C2).
 
 A contract in `design-system/components/` (layouts and patterns in their own folders) states when
 to use a component and what it promises; its frontmatter owns the id, the status and the source
-paths. Adoption is gradual (owner ruling 2026-10-28 in `docs/requirements/owner-interview-2026-08.md`):
+paths. Adoption is gradual (owner, 2026-10-28):
 
 - A contract goes in only with the owner's approval.
 - Not every class is a component: a part, a text role or a utility is not. A component that does
@@ -462,8 +462,8 @@ paths. Adoption is gradual (owner ruling 2026-10-28 in `docs/requirements/owner-
 - Components that do not depend on a control come first. One that only places a control does not
   depend on it; one whose CSS styles the control does, and waits for the controls gap.
 - Once a component is adopted, its contract wins over its inventory row, and the design lint
-  follows the contracts. A component without a contract is unmanaged: the inventory and the law
-  govern it.
+  follows the contracts. A component without a contract is unmanaged: the inventory and the review
+  rules govern it.
 
 Public use: a component with a template is included from
 `src/bundesarchiv/app/web/templates/components/`; the others are their class on semantic HTML.

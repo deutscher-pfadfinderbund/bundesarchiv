@@ -23,7 +23,7 @@ gallery renders for the owner's verdict — never with prose claiming the UI is 
 
 ## When the law gives a bad result
 
-The UI law is in development and has known flaws (`docs/design/decisions.md`); the existing CSS is
+The UI rules are in development and have known flaws (`design-system/gaps.md` records them); the existing CSS is
 the current state, not a precedent. When a rule makes a screen worse, two rules fight, or the only
 precedent is CSS that looks wrong: never fit around it, never invent an exception. Stop on that
 part, finish the rest (or stop the task if the rest needs it), and report a **design gap**: the

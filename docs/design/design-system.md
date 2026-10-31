@@ -1,7 +1,10 @@
 # Bundesarchiv design system
 
-Status: LIVE DOCUMENT (owner, 2026-07-10) — updated as design decisions land;
-no formal acceptance step. Governs all web UI from Part 4 on.
+Status: agent-written working document (since 2026-07-10), updated as design decisions land;
+not ratified by the owner as a whole, and the owner may change any of it. In force through
+code: the design lint reads the component inventory, the families and the layout primitives
+below, and a component's contract under `design-system/` wins over its row. Everything else
+here is the current state of the design, with the reasons agents recorded for it.
 
 **The monochrome system "Druckschwarz" (owner, 2026-09-27)** replaces the violet
 "stamp ink on paper" look. Its visual digest is `DESIGN.md` at the repo root; its
@@ -13,8 +16,7 @@ carrying the old structure are measured against this document and change in thei
 
 **Enforceable half:** `design-review-law.md` (same directory) — the review
 catechism, the cue register (the ONLY licensed visual cues, MAY-only), the
-cascade rules, and the lintable subset. Owner-ratified 2026-08-06; reviews
-and the design gate run against it.
+cascade rules, and the lintable subset. Reviews and the design gate run against it.
 
 ## Construction law (owner, 2026-08-05)
 
