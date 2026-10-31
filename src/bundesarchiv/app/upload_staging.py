@@ -1,7 +1,9 @@
 """Chunked uploads staged on local disk, outside the archive, until the finish turns each into a
 media file (ADR 0026). One folder per upload id: ``meta.json`` holds the ``Upload``, ``data`` the
-bytes received so far, so its size is the offset. Every operation on one upload holds an exclusive
-``flock`` on its ``data`` file, which serialises gunicorn's threads and the worker process alike.
+bytes received so far, so its size is the offset. A finished upload keeps its folder until the
+sweep, marked by a ``finished`` file, with ``data`` emptied. Every operation on one upload holds an
+exclusive ``flock`` on its ``data`` file, which serialises gunicorn's threads and the worker process
+alike.
 
 Each operation names the upload by a ``Key``: a mismatch in any of its parts, a malformed id and an
 upload swept or never created all read the same: absent.
@@ -9,7 +11,6 @@ upload swept or never created all read the same: absent.
 
 import contextlib
 import fcntl
-import functools
 import json
 import os
 import re
@@ -30,6 +31,7 @@ STALE_AFTER_SECONDS = 24 * 60 * 60
 _ID = re.compile(r"[0-9a-f]{32}")
 #: The suffix of a folder ``create`` builds before it renames it to its id, which ``_ID`` refuses.
 _PARTIAL = ".partial"
+_FINISHED = "finished"
 _CHUNK = 1024 * 1024
 
 
@@ -58,12 +60,28 @@ class _Held:
     folder: Path
     upload: Upload
     data: BinaryIO
+    finished: bool
+
+    @property
+    def offset(self) -> int:
+        return self.upload.length if self.finished else _size(self.data)
+
+    def finish(self) -> None:
+        # Marked first: a crash in between leaves bytes for the sweep, never an empty upload.
+        (self.folder / _FINISHED).touch()
+        self.data.truncate(0)
 
 
 class Refused(Enum):
     ABSENT = "absent"
     OFFSET = "offset"
     TOO_LONG = "too long"
+
+
+class Finished(Enum):
+    """A claim of an upload whose file has landed: nothing is left to store."""
+
+    FINISHED = "finished"
 
 
 class Source(Protocol):
@@ -91,7 +109,7 @@ class Staging:
     def status(self, key: Key) -> tuple[Upload, int] | None:
         """The upload and its offset."""
         with self._held(key) as held:
-            return None if held is None else (held.upload, _size(held.data))
+            return None if held is None else (held.upload, held.offset)
 
     def append(self, key: Key, offset: int, source: Source, size: int) -> int | Refused:
         """Append ``size`` bytes read from ``source`` at ``offset``; the new offset. An offset
@@ -100,11 +118,11 @@ class Staging:
         with self._held(key) as held:
             if held is None:
                 return Refused.ABSENT
-            data = held.data
-            if offset != _size(data):
+            if offset != held.offset:
                 return Refused.OFFSET
             if offset + size > held.upload.length:
                 return Refused.TOO_LONG
+            data = held.data
             data.seek(offset)
             remaining = size
             while remaining and (chunk := source.read(min(_CHUNK, remaining))):
@@ -114,16 +132,20 @@ class Staging:
             return data.tell()
 
     @contextmanager
-    def claim(self, key: Key) -> Generator[tuple[Upload, BinaryIO, Callable[[], None]] | None]:
-        """The complete upload, its bytes from the start and the act that removes it, held against
-        every other operation until the block exits; an upload the block does not remove stays for
-        the next claim. None for an incomplete upload."""
+    def claim(
+        self, key: Key
+    ) -> Generator[tuple[Upload, BinaryIO, Callable[[], None]] | Finished | None]:
+        """The complete upload, its bytes from the start and the act that finishes it, freeing the
+        bytes, held against every other operation until the block exits; an upload the block does
+        not finish stays for the next claim. None for an incomplete upload."""
         with self._held(key) as held:
-            if held is None or _size(held.data) != held.upload.length:
+            if held is None or held.offset != held.upload.length:
                 yield None
-                return
-            held.data.seek(0)
-            yield held.upload, held.data, functools.partial(shutil.rmtree, held.folder)
+            elif held.finished:
+                yield Finished.FINISHED
+            else:
+                held.data.seek(0)
+                yield held.upload, held.data, held.finish
 
     def discard(self, key: Key) -> bool:
         """Remove the upload; False when it was absent."""
@@ -140,7 +162,7 @@ class Staging:
         if not self._root.is_dir():
             return
         for folder in self._root.iterdir():
-            # A finish, discard or create may have moved the folder since the listing.
+            # A discard or create may have moved the folder since the listing.
             with contextlib.suppress(FileNotFoundError):
                 if _ID.fullmatch(folder.name):
                     _sweep_upload(folder, older_than)
@@ -171,7 +193,7 @@ class Staging:
             if upload is None or (upload.owner, upload.article) != (key.owner, key.article):
                 yield None
             else:
-                yield _Held(folder, upload, data)
+                yield _Held(folder, upload, data, (folder / _FINISHED).exists())
 
 
 def _sweep_upload(folder: Path, older_than: float) -> None:

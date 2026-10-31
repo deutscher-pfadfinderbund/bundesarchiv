@@ -5,6 +5,7 @@ import json
 import os
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 
@@ -12,7 +13,14 @@ import pytest
 from django.test import override_settings
 
 from bundesarchiv.app import tasks
-from bundesarchiv.app.upload_staging import STALE_AFTER_SECONDS, Key, Refused, Staging, Upload
+from bundesarchiv.app.upload_staging import (
+    STALE_AFTER_SECONDS,
+    Finished,
+    Key,
+    Refused,
+    Staging,
+    Upload,
+)
 
 _ARTICLE = "01KX7YT9E3VX0CP3A5Q49RZMVH"
 _UPLOAD = Upload(_ARTICLE, "anna", "scan.pdf", "application/pdf", 6)
@@ -158,18 +166,45 @@ def test_a_malformed_id_never_becomes_a_path(tmp_path: Path, upload_id: str) -> 
     assert not staging.discard(key)
 
 
-def test_a_claim_removes_the_upload_only_when_told(tmp_path: Path) -> None:
+def _finished(root: Path) -> tuple[Staging, Key]:
+    staging, key = _staged(root)
+    staging.append(key, 0, io.BytesIO(b"abcdef"), 6)
+    with staging.claim(key) as claimed:
+        assert isinstance(claimed, tuple)
+        claimed[2]()
+    return staging, key
+
+
+def test_a_claim_finishes_the_upload_only_when_told(tmp_path: Path) -> None:
     staging, key = _staged(tmp_path)
     staging.append(key, 0, io.BytesIO(b"abcdef"), 6)
     for _ in range(2):
         with staging.claim(key) as claimed:
-            assert claimed is not None
+            assert isinstance(claimed, tuple)
             assert (claimed[0], claimed[1].read()) == (_UPLOAD, b"abcdef")
     with staging.claim(key) as claimed:
-        assert claimed is not None
+        assert isinstance(claimed, tuple)
         claimed[2]()
-    assert staging.status(key) is None
-    assert not (tmp_path / key.upload_id).exists()
+    with staging.claim(key) as claimed:
+        assert claimed is Finished.FINISHED
+
+
+def test_a_finished_upload_frees_its_bytes_and_reads_as_complete(tmp_path: Path) -> None:
+    """A resuming client goes straight to the finish."""
+    staging, key = _finished(tmp_path)
+    assert _bytes(tmp_path, key) == b""
+    assert staging.status(key) == (_UPLOAD, 6)
+
+
+@pytest.mark.parametrize(("offset", "data"), [(0, b"abcdef"), (3, b"def"), (6, b"g")])
+def test_an_append_to_a_finished_upload_writes_nothing(
+    tmp_path: Path, offset: int, data: bytes
+) -> None:
+    staging, key = _finished(tmp_path)
+    assert isinstance(staging.append(key, offset, io.BytesIO(data), len(data)), Refused)
+    assert _bytes(tmp_path, key) == b""
+    with staging.claim(key) as claimed:
+        assert claimed is Finished.FINISHED
 
 
 def test_an_incomplete_upload_cannot_be_claimed(tmp_path: Path) -> None:
@@ -180,8 +215,11 @@ def test_an_incomplete_upload_cannot_be_claimed(tmp_path: Path) -> None:
     assert staging.status(key) == (_UPLOAD, 3)
 
 
-def test_a_discard_removes_the_upload(tmp_path: Path) -> None:
-    staging, key = _staged(tmp_path)
+@pytest.mark.parametrize("stage", [_staged, _finished])
+def test_a_discard_removes_the_upload(
+    tmp_path: Path, stage: Callable[[Path], tuple[Staging, Key]]
+) -> None:
+    staging, key = stage(tmp_path)
     assert staging.discard(key)
     assert staging.status(key) is None
     assert not (tmp_path / key.upload_id).exists()
@@ -192,9 +230,12 @@ def _age(path: Path, now: int, hours: int) -> None:
     os.utime(path, (then, then))
 
 
-def test_the_hourly_sweep_removes_a_day_untouched_and_keeps_the_rest(tmp_path: Path) -> None:
-    staging, old = _staged(tmp_path)
-    _, recent = _staged(tmp_path)
+@pytest.mark.parametrize("stage", [_staged, _finished])
+def test_the_hourly_sweep_removes_a_day_untouched_and_keeps_the_rest(
+    tmp_path: Path, stage: Callable[[Path], tuple[Staging, Key]]
+) -> None:
+    _, old = stage(tmp_path)
+    staging, recent = _staged(tmp_path)
     now = int(time.time())
     _age(tmp_path / old.upload_id / "data", now, 25)
     _age(tmp_path / recent.upload_id / "data", now, 23)
@@ -221,3 +262,15 @@ def test_the_sweep_removes_what_a_crashed_create_left_once_stale(
     _age(rest, now, 25)
     Staging(tmp_path).sweep(now - STALE_AFTER_SECONDS)
     assert list(tmp_path.iterdir()) == []
+
+
+def test_a_finish_counts_as_a_touch_for_the_sweep(tmp_path: Path) -> None:
+    staging, key = _staged(tmp_path)
+    staging.append(key, 0, io.BytesIO(b"abcdef"), 6)
+    now = int(time.time())
+    _age(tmp_path / key.upload_id / "data", now, 25)
+    with staging.claim(key) as claimed:
+        assert isinstance(claimed, tuple)
+        claimed[2]()
+    staging.sweep(now - STALE_AFTER_SECONDS)
+    assert staging.status(key) == (_UPLOAD, 6)

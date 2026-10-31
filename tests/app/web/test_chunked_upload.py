@@ -28,7 +28,9 @@ from tests.app.web._tus import (
     upload_url,
 )
 
+from bundesarchiv.app import articles as article_services
 from bundesarchiv.app import tasks
+from bundesarchiv.app.result import Conflicted
 from bundesarchiv.app.upload_staging import Key, Staging
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
@@ -51,10 +53,22 @@ def _media(corpus: Corpus) -> tuple[Any, ...]:
     return corpus.articles.load(DRAFT_ULID).article.media
 
 
+#: Django masks its CSRF token anew on every render.
+_CSRF_TOKEN = re.compile(rb'(X-CSRFToken": "|name="csrfmiddlewaretoken" value=")[^"]+')
+
+
+def _masked(page: bytes) -> bytes:
+    return _CSRF_TOKEN.sub(rb"\1", page)
+
+
+def _freed(root: Path, upload: str) -> bool:
+    return (root / upload / "data").stat().st_size == 0
+
+
 # --- the round trip -------------------------------------------------------------------------
 
 
-def test_pieces_in_then_the_finish_stores_the_file_and_drops_the_staging(
+def test_pieces_in_then_the_finish_stores_the_file_and_frees_the_staging(
     corpus: Corpus, staging_root: Path
 ) -> None:
     client = client_as(_ANNA)
@@ -88,7 +102,48 @@ def test_pieces_in_then_the_finish_stores_the_file_and_drops_the_staging(
     assert (ref.filename, ref.media_type) == ("Brief, 1962.pdf", "application/pdf")
     with corpus.articles.open_media(DRAFT_ULID, ref) as stored:
         assert stored.read() == _DATA
-    assert _staged_ids(staging_root) == []
+    assert _freed(staging_root, upload)
+
+
+def test_a_repeated_finish_answers_as_the_first_and_saves_nothing(
+    corpus: Corpus, staging_root: Path
+) -> None:
+    """The first answer was lost on the way (ADR 0026 "Finish per file")."""
+    client = client_as(_ANNA)
+    upload = staged(client, DRAFT_ULID, _DATA)
+    version = corpus.articles.load(DRAFT_ULID).version
+    first = finish(client, DRAFT_ULID, upload, expected_version=str(version))
+    keys = corpus.articles.keys_for(DRAFT_ULID)
+
+    again = finish(client, DRAFT_ULID, upload, expected_version=str(version))
+
+    assert (first.status_code, again.status_code) == (200, 200)
+    assert _masked(again.content) == _masked(first.content)
+    assert corpus.articles.keys_for(DRAFT_ULID) == keys
+    assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
+
+
+def test_a_finished_upload_resumes_straight_to_the_finish(
+    corpus: Corpus, staging_root: Path
+) -> None:
+    client = client_as(_ANNA)
+    upload = staged(client, DRAFT_ULID, _DATA)
+    assert finish(client, DRAFT_ULID, upload).status_code == 200
+    head = client.head(upload_url(DRAFT_ULID, upload), headers=TUS)
+    assert (head.status_code, head["Upload-Offset"], head["Upload-Length"]) == (
+        200,
+        str(len(_DATA)),
+        str(len(_DATA)),
+    )
+    assert patch(client, DRAFT_ULID, upload, 0, _DATA).status_code == 409
+    assert _freed(staging_root, upload)
+
+
+def test_two_uploads_of_one_file_list_it_once(corpus: Corpus, staging_root: Path) -> None:
+    client = client_as(_ANNA)
+    for _ in range(2):
+        assert finish(client, DRAFT_ULID, staged(client, DRAFT_ULID, _DATA)).status_code == 200
+    assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
 
 
 def test_the_finish_of_an_incomplete_upload_saves_nothing(
@@ -124,12 +179,31 @@ def test_a_finish_that_saves_nothing_keeps_the_upload_for_the_next_finish(
 
     assert finish(client, DRAFT_ULID, upload).status_code == 200
     assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
-    assert _staged_ids(staging_root) == []
+    assert _freed(staging_root, upload)
 
 
-def test_a_delete_drops_the_upload(corpus: Corpus, staging_root: Path) -> None:
+def test_a_finish_that_loses_every_save_race_answers_for_a_repeat(
+    corpus: Corpus, staging_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A lost race is no landed file: the client sends the finish again (ADR 0026)."""
     client = client_as(_ANNA)
     upload = staged(client, DRAFT_ULID, _DATA)
+    with monkeypatch.context() as patched:
+        patched.setattr(article_services, "update_article", lambda *_, **__: Conflicted())
+        assert finish(client, DRAFT_ULID, upload).status_code == 503
+    assert _media(corpus) == ()
+
+    assert finish(client, DRAFT_ULID, upload).status_code == 200
+    assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
+    assert _freed(staging_root, upload)
+
+
+@pytest.mark.parametrize("finished", [False, True])
+def test_a_delete_drops_the_upload(corpus: Corpus, staging_root: Path, finished: bool) -> None:
+    client = client_as(_ANNA)
+    upload = staged(client, DRAFT_ULID, _DATA)
+    if finished:
+        assert finish(client, DRAFT_ULID, upload).status_code == 200
     assert client.delete(upload_url(DRAFT_ULID, upload), headers=TUS).status_code == 204
     assert _staged_ids(staging_root) == []
 
@@ -327,6 +401,21 @@ def test_a_miss_is_the_plain_404_and_changes_nothing(
     assert _head(client_as(_ANNA), DRAFT_ULID, upload)["Upload-Offset"] == str(len(_DATA))
 
 
+@pytest.mark.parametrize("method", _PROBES)
+@pytest.mark.parametrize("miss", _MISSES)
+def test_a_miss_on_a_finished_upload_is_the_plain_404_and_changes_nothing(
+    corpus: Corpus, staging_root: Path, miss: str, method: str
+) -> None:
+    client = client_as(_ANNA)
+    upload = staged(client, DRAFT_ULID, _DATA)
+    assert finish(client, DRAFT_ULID, upload).status_code == 200
+    viewer, ulid, address = _MISSES[miss]
+    keys = corpus.articles.keys_for(DRAFT_ULID)
+    _assert_tus_denied(_PROBES[method](client_as(viewer), ulid, address(upload)), method)
+    assert corpus.articles.keys_for(DRAFT_ULID) == keys
+    assert _head(client, DRAFT_ULID, upload)["Upload-Offset"] == str(len(_DATA))
+
+
 @pytest.mark.parametrize("viewer", [None, Public(), Member(groups=("vorstand",)), Archivist()])
 def test_a_create_by_a_non_archivist_or_on_an_absent_article_stages_nothing(
     corpus: Corpus, staging_root: Path, viewer: Viewer | None
@@ -336,11 +425,14 @@ def test_a_create_by_a_non_archivist_or_on_an_absent_article_stages_nothing(
     assert _staged_ids(staging_root) == []
 
 
+@pytest.mark.parametrize("finished", [False, True])
 @pytest.mark.parametrize("method", _PROBES)
 def test_an_expired_upload_is_the_plain_404(
-    corpus: Corpus, staging_root: Path, method: str
+    corpus: Corpus, staging_root: Path, method: str, finished: bool
 ) -> None:
     upload = staged(client_as(_ANNA), DRAFT_ULID, _DATA)
+    if finished:
+        assert finish(client_as(_ANNA), DRAFT_ULID, upload).status_code == 200
     now = int(time.time())
     a_day_ago = now - 25 * 60 * 60
     for path in (staging_root / upload).iterdir():

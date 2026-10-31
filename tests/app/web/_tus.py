@@ -59,5 +59,7 @@ def staged(client: Client, ulid: str, data: bytes, length: int | None = None) ->
     return upload
 
 
-def finish(client: Client, ulid: str, upload: str) -> Any:
-    return client.post(reverse("article-media-upload", args=[ulid]), {"upload_id": upload})
+def finish(client: Client, ulid: str, upload: str, **fields: str) -> Any:
+    return client.post(
+        reverse("article-media-upload", args=[ulid]), {"upload_id": upload, **fields}
+    )

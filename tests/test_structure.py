@@ -222,6 +222,10 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _RACE,
     ),
+    "app/web/test_chunked_upload.py:test_a_finish_that_loses_every_save_race_answers_for_a_repeat:bundesarchiv.app.articles.update_article": (
+        1,
+        _RACE,
+    ),
     "app/web/test_error_pages.py:test_an_uncaught_error_gets_the_error_page_and_repeats_nothing:bundesarchiv.app.archive.Archive.canonical": (
         1,
         _CRASH,

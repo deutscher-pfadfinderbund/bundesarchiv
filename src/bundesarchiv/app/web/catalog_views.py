@@ -20,7 +20,7 @@ from django.urls import reverse
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated, UpdateOutcome
-from bundesarchiv.app.upload_staging import Key, Refused, Staging, Upload
+from bundesarchiv.app.upload_staging import Finished, Key, Refused, Staging, Upload
 from bundesarchiv.app.web import catalog, landing, vocab
 from bundesarchiv.app.web.browse_views import (
     CollectionCrumb,
@@ -807,19 +807,36 @@ def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 def _finish_upload(request: HttpRequest, archive: Archive, key: Key) -> HttpResponseBase:
     """A chunked upload's finish (ADR 0026): its complete bytes become one more media file, as a
-    posted file would. Anything but a complete upload of this archivist's on this Article is the
-    plain 404. A finish that saves nothing keeps the upload for a repeat, which places the file
-    once: ``add_media`` is write-once and dedupes."""
+    posted file would, unless the Article has that file already. Anything but a complete upload of
+    this archivist's on this Article is the plain 404. A finish that saves nothing keeps the upload
+    for a repeat, and one that lost every save race answers 503, for the client to send it again; a
+    repeat of a finish that saved answers as it did, saving nothing."""
+    ulid = ULID(key.article)
     with Staging.configured().claim(key) as claimed:
         if claimed is None:
             return not_found()
-        upload, stream, remove = claimed
-        ulid = ULID(key.article)
+        if claimed is Finished.FINISHED:
+            # Loaded under the lock: a repeat that waited on the first finish shows what it saved.
+            if (stored := _load(archive, ulid, marked=False)) is None:
+                return not_found()
+            return _media_answer(
+                request, archive, ulid, Updated(stored.article, stored.version, index_updated=True)
+            )
+        upload, stream, finish = claimed
         ref = archive.articles.add_media(ulid, upload.filename, stream, upload.media_type)
-        outcome = _media_update(archive, ulid, lambda media: (*media, ref), changed_by=key.owner)
+        outcome = _media_update(
+            archive, ulid, lambda media: _with(media, ref), changed_by=key.owner
+        )
         if isinstance(outcome, Updated):
-            remove()
+            finish()
+    if isinstance(outcome, Conflicted):
+        return HttpResponse(status=503)
     return _media_answer(request, archive, ulid, outcome)
+
+
+def _with(media: tuple[MediaRef, ...], ref: MediaRef) -> tuple[MediaRef, ...]:
+    """``ref`` after ``media``, unless a file of its bytes is there already."""
+    return media if any(r.content_hash == ref.content_hash for r in media) else (*media, ref)
 
 
 #: The tus protocol version the chunked upload speaks (ADR 0026), core protocol and creation only.

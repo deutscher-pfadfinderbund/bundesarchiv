@@ -98,7 +98,7 @@ def verify(timestamp: int) -> None:
 @app.periodic(cron=_SWEEP_CRON)
 @app.task(name="sweep_upload_staging")
 def sweep(timestamp: int) -> None:
-    """ADR 0026: chunked uploads abandoned before their finish."""
+    """ADR 0026: chunked uploads untouched for a day, abandoned or finished."""
     Staging.configured().sweep(older_than=timestamp - STALE_AFTER_SECONDS)
 
 
