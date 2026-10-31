@@ -25,10 +25,8 @@ users").
     Article with a 4 GiB video uploads the 4 GiB again.
   - `hard_delete` pushes the removed keys. `push_key` finds them gone and deletes them on
     Nextcloud. The `.trash/` copy never reaches Nextcloud.
-- An upload occupies VPS disk up to three times over while it runs, all on the same disk
+- An upload occupies VPS disk up to twice over while it runs, all on the same disk
   in the deployed `compose.yml`, which has no tmpfs:
-  - nginx buffers the whole request body (`client_max_body_size 8g`, request buffering
-    on by default).
   - Django spills files over `FILE_UPLOAD_MAX_MEMORY_SIZE` (default 2.5 MB) to a temp
     file.
   - The canonical write stores the file itself.

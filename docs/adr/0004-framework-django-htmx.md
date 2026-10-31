@@ -46,8 +46,7 @@ and `CSRF_TRUSTED_ORIGINS` once the service is behind HTTPS.
 (4.0.0 released 2026-08-28), plain `htmx.min.js`, with the `browser-indicator`
 extension only. htmx 4 sends requests with `fetch()`, so the upload progress
 sliver goes: fetch reports no upload progress, and streaming request bodies are
-Chrome-only. The owner dropped the progress display rather than keep a
-hand-written XHR path. This weakens the 2026-07-05 argument against Datastar
+Chrome-only. This weakens the 2026-07-05 argument against Datastar
 (upload progress); the owner chose htmx 4 with that trade-off known. Stack
 unchanged otherwise; web components and shadcn-style systems were weighed and
 rejected the same day (owner, 2026-08).
