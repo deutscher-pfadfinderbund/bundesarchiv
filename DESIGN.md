@@ -223,8 +223,8 @@ removed. Not for warnings, not for emphasis, not for decoration.
 
 ## Typography
 
-**Display Font:** the system serif (ui-serif, Iowan Old Style, New York, Charter, Georgia)
-**Body Font:** the system sans (system-ui, -apple-system, Segoe UI, Roboto)
+**Serif (rank):** the system serif (ui-serif, Iowan Old Style, New York, Charter, Georgia): wordmark, page title, subhead
+**Sans (work):** the system sans (system-ui, -apple-system, Segoe UI, Roboto): everything else, display and title roles included
 **Data Font:** the system mono (ui-monospace, SF Mono, Menlo, Consolas), tabular figures
 
 **Character:** a bookish serif for rank and a neutral sans for work. The serif appears rarely,
@@ -232,12 +232,11 @@ so each appearance means "a new section" or "this record".
 
 ### Hierarchy
 - **Wordmark** (small caps 600, 1.5rem, tracking 0.06em): the top bar's "Bundesarchiv" only.
-- **Title** (serif 700, 3rem / S 2rem, 1.08): the page h1: the article title, the start heading.
-  On the edit form the title is itself the input (see Components).
-- **Heading** (serif 700, 2rem / S 1.6rem, 1.1): section h2 in the mock system; the app's section
-  heads take the Subhead (tokens.css has no heading token).
-- **Subhead** (serif 700, 1.35rem, 1.25): secondary sections (the form's sections, onward lists).
-  A title in a side column takes the heading role.
+- **Page title** (`--type-page-title`, serif 700, 3rem / S 2rem, 1.08): the page h1: the article
+  title, the start heading. On the edit form the title is itself the input (see Components).
+- **Subhead** (serif 700, 1.35rem, 1.25): section heads (the form's sections, onward lists).
+- **Display** (sans 600, 1.35rem, 1.2): a sans heading.
+- **Title** (sans 600, 1.05rem, 1.35): the sans title of a section head or a card.
 - **Entry** (sans 400, 1.1rem, 1.35): the lead of a list row.
 - **Query** (sans 400, 1.25rem / S 1.1rem, 1.4): the search sentence and the large search field.
 - **Body** (sans 400, 0.95rem, 1.5): running text, inputs; prose at most 65ch.
@@ -335,14 +334,16 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
   hairline under it on hover, a 3px underline on focus, the placeholder "Titel" while empty.
 
 ### Autocomplete (signature component)
-- **Single:** a text field that suggests from a list; free text stays allowed (Medienart,
-  Dokumenttyp, the Feld of Weitere Angaben).
-- **Multiple:** chosen values become square chips inside one field edge (a hairline frame, meta
-  type, a removing ×), then the typing input. Enter or comma adds, Backspace removes the last,
-  pasted lists split, pending text is added on leaving the field (Schlagworte, Gruppen).
-- **Suggestions:** a Paper White list with a Print Black edge; the active option inverts (black
-  ground, white text).
-- Without JS it is the plain input with the native datalist; the server contract is the comma list.
+Behaviour: `src/bundesarchiv/app/web/static/combobox.js`; the list's surface:
+`.autocomplete-list` in `components.css`.
+- **Field:** a field with `data-suggest` offers the options its route answers, in a manual popover
+  listbox beside it; the focus never leaves the field (`aria-activedescendant`). A textarea (the
+  edit form's Schlagworte, one per line) is offered values for the line the caret is on and a pick
+  replaces that line only. A search input becomes a combobox sending its whole form; its options
+  are links.
+- **Suggestions:** a floating panel (the register's row 12 surface); the option the arrow keys
+  reach inverts (black ground, white text).
+- Without JS, or without popover support, it is the plain field.
 
 ### Remove
 - One × for every removal (media rows, Weitere Angaben rows, chips): Secondary Ink at rest, ink

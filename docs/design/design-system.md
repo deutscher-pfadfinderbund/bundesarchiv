@@ -112,59 +112,6 @@ simplicity checkable instead of a matter of taste.
   owner's verdict — agent prose about the UI is not acceptance. Subtraction-
   first: prefer waves that only remove.
 
-## Rework-wave charter (owner interview, 2026-08-06)
-
-The one deliberate wave that dissolves the `c-*`/`l-*` taxonomy. Scope
-rulings (owner, 2026-08):
-
-1. **Markup may change.** Where a native element replaces a div
-   construction, replace it in the same wave (`<dl>` for the Akte
-   key/value rows, `<fieldset>`, `<search>`, `<nav>`, …) — the cascade
-   must style real semantics, not re-labelled divs. Classes survive only
-   where semantics cannot discriminate, named for meaning. The target
-   structure is the three-layer composition model above: the taxonomy
-   dissolves into components + views + composition primitives, and the
-   pane/detail-page duality becomes one reader view in two compositions.
-2. **Delete `components-papier.css`** and the components-demo variant
-   toggle. One look; the papier experiment is over.
-3. **Dissolve bare-element wrapper components** (`button.html`,
-   `input.html`, `select.html`) into plain semantic HTML styled by the
-   cascade. Structural atoms stay (ref_code_tab, ledger_row,
-   pagination, …).
-4. **Demo pages are the storyboard.** `components_demo` / `layouts_demo`
-   stay, and every component change updates them in the same wave —
-   lockstep is the price of keeping them.
-5. **Fold vs column-drop at the gate.** SETTLED (owner verdict 2026-08-07,
-   on pixels): column-drop won over the fold as THE width behavior; the
-   two-line fold survives only under the phone-width ~32rem container
-   query (kept below the narrowest pane-open container) as the last
-   resort. The `?fold` switch, the pane-open fold and the losing CSS are
-   gone; row anatomy never changes with pane state. *Addendum (owner,
-   2026-08-07 round 2 — law C11 "intrinsic first"):* the drop steps
-   themselves died the same day — their 60/52rem thresholds were invented
-   and hid columns with space to spare. The width behavior
-   is now INTRINSIC: mono columns sit at max-content, the Titel absorbs
-   slack and ellipsizes first, every column stays visible above the fold;
-   the ~32rem fold threshold carries its C9 content arithmetic.
-   *Addendum (list wave, 2026-09-29, a2 rounds 2 and 10):* the Titel wraps
-   instead of ellipsizing; every other cell keeps its one line and ends in
-   "…"; the fold is the ledger's S form at the space budget's 40rem, the
-   title over one line of its facts, and it hides no value.
-6. **Tests move in the same wave, and e2e is mandatory.** Some unit/e2e
-   selectors grip `c-*`/`l-*` names (`c-badge--entwurf`,
-   `c-artikel-aktionen`, `l-zurueck`, …) — migrate them with the markup.
-   A cascade rework is exactly the known regression class in `CLAUDE.md`
-   (position/overlay rules on `hidden`-gated elements intercepting
-   clicks), so the wave's gate is the e2e journeys, not gallery renders
-   alone. An axe-core pass over the journey pages rides along (carried
-   from issue #9) — the semantic-HTML upgrade is the moment to measure
-   and fix the a11y crop.
-
-Success criterion: net-negative diff in CSS lines and unique class names
-(169 classes / ~2,344 CSS lines at charter time), zero visual regressions
-outside the deliberately changed states, gallery renders as the verdict
-medium.
-
 ## Method (every screen, every element)
 
 1. Write the screen's job first: who, what they try to achieve, what success looks like
@@ -209,8 +156,10 @@ Standing rulings (owner, 2026-09-26/27):
   tab order = field order, Enter submits the primary action (on the article form Speichern, which
   applies the chosen Status: owner, a1 round 4), autofocus lands
   where the work starts, serial workflows (Duplizieren, bulk edit) get the fewest round-trips.
-- **Modes follow the OS.** `color-scheme: light dark` + `light-dark()` per role; no toggle in v1.
-  Dark is tuned, not inverted.
+- **Modes follow the OS until chosen.** `color-scheme: light dark` + `light-dark()` per role. The
+  footer toggle (`theme.js`) saves the scheme opposite to the OS's in a one-year `theme` cookie,
+  which the server renders as `<html data-theme>`; a second click deletes it and the page follows
+  the OS again. Dark is tuned, not inverted.
 - **Modern CSS floor** (owner, 2026-07-09): ~2024+ evergreen browsers (`light-dark()`, `:has()`,
   popover, `lh`); progressive enhancements (`field-sizing`, anchor positioning) degrade to a
   working default.
@@ -282,14 +231,6 @@ page. Values: `DESIGN.md` frontmatter (light) and `.impeccable/design.json` (the
   app, `system/icons.svg` in the mock, name for name.
 
 ## Component mapping
-
-The mock system's components (proven in `system/gallery.html`; the a1/a2/a3 folders' own CSS holds
-proposals still waiting for a ruling): topbar, search-field, search-sentence, section-head,
-register, ledger, pager, facts, media, crumbs, resume, menu (native popover), button, mark,
-note, icon, autocomplete (single, and multiple with chips), title-field. Form parts proven in
-`a1-formular/`: field (with the "*" and "intern" markers), record margin (status, Sichtbar für,
-conflict notice, version line), file-row, upload ("+ Dateien hinzufügen"), help (ⓘ + popover),
-remove (the one ×), add ("+ …"), pairs.
 
 ### Component inventory
 
@@ -432,27 +373,3 @@ surface with the same job copies these, not a fresh invention.
   the margin opens with the notice (3px red rule, red subhead, one sentence whose field names
   are links). Not the `:invalid` pseudo-class: `setCustomValidity` would block the save that
   resolves the conflict.
-
-## Contrast
-
-The floors in the Tokens table are the contract, judged at the design gate on renders of every
-state in both modes. Colours are chosen once in the token layer and change nowhere else.
-
-## Extensions (optional, non-integral)
-
-Each is additive, isolated behind its own class names, removable without
-touching the system: Waldläuferzeichen as state language (empty results, 404,
-"noch nicht eingeordnet"); Kohte silhouette in the empty state; pennant/trail
-geometry for micro-icons (chip ✕, markers). Implement opportunistically,
-never at the cost of the core.
-
-## Order of work (owner, 2026-09-26/27)
-
-1. The rules into the law — this document, `DESIGN.md`, and the cue register of
-   `design-review-law.md`. Done 2026-09-27.
-2. Monochrome retoken of `tokens.css` + the top bar, with the design lint on the new register.
-   Done 2026-09-27 (Wave T). The door page follows as its own wave (auth surface).
-3. Components per the system, one writer each (Wave C's owned-component model), each rendered in
-   the component gallery at S / M / L before a page uses it.
-4. Pages: start, list, article; each checked against its screen-job table.
-5. The edit-form recompose (`WAVE-R.local.md`), on the a1 mocks.

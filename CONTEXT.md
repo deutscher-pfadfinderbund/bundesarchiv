@@ -18,12 +18,6 @@ _Avoid_: Item, entry, document.
 The single owning, nestable division an Article belongs to, and the source of its Audience. Collections form a single-parent tree (shallow in practice: a handful of top Bestände, ≤2–3 levels — owner 2026-08-22). Exactly one per Article. May carry an optional description (owner 2026-08-22).
 _Avoid_: Sammlung (superseded UI label — owner ruling 2026-08-22: "Bestand" is law), Catalogue, Fonds; do not also use "Collection" for thematic grouping (see Album).
 
-**Album** (*Album*) — _deferred, not in v1_:
-A future thematic, browse-only grouping of Articles (many per Article, no effect on Audience). Name provisional.
-
-**Carrier** (*Objekt*) — _deferred, not in v1_:
-A distinct physical object embodying an Article when one Article has several physical copies/manifestations in different places. In v1 this is collapsed into the single `physical_location` field below; multiple Carriers come later (with Album).
-
 **Reference code** (*Signatur*) — code field `ref_code`:
 The identifier an Archivist assigns to an Article and writes on the physical object (e.g. `F12/3-b2`). Optional, free-text, sorts numeric-aware, soft-unique (duplicates warned, not blocked). It is human-facing metadata, **not** the Article's stable identity (which is an internal ULID). Audience note (owner, 2026-08-23): Signaturen matter to Archivists; **Members don't really care for them at all** — on shared views the mark's visual rank follows the archivist's need, never above a member's disinterest. **Shape (owner, 2026-08-07):** a Signatur carries **no spaces**, and **8 characters is the practical ceiling** ("they could get longer, but I don't expect them to") — demo corpora and layout renders use codes at or under that ceiling; where a layout needs stressing, the unbounded field is the Titel.
 _Avoid_: signature (false friend — means autograph in English), ref_id (implies identity — the ULID is the identity), call number, ID, key.
@@ -43,7 +37,7 @@ Any authenticated DPB member (identity via Keycloak). In v1, reads/browses/searc
 _Avoid_: user.
 
 **Public** (*Öffentlich*):
-**Link-accessible**, not the open internet: later, a visitor holding a special link to one Article, with no login prompt (semi-public access, owner 2026-10-01). Today a Public viewer never passes the door: an anonymous request gets the sign-in page. Anonymous internet browsing does not exist — no public listing, browse, or search, ever (owner, 2026-08). The `PUBLIC` code identifier keeps its name for now.
+**Link-accessible**, not the open internet: later, a visitor holding a special link to one Article, with no login prompt (semi-public access, owner 2026-10-01). Anonymous internet browsing does not exist — no public listing, browse, or search, ever (owner, 2026-08). The `PUBLIC` code identifier keeps its name for now.
 
 **Viewer** (code term, no single UI label):
 *Who is asking* — the union of Archivist, Member, and Public. The value object the access model takes (with the asker's Group names) to decide what they may see; data only, never reads Keycloak itself.
@@ -62,7 +56,7 @@ A Keycloak group. Naming one (or several, OR-combined) in an Audience narrows Me
 ### Cataloging
 
 **Media-type** (*Medienart*) and **Document-type** (*Dokumenttyp*):
-Descriptive classifications of an Article. Free-text with autocomplete, seeded with default values, open to new ones. Not managed entities. Being rethought (owner 2026-10-21): several independent questions (for example Art, Träger, Gattung), each answered on its own and stored in each record; the questions are settled with the archivists.
+Descriptive classifications of an Article. Free-text with autocomplete, seeded with default values, open to new ones. Not managed entities.
 
 **Tag** (*Schlagwort*):
 Free-text keyword with autocomplete. Unstructured: a search aid carried over from the old archive's weak search, not a classification.
@@ -74,7 +68,7 @@ Who made the original, as free text.
 The place an Article concerns, as free text.
 
 **Physical location** (*Standort*):
-Where an Article's physical original is kept: a path of levels, from the largest place to the smallest (Magazin 2 › Regal B › Mappe 14). Each level is a word, not a managed entry. Which levels exist is still open, and the Standort may move to each copy of an Article once one Article can have several copies in several places (to be settled with the archivists, owner 2026-10-21). The object's description lives in the Article body, not a separate field.
+Where an Article's physical original is kept: a path of levels, from the largest place to the smallest (Magazin 2 › Regal B › Mappe 14). Each level is a word, not a managed entry. The object's description lives in the Article body, not a separate field.
 
 **Custom fields**:
 Arbitrary key/value metadata an Archivist can attach for things the predefined fields don't cover. Always Archivist-only — never shown to Members or the public. To show a field to others, it must become a predefined field (a code change). See ADR 0009.
