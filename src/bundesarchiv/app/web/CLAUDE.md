@@ -1,6 +1,6 @@
-# app/web — package law
+# app/web — package rules
 
-Law: `viewer_of(request)` is THE request→Viewer trust boundary — no view resolves identity another way. Deny is a plain 404
+`viewer_of(request)` is THE request→Viewer trust boundary — no view resolves identity another way. Deny is a plain 404
 revealing and changing nothing (`assert_denied` is the test contract). Every route is enumerated by the leak matrix
 (`tests/app/web/test_leak_matrix.py`) — a new route must join its contract table. UI is German, code identifiers English
 (`CONTEXT.md`). A form save catches ADR 0013's `Conflict` and re-displays the winner; every other mutation goes through

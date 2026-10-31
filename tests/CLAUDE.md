@@ -1,14 +1,13 @@
-# Test-suite law
+# Test-suite rules
 
-## The testing razor (owner ruling, 2026-08)
+## The testing razor (2026-08)
 
 Extensive coverage ONLY where a defect is (a) domain-relevant, (b) data loss, or
-(c) data leak. Everything else gets light coverage or none. Source:
-`docs/requirements/owner-interview-2026-08.md`; the full audit that applied it is
+(c) data leak. Everything else gets light coverage or none. The audit that applied it is
 in git history (`docs/plans/test-audit-2026-08.md`, removed after execution).
 
-Leak, deny, access and floor tests stay even when another test overshadows them (owner ruling,
-2026-09-29), the index leak suites included. Do not cut them as redundant; "Do not write" below
+Leak, deny, access and floor tests stay even when another test overshadows them (2026-09-29),
+the index leak suites included. Do not cut them as redundant; "Do not write" below
 governs new tests only.
 
 ## Do not write
@@ -16,7 +15,7 @@ governs new tests only.
 - **Dataclass/framework/library-mechanics tests** (frozen raises, equality of
   equal values, `isinstance`, re-proving Postgres stemming beyond one lock case).
 - **Style lints as tests** (color sweeps, import-direction AST police) — that is
-  linter/type-checker territory. ONE deliberate exception by owner ruling
+  linter/type-checker territory. ONE deliberate exception
   (design-review-law section E): `app/web/test_design_lint.py` enforces the
   law's lintable subset over the prod stylesheets. A second exception: a structure gate
   is allowed when its failure names a finding class with bite evidence in
@@ -25,10 +24,10 @@ governs new tests only.
 - **Performance micro-pins** (load-count spies) — they pin implementation, not
   behavior. Not one: a wire pin that states an ADR's contract (the push order ADR 0020
   prescribes, `[PUT history, PUT README]`) is behaviour, even though it also fixes the count.
-- **Byte-identical response comparisons** — the byte-identical-404 law was
+- **Byte-identical response comparisons** — the byte-identical-404 rule was
   relaxed (2026-08); see the deny contract below.
 - **UI copy and markup** (German strings, CSS classes, glyphs, htmx attributes,
-  element structure) — owner ruling 2026-09-30. Tests assert behaviour: which
+  element structure) — 2026-09-30. Tests assert behaviour: which
   records a viewer gets, where a link or form goes and with which state, what is
   written, what is denied, which data values reach the page. Copy and look are
   the owner's to judge on the gallery and the live pages. A test that fails only
@@ -106,7 +105,7 @@ adversarial inputs.
 - `e2e/` — real-browser journeys + the state gallery (both deselected from the
   default run); each journey walks a loss/leak spine or pins a named regression.
   `test_a11y.py` is the axe-core WCAG 2.2 AA pass over the journey pages
-  (color-contrast disabled per the 2026-08 audit ruling; axe vendored under
+  (color-contrast disabled per the 2026-08 audit; axe vendored under
   `e2e/vendor/`).
   **`e2e/_pages.py` is THE screen inventory**: every GET-reachable screen, once,
   with its viewer tier, the minimum overlay panels it composes and the control

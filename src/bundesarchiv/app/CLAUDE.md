@@ -1,6 +1,6 @@
-# app — package law
+# app — package rules
 
-Law: `Archive.canonical()` is the ONLY place in `src/` that builds the CANONICAL store and its index
+`Archive.canonical()` is the ONLY place in `src/` that builds the CANONICAL store and its index
 from settings (ADR 0024) — new code takes an `Archive`, never constructs a store or an index.
 (`tasks.mirror_store()` builds the system of record's WebDAV store from settings too, ADR 0020; it
 is never a read path.) The write shell's

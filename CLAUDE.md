@@ -1,6 +1,6 @@
 ## Packages
 
-Each package has a `CLAUDE.md` with its law; pick the package(s) a task touches:
+Each package has a `CLAUDE.md` with its rules; pick the package(s) a task touches:
 
 - `domain` — pure core: values, access decisions; no IO, no Django · `src/bundesarchiv/domain/CLAUDE.md`
 - `persistence` — files-canonical storage: README codecs, repositories, the ObjectStore port; no Django · `src/bundesarchiv/persistence/CLAUDE.md`
@@ -73,19 +73,29 @@ Canonical label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `re
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-### Binding requirements
+### Decisions and records
 
-Owner rulings live in `docs/requirements/` (`archivist-wishes-2025.md`, `owner-interview-2026-08.md` — access model, rollout stages, storage). Check them before inferring scope or requirements.
+A rule binds when the owner decided it: their words are quoted, or the commit that records it
+names their decision. An agent's paraphrase is a record, not a rule, whatever it calls itself
+("law", "ruling", "binding", "ratified"). A rule you cannot trace to the owner is open: ask,
+never argue it into force.
+
+A decision is recorded where it binds: a package rule in that package's `CLAUDE.md`, an
+architecture decision in a new ADR under `docs/adr/` (its status set by the owner), a component
+decision in its contract under `design-system/`, a test rule in `tests/CLAUDE.md`.
+`docs/requirements/` holds dated records of conversations (`archivist-wishes-2025.md`,
+`owner-interview-2026-08.md`, `search-ui-rulings-2026-10.md`), written by agents, frozen: read
+them as evidence of what was said, cite nothing from them as binding, append nothing.
 
 ### Testing razor
 
-Test depth is proportional to risk: extensive coverage only where a defect is domain-relevant, loses data, or leaks data (owner ruling 2026-08). The do-not-write list, the deny contract (`assert_denied`), and the per-suite ownership map: `tests/CLAUDE.md`.
+Test depth is proportional to risk: extensive coverage only where a defect is domain-relevant, loses data, or leaks data. The do-not-write list, the deny contract (`assert_denied`), and the per-suite ownership map: `tests/CLAUDE.md`.
 
 ### Design system
 
 `DESIGN.md` is the entry: the visual digest, then the sources, contracts, checks and gaps. The
 `design-system` skill maintains the contracts in `design-system/`; each goes in only with the owner's
-approval. A component without one is governed by the inventory and the law. Design-system gaps go to
+approval. A component without one is governed by the inventory and the review rules in `docs/design/`. Design-system gaps go to
 `design-system/gaps.md`.
 
 ### Design gate / QA

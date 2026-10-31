@@ -1,6 +1,6 @@
-# persistence — package law
+# persistence — package rules
 
-Law: this package NEVER imports Django or reads settings (ADR 0005) — construction from settings
+this package NEVER imports Django or reads settings (ADR 0005) — construction from settings
 lives in `app/archive.py`. The README files are canonical; everything else is derived. Every save
 and every hard delete goes through `_writer`, under one lock (ADR 0013, 0019, 0020).
 All three ObjectStore adapters are
