@@ -701,10 +701,13 @@ def test_the_pager_holds_the_range_between_its_steps(two_pages: Corpus) -> None:
     assert re.search(rf'<a href="\?[^"]*page=2[^"]*" rel="next" {_CONTINUE}</a>', pager)
 
 
-def test_a_one_page_list_shows_its_count_and_no_steps(indexed_corpus: Corpus) -> None:
+def test_a_one_page_list_shows_its_range_and_no_steps(indexed_corpus: Corpus) -> None:
     total = len(list(indexed_corpus.articles.list_ulids()))
     body = _get(Archivist()).content.decode()
-    assert f'<data value="{total}">{total}</data> Einträge</span>' in body
+    assert (
+        f'<data value="1">1\N{EN DASH}{total}</data> von <data value="{total}">{total}</data></span>'
+        in body
+    )
     assert 'aria-label="Seiten"' not in body
     # the archivists asked for the choice, not for pagination: it shows on one page too
     assert _sizes(body) == {

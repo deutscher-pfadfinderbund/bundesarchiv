@@ -650,7 +650,8 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # the #results swap and refreshes out-of-band.
     page = archivist_page
     page.goto(live_workbench + LIST)
-    expect(page.locator(".pager")).to_contain_text("7 Einträge")  # the canonical corpus, one page
+    # the canonical corpus, one page
+    expect(page.locator(".pager")).to_contain_text("1\N{EN DASH}7 von 7")
     count = page.locator("#hit-count")
     expect(count).to_have_text("")
     # The live region's NODE must survive the swap or the polite announcement dies silently. Stamp
@@ -660,7 +661,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # real keystrokes (the hx-trigger is keyup; fill() sets the value without key events)
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
     expect(count).to_have_text("1 Treffer")  # refreshed out-of-band, no full navigation
-    expect(page.locator(".pager")).to_contain_text(re.compile(r"(^|\s)1 Eintrag\b"))
+    expect(page.locator(".pager")).to_contain_text("1\N{EN DASH}1 von 1")
     assert "q=Sommerfahrt" in page.url  # it was the hx swap (pushed URL), not a page load
     assert page.evaluate("() => document.querySelector('#hit-count').__probe") == "same-node", (
         "the count's aria-live node was replaced by the swap — announcements die silently"

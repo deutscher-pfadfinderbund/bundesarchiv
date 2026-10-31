@@ -117,9 +117,10 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
             "filter_checks": _FILTER_CHECKS,
             "pager": {
                 "stepped": False,
+                "first": 1,
+                "shown": f"1\N{EN DASH}{len(_HITS)}",
                 "total": len(_HITS),
                 "total_label": str(len(_HITS)),
-                "noun": "Einträge",
             },
             "preview": _PREVIEW,
             "new": new_article_panel(CollectionChooser(lambda: ())),

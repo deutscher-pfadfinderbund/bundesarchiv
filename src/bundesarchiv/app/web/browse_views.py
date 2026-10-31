@@ -361,7 +361,6 @@ class _Pager:
     shown: str
     total: int
     total_label: str
-    noun: str
     sizes: tuple[_PageSize, ...] = ()
 
 
@@ -394,11 +393,6 @@ def _pager(
         page=n, page_size=page_size, hits_on_page=hits, total=page.total
     )
     shown = f"{vocab.count(first)}\N{EN DASH}{vocab.count(first + hits - 1)}" if hits else ""
-    noun = "Eintrag" if page.total == 1 else "Einträge"
-    if parsed.filters.templates_only:
-        noun = "Vorlage" if page.total == 1 else "Vorlagen"
-    elif parsed.filters.drafts_only:
-        noun = "Entwurf" if page.total == 1 else "Entwürfe"
     return _Pager(
         stepped=has_prev or has_next,
         prev_query=browse.page_query_with_selection(params, selection, n - 1) if has_prev else None,
@@ -407,7 +401,6 @@ def _pager(
         shown=shown,
         total=page.total,
         total_label=vocab.count(page.total),
-        noun=noun,
         sizes=sizes,
     )
 
