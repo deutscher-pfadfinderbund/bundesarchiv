@@ -292,7 +292,6 @@ rail; they are split out only as swap units (law C7).
 | Selection tools | `.bulk` | `workbench/_tools` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` the tool row's selection tools | approved (2026-10-11) |
 | Search sentence | `.search-sentence` | `workbench/_search_field`, `_filterset` | `layouts.css` search sentence | approved (2026-10-11) |
 | Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane | approved (2026-10-11) |
-| Failure banner | `.error-banner` | inline (`base`) | `layouts.css` global htmx failure banner | approved (2026-10-11) |
 | Cover Platte | `.cover` | inline (`detail`) | `detail.css` cover Platte | approved (2026-10-11) |
 | Media rows | `.media-rows` | inline (`detail`), script `media.js` | `detail.css` the files after the cover | approved (2026-10-11) |
 | Lightbox | `.lightbox` | `workbench/_lightbox` | `detail.css` the lightbox | approved (2026-10-11) |

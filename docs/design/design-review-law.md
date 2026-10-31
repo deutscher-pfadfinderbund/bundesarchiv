@@ -148,7 +148,7 @@ trapezoid register tab lapsed with the square-corner ruling.
    owner may veto): a bare `z-index` is a literal whose RELATIONSHIP to its
    neighbours is its entire meaning, so the model is stated once, in order —
    flow (incl. the sticky sheet) < a dropped overlay panel < a sticky control
-   row < the page header < the viewport-fixed banner. A new layer joins the
+   row < the page header. A new layer joins the
    scale; it is never guessed at its use site. (The header must out-stack the
    rows because a sticky row is a stacking context, so a panel dropped by a
    header control can only win through its ancestor's value.)

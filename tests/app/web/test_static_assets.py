@@ -26,7 +26,6 @@ _KNOWN_ASSETS = frozenset(
         "combobox.js",
         "components.css",
         "detail.css",
-        "error_banner.js",
         "favicon.ico",
         "favicon.svg",
         "forms.css",

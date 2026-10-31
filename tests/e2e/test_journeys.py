@@ -1268,6 +1268,19 @@ def test_download_saves_the_original_under_its_own_name(
 # --- create a draft ----------------------------------------------------------------
 
 
+_ARM_SETTLED_JS = """() => {
+    window.htmxSettled = false;
+    document.addEventListener("htmx:after:request", () => { window.htmxSettled = true; }, {once: true});
+}"""
+
+
+def _settle_after(page: Page, act: Callable[[], None]) -> None:
+    """Run act and wait until the htmx request it sends has finished, failure handlers included."""
+    page.evaluate(_ARM_SETTLED_JS)
+    act()
+    page.wait_for_function("() => window.htmxSettled")
+
+
 def _create_draft(page: Page, base: str, title: str) -> str:
     """Drive the create step (Titel + Sammlungsteil → Anlegen) then set the required Medienart on the edit
     form, so the draft is saveable/publishable. Returns the new draft's edit-form URL."""
@@ -1331,60 +1344,7 @@ def test_a_double_clicked_save_sends_one_save(archivist_page: Page, live_workben
     expect(page.locator(".conflict-notice")).to_have_count(0)
 
 
-def test_failed_save_banner_leaves_save_clickable(
-    archivist_page: Page, live_workbench: str
-) -> None:
-    page = archivist_page
-    # A failed save reveals the global error banner, fixed at the viewport BOTTOM. On L the form's
-    # margin, which holds Speichern, is sticky at the TOP, so the recorded regression class — a
-    # Speichern occluded by the banner at exactly the moment the archivist needs to retry — cannot
-    # occur there. This journey pins that: while the banner is up, a real browser hit-test at
-    # Speichern's center still reaches the button, and the retry fires again.
-    page.set_viewport_size({"width": 1440, "height": 900})
-    _create_draft(page, live_workbench, "E2E Fehlschlag")
-
-    def fail_saves(route: Route) -> None:
-        # abort only the save POSTs; the edit page's own GET (same URL) must keep loading normally
-        if route.request.method == "POST":
-            route.abort()
-        else:
-            route.fallback()
-
-    page.route("**/edit", fail_saves)
-    page.click('button:has-text("Speichern")')  # htmx:error → the banner reveals
-    expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
-    # Scrolled to the very bottom — the harshest position for a viewport-bottom banner — the margin
-    # is still pinned at the top and its Speichern is still the topmost element at its own center. A bare page.click cannot pin this: Playwright's actionability retry scrolls an
-    # occluded element into a clickable position and the click lands anyway.
-    page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
-    state = page.evaluate(
-        """() => {
-        const banner = document.querySelector('.error-banner');
-        const btn = document.querySelector('.record-meta button.primary');
-        const b = banner.getBoundingClientRect();
-        const r = btn.getBoundingClientRect();
-        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-        return {
-            speichernHit: btn === hit || btn.contains(hit),
-            speichernBottom: r.bottom,
-            bannerTop: b.top,
-        };
-    }"""
-    )
-    assert state["speichernHit"], "the error banner paints over Speichern (hit-test misses)"
-    assert state["speichernBottom"] <= state["bannerTop"] + 1, (
-        f"the margin overlaps the banner: Speichern bottom {state['speichernBottom']}px "
-        f"vs banner top {state['bannerTop']}px"
-    )
-    # and the retry itself works end to end: the second Speichern fires another save while the
-    # banner stays visible through it (the error is never sacrificed to keep the button clickable)
-    page.click('button:has-text("Speichern")', timeout=5000)
-    expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
-
-
-def test_a_denied_save_swaps_nothing_and_a_later_success_hides_the_banner(
-    archivist_page: Page, live_workbench: str
-) -> None:
+def test_a_denied_save_swaps_nothing(archivist_page: Page, live_workbench: str) -> None:
     # A deny is an empty 404. Swapped through hx-select="#form-region" it would replace the whole
     # edit region with nothing and take the unsaved edits with it; htmx 4 swaps non-2xx unless the
     # htmx-config meta in base.html says otherwise.
@@ -1399,16 +1359,8 @@ def test_a_denied_save_swaps_nothing_and_a_later_success_hides_the_banner(
             route.fallback()
 
     page.route("**/edit", deny_saves)
-    page.click('button:has-text("Speichern")')
-    banner = page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")
-    expect(banner).to_be_visible()
+    _settle_after(page, lambda: page.click('button:has-text("Speichern")'))
     expect(page.locator('textarea[name="title"]')).to_have_value("E2E Ungespeichert")
-    # a later success hides it: a validation re-render is a 200 that stays on the page
-    page.unroute("**/edit")
-    page.fill('textarea[name="title"]', "")
-    page.click('button:has-text("Speichern")')
-    expect(page.locator(".form-sheet .error").first).to_be_visible()
-    expect(banner).to_be_hidden()
 
 
 # --- dirty register (PE)-----------------------------------------------------------
@@ -2330,15 +2282,17 @@ def test_a_failed_upload_says_it_was_cut_off(archivist_page: Page, live_workbenc
 def test_a_denied_upload_leaves_the_cut_off_notice_hidden(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # Only the gateway's cuts are about the 60 s; any other failure is the global banner's.
+    # Only the gateway's cuts are about the 60 s.
     page = archivist_page
     page.goto(_create_draft(page, live_workbench, "E2E Verweigert hochgeladen"))
     page.route("**/media/upload", lambda route: route.fulfill(status=404, body=""))
-    page.set_input_files(
-        '#media-drawer input[type="file"]',
-        {"name": "klein.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
+    _settle_after(
+        page,
+        lambda: page.set_input_files(
+            '#media-drawer input[type="file"]',
+            {"name": "klein.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
+        ),
     )
-    expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
     expect(page.locator("#upload-notice")).to_be_hidden()
 
 

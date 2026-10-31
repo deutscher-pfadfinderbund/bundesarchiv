@@ -78,7 +78,6 @@ Journeys: `test_create_draft_lands_on_edit_form`,
 `test_edit_and_save_redirects_to_read_view`,
 `test_cas_conflict_second_saver_sees_panel`,
 `test_copy_creates_draft_copy_ref_code_focused`,
-`test_failed_save_banner_leaves_save_clickable`,
 `test_no_js_create_and_save_baseline` (the whole loop works without JS).
 
 ## 3. Publish (lifecycle)

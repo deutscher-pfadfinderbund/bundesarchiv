@@ -304,37 +304,6 @@
     font: var(--type-meta);
     color: var(--ink-2);
   }
-
-  /* ---- global htmx failure banner: viewport-fixed at the bottom, revealed by base.html's failure
-     listener. Hiding is the modes-layer [hidden] rule, which outranks this display, so the banner
-     can never intercept clicks while hidden — the recorded regression class.
-     test_failed_save_banner_leaves_speichern_clickable pins Speichern clickable with a real
-     hit-test. ---- */
-  .error-banner {
-    position: fixed;
-    inset-block-end: 0;
-    inset-inline: 0;
-    z-index: var(--z-banner); /* above every row and everything in flow (the scale: tokens.css) */
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    background: var(--error);
-    color: var(--ground);
-  }
-  /* biome-ignore lint/style/noDescendingSpecificity: the banner is never inside a pane */
-  .error-banner p {
-    margin: 0;
-  }
-  .error-banner button {
-    background: none;
-    border: none;
-    color: inherit;
-    font: var(--type-title);
-    line-height: 1;
-    padding: 0 var(--space-1);
-  }
 }
 
 @layer compositions {

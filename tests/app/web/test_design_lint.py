@@ -19,14 +19,13 @@ STATIC = Path(__file__).resolve().parents[3] / "src" / "bundesarchiv" / "app" / 
 STYLESHEETS = ("tokens.css", "components.css", "layouts.css", "forms.css", "detail.css")
 
 #: Register row 5 — red. Selectors that license var(--error), each matched as a whole class
-#: (`.error` does not license `.error-banner`).
+#: (`.conflict-notice` does not license `.conflict-notice-head`).
 ERROR_LICENSED = (
     ".error",  # a field error's message (the register's `.field-error`)
     '[aria-invalid="true"]',  # the doubled edge of an invalid control
     ".conflict-notice",  # the edit forms' conflict notice: its heavy rule...
     ".conflict-notice-head",  # ...and its subhead
     ".danger",  # the context on every action that deletes for good
-    ".error-banner",  # the failed-request message: an error
 )
 
 Decl = tuple[str, str, str, int, bool]  # (selector stack, property, cleaned line, lineno, comment)
@@ -381,7 +380,7 @@ def test_square_corners() -> None:
 
 
 def _licensed(selector: str, allowlist: tuple[str, ...]) -> bool:
-    """An entry matches as a whole: never as the prefix of a longer class (`.error-banner`)."""
+    """An entry matches as a whole: never as the prefix of a longer class (`.conflict-notice-head`)."""
     return any(re.search(rf"{re.escape(lic)}(?![-\w])", selector) for lic in allowlist)
 
 
