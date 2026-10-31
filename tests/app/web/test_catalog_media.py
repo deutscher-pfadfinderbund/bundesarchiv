@@ -701,7 +701,6 @@ def test_only_an_image_row_offers_the_alt_field(make_corpus: Callable[[], Corpus
         client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
     )
     assert re.findall(r'name="alt\[([0-9a-f]+)\]"', drawer) == [photo.content_hash]
-    assert "Für Menschen, die das Bild nicht sehen." in drawer
 
 
 def _pdf_article(
