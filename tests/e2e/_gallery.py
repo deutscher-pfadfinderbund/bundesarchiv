@@ -17,7 +17,7 @@ from tests.e2e._pages import (
     READING_QUERY,
     SCREENS,
     Screen,
-    _at,
+    reach_at,
     reach_search_suggestions,
     reach_tag_suggestions,
 )
@@ -355,7 +355,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench in selection mode, nothing ticked: 'Abbrechen', 'Feld ändern …' and the"
         " checkbox column with its select-all head",
         True,
-        _at(f"{LIST}?selection="),
+        reach_at(f"{LIST}?selection="),
     ),
     GalleryState(
         "workbench-bulk", "workbench, selection + 'Feld ändern …' open", True, _reach_bulk
@@ -364,7 +364,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench-reading-phone",
         "workbench, the Lesesaal on a phone (the mockup's 390)",
         True,
-        _at(f"{LIST}?q={READING_QUERY}"),
+        reach_at(f"{LIST}?q={READING_QUERY}"),
         widths=PHONE,
     ),
     GalleryState(
@@ -378,20 +378,20 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench-reading-sorted",
         "workbench, the Lesesaal sorted by date from the table: the sentence names the sort",
         True,
-        _at(f"{LIST}?q={READING_QUERY}&sort=-date"),
+        reach_at(f"{LIST}?q={READING_QUERY}&sort=-date"),
     ),
     GalleryState(
         "workbench-table-query",
         "workbench, the table with a query: 'Auswählen' sits apart from the view switch",
         True,
-        _at(f"{LIST}?q={READING_QUERY}&view=table"),
+        reach_at(f"{LIST}?q={READING_QUERY}&view=table"),
         widths=(*WIDTHS, *PHONE),
     ),
     GalleryState(
         "workbench-sentence-wrap",
         "workbench, a search sentence with filters set, wrapping: no line starts with the dot",
         True,
-        _at(f"{LIST}?q=Lager&tag=sommer&media_type=Foto(s)"),
+        reach_at(f"{LIST}?q=Lager&tag=sommer&media_type=Foto(s)"),
         widths=(*WIDTHS, *PHONE),
     ),
     GalleryState(
@@ -406,7 +406,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench-templates",
         "workbench filtered to the Vorlagen: the removable chip, no Vorlage mark on the rows",
         True,
-        _at(f"{LIST}?templates=1"),
+        reach_at(f"{LIST}?templates=1"),
     ),
     GalleryState(
         "bulk-confirm-error",
@@ -543,7 +543,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "edit-template",
         "the edit surface of a Vorlage: the box ticked, the Status without Veröffentlicht",
         True,
-        _at(f"/articles/{TEMPLATE_ULID}/edit"),
+        reach_at(f"/articles/{TEMPLATE_ULID}/edit"),
     ),
     GalleryState(
         "edit-template-refused",

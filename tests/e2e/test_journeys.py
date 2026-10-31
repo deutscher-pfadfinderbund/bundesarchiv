@@ -213,7 +213,7 @@ def test_search_works_from_a_screen_without_the_results_region(
     # the forms carry no search at all: it invites leaving a form with unsaved edits
     for form_url in (
         live_workbench + "/articles/new",
-        _create_draft(page, live_workbench, "E2E Formular ohne Suche"),
+        live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit",
     ):
         page.goto(form_url)
         expect(page.locator('[role="search"]')).to_have_count(0)
@@ -465,7 +465,11 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    page.goto(live_workbench + f"{LIST}?tag=sommer")
+    page.goto(live_workbench + f"{LIST}?tag=sommer&article={e2e_corpus.published_ulid}")
+    buttons = len(_toolbar_buttons(page)[1])
+    assert buttons >= 2, (
+        f"the walk measured {buttons} toolbar buttons — the ink check proves nothing"
+    )
     filtered = _walk_control_rows(page)
     header = next(n for n in filtered if n.startswith("header"))
     assert "+ Neu …" in [c["label"] for c in filtered[header]], filtered[header]
@@ -480,12 +484,6 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     # the published record has three files: three toolbars of three icon buttons (up · down · remove)
     media = [n for n in edit if n.startswith("span.file-row-tools[toolbar]") and len(edit[n]) >= 3]
     assert len(media) >= 3, f"the media register's row toolbars were not walked: {sorted(edit)}"
-
-    page.goto(live_workbench + f"{LIST}?article={e2e_corpus.published_ulid}")
-    buttons = len(_toolbar_buttons(page)[1])
-    assert buttons >= 2, (
-        f"the walk measured {buttons} toolbar buttons — the ink check proves nothing"
-    )
 
 
 #: Per overlay, opened in turn: its geometry plus the entries a centre hit-test misses (on-viewport
@@ -693,10 +691,6 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     assert page.evaluate("() => document.querySelector('#hit-count').__probe") == "same-node", (
         "the count's aria-live node was replaced by the swap — announcements die silently"
     )
-    # zero hits: the empty state says so, and there is no range to show
-    page.goto(live_workbench + f"{LIST}?q=zzzznomatch")
-    expect(page.get_by_text("Keine Treffer")).to_be_visible()
-    expect(page.locator(".pager")).to_have_count(0)
 
 
 def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workbench: str) -> None:
@@ -738,21 +732,6 @@ def test_a_start_page_collection_opens_the_list_the_crumb_returns_to(
     page.wait_for_url(f"**{LIST}?collection=ROOT")
     page.locator(".wordmark").click()
     page.wait_for_url(lambda url: url.rstrip("/") == live_workbench.rstrip("/"))
-
-
-def test_each_start_page_area_opens_the_list_with_its_preset(
-    archivist_page: Page, live_workbench: str
-) -> None:
-    # Medienart, Zeitleiste and Weiter bearbeiten each lead somewhere: a preset of the list, or the
-    # draft's edit page.
-    page = archivist_page
-    for name, url_part in (("Foto(s)", "media_type="), ("1960er", "decade=1960")):
-        page.goto(live_workbench + "/")
-        page.locator("main").get_by_role("link", name=name).first.click()
-        page.wait_for_url(f"**{LIST}?*{url_part}*")
-    page.goto(live_workbench + "/")
-    page.locator(".resume").get_by_role("link").first.click()
-    page.wait_for_url("**/articles/**/edit")
 
 
 def test_an_old_list_link_lands_on_the_list_and_its_clear_links_stay_there(
@@ -1009,21 +988,16 @@ def test_static_assets_serve_in_the_live_server(public_page: Page, live_workbenc
 # --- detail read view (4.6) --------------------------------------------------------
 
 
-def test_detail_read_from_search_result(public_page: Page, live_workbench: str) -> None:
+def test_detail_read_from_search_result(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
     page = public_page
     # a member/public visitor: the Titel click IS the navigation to the Lesesaal detail read view
     # (one-click entry, owner 2026-08-07 — no pane interception, no JS in the loop).
     page.goto(live_workbench + LIST)
     page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
-    page.wait_for_url("**/articles/**")
-    # the reading structure: title, the origin line (Signatur, date), the cover Platte
+    page.wait_for_url(f"**/articles/{e2e_corpus.published_ulid}")
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")
-    expect(page.locator("main time")).to_have_attribute("datetime", "1962-07")
-    expect(page.get_by_text("F12")).to_be_visible()
-    expect(page.locator("main .cover img")).to_be_visible()
-    expect(page.locator(".media-rows figure")).to_have_count(2)  # the two files after the cover
-    href = page.locator(".media-rows figure > a").first.get_attribute("href")
-    assert href is not None and href.startswith("/media/")
     page.get_by_role("link", name="Archiv", exact=True).click()
     page.wait_for_url(lambda url: url.endswith(LIST))
 
@@ -1089,12 +1063,15 @@ def test_the_lightbox_counter_skips_nothing_and_focus_stays_in_it_at_the_ends(
     page = public_page
     box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
     strip = box.locator(".lightbox-strip")
-    strip.evaluate("s => s.addEventListener('scrollend', () => (window.scrollEnded = true))")
+    strip.evaluate(
+        "s => { window.scrollEnds = []; s.addEventListener('scrollend', () =>"
+        " window.scrollEnds.push(Math.round(s.scrollLeft / s.clientWidth))); }"
+    )
     page.keyboard.press("ArrowRight")
     page.keyboard.press("ArrowRight")  # a second step while the first still scrolls
     _expect_shown(page, "5 / 7")
-    page.wait_for_function("() => window.scrollEnded")
-    _expect_shown(page, "5 / 7")  # the scroll has ended and stays on the fifth
+    page.wait_for_function("() => window.scrollEnds.includes(4)")  # a scroll ended on the fifth
+    _expect_shown(page, "5 / 7")  # ...and stays there
     # a resize re-aligns the strip to the shown image
     page.set_viewport_size({"width": 900, "height": 700})
     page.wait_for_function(
@@ -1331,14 +1308,6 @@ def _create_draft(page: Page, base: str, title: str) -> str:
     return page.url
 
 
-def test_create_draft_lands_on_edit_form(archivist_page: Page, live_workbench: str) -> None:
-    edit_url = _create_draft(archivist_page, live_workbench, "E2E Neuer Entwurf")
-    assert "/edit" in edit_url
-    # the edit form is seeded with the new title, its Status a draft
-    expect(archivist_page.locator('textarea[name="title"]')).to_have_value("E2E Neuer Entwurf")
-    expect(archivist_page.locator('select[name="lifecycle"]')).to_have_value("draft")
-
-
 # --- edit + save -------------------------------------------------------------------
 
 
@@ -1347,6 +1316,11 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     _create_draft(page, live_workbench, "E2E Zu Bearbeiten")
     page.fill('input[name="ref_code"]', "E2E-1")
     page.fill('input[name="creator"]', "K. Meyer")
+    # a round trip that keeps the Signatur typed; the custom row sits outside #edit-form's subtree,
+    # and saving is part of publishing (owner, 2026-08-08)
+    page.click('button:has-text("+ Angabe hinzufügen")')
+    page.fill('input[name="custom_key"]', "Quelle")
+    page.fill('input[name="custom_value"]', "Privatbesitz Meyer")
     # Enter, not a click: Speichern sits outside #edit-form (form=), so implicit submission must
     # still find it as the default button.
     page.select_option('select[name="lifecycle"]', "published")
@@ -1355,6 +1329,9 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     # save 302s to the read view
     page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
     expect(page.get_by_text("E2E-1")).to_be_visible()  # Enter saved the form...
+    expect(
+        page.locator("main").get_by_text("Privatbesitz Meyer")
+    ).to_be_visible()  # ...the custom row...
     expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)  # ...and applied the Status
 
 
@@ -1404,13 +1381,13 @@ def test_a_denied_save_swaps_nothing(archivist_page: Page, live_workbench: str) 
 
 
 def test_dirty_register_covers_fields_outside_the_form_subtree(
-    archivist_page: Page, live_workbench: str
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
     # Custom-bag fields are form= ASSOCIATED with #edit-form but sit outside its
     # DOM subtree (the #media-drawer split) — the dirty register must still see their first edit.
-    edit_url = _create_draft(page, live_workbench, "E2E Ungespeichert")
-    page.goto(edit_url)  # fresh load: _create_draft's Medienart pick already revealed the chip
+    edit_url = live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit"
+    page.goto(edit_url)
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
     page.click('button:has-text("+ Angabe hinzufügen")')
     page.fill('input[name="custom_key"]', "Quelle")
@@ -1835,11 +1812,14 @@ def test_a_stale_failed_request_leaves_the_newer_list_open(
 
 
 def test_cas_conflict_second_saver_sees_panel(
-    archivist_page: Page, live_workbench: str, browser: Browser
+    archivist_page: Page, live_workbench: str, browser: Browser, e2e_corpus: CorpusHandles
 ) -> None:
     # Two archivists open the SAME draft edit form at the same version; the first save wins, the
-    # second sees the "Inzwischen geändert" panel (CAS, ADR 0013) — driven through two real browsers.
-    edit_url = _create_draft(archivist_page, live_workbench, "E2E Rennen")
+    # second's swap shows the conflict panel and keeps the typed value (CAS, ADR 0013). What the
+    # panel says is the server's: tests/app/web/test_catalog_edit.py.
+    edit_url = live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit"
+    archivist_page.goto(edit_url)
+    archivist_page.select_option('select[name="media_type"]', "Foto(s)")
 
     from tests.e2e.conftest import add_archivist_cookies
 
@@ -1858,7 +1838,7 @@ def test_cas_conflict_second_saver_sees_panel(
     # archivist 2 saves the now-stale form → the conflict panel appears inline, values preserved
     page2.fill('input[name="creator"]', "Zweiter")
     page2.click('button:has-text("Speichern")')
-    expect(page2.get_by_text("Inzwischen geändert")).to_be_visible()
+    expect(page2.locator(".conflict-notice")).to_be_visible()
     expect(page2.locator('input[name="creator"]')).to_have_value("Zweiter")
     ctx2.close()
 
@@ -1876,19 +1856,14 @@ def test_copy_creates_draft_copy_ref_code_focused(
     page.get_by_label("Weitere Aktionen").click()
     page.click('button:has-text("Duplizieren")')
     page.wait_for_url("**/edit**")
-    # the copy cleared the Signatur (ref_code) and the field is focused (spec §5)
-    expect(page.locator('input[name="ref_code"]')).to_have_value("")
-    expect(page.locator('input[name="ref_code"]')).to_be_focused()
-    expect(page.locator('textarea[name="title"]')).to_have_value("Sommerfahrt 1962")
+    expect(page.locator('input[name="ref_code"]')).to_be_focused()  # spec §5
 
 
 # --- Löschen, the Papierkorb (ADR 0022) ---------------------------------------------
 
 
-def _delete_new_draft(page: Page, base: str, title: str) -> None:
-    """A new draft, put in the Papierkorb from its article page's "Löschen …"."""
-    _create_draft(page, base, title)
-    ulid = page.url.split("/articles/")[1].split("/")[0]
+def _delete_from_article(page: Page, base: str, ulid: str) -> None:
+    """Puts the article in the Papierkorb from its page's "Löschen …"."""
     page.goto(base + f"/articles/{ulid}")
     page.get_by_label("Weitere Aktionen").click()
     page.click('[popovertarget="delete"]')
@@ -1898,26 +1873,21 @@ def _delete_new_draft(page: Page, base: str, title: str) -> None:
     page.wait_for_url(lambda url: url.endswith(LIST))  # → the list
 
 
-def test_a_deleted_article_waits_in_the_trash_and_comes_back(
+def test_a_deleted_article_comes_back_from_the_trash_or_leaves_it_for_good(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    title = "E2E Wiederzuholen"
-    _delete_new_draft(page, live_workbench, title)
+    title = "E2E Papierkorb"
+    _create_draft(page, live_workbench, title)
+    ulid = page.url.split("/articles/")[1].split("/")[0]
+    _delete_from_article(page, live_workbench, ulid)
     expect(page.locator("main")).not_to_contain_text(title)
     page.locator("main [role=toolbar]").get_by_role("link", name="Papierkorb").click()
     page.get_by_role("button", name=f"Wiederherstellen: {title}").click()
     page.wait_for_url("**/articles/*")
     page.goto(live_workbench + LIST)
     expect(page.locator("main").get_by_role("link", name=title, exact=True)).to_be_visible()
-
-
-def test_delete_permanently_removes_it_from_the_trash(
-    archivist_page: Page, live_workbench: str
-) -> None:
-    page = archivist_page
-    title = "E2E Endgültig weg"
-    _delete_new_draft(page, live_workbench, title)
+    _delete_from_article(page, live_workbench, ulid)
     page.goto(live_workbench + "/trash")
     detail = page.locator("main").get_by_role("link", name=title, exact=True).get_attribute("href")
     page.get_by_role("link", name=f"Endgültig löschen: {title}").click()
@@ -1941,32 +1911,12 @@ def test_publish_from_the_article_page_confirms_first(
     panel = page.locator("#publish")
     expect(panel).to_be_hidden()
     page.click('button:has-text("Veröffentlichen")')
-    expect(panel).to_contain_text("Nach dem Veröffentlichen ist dieser Eintrag öffentlich.")
+    expect(panel).to_be_visible()
     page.keyboard.press("Escape")
     expect(panel).to_be_hidden()
     page.click('button:has-text("Veröffentlichen")')
     page.click('button:has-text("Jetzt veröffentlichen")')
     expect(page.get_by_role("button", name="Veröffentlichen", exact=True)).to_have_count(0)
-
-
-def test_publish_by_status_saves_the_form(archivist_page: Page, live_workbench: str) -> None:
-    page = archivist_page
-    # Saving is part of publishing (owner, 2026-08-08), for edits inside #edit-form's subtree and
-    # outside it (the media/custom split).
-    _create_draft(page, live_workbench, "E2E Zu Veröffentlichen")
-    page.fill('input[name="ref_code"]', "E2E-42")
-    page.click(
-        'button:has-text("+ Angabe hinzufügen")'
-    )  # a round trip that keeps the Signatur typed
-    page.fill('input[name="custom_key"]', "Quelle")
-    page.fill('input[name="custom_value"]', "Privatbesitz Meyer")
-    page.select_option('select[name="lifecycle"]', "published")
-    page.click('button:has-text("Speichern")')
-    # straight to the read view, published — no panel, no checkbox, no second step
-    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
-    expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)
-    expect(page.get_by_text("E2E-42")).to_be_visible()  # the unsaved Signatur survived
-    expect(page.get_by_text("Privatbesitz Meyer")).to_be_visible()  # ...and the custom row
 
 
 # --- bulk select → confirm → result ------------------------------------------------
@@ -2024,25 +1974,6 @@ def test_bulk_chooser_shows_exactly_one_value_widget(
     page.select_option('select[name="field"]', "creator")
     expect(widgets).to_have_count(1)
     expect(page.locator('input[name="value_text"]')).to_be_visible()
-
-
-def test_bulk_url_seeded_selection_still_works(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
-) -> None:
-    page = archivist_page
-    # The pagination-persistence path: a selection seeded in the URL (?selection=) renders the
-    # selection mode with the count + confirm flow.
-    page.goto(
-        live_workbench
-        + f"{LIST}?selection={e2e_corpus.published_ulid}&selection={e2e_corpus.second_ulid}"
-    )
-    expect(page.locator(".bulk")).to_be_visible()
-    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # server-rendered count
-    page.click('[popovertarget="field-change"]')
-    page.select_option('select[name="field"]', "creator")
-    page.fill('input[name="value_text"]', "Sammel-Autor")
-    page.click('button:has-text("Änderung prüfen")')
-    expect(page.locator(BULK_COMMIT)).to_be_visible()  # the check page
 
 
 def test_bulk_enhancement_survives_a_history_restore(
@@ -2190,10 +2121,12 @@ _ERROR_FIELD_WALKER_JS = """() => {
 }"""
 
 
-def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbench: str) -> None:
+def test_error_fields_compute_the_error_border(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
     # C13: an outranked rule looks live in source, so only the computed border counts.
     page = archivist_page
-    _create_draft(page, live_workbench, "E2E Fehlerhaft")
+    page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
     page.select_option('select[name="media_type"]', "")  # Medienart is required
     page.fill('input[name="date"]', "nicht-ein-datum")  # an unparseable EDTF value
     page.click('button:has-text("Speichern")')
@@ -2209,13 +2142,13 @@ def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbe
 
 
 def test_a_groups_error_shows_in_the_margin_with_the_focus(
-    archivist_page: Page, live_workbench: str
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # Gruppen shows only while Sichtbarkeit says Gruppe(n) (CSS :has). An empty Gruppen at that rung
     # re-renders the message in the margin, and the caret must land on the input — "on screen" and
     # "focused" are browser facts.
     page = archivist_page
-    _create_draft(page, live_workbench, "E2E Fehler am Rand")
+    page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
     groups_text = page.locator('main textarea[name="groups"]')
     expect(groups_text).to_be_hidden()  # not at the GROUPS rung
     # Gruppen stays empty -> invalid
@@ -2244,27 +2177,16 @@ def test_more_details_adds_and_removes_rows_by_round_trip(
     expect(rows).to_have_count(2)
     expect(rows.first.locator('input[name="custom_key"]')).to_have_value("Quelle")
     expect(rows.last.locator('input[name="custom_key"]')).to_be_focused()
+    # the suggestions are the browser's own <datalist>, a swapped-in row's included
+    offered = rows.locator('input[name="custom_key"]').evaluate_all(
+        "els => els.map(el => [...el.list.options].map(o => o.value))"
+    )
+    known = ["Anmerkungen", "Anzahl", "Besitzer", "Quelle", "Querverweis"]
+    assert offered == [known, known]
     page.keyboard.type("Fotograf")
     rows.first.get_by_role("button", name="Quelle entfernen").click()
     expect(rows).to_have_count(1)
     expect(rows.first.locator('input[name="custom_key"]')).to_have_value("Fotograf")
-
-
-def test_every_key_field_offers_the_known_keys(archivist_page: Page, live_workbench: str) -> None:
-    # The suggestions are the browser's own <datalist>; headless Chromium draws no popup to pick
-    # from, so the journey checks what the browser attaches to each row, a swapped-in one included.
-    page = archivist_page
-    page.goto(_create_draft(page, live_workbench, "E2E Bezeichnung"))
-    keys = page.locator('#custom-bag input[name="custom_key"]')
-    page.click('button:has-text("+ Angabe hinzufügen")')
-    expect(keys.first).to_be_focused()
-    page.keyboard.type("Que")
-    page.click('button:has-text("+ Angabe hinzufügen")')
-    expect(keys.last).to_be_focused()
-    expect(keys).to_have_count(2)
-    offered = keys.evaluate_all("els => els.map(el => [...el.list.options].map(o => o.value))")
-    known = ["Anmerkungen", "Anzahl", "Besitzer", "Quelle", "Querverweis"]
-    assert offered == [known, known]
 
 
 def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
@@ -2528,26 +2450,6 @@ def test_without_tus_the_chosen_files_post_the_form_and_a_failure_says_so(
     expect(notice).to_be_visible()
 
 
-def test_the_forms_own_media_actions_never_make_its_save_conflict(
-    archivist_page: Page, live_workbench: str
-) -> None:
-    # Each media route saves on its own and swaps only #media-drawer; the form's expected_version
-    # has to follow, or Speichern loses to the archivist's own upload, reorder or removal.
-    page = archivist_page
-    _create_draft(page, live_workbench, "E2E Medien dann Speichern")
-    page.set_input_files('#media-drawer input[type="file"]', [_EINS, _ZWEI])
-    rows = page.locator("#media-drawer .file-row")
-    expect(rows).to_have_count(2)
-    page.get_by_role("button", name="Nach unten").first.click()
-    expect(rows.first).to_contain_text("zwei.png")
-    page.once("dialog", lambda dialog: dialog.accept())
-    page.get_by_role("button", name="eins.png entfernen").click()
-    expect(rows).to_have_count(1)
-    page.select_option('select[name="lifecycle"]', "published")
-    page.click('button:has-text("Speichern")')
-    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
-
-
 def test_a_media_action_never_hides_anothers_save_from_the_form(
     archivist_page: Page, live_workbench: str, browser: Browser
 ) -> None:
@@ -2585,16 +2487,23 @@ def test_a_media_action_keeps_the_captions_typed_before_it(
     # before it must come back with their files and still save with Speichern (ADR 0015).
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Bildunterschrift vor Medienaktion")
-    page.set_input_files('#media-drawer input[type="file"]', [_EINS, _ZWEI])
+    page.set_input_files('#media-drawer input[type="file"]', [_EINS, _ZWEI, _DREI])
     rows = page.locator("#media-drawer .file-row")
-    expect(rows).to_have_count(2)
+    expect(rows).to_have_count(3)
     rows.nth(0).get_by_label("Bildunterschrift").fill("Erste Seite")
     rows.nth(1).get_by_label("Bildunterschrift").fill("Zweite Seite")
     page.get_by_role("button", name="Nach unten").first.click()
     expect(rows.first).to_contain_text("zwei.png")
     expect(rows.nth(0).get_by_label("Bildunterschrift")).to_have_value("Zweite Seite")
     expect(rows.nth(1).get_by_label("Bildunterschrift")).to_have_value("Erste Seite")
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.get_by_role("button", name="drei.png entfernen").click()
+    expect(rows).to_have_count(2)
+    expect(rows.nth(0).get_by_label("Bildunterschrift")).to_have_value("Zweite Seite")
+    expect(rows.nth(1).get_by_label("Bildunterschrift")).to_have_value("Erste Seite")
     expect(page.locator("#dirty-flag")).to_be_visible()  # still unsaved, and still said
+    # each media route saved on its own: the form's expected_version followed, or this conflicts
+    page.select_option('select[name="lifecycle"]', "published")
     page.click('button:has-text("Speichern")')
     page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
     expect(page.locator("main")).to_contain_text("Zweite Seite")

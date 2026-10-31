@@ -75,7 +75,7 @@ def _goto(build: Callable[[CorpusHandles], str]) -> Reach:
     return reach
 
 
-def _at(path: str) -> Reach:
+def reach_at(path: str) -> Reach:
     """A reach for a screen whose URL carries no corpus identity."""
     return _goto(lambda _corpus: path)
 
@@ -89,8 +89,8 @@ def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.click('[popovertarget="field-change"]')
     page.select_option('select[name="field"]', "creator")
     page.fill('input[name="value_text"]', "Sammel-Autor")
-    with page.expect_navigation():
-        page.click('button:has-text("Änderung prüfen")')
+    page.click('button:has-text("Änderung prüfen")')
+    expect(page.locator(BULK_COMMIT)).to_be_visible()  # the check page, not an error
 
 
 def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -136,17 +136,17 @@ SCREENS: tuple[Screen, ...] = (
         "start",
         "the start page: the search sentence and the Sammlungsteile",
         True,
-        _at("/"),
+        reach_at("/"),
         "start",
         overlays=1,
         control_rows=("header",),
     ),
-    Screen("start-member", "the start page as a member", False, _at("/"), "start"),
+    Screen("start-member", "the start page as a member", False, reach_at("/"), "start"),
     Screen(
         "workbench-empty",
         "workbench, no results",
         True,
-        _at(f"{LIST}?q=zzzznomatch"),
+        reach_at(f"{LIST}?q=zzzznomatch"),
         "workbench",
         overlays=1,
         control_rows=("header",),
@@ -155,7 +155,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-results",
         "workbench, the corpus",
         True,
-        _at(LIST),
+        reach_at(LIST),
         "workbench",
         overlays=2,
         control_rows=("header", "div[toolbar]"),
@@ -164,7 +164,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-filtered",
         "workbench, tag filter applied (a set filter in the search sentence)",
         True,
-        _at(f"{LIST}?tag=sommer"),
+        reach_at(f"{LIST}?tag=sommer"),
         "workbench",
         overlays=3,
         control_rows=("header",),
@@ -173,7 +173,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-facets",
         "workbench, two filters applied, both set in the search sentence",
         True,
-        _at(f"{LIST}?tag=sommer&media_type=Foto(s)"),
+        reach_at(f"{LIST}?tag=sommer&media_type=Foto(s)"),
         "workbench",
         overlays=5,
         control_rows=("header",),
@@ -182,7 +182,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-type",
         "workbench, a type filter set: the Typ column steps back (a2 round 11)",
         True,
-        _at(f"{LIST}?document_type=Zeitschrift"),
+        reach_at(f"{LIST}?document_type=Zeitschrift"),
         "workbench",
         overlays=3,
         control_rows=("header", "div[toolbar]"),
@@ -209,7 +209,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-public",
         "workbench as a public visitor",
         False,
-        _at(LIST),
+        reach_at(LIST),
         "workbench",
         overlays=1,
     ),
@@ -217,7 +217,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-text-hit",
         "workbench as a public visitor, a word only on a page of a PDF: the row links that page",
         False,
-        _at(f"{LIST}?q={PAGE_ONLY_WORD}"),
+        reach_at(f"{LIST}?q={PAGE_ONLY_WORD}"),
         "workbench",
         overlays=1,
     ),
@@ -226,7 +226,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench, a query in the Lesesaal: a hit named by its title, two by the field the word is"
         " in (the why line), one with the matching page of its PDF",
         True,
-        _at(f"{LIST}?q={READING_QUERY}"),
+        reach_at(f"{LIST}?q={READING_QUERY}"),
         "workbench",
         overlays=1,
         control_rows=("header", "div[toolbar]"),
@@ -235,7 +235,7 @@ SCREENS: tuple[Screen, ...] = (
         "create-form",
         "the create step",
         True,
-        _at("/articles/new"),
+        reach_at("/articles/new"),
         "article-create",
         overlays=1,
         control_rows=("header", "div.record-meta-actions"),
@@ -306,7 +306,7 @@ SCREENS: tuple[Screen, ...] = (
         "trash",
         "the Papierkorb: a record with Wiederherstellen and Endgültig löschen …",
         True,
-        _at("/trash"),
+        reach_at("/trash"),
         "trash",
         overlays=1,
         control_rows=("header",),
