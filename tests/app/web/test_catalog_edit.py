@@ -133,13 +133,13 @@ def test_the_inherit_option_names_who_will_see_the_record(corpus: _EditCorpus) -
     # owner ruling 5: the exposure statement is permanently on screen — here the inherit option says
     # which rung the Collection hands down, even when the article's own setting overrides it
     body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
-    assert '<option value="" selected>Wie der Sammlungsteil (Öffentlich)</option>' in body
+    assert '<option value="" selected>Öffentlich (geerbt)</option>' in body
     own = PUBLISHED_ULID
     corpus.add_article(
         make_article(own, collection_id="PUB", audience=Audience(AudienceTier.MEMBERS), title="X")
     )
     body = client_as(Archivist()).get(f"/articles/{own}/edit").content.decode()
-    assert '<option value="">Wie der Sammlungsteil (Öffentlich)</option>' in body
+    assert '<option value="">Öffentlich (geerbt)</option>' in body
 
 
 # --- GET/POST: archivist gate (both methods, all tiers) ---------------------------

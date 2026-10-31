@@ -706,7 +706,7 @@ def _audience_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
     audience with the article's own setting cleared; unresolvable, the plain caption stays."""
     if inherited is None:
         return vocab.AUDIENCE_OPTIONS
-    return (("", f"Wie der Sammlungsteil ({inherited})"), *vocab.AUDIENCE_OPTIONS[1:])
+    return (("", f"{inherited} (geerbt)"), *vocab.AUDIENCE_OPTIONS[1:])
 
 
 #: How many times a structural media save re-loads after a concurrent version bump before giving up

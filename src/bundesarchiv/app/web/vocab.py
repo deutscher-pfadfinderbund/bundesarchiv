@@ -103,7 +103,7 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
 
 # --- Sichtbarkeit (audience) German labels -----------------------------------------
 
-AUDIENCE_INHERIT = "Wie der Sammlungsteil"
+AUDIENCE_INHERIT = "Geerbt vom Sammlungsteil"
 AUDIENCE_PUBLIC = "Öffentlich"
 AUDIENCE_MEMBERS = "Alle Mitglieder"
 #: The GROUPS rung's caption where no group NAMES are known yet — the Sichtbarkeit ``<select>``'s own
