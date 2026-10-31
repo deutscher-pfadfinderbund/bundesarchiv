@@ -2491,3 +2491,53 @@ def test_dev_logs_in_and_out_through_the_dev_realm(public_page: Page, live_workb
     with page.expect_navigation():
         page.locator("form[action='/logout'] button").click()
     assert page.request.get(live_workbench + "/articles/new").status == 404
+
+
+def test_on_a_phone_the_pager_links_are_thumb_sized_and_the_row_does_not_move(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    page.set_viewport_size({"width": 390, "height": 900})
+    page.goto(live_workbench + "/_dev/components/", wait_until="networkidle")
+    steps = page.locator(".pager-steps > a").all()
+    sizes = page.locator(".pager-sizes > a").all()
+    assert steps
+    assert sizes
+    boxes = [
+        (link, link.bounding_box() or {"x": 0, "y": 0, "width": 0, "height": 0})
+        for link in steps + sizes
+    ]
+    small = [
+        f"{link.inner_text()!r}: {box['width']:.0f}x{box['height']:.0f}"
+        for link, box in boxes
+        if box["height"] < 44 or (link in steps and box["width"] < 44)
+    ]
+    assert small == []
+    # within one pager: the demo stacks several, a page holds one
+    pager = page.locator(".pager").first
+    own = [
+        (link, link.bounding_box() or {"x": 0, "y": 0, "width": 0, "height": 0})
+        for link in pager.locator(":is(.pager-steps, .pager-sizes) > a").all()
+    ]
+    overlapping = [
+        (a.inner_text(), b.inner_text())
+        for i, (a, p) in enumerate(own)
+        for b, q in own[i + 1 :]
+        if p["x"] < q["x"] + q["width"]
+        and q["x"] < p["x"] + p["width"]
+        and p["y"] < q["y"] + q["height"]
+        and q["y"] < p["y"] + p["height"]
+    ]
+    assert overlapping == []
+    # the growth stays out of the layout: every pager and every link text sits where it sits
+    # without the hit areas, and the page is no wider
+    layout = """() => [...document.querySelectorAll('.pager, .pager a')].map((e) => {
+        const r = document.createRange();
+        r.selectNodeContents(e);
+        const { x, y, width, height } = r.getBoundingClientRect();
+        return [x, y, width, height];
+    })"""
+    grown = page.evaluate(layout)
+    assert page.evaluate("document.documentElement.scrollWidth") == 390
+    page.add_style_tag(content=".pager a { padding: 0 !important; margin: 0 !important }")
+    assert page.evaluate(layout) == grown

@@ -1431,6 +1431,29 @@
     .pager-steps > a > span {
       display: none;
     }
+    /* a thumb-sized hit area that leaves the text where it was: padding grows the box, the
+       negative margin takes the growth back out of the row. No two areas overlap, wrapped or not:
+       a size grows up and only in height, a step grows down and over the range beside it. */
+    .pager-steps > a,
+    .pager-sizes > a {
+      --_hit-grow: calc(var(--touch-target) - 1lh);
+    }
+    .pager-sizes > a {
+      padding-block-start: var(--_hit-grow);
+      margin-block-start: calc(-1 * var(--_hit-grow));
+    }
+    .pager-steps > a {
+      padding-block-end: var(--_hit-grow);
+      margin-block-end: calc(-1 * var(--_hit-grow));
+    }
+    .pager-steps > a:first-child {
+      padding-inline-end: var(--touch-target);
+      margin-inline-end: calc(-1 * var(--touch-target));
+    }
+    .pager-steps > a:last-child {
+      padding-inline-start: var(--touch-target);
+      margin-inline-start: calc(-1 * var(--touch-target));
+    }
   }
   /* the page-size chooser leads the row; the size on screen in ink and no link, as the view
      switch marks its view */
