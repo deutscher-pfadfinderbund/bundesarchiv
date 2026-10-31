@@ -127,11 +127,29 @@ def test_build_row_appends_media_captions_to_the_body_bucket() -> None:
     assert body.index("Sprecher unbekannt") < body.index("Huelle vorne")
 
 
-def test_build_row_body_unchanged_without_captions() -> None:
-    root = _root()
-    article = _article(body="Nur Text.", media=(MediaRef("a.jpg", "a" * 64),))
-    row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
+def test_build_row_body_unchanged_without_media() -> None:
+    row = indexer.build_row(_article(body="Nur Text."), _chain(_root()), cap_year=_CAP_YEAR)
     assert row["body"] == "Nur Text."
+
+
+@pytest.mark.parametrize(
+    ("filename", "words"),
+    [
+        ("Liederheft_1998.pdf", "Liederheft 1998 pdf"),
+        ("liederheft-1998.pdf", "liederheft 1998 pdf"),
+        ("Liederheft 1998.PDF", "Liederheft 1998 PDF"),
+        ("_Lager__Ost-.tar.gz", "Lager Ost tar gz"),
+        ("Bäume.jpg", "Bäume jpg"),
+        ("README", "README"),
+    ],
+)
+def test_build_row_appends_each_filename_as_words_to_the_body_bucket(
+    filename: str, words: str
+) -> None:
+    """The German parser reads "liederheft_1998.pdf" as one token, so the name goes in as words."""
+    article = _article(body="Text.", media=(MediaRef(filename, "a" * 64, stored_name="x.bin"),))
+    row = indexer.build_row(article, _chain(_root()), cap_year=_CAP_YEAR)
+    assert row["body"] == f"Text. {words}"
 
 
 def test_build_row_counts_files_per_kind_by_mime_else_extension() -> None:
