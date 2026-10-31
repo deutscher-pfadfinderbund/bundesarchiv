@@ -1,5 +1,6 @@
 {% comment %}A file without a thumbnail, in the slot its thumbnail would fill. Params: kind; glyph
-(the icon of the kind); name (optional: left out where the name already stands beside the tile).{% endcomment %}
+(the icon of the kind); name (optional: a tile's breakable_name; left out where the name already
+stands beside the tile).{% endcomment %}
 <span class="blank">
   {% include "components/icon.html" with name=glyph only %}
   <span class="blank-label">{{ kind }}{% if name %} · {{ name }}{% endif %}</span>

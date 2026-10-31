@@ -369,7 +369,8 @@ def count(number: int) -> str:
 
 
 def human_size(byte_size: int | None) -> str:
-    """A file size in German spelling ("1,2 GB"). Absent → empty."""
+    """A file size in German spelling ("1,2 GB"), a no-break space between number and unit.
+    Absent → empty."""
     if byte_size is None:
         return ""
     size, unit = float(byte_size), "B"
@@ -377,4 +378,5 @@ def human_size(byte_size: int | None) -> str:
         if size < 1024:
             break
         size, unit = size / 1024, bigger
-    return f"{byte_size} B" if unit == "B" else f"{size:.1f} {unit}".replace(".", ",")
+    number = str(byte_size) if unit == "B" else f"{size:.1f}".replace(".", ",")
+    return f"{number}\N{NO-BREAK SPACE}{unit}"

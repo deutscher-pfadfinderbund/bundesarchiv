@@ -25,7 +25,7 @@ from bundesarchiv.app import legacy
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import generate_thumbnail
 from bundesarchiv.app.web import vocab
-from bundesarchiv.app.web.browse_views import media_tiles
+from bundesarchiv.app.web.browse_views import MediaTile, media_tiles
 from bundesarchiv.app.web.media_urls import display_url, media_url, thumbnail_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
@@ -160,7 +160,7 @@ def test_a_tile_shows_a_thumbnail_only_once_the_cache_holds_one(
         )
         after = _body(Public(), corpus.pub)
     assert second not in before
-    assert "b.png" in before
+    assert "b.<wbr>png" in before  # the blank tile names the file
     assert second in re.findall(r'<img [^>]*src="([^"]*)"', after)
     assert "data:image" not in after  # no bytes inlined
 
@@ -582,3 +582,20 @@ def test_an_images_alt_is_its_description_else_its_caption_else_its_file_name(
     alts = re.findall(r'<img [^>]*alt="([^"]*)"', body)
     # the cover (drawn from its original) and the lightbox (one figure per image)
     assert sorted(alts) == ["Beschreibung", "Beschreibung", "Nur Unterschrift", "c.png", "d.png"]
+
+
+@pytest.mark.parametrize(
+    ("name", "breakable"),
+    [
+        ("SWS-Archiv_1960.zip", "SWS-<wbr>Archiv_<wbr>1960.<wbr>zip"),
+        ("Liederabend", "Liederabend"),
+        ('<b>&"x.mp4', "&lt;b&gt;&amp;&quot;x.<wbr>mp4"),
+    ],
+)
+def test_a_tile_breaks_a_file_name_only_after_its_separators_and_escapes_the_rest(
+    name: str, breakable: str
+) -> None:
+    tile = MediaTile(
+        kind="Datei", glyph="", name=name, caption="", file_url="", full_url="", thumb_url=""
+    )
+    assert tile.breakable_name == breakable

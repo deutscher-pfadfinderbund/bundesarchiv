@@ -109,7 +109,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       <div>
         {% for plate in more_media %}
         <figure>
-          <a href="{{ plate.file_url }}" target="_blank" rel="noopener"{% if plate.is_image %} data-lightbox="{{ plate.slot }}"{% endif %}>{% if plate.thumb_url %}<img src="{{ plate.thumb_url }}" alt="{{ plate.alt }}" width="{{ plate.aspect.0 }}" height="{{ plate.aspect.1 }}" loading="lazy">{% else %}{% include "components/blank.html" with kind=plate.kind glyph=plate.glyph name=plate.name only %}{% endif %}</a>
+          <a href="{{ plate.file_url }}" target="_blank" rel="noopener"{% if plate.is_image %} data-lightbox="{{ plate.slot }}"{% endif %}>{% if plate.thumb_url %}<img src="{{ plate.thumb_url }}" alt="{{ plate.alt }}" width="{{ plate.aspect.0 }}" height="{{ plate.aspect.1 }}" loading="lazy">{% else %}{% include "components/blank.html" with kind=plate.kind glyph=plate.glyph name=plate.breakable_name only %}{% endif %}</a>
           {% if plate.is_image %}{% if plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}{% elif plate.thumb_url %}<figcaption>{% firstof plate.caption plate.name %} <span class="kind">· {{ plate.kind }}</span></figcaption>{% elif plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}
           {% if not plate.is_image %}{% include "workbench/_download.html" with tile=plate only %}{% endif %}
         </figure>

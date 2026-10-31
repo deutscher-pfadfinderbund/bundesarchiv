@@ -1470,7 +1470,8 @@
     padding: var(--space-1);
     font: var(--type-meta);
     color: var(--ink-2);
-    overflow-wrap: anywhere;
+    /* a name wraps at the <wbr> after its separators; only a segment wider than the tile breaks */
+    overflow-wrap: break-word;
   }
 
   /* ---- honest empty state: words, no frame (row 6: a dashed edge marks only what reacts) ---- */

@@ -3,6 +3,7 @@
 """
 
 import datetime
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -12,6 +13,8 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.urls import reverse
+from django.utils.html import escape
+from django.utils.safestring import SafeString, mark_safe
 
 from bundesarchiv.app import legacy, thumbnails
 from bundesarchiv.app.archive import Archive
@@ -170,6 +173,12 @@ class MediaTile:
     def is_image(self) -> bool:
         """The file gets a display version and enters the lightbox."""
         return bool(self.display_url)
+
+    @property
+    def breakable_name(self) -> SafeString:
+        """The escaped file name with a ``<wbr>`` after each ".", "_" and "-": a tile too narrow
+        for it wraps it there, not mid-word."""
+        return mark_safe(re.sub(r"([._-])", r"\1<wbr>", escape(self.name)))  # noqa: S308
 
 
 def media_tiles(ulid: ULID, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:

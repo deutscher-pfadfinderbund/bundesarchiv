@@ -170,9 +170,16 @@ def test_date_parts_of_no_date_are_empty() -> None:
 
 @pytest.mark.parametrize(
     ("byte_size", "expected"),
-    [(None, ""), (512, "512 B"), (1536, "1,5 KB"), (1288490189, "1,2 GB")],
+    [
+        (None, ""),
+        (512, "512\N{NO-BREAK SPACE}B"),
+        (1536, "1,5\N{NO-BREAK SPACE}KB"),
+        (1288490189, "1,2\N{NO-BREAK SPACE}GB"),
+    ],
 )
-def test_human_size_is_german(byte_size: int | None, expected: str) -> None:
+def test_human_size_is_german_and_never_breaks_between_number_and_unit(
+    byte_size: int | None, expected: str
+) -> None:
     assert vocab.human_size(byte_size) == expected
 
 
