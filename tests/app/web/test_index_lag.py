@@ -17,6 +17,7 @@ from tests.app.web._fixtures import (
     client_as,
     list_url,
 )
+from tests.app.web._tus import finish, staged, staging_at
 
 from bundesarchiv.app.web import landing
 from bundesarchiv.domain.models import ULID, Lifecycle
@@ -66,6 +67,9 @@ _READS = {
     "logout",
     "article-bulk-edit-document-types",
     "upload-gate",
+    # The chunked upload stages outside the archive; its finish is article-media-upload's.
+    "article-tus-create",
+    "article-tus-upload",
     "article-document-types",
     "tag-suggestions",
     "suggestions",
@@ -102,6 +106,18 @@ def test_a_write_whose_index_update_failed_shows_the_lag(
     assert _STOOD[route](corpus)
     assert failing_index
     assert any(response.context.get(key) for key in _LAG_KEYS)
+
+
+def test_a_chunked_upload_finish_whose_index_update_failed_shows_the_lag(
+    corpus: Corpus, failing_index: list[Refresh], tmp_path: Path
+) -> None:
+    client = client_as(Archivist("anna"))
+    with staging_at(tmp_path / "staging"):
+        response = finish(client, DRAFT_ULID, staged(client, DRAFT_ULID, b"%PDF-1.4"))
+    assert response.status_code == 200
+    assert _media(corpus) == ("scan.pdf",)
+    assert failing_index
+    assert response.context["drawer_index_lag"]
 
 
 def test_every_route_is_a_write_row_or_a_read() -> None:

@@ -2,12 +2,14 @@
 (ADR 0019)."""
 
 from collections.abc import Callable
+from pathlib import Path
 from urllib.parse import urlparse
 
 import pytest
 from django.http import HttpResponse
 from django.urls import resolve
 from tests.app.web._fixtures import DRAFT_ULID, PUBLISHED_ULID, WRITES, Corpus, client_as
+from tests.app.web._tus import finish, staged, staging_at
 
 from bundesarchiv.domain.models import ULID, Change
 from bundesarchiv.domain.viewer import Archivist
@@ -47,6 +49,16 @@ def test_the_version_an_article_route_writes_names_the_signed_in_archivist(
 ) -> None:
     response = WRITES[route](client_as(_ARCHIVIST), corpus)
     change = _CHANGED[route](response, corpus)
+    assert change is not None and change.by == _ARCHIVIST.username
+
+
+def test_a_chunked_upload_finish_names_the_signed_in_archivist(
+    corpus: Corpus, tmp_path: Path
+) -> None:
+    client = client_as(_ARCHIVIST)
+    with staging_at(tmp_path / "staging"):
+        finish(client, DRAFT_ULID, staged(client, DRAFT_ULID, b"%PDF-1.4"))
+    change = corpus.articles.load(DRAFT_ULID).change
     assert change is not None and change.by == _ARCHIVIST.username
 
 

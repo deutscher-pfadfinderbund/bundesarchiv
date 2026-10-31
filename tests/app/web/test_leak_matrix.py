@@ -5,14 +5,17 @@ import io
 from collections import defaultdict
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
-from django.test import override_settings
+from django.test import Client, override_settings
 from django.urls import Resolver404, URLPattern, get_resolver, resolve
 from PIL import Image
 from tests.app.web._asserts import assert_denied, assert_door
 from tests.app.web._fixtures import ROOT, Corpus, client_as, make_article, make_collection
+from tests.app.web._tus import PIECE, TUS, metadata
 
+from bundesarchiv.app.upload_staging import Staging, Upload
 from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
@@ -34,6 +37,8 @@ def _png_bytes(color: tuple[int, int, int]) -> bytes:
 _COLLECTION = "01M553AGABD8F8ZVQV43GRE7TN"
 _ARTICLE = ULID("01M553AGABD8F8ZVQV43GRE7TP")
 _MARKED = ULID("01M553AGABD8F8ZVQV43GRE7TQ")
+#: The one piece a PATCH probe sends, completing the upload the matrix stages.
+_PIECE = b"ab"
 
 
 def _fill(base: Corpus) -> None:
@@ -72,8 +77,13 @@ class _MatrixCorpus:
     article_ulid = _ARTICLE
     marked_ulid = _MARKED
 
-    def __init__(self, base: Corpus) -> None:
+    def __init__(self, base: Corpus, staging: Staging) -> None:
         self.base = base
+        # The Archivist's chunked uploads, one on each Article, of the length the probes send.
+        self.upload_id, self.marked_upload_id = (
+            staging.create(Upload(ulid, Archivist().username, "scan.pdf", None, len(_PIECE)))
+            for ulid in (_ARTICLE, _MARKED)
+        )
         article = base.articles.load(_ARTICLE)
         self.content_hash = article.article.media[0].content_hash
         self.article_version = article.version
@@ -91,10 +101,12 @@ def matrix_corpus(
     # No version is generated here: an allowed probe of a version route derives it on the miss.
     # Build BEFORE entering the override — ``make_corpus`` enters a settings context of its own that
     # tears down last, so this one has to nest inside it to unwind in order.
-    thumbnail_root = tmp_path / "thumbnails"
-    built = _MatrixCorpus(copy_of(_fill))
+    thumbnail_root, staging_root = tmp_path / "thumbnails", tmp_path / "staging"
+    built = _MatrixCorpus(copy_of(_fill), Staging(staging_root))
     with override_settings(
-        BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbnail_root), BUNDESARCHIV_X_ACCEL_PREFIX=None
+        BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbnail_root),
+        BUNDESARCHIV_X_ACCEL_PREFIX=None,
+        BUNDESARCHIV_UPLOAD_STAGING_ROOT=str(staging_root),
     ):
         yield built
 
@@ -122,6 +134,7 @@ _NON_ARCHIVIST = ("anonymous", "public", "member", "member_matching")
 
 FOUR_OH_FOUR = 404
 OK = 200
+CREATED = 201
 NO_CONTENT = 204
 REDIRECT = 302
 ALIAS_PREFIX = "alias-"
@@ -142,6 +155,8 @@ class Route:
         tier_sensitive: bool = False,
         member_route: bool = False,
         stub_search: bool = False,
+        other_methods: dict[str, tuple[int, int]] | None = None,
+        tus: bool = False,
     ) -> None:
         self.build_path = build_path
         self.get_nonarch = get_nonarch
@@ -154,6 +169,11 @@ class Route:
         # member_route: every Member is allowed like the Archivist; Public and anonymous are not.
         self.member_route = member_route
         self.stub_search = stub_search
+        # other_methods: method -> (non-archivist, archivist) status, for a route GET and POST
+        # do not exhaust.
+        self.other_methods = other_methods or {}
+        # tus: probed as the chunked upload's client asks (_TUS_PROBE).
+        self.tus = tus
 
 
 def _p_root(_c: _MatrixCorpus) -> str:
@@ -230,6 +250,14 @@ def _p_media_remove(c: _MatrixCorpus) -> str:
 
 def _p_media_upload(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/media/upload"
+
+
+def _p_tus_create(c: _MatrixCorpus) -> str:
+    return f"/articles/{c.article_ulid}/media/uploads"
+
+
+def _p_tus_upload(c: _MatrixCorpus) -> str:
+    return f"/articles/{c.article_ulid}/media/uploads/{c.upload_id}"
 
 
 def _p_upload_gate(c: _MatrixCorpus) -> str:
@@ -405,6 +433,28 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # re-render edit form
     ),
+    # The chunked upload (ADR 0026): an upload is its Archivist's alone, every method of it.
+    "article-tus-create": Route(
+        build_path=_p_tus_create,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=FOUR_OH_FOUR,  # GET disallowed
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=CREATED,
+        tus=True,
+    ),
+    "article-tus-upload": Route(
+        build_path=_p_tus_upload,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=FOUR_OH_FOUR,  # GET and POST disallowed
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=FOUR_OH_FOUR,
+        other_methods={
+            "HEAD": (FOUR_OH_FOUR, OK),
+            "PATCH": (FOUR_OH_FOUR, NO_CONTENT),
+            "DELETE": (FOUR_OH_FOUR, NO_CONTENT),
+        },
+        tus=True,
+    ),
     # nginx's auth_request for the upload route: tells nobody but an Archivist anything.
     "upload-gate": Route(
         build_path=_p_upload_gate,
@@ -529,14 +579,23 @@ def _expected_for(route: Route, tier: str, method: str) -> int | None:
         is_arch = True
     if method == "GET":
         return route.get_arch if is_arch else route.get_nonarch
-    return route.post_arch if is_arch else route.post_nonarch
+    if method == "POST":
+        return route.post_arch if is_arch else route.post_nonarch
+    nonarch, arch = route.other_methods[method]
+    return arch if is_arch else nonarch
 
 
 # --- the matrix -----------------------------------------------------------------------------------
 
 
 def _tier_invariant(route: Route) -> bool:
-    statuses = {route.get_nonarch, route.get_arch, route.post_nonarch, route.post_arch}
+    statuses = {
+        route.get_nonarch,
+        route.get_arch,
+        route.post_nonarch,
+        route.post_arch,
+        *(status for pair in route.other_methods.values() for status in pair),
+    }
     return len(statuses) == 1 and not route.tier_sensitive and not route.member_route
 
 
@@ -548,7 +607,7 @@ def _matrix_cases() -> Iterator[tuple[str, str, str]]:
             yield name, "public", "GET"
             continue
         for tier in _TIERS:
-            for method in ("GET", "POST"):
+            for method in ("GET", "POST", *route.other_methods):
                 yield name, tier, method
 
 
@@ -583,19 +642,39 @@ def test_route_tier_matrix(
         monkeypatch.setattr(
             "bundesarchiv.app.web.start.search", lambda *a, **k: _empty_search_page()
         )
-    client = client_as(_TIERS[tier])
-    headers = {"Sec-Fetch-Site": "same-origin"}  # a browser sends it on every request
-    response = (
-        client.post(path, data=data, headers=headers)
-        if method == "POST"
-        else client.get(path, headers=headers)
-    )
+    response = _probe(client_as(_TIERS[tier]), method, path, data, tus=route.tus)
     if expected == FOUR_OH_FOUR:
-        assert_denied(response, f"{method} {name} as {tier}")
+        _assert_denied(response, method, f"{method} {name} as {tier}")
     else:
         assert response.status_code == expected, (
             f"{method} {name} as {tier}: expected {expected}, got {response.status_code}"
         )
+
+
+#: What the chunked upload's client sends: every header any of its routes reads, with a body (for
+#: PATCH) that completes the upload the matrix corpus stages.
+_TUS_PROBE = {
+    **TUS,
+    "Upload-Length": str(len(_PIECE)),
+    "Upload-Metadata": metadata(filename="scan.pdf"),
+    "Upload-Offset": "0",
+}
+
+
+def _probe(client: Client, method: str, path: str, data: dict[str, object], *, tus: bool) -> Any:
+    headers = {"Sec-Fetch-Site": "same-origin", **(_TUS_PROBE if tus else {})}  # a browser sends it
+    if method == "GET":
+        return client.get(path, headers=headers)
+    if method == "POST":
+        return client.post(path, data=data, headers=headers)
+    return client.generic(method, path, _PIECE, content_type=PIECE, headers=headers)
+
+
+def _assert_denied(response: Any, method: str, ctx: str) -> None:
+    if method == "HEAD":  # a HEAD answer carries no body, so no 404 page either
+        assert (response.status_code, response.content) == (FOUR_OH_FOUR, b""), ctx
+    else:
+        assert_denied(response, ctx)
 
 
 # --- a marked Article: the read routes answer the Archivist alone (ADR 0022) ----------------------
@@ -640,6 +719,8 @@ _MARKED_REFUSED: dict[str, tuple[str, str, Callable[[_MatrixCorpus], dict[str, o
         lambda c: {"remove": c.marked_hash},
     ),
     "article-media-upload": ("POST", "/articles/{}/media/upload", lambda _c: {}),
+    "article-tus-create": ("POST", "/articles/{}/media/uploads", lambda _c: {}),
+    "article-tus-upload": ("PATCH", "/articles/{}/media/uploads/{upload}", lambda _c: {}),
     "upload-gate": ("GET", "/upload-gate/{}", lambda _c: {}),
     "article-document-types": ("GET", "/articles/{}/document-types", lambda _c: {}),
 }
@@ -655,17 +736,13 @@ def test_a_marked_article_refuses_every_other_route(
     matrix_corpus: _MatrixCorpus, name: str
 ) -> None:
     method, path, data = _MARKED_REFUSED[name]
-    path = path.format(matrix_corpus.marked_ulid)
+    path = path.format(matrix_corpus.marked_ulid, upload=matrix_corpus.marked_upload_id)
     assert resolve(path).url_name == name
     before = _unchanged(matrix_corpus)
-    client = client_as(Archivist())
-    headers = {"Sec-Fetch-Site": "same-origin"}
-    response = (
-        client.post(path, data(matrix_corpus), headers=headers)
-        if method == "POST"
-        else client.get(path, headers=headers)
+    response = _probe(
+        client_as(Archivist()), method, path, data(matrix_corpus), tus=_CONTRACT[name].tus
     )
-    assert_denied(response, f"{method} {name} on a marked article")
+    _assert_denied(response, method, f"{method} {name} on a marked article")
     assert _unchanged(matrix_corpus) == before
 
 

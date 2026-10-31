@@ -19,6 +19,8 @@ from bundesarchiv.app.web.catalog_views import (
     article_media_upload,
     article_publish,
     article_restore,
+    article_tus_create,
+    article_tus_upload,
     tag_suggestions,
     upload_gate,
 )
@@ -124,4 +126,15 @@ urlpatterns += [
     if isinstance(route, URLPattern)
     and str(route.pattern).split("/")[0] in ("articles", "columns")
     and route.name != "workbench"  # the list lived at /, which stays its alias (start.start)
+]
+
+# Added after the rename, so they have no German path. A capture of ``articles/<str:ulid>`` stops at
+# its slash, so registering them last shadows nothing.
+urlpatterns += [
+    path("articles/<str:ulid>/media/uploads", article_tus_create, name="article-tus-create"),
+    path(
+        "articles/<str:ulid>/media/uploads/<str:upload_id>",
+        article_tus_upload,
+        name="article-tus-upload",
+    ),
 ]

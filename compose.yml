@@ -37,9 +37,13 @@ services:
       postgres:
         condition: service_healthy
     env_file: production.env
+    # The chunked upload's pieces until their finish (ADR 0026); the worker sweeps abandoned ones.
+    environment:
+      BUNDESARCHIV_UPLOAD_STAGING_ROOT: /upload-staging
     volumes:
       - /home/admin/bundesarchiv/canonical:/canonical
       - /home/admin/bundesarchiv/thumbnails:/thumbnails
+      - upload-staging:/upload-staging
     restart: unless-stopped
 
   # The same image with the worker command: one process, per ADR 0013. It does not migrate — the
@@ -53,9 +57,12 @@ services:
       app:
         condition: service_started
     env_file: production.env
+    environment:
+      BUNDESARCHIV_UPLOAD_STAGING_ROOT: /upload-staging
     volumes:
       - /home/admin/bundesarchiv/canonical:/canonical
       - /home/admin/bundesarchiv/thumbnails:/thumbnails
+      - upload-staging:/upload-staging
     restart: unless-stopped
 
   # Postgres image (docker/postgres/, published by
@@ -83,6 +90,11 @@ services:
       retries: 10
       start_period: 10s
     restart: unless-stopped
+
+# Docker's own, not under /home/admin/bundesarchiv/: nothing in it outlives a day, and a fresh one
+# takes its owner from the image's /upload-staging.
+volumes:
+  upload-staging:
 
 networks:
   web:

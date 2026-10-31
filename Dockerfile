@@ -47,8 +47,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     BUNDESARCHIV_STATIC_ROOT=/app/static
 
 # A fixed uid, because canonical/ and thumbnails/ arrive as host bind mounts: those folders have to
-# be owned by this id for the app to write at all (docs/runbook.md, "Deploy").
-RUN useradd --create-home --uid 1000 app
+# be owned by this id for the app to write at all (docs/runbook.md, "Deploy"). /upload-staging is
+# a named volume instead (compose.yml), which copies this folder's owner when Docker creates it.
+RUN useradd --create-home --uid 1000 app \
+    && install -d -o app -g app /upload-staging
 
 WORKDIR /app
 COPY --from=builder /python /python
