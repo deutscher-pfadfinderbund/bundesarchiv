@@ -1,2 +1,5 @@
-{% comment %}A file's download link: what it is and how big ("PDF herunterladen (1,8 MB)").{% endcomment %}
-<p class="download"><a href="{{ tile.file_url }}" download>{{ tile.kind }} herunterladen</a>{% if tile.size %} ({{ tile.size }}){% endif %}</p>
+{% comment %}A file's download link and its size ("Herunterladen (1,8 MB)"); the tile beside it names the kind.{% endcomment %}
+<p class="download">
+  <a href="{{ tile.file_url }}" download>Herunterladen</a>
+  {% if tile.size %}({{ tile.size }}){% endif %}
+</p>

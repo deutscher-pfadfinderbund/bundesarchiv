@@ -90,14 +90,6 @@
     max-width: 100%;
     height: auto;
   }
-  .cover .blank {
-    --blank-ratio: 4 / 1; /* a file, not a picture: a band, not the square a photo fills */
-  }
-  /* The mount is for a photo; the blank draws its own edge (owner 2026-10-01). */
-  .cover:has(.blank) {
-    padding: 0;
-    border: 0;
-  }
   /* under a picture: its caption, then the download line, both quiet words */
   .cover :is(figcaption, .download) {
     margin: var(--space-2) 0 0;
@@ -329,9 +321,6 @@
   }
   .media-rows img {
     display: block;
-  }
-  .media-rows .blank {
-    --blank-display: block;
   }
   .media-rows img,
   .media-rows .blank {

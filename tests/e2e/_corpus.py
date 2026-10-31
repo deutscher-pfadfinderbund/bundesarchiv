@@ -67,6 +67,7 @@ CEILING_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZA")
 MARKED_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZB")  # in the Papierkorb
 MANY_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZC")
 TEMPLATE_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZD")
+SOUND_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZE")  # a film and a recording: tiles with no thumbnail
 
 #: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Collection ·
 #: subdivision · volume, the longest code the archive is expected to carry.
@@ -107,6 +108,7 @@ class CorpusHandles:
     ceiling_ulid: str
     many_ulid: str
     template_ulid: str
+    sound_ulid: str
 
 
 def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
@@ -272,6 +274,26 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         changed_by="tester",
     )
 
+    film = articles.add_media(
+        SOUND_ULID, "Liederabend.mp4", BytesIO(b"mp4 film"), media_type="video/mp4"
+    )
+    recording = articles.add_media(
+        SOUND_ULID, "Liederabend.mp3", BytesIO(b"ID3 recording"), media_type="audio/mpeg"
+    )
+    articles.save(
+        Article(
+            ulid=SOUND_ULID,
+            title="Liederabend 1960",
+            collection_id=ULID("AKTEN"),
+            lifecycle=Lifecycle.PUBLISHED,
+            ref_code="A7",
+            date=EdtfDate("1960"),
+            media=(film, recording),
+        ),
+        0,
+        changed_by="tester",
+    )
+
     winterlager = Article(
         ulid=MARKED_ULID,
         title="Winterlager 1961",
@@ -304,4 +326,5 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         ceiling_ulid=CEILING_ULID,
         many_ulid=MANY_ULID,
         template_ulid=TEMPLATE_ULID,
+        sound_ulid=SOUND_ULID,
     )

@@ -96,7 +96,6 @@ lint (E) onto these rows; components still carrying retired cues are listed in `
 | 15 | Heavy rule | 3px, `--error`: the top of the edit-conflict notice only (`.conflict-notice`) | forbidden — section rules were removed (`r3-linien`) |
 | 16 | Help mark ⓘ | the character U+24D8 at the end of a field hint (`.help`), opening a `.popover` | forbidden — no "?" glyphs, no hover-only tooltips; exception: a `<time>` that shows its date may add the time on hover (owner, 2026-10-21) |
 | 17 | Note | `.note` (note type, `--ink-3`) touching a label or heading ("intern") | forbidden — never at a far edge, never boxed |
-| 18 | Placeholder cross | `--placeholder` in `--faint` on an item without an image (`.blank`, `.file-row-thumb`) | forbidden — no placeholder where no medium is expected |
 | 19 | Gray fill | **RETIRED** (owner 2026-09-27: the door's login is a primary button). | forbidden |
 | 20 | Underline | links and crumb steps at rest; text controls (menu entries, "+ …", suggestion options, field asides) on hover only | forbidden as decoration |
 

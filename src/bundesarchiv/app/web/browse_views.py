@@ -144,6 +144,9 @@ class _SetFilter:
 #: any width, where the 480px thumbnail would be stretched. A TIFF is not among them.
 _DRAWN = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
 
+#: The icon a file without a thumbnail shows in its tile.
+_GLYPHS = {FileKind.VIDEO: "video-file", FileKind.AUDIO: "audio-file"}
+
 
 @dataclass(frozen=True, slots=True)
 class MediaTile:
@@ -151,6 +154,7 @@ class MediaTile:
     means that version is not offered."""
 
     kind: str
+    glyph: str  # a components/icon.html name
     name: str
     caption: str
     file_url: str
@@ -178,8 +182,10 @@ def media_tiles(ulid: ULID, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...
 def _tile(ulid: ULID, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile:
     image = thumbnails.renders(ref, Size.DISPLAY)
     caption = none_if_blank(ref.caption or "") or ""
+    kind = file_kind(ref)
     return MediaTile(
-        kind=vocab.file_word(file_kind(ref)),
+        kind=vocab.file_word(kind),
+        glyph=_GLYPHS.get(kind, "file-present"),
         name=ref.filename,
         size=vocab.human_size(ref.byte_size),
         caption=caption,
@@ -655,6 +661,8 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         for tile in media_tiles(article.ulid, article.media)
     )
     tags = tuple(BylineLink(label=t, href=preset_url(browse.PARAM_TAG, t)) for t in article.tags)
+    # the first file leads as the cover only with a picture to show; otherwise it joins the rows
+    cover = media[0] if media and (media[0].full_url or media[0].thumb_url) else None
     mark = article.deleted
     return {
         "ulid": article.ulid,
@@ -689,11 +697,13 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "delete_confirm": vocab.TRASH_CONFIRM
         if mark is None
         else vocab.delete_permanently_confirm(len(media)),
-        "cover": media[0] if media else None,
-        "more_media": media[1:],
+        "cover": cover,
+        "more_media": media[1:] if cover else media,
         "lightbox": tuple(tile for tile in media if tile.is_image),
         "plates_heading": (
-            vocab.FURTHER_IMAGES
+            vocab.FILES
+            if cover is None
+            else vocab.FURTHER_IMAGES
             if all(file_kind(ref) is FileKind.IMAGE for ref in article.media)
             else vocab.FURTHER_FILES
         ),

@@ -340,6 +340,7 @@ UNDATED = "Unbekannt"
 
 FURTHER_IMAGES = "Weitere Aufnahmen"
 FURTHER_FILES = "Weitere Dateien"
+FILES = "Dateien"  # the rows' heading when no cover leads them
 
 
 def file_word(kind: FileKind) -> str:

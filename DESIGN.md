@@ -195,8 +195,7 @@ A monochrome palette: two inks on paper, three grays with one job each, and one 
   row. Too faint to be an affordance on purpose.
 - **Control Edge** (#8f8f8f, ≥3:1): the edge of an input. An
   affordance, so it meets the 3:1 non-text contrast floor; it is not a connector.
-- **Faint** (#d0d0d0): present but inactive: disabled arrows, the placeholder cross of an item
-  without an image. Tuned brighter in dark, where the hairline would vanish.
+- **Faint** (#d0d0d0): present but inactive: disabled arrows. Tuned brighter in dark, where the hairline would vanish.
 - **Band Black** / **Band Ink** / **Band Secondary Ink** (#000 / #fff / #b3b3b3): the top bar, an
   inverse band on light. In dark it becomes the page with an edge.
 
@@ -296,8 +295,7 @@ from space.
 
 Square corners everywhere (radius 0): buttons, inputs, panels, thumbnails. Lines are 1px
 (the heavy notice rule is 3px). Frames are rare and each earns its place: an input's edge,
-a floating panel, a placeholder tile. An item without an image draws a thin cross in Faint inside
-its tile. There is no bevel, no pill, no circle; the help mark is the text character ⓘ.
+a floating panel, a placeholder tile. There is no bevel, no pill, no circle; the help mark is the text character ⓘ.
 
 ## Components
 

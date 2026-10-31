@@ -7,7 +7,7 @@ and project_change() / project_versions() the last change and the versions befor
 member/archivist fork (spec §4/§10). Only the tools are presentation-gated on is_archivist.
 {% endcomment %}
 {% block title %}{{ title }} — Bundesarchiv{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% static "detail.css" %}">{% if cover %}<script src="{% static "media.js" %}" defer></script>{% endif %}{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static "detail.css" %}">{% if cover or more_media %}<script src="{% static "media.js" %}" defer></script>{% endif %}{% endblock %}
 {% block header %}{% include "workbench/_header.html" %}{% endblock %}
 {% block body %}
 <main id="content" class="article-page">
@@ -92,13 +92,13 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       {% endif %}
     </header>
 
-    {% comment %}The cover Platte, omitted without media, then the files after it as rows of equal
+    {% comment %}The cover Platte, omitted unless the first file has a picture to show, then the files after it as rows of equal
     height. A tile is a plain link to the gated original (a new tab); media.js opens an image's tile
     in the lightbox instead. A PDF's tile is its first page, marked "· PDF", and always the link.{% endcomment %}
     {% if cover %}
     <figure class="cover">
       {% firstof cover.full_url cover.thumb_url as lead %}
-      <a href="{{ cover.file_url }}" target="_blank" rel="noopener"{% if cover.is_image %} data-lightbox="{{ cover.slot }}"{% endif %}>{% if lead %}<img src="{{ lead }}" alt="{{ cover.alt }}">{% else %}{% include "components/blank.html" with kind=cover.kind name=cover.name only %}{% endif %}</a>
+      <a href="{{ cover.file_url }}" target="_blank" rel="noopener"{% if cover.is_image %} data-lightbox="{{ cover.slot }}"{% endif %}><img src="{{ lead }}" alt="{{ cover.alt }}"></a>
       {% if cover.caption %}<figcaption>{{ cover.caption }}</figcaption>{% endif %}
       {% include "workbench/_download.html" with tile=cover only %}
     </figure>
@@ -109,7 +109,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       <div>
         {% for plate in more_media %}
         <figure>
-          <a href="{{ plate.file_url }}" target="_blank" rel="noopener"{% if plate.is_image %} data-lightbox="{{ plate.slot }}"{% endif %}>{% if plate.thumb_url %}<img src="{{ plate.thumb_url }}" alt="{{ plate.alt }}" width="{{ plate.aspect.0 }}" height="{{ plate.aspect.1 }}" loading="lazy">{% else %}{% include "components/blank.html" with kind=plate.kind name=plate.name only %}{% endif %}</a>
+          <a href="{{ plate.file_url }}" target="_blank" rel="noopener"{% if plate.is_image %} data-lightbox="{{ plate.slot }}"{% endif %}>{% if plate.thumb_url %}<img src="{{ plate.thumb_url }}" alt="{{ plate.alt }}" width="{{ plate.aspect.0 }}" height="{{ plate.aspect.1 }}" loading="lazy">{% else %}{% include "components/blank.html" with kind=plate.kind glyph=plate.glyph name=plate.name only %}{% endif %}</a>
           {% if plate.is_image %}{% if plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}{% elif plate.thumb_url %}<figcaption>{% firstof plate.caption plate.name %} <span class="kind">· {{ plate.kind }}</span></figcaption>{% elif plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}
           {% if not plate.is_image %}{% include "workbench/_download.html" with tile=plate only %}{% endif %}
         </figure>

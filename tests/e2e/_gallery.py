@@ -128,6 +128,10 @@ def _reach_slot_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     page.locator(".search-sentence-slots .menu-button").first.click()
 
 
+def _reach_sound(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/articles/{corpus.sound_ulid}", wait_until="networkidle")
+
+
 def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # on S the trigger is "Filter"; click whichever is visible
     page.goto(f"{base}/articles", wait_until="networkidle")
@@ -358,6 +362,13 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench, the Lesesaal on a phone (the mockup's 390)",
         True,
         _goto(f"{LIST}?q={READING_QUERY}"),
+        widths=PHONE,
+    ),
+    GalleryState(
+        "detail-sound-phone",
+        "the article page of a film and a recording on a phone: no cover, the glyphs in the short rows",
+        True,
+        _reach_sound,
         widths=PHONE,
     ),
     GalleryState(

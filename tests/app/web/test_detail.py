@@ -25,6 +25,7 @@ from bundesarchiv.app import legacy
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import generate_thumbnail
 from bundesarchiv.app.web import vocab
+from bundesarchiv.app.web.browse_views import media_tiles
 from bundesarchiv.app.web.media_urls import display_url, media_url, thumbnail_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
@@ -263,6 +264,38 @@ def test_every_file_on_the_page_has_a_download_link(
     archive.add_article(make_article(ulid, collection_id=FOTOS, media=files))
     body = _body(Public(), ulid)
     assert set(download_hrefs(body)) == {media_url(ulid, f.content_hash) for f in files}
+
+
+def test_a_file_without_a_thumbnail_gets_the_glyph_of_its_kind() -> None:
+    files = (
+        MediaRef("a.mp4", "0" * 64, media_type="video/mp4"),
+        MediaRef("b.mp3", "1" * 64, media_type="audio/mpeg"),
+        MediaRef("c.pdf", "2" * 64, media_type="application/pdf"),
+    )
+    tiles = media_tiles(new_ulid(), files)
+    assert [(t.thumb_url, t.glyph) for t in tiles] == [
+        ("", "video-file"),
+        ("", "audio-file"),
+        ("", "file-present"),
+    ]
+
+
+def test_a_first_file_without_a_preview_leads_the_plates_not_a_cover(
+    make_corpus: Callable[[], Corpus],
+) -> None:
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    ulid = new_ulid()
+    files = (
+        archive.articles.add_media(ulid, "a.mp4", io.BytesIO(b"mp4 a"), "video/mp4"),
+        archive.articles.add_media(ulid, "b.mp3", io.BytesIO(b"ID3 b"), "audio/mpeg"),
+    )
+    archive.add_article(make_article(ulid, collection_id=FOTOS, media=files))
+    context = client_as(Public()).get(f"/articles/{ulid}").context
+    assert context["cover"] is None
+    assert [t.name for t in context["more_media"]] == ["a.mp4", "b.mp3"]
 
 
 # --- projection / per-tier (the leak surface, §9) ---------------------------------

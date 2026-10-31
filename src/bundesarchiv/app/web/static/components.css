@@ -1444,24 +1444,30 @@
     color: var(--ink);
   }
 
-  /* ---- blank — a file without a thumbnail, in its thumbnail's slot: the placeholder cross under
-     the file's kind and name, so a missing preview never looks broken (owner, 2026-10-01). The
-     slot sizes it as it sizes an img. Part: -label. Knobs: --blank-ratio (default square),
-     --blank-display (flex: the label at the foot). ---- */
+  /* ---- blank — a file without a thumbnail, in its thumbnail's slot: the glyph of its kind over
+     its kind and name, so a missing preview never looks broken (owner, 2026-10-01; glyph
+     2026-10-31). The slot sizes it as it sizes an img. Part: -label. Knobs: --blank-ratio
+     (default square), --blank-display (grid: the glyph centred, the label at the foot). ---- */
   .blank {
-    --_blank-display: var(--blank-display, flex);
+    --_blank-display: var(--blank-display, grid);
     display: var(--_blank-display);
-    align-items: flex-end;
+    grid-template-rows: minmax(0, 1fr) auto;
+    place-items: center;
+    container-type: size; /* the glyph scales with the tile's short side */
     --_blank-ratio: var(--blank-ratio, 1);
     aspect-ratio: var(--_blank-ratio);
     padding: var(--space-2);
     overflow: hidden;
     border: var(--line-width) solid var(--faint);
-    background: var(--placeholder);
+    color: var(--ink-3); /* the glyph: a default, not the owner's pick */
+  }
+  .blank > .icon {
+    inline-size: clamp(24px, 30cqmin, 48px); /* a default, not the owner's pick */
+    block-size: auto;
   }
   .blank-label {
+    justify-self: start;
     padding: var(--space-1);
-    background: var(--ground);
     font: var(--type-meta);
     color: var(--ink-2);
     overflow-wrap: anywhere;

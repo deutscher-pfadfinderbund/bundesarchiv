@@ -251,12 +251,21 @@ SCREENS: tuple[Screen, ...] = (
         overlays=4,
         control_rows=("header", "div.record-meta-actions"),
     ),
-    # The only screen with media, hence the only one composing the media register's icon toolbar.
+    # A screen with media composes the media register's icon toolbar.
     Screen(
         "edit-published",
         "the edit surface (a published record: media rows + their icon toolbars)",
         True,
         _goto(lambda c: f"/articles/{c.published_ulid}/edit"),
+        "article-edit",
+        overlays=3,
+        control_rows=("header", "div.record-meta-actions", "span.file-row-tools[toolbar]"),
+    ),
+    Screen(
+        "edit-sound",
+        "the edit surface, files without a thumbnail: each row shows its kind's glyph",
+        True,
+        _goto(lambda c: f"/articles/{c.sound_ulid}/edit"),
         "article-edit",
         overlays=3,
         control_rows=("header", "div.record-meta-actions", "span.file-row-tools[toolbar]"),
@@ -337,6 +346,16 @@ SCREENS: tuple[Screen, ...] = (
         "article-detail",
     ),
     Screen(
+        "detail-sound",
+        "the article page of a film and a recording: no cover, both files as tiles in the rows,"
+        " each with its kind's glyph",
+        True,
+        _goto(lambda c: f"/articles/{c.sound_ulid}"),
+        "article-detail",
+        overlays=3,
+        control_rows=("header", "div.actions"),
+    ),
+    Screen(
         "detail-no-media",
         "the article page as a member, no media (the title is the focus)",
         False,
@@ -372,7 +391,7 @@ SCREENS: tuple[Screen, ...] = (
 
 #: The count pin: a walker over a shorter list stays green, and the route join cannot see a dropped
 #: screen because several share one route.
-SCREEN_COUNT = 28
+SCREEN_COUNT = 30
 
 
 def screens_for(*, archivist: bool) -> tuple[Screen, ...]:

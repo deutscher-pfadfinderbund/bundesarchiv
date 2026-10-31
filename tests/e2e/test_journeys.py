@@ -650,7 +650,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # the #results swap and refreshes out-of-band.
     page = archivist_page
     page.goto(live_workbench + LIST)
-    expect(page.locator(".pager")).to_contain_text("6 Einträge")  # the canonical corpus, one page
+    expect(page.locator(".pager")).to_contain_text("7 Einträge")  # the canonical corpus, one page
     count = page.locator("#hit-count")
     expect(count).to_have_text("")
     # The live region's NODE must survive the swap or the polite announcement dies silently. Stamp

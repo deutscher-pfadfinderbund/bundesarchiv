@@ -225,8 +225,7 @@ page. Values: `DESIGN.md` frontmatter (light) and `.impeccable/design.json` (the
   `--gap-head`, `--gap-page`, `--pad-row`, `--gutter`. A section gap beats every inner gap by far.
 - **Lines and sizes:** `--line-width` 1px, `--focus-width` 3px, measures (`--measure`,
   `--measure-prose` 65ch, `--measure-title` 30ch, field and column measures).
-- **Shape:** square corners everywhere; no radius, no bevel, no shadow. `--placeholder` is the one
-  drawing for an item without an image.
+- **Shape:** square corners everywhere; no radius, no bevel, no shadow.
 - **Icons:** one stroke set (24px grid, stroke 2, `currentColor`): `components/icon.html` in the
   app, `system/icons.svg` in the mock, name for name.
 
