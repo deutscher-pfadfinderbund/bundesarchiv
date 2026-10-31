@@ -52,23 +52,17 @@ def _check(page: Page, base: str, corpus: CorpusHandles, screen: Screen) -> list
     return findings + _report(screen, "needs review", incomplete)
 
 
+@pytest.mark.parametrize("screen", screens_for(archivist=True), ids=lambda s: s.name)
 def test_axe_archivist_screens(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles, screen: Screen
 ) -> None:
-    findings = [
-        f
-        for screen in screens_for(archivist=True)
-        for f in _check(archivist_page, live_workbench, e2e_corpus, screen)
-    ]
+    findings = _check(archivist_page, live_workbench, e2e_corpus, screen)
     assert not findings, "axe (WCAG 2.2 AA) violations:\n" + "\n".join(findings)
 
 
+@pytest.mark.parametrize("screen", screens_for(archivist=False), ids=lambda s: s.name)
 def test_axe_member_screens(
-    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles, screen: Screen
 ) -> None:
-    findings = [
-        f
-        for screen in screens_for(archivist=False)
-        for f in _check(public_page, live_workbench, e2e_corpus, screen)
-    ]
+    findings = _check(public_page, live_workbench, e2e_corpus, screen)
     assert not findings, "axe (WCAG 2.2 AA) violations:\n" + "\n".join(findings)

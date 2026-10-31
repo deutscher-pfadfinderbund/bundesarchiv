@@ -45,7 +45,8 @@ OVERLAY_PANEL_OF_JS = (
 OVERLAY_CENTRED_PANEL = ".popover, ul.menu[popover], .toolpanel"
 
 #: How a guard gets a browser onto a screen: navigate, or drive whatever affordance leads there.
-#: Every reach leaves the page fully loaded, so a caller only measures.
+#: Every reach leaves the page loaded (its load event: images, styles and scripts in), so a caller
+#: only measures.
 Reach = Callable[[Page, str, CorpusHandles], None]
 
 
@@ -69,7 +70,7 @@ def _goto(build: Callable[[CorpusHandles], str]) -> Reach:
     """A reach that navigates to a URL built from the corpus handles."""
 
     def reach(page: Page, base: str, corpus: CorpusHandles) -> None:
-        page.goto(base + build(corpus), wait_until="networkidle")
+        page.goto(base + build(corpus))
 
     return reach
 
@@ -84,35 +85,32 @@ BULK_COMMIT = 'main form:has(input[name="confirmed"]) button[type="submit"]'
 
 
 def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(
-        f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
-        wait_until="networkidle",
-    )
+    page.goto(f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}")
     page.click('[popovertarget="field-change"]')
     page.select_option('select[name="field"]', "creator")
     page.fill('input[name="value_text"]', "Sammel-Autor")
-    page.click('button:has-text("Änderung prüfen")')
-    page.wait_for_load_state("networkidle")
+    with page.expect_navigation():
+        page.click('button:has-text("Änderung prüfen")')
 
 
 def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
     """The bulk RESULT surface, one POST past the confirm."""
     _reach_bulk_confirm(page, base, corpus)
-    page.click(BULK_COMMIT)
-    page.wait_for_load_state("networkidle")
+    with page.expect_navigation():
+        page.click(BULK_COMMIT)
 
 
 def reach_door(page: Page, base: str, corpus: CorpusHandles) -> None:
     """The door, on an article's path. The browser suites run with the anonymous gate off
     (``settings_dev``), so this reach turns it on for its own navigation."""
     with override_settings(ANONYMOUS_GATE_ENABLED=True):
-        page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
+        page.goto(f"{base}/articles/{corpus.published_ulid}")
 
 
 def reach_tag_suggestions(page: Page, base: str, corpus: CorpusHandles) -> None:
     """The second Article's edit form (it carries "lager") with "r" typed on a new last line of the
     Schlagworte, the suggestion list open."""
-    page.goto(f"{base}/articles/{corpus.second_ulid}/edit", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.second_ulid}/edit")
     field = page.locator("main #field-tags")
     field.click()
     field.evaluate("(el) => el.setSelectionRange(el.value.length, el.value.length)")
@@ -123,7 +121,7 @@ def reach_tag_suggestions(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 def reach_search_suggestions(page: Page, base: str, _corpus: CorpusHandles) -> None:
     """The start page with "meyer" typed in its search field: an Eintrag and its Autor offered."""
-    page.goto(f"{base}/", wait_until="networkidle")
+    page.goto(f"{base}/")
     page.locator("main #search-field").press_sequentially("meyer")
     expect(page.locator(".autocomplete-list")).to_be_visible()
 

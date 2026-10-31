@@ -17,6 +17,7 @@ from tests.e2e._pages import (
     READING_QUERY,
     SCREENS,
     Screen,
+    _at,
     reach_search_suggestions,
     reach_tag_suggestions,
 )
@@ -94,7 +95,7 @@ def _reach_suggestions_marked(path: str) -> Callable[[Page, str, CorpusHandles],
 
     def reach(page: Page, base: str, _corpus: CorpusHandles) -> None:
         page.route(re.compile(r"/suggestions(/list)?\?"), long_suggestions)
-        page.goto(base + path, wait_until="networkidle")
+        page.goto(base + path)
         page.locator("#search-field").press_sequentially("lager")
         expect(page.locator(".autocomplete-list")).to_be_visible()
         page.keyboard.press("ArrowDown")
@@ -102,19 +103,10 @@ def _reach_suggestions_marked(path: str) -> Callable[[Page, str, CorpusHandles],
     return reach
 
 
-def _goto(path: str) -> Callable[[Page, str, CorpusHandles], None]:
-    """A reach that just navigates to ``base + path`` and waits for the network to settle."""
-
-    def reach(page: Page, base: str, _corpus: CorpusHandles) -> None:
-        page.goto(base + path, wait_until="networkidle")
-
-    return reach
-
-
 def _reach_pagers(page: Page, base: str, _corpus: CorpusHandles) -> None:
     """The component library's pager samples at the top of the viewport: the corpus has no
     two-page list."""
-    page.goto(base + "/_dev/components/", wait_until="networkidle")
+    page.goto(base + "/_dev/components/")
     page.locator("h2", has_text="Pagination").evaluate("h => h.scrollIntoView()")
 
 
@@ -124,64 +116,53 @@ def _screen_state(screen: Screen) -> GalleryState:
 
 
 def _reach_slot_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles", wait_until="networkidle")
+    page.goto(f"{base}/articles")
     page.locator(".search-sentence-slots .menu-button").first.click()
 
 
 def _reach_sound(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.sound_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.sound_ulid}")
 
 
 def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # on S the trigger is "Filter"; click whichever is visible
-    page.goto(f"{base}/articles", wait_until="networkidle")
+    page.goto(f"{base}/articles")
     triggers = page.locator(":is(.search-sentence-add, .search-sentence-more) .menu-button")
     triggers.filter(visible=True).click()
 
 
 def _reach_new_article_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    page.goto(f"{base}{LIST}", wait_until="networkidle")
+    page.goto(f"{base}{LIST}")
     page.click("header > button.link")
 
 
 def _reach_columns_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles", wait_until="networkidle")
+    page.goto(f"{base}/articles")
     page.get_by_role("button", name="Spalten …").click()
 
 
-def _reach_selection(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(
-        f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
-        wait_until="networkidle",
-    )
-
-
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
-    _reach_selection(page, base, corpus)
+    page.goto(f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}")
     page.click('[popovertarget="field-change"]')
 
 
-def _reach_csrf_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/new", wait_until="networkidle")
-    page.locator('main input[name="csrfmiddlewaretoken"]').evaluate("e => e.value = 'x'.repeat(64)")
-    page.locator('main textarea[name="title"]').fill("Abgelaufen")
-    page.locator("main form").get_by_role("button", name="Anlegen").click()
-    page.wait_for_load_state("networkidle")
+def _rendered(template: str) -> Callable[[Page, str, CorpusHandles], None]:
+    """A page Django renders outside any view, from a template that reads nothing from the
+    request; no route fails on purpose. Shown on the app's origin so its stylesheets load."""
 
+    def reach(page: Page, base: str, _corpus: CorpusHandles) -> None:
+        page.goto(f"{base}/articles")
+        page.set_content(render_to_string(template))
 
-def _reach_server_error(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # no route fails on purpose: the page as Django's 500 handler renders it (no context), on the
-    # app's origin so its stylesheets load
-    page.goto(f"{base}/articles", wait_until="networkidle")
-    page.set_content(render_to_string("500.html"), wait_until="networkidle")
+    return reach
 
 
 def _reach_not_found(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/gibt-es-nicht", wait_until="networkidle")
+    page.goto(f"{base}/gibt-es-nicht")
 
 
 def _reach_edit_more_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.draft_ulid}/edit")
     page.click(".record-meta .menu-button")
 
 
@@ -191,7 +172,7 @@ def _reach_edit_delete_open(page: Page, base: str, corpus: CorpusHandles) -> Non
 
 
 def _reach_edit_uploading(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit")
     patches: list[Route] = []
 
     def hold_the_second_piece(route: Route) -> None:
@@ -214,7 +195,7 @@ def _reach_edit_uploading(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_edit_upload_failed(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit")
     refusals = [413, 404]
     page.route("**/media/uploads", lambda route: route.fulfill(status=refusals.pop(0), body=""))
     page.set_input_files(
@@ -231,33 +212,33 @@ def _reach_edit_upload_failed(page: Page, base: str, corpus: CorpusHandles) -> N
 
 
 def _reach_detail_actions_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}")
     page.click(".split-button .menu-button")
 
 
 def _reach_detail_versions_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}")
     page.click('[popovertarget="versions"]')
 
 
 def _reach_detail_delete_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}")
     page.click(".split-button .menu-button")
     page.click('[popovertarget="delete"]')
 
 
 def _reach_detail_publish_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.draft_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.draft_ulid}")
     page.click('button:has-text("Veröffentlichen")')
 
 
 def _reach_detail_template_actions_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.template_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.template_ulid}")
     page.click(".split-button .menu-button")
 
 
 def _reach_edit_template_refused(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.draft_ulid}/edit")
     page.check('main input[name="template"]')
     page.select_option('main select[name="lifecycle"]', "published")
     page.click('main button:has-text("Speichern")')
@@ -265,12 +246,12 @@ def _reach_edit_template_refused(page: Page, base: str, corpus: CorpusHandles) -
 
 
 def _reach_detail_in_trash_confirm_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.marked_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.marked_ulid}")
     page.click('[popovertarget="delete-permanently"]')
 
 
 def _reach_detail_lightbox_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.many_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.many_ulid}")
     page.locator(".media-rows a").nth(2).click()
     page.locator(".lightbox-strip").wait_for(state="visible")
     # the shown picture is the fourth: cover, then the third row tile
@@ -282,7 +263,7 @@ def _reach_detail_lightbox_open(page: Page, base: str, corpus: CorpusHandles) ->
 
 def _reach_trash_emptied(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # Each width reaches this again on the same corpus, so only the first reach deletes.
-    page.goto(f"{base}/trash", wait_until="networkidle")
+    page.goto(f"{base}/trash")
     delete = page.locator("main a", has_text="Endgültig löschen …")
     if delete.count():
         delete.click()
@@ -291,13 +272,13 @@ def _reach_trash_emptied(page: Page, base: str, _corpus: CorpusHandles) -> None:
 
 
 def _reach_edit_date_help(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.draft_ulid}/edit")
     page.click("#field-date-hint .help")
 
 
 def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
     # Gruppe(n) with no Gruppen; also the C13 error-border shot.
-    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit")
     page.select_option('main select[name="audience"]', "groups")
     page.click('main button:has-text("Speichern")')
     page.wait_for_selector(".record-meta .error")
@@ -305,7 +286,7 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 def _reach_edit_more_details(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the published record holds no custom row
-    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit")
     page.click('button:has-text("+ Angabe hinzufügen")')
     page.fill('#custom-bag input[name="custom_key"]', "Legacy-ID")
     page.fill('#custom-bag input[name="custom_value"]', "1293")
@@ -314,10 +295,10 @@ def _reach_edit_more_details(page: Page, base: str, corpus: CorpusHandles) -> No
 def _reach_edit_conflict(page: Page, base: str, corpus: CorpusHandles) -> None:
     # "Inzwischen geändert": a second tab saves the record unchanged (a version bump only, so every
     # other state keeps its content), then this tab's typed edits lose the CAS race
-    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit")
     other = page.context.new_page()
     try:
-        other.goto(page.url, wait_until="networkidle")
+        other.goto(page.url)
         other.click('main button:has-text("Speichern")')
         other.wait_for_url(lambda url: "/edit" not in url)
     finally:
@@ -331,11 +312,7 @@ def _reach_edit_conflict(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(
-        f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
-        wait_until="networkidle",
-    )
-    page.click('[popovertarget="field-change"]')
+    _reach_bulk(page, base, corpus)
     page.select_option('select[name="field"]', "media_type")
     page.select_option('select[name="value_media_type"]', "")
     page.click('button:has-text("Änderung prüfen")')
@@ -374,25 +351,11 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_columns_open,
     ),
     GalleryState(
-        "workbench-bulk-cold",
-        "workbench cold (no selection mode): 'Auswählen' at the tool row's start, no checkbox"
-        " column, so the titles align with the sentence",
-        True,
-        _goto(LIST),
-    ),
-    GalleryState(
         "workbench-selecting",
         "workbench in selection mode, nothing ticked: 'Abbrechen', 'Feld ändern …' and the"
         " checkbox column with its select-all head",
         True,
-        _goto(f"{LIST}?selection="),
-    ),
-    GalleryState(
-        "workbench-selection",
-        "workbench, two rows picked: 'Abbrechen', the count and 'Feld ändern …' at the tool row's"
-        " start",
-        True,
-        _reach_selection,
+        _at(f"{LIST}?selection="),
     ),
     GalleryState(
         "workbench-bulk", "workbench, selection + 'Feld ändern …' open", True, _reach_bulk
@@ -401,7 +364,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench-reading-phone",
         "workbench, the Lesesaal on a phone (the mockup's 390)",
         True,
-        _goto(f"{LIST}?q={READING_QUERY}"),
+        _at(f"{LIST}?q={READING_QUERY}"),
         widths=PHONE,
     ),
     GalleryState(
@@ -415,20 +378,20 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench-reading-sorted",
         "workbench, the Lesesaal sorted by date from the table: the sentence names the sort",
         True,
-        _goto(f"{LIST}?q={READING_QUERY}&sort=-date"),
+        _at(f"{LIST}?q={READING_QUERY}&sort=-date"),
     ),
     GalleryState(
         "workbench-table-query",
         "workbench, the table with a query: 'Auswählen' sits apart from the view switch",
         True,
-        _goto(f"{LIST}?q={READING_QUERY}&view=table"),
+        _at(f"{LIST}?q={READING_QUERY}&view=table"),
         widths=(*WIDTHS, *PHONE),
     ),
     GalleryState(
         "workbench-sentence-wrap",
         "workbench, a search sentence with filters set, wrapping: no line starts with the dot",
         True,
-        _goto(f"{LIST}?q=Lager&tag=sommer&media_type=Foto(s)"),
+        _at(f"{LIST}?q=Lager&tag=sommer&media_type=Foto(s)"),
         widths=(*WIDTHS, *PHONE),
     ),
     GalleryState(
@@ -443,7 +406,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench-templates",
         "workbench filtered to the Vorlagen: the removable chip, no Vorlage mark on the rows",
         True,
-        _goto(f"{LIST}?templates=1"),
+        _at(f"{LIST}?templates=1"),
     ),
     GalleryState(
         "bulk-confirm-error",
@@ -580,7 +543,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "edit-template",
         "the edit surface of a Vorlage: the box ticked, the Status without Veröffentlicht",
         True,
-        _goto(f"/articles/{TEMPLATE_ULID}/edit"),
+        _at(f"/articles/{TEMPLATE_ULID}/edit"),
     ),
     GalleryState(
         "edit-template-refused",
@@ -604,9 +567,9 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "csrf-refused",
         "a form posted with a stale token: the 'form expired' page (403)",
         True,
-        _reach_csrf_refused,
+        _rendered("403_csrf.html"),
     ),
-    GalleryState("server-error", "the server error page (500)", True, _reach_server_error),
+    GalleryState("server-error", "the server error page (500)", True, _rendered("500.html")),
     GalleryState(
         "not-found", "the 404 page, shared by every deny and unmatched path", True, _reach_not_found
     ),

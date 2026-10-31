@@ -21,6 +21,7 @@ from tests.e2e._pages import (
     OVERLAY_PANELS,
     OVERLAY_TRIGGERS,
     SCREENS,
+    Screen,
     reach_door,
     reach_tag_suggestions,
     screens_for,
@@ -63,7 +64,7 @@ def test_the_view_switch_carries_the_search_between_lesesaal_and_table(
     # One search, two views (owner S1): the switch keeps the query and the filter, typing in the
     # table stays in the table, and clearing the query leaves the table without a switch.
     page = archivist_page
-    page.goto(f"{live_workbench}{LIST}?q=Lager&media_type=Foto(s)", wait_until="networkidle")
+    page.goto(f"{live_workbench}{LIST}?q=Lager&media_type=Foto(s)")
     switch = page.locator("main").get_by_role("navigation", name="Ansicht")
     expect(page.locator("main .reading")).to_contain_text("Herbstlager 1963")
     switch.get_by_role("link", name="Tabelle").click()
@@ -376,27 +377,19 @@ def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) 
     return defects
 
 
+@pytest.mark.parametrize("screen", screens_for(archivist=True), ids=lambda s: s.name)
 def test_control_rows_compute_one_height_source(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles, screen: Screen
 ) -> None:
     page = archivist_page
-    defects: list[str] = []
-    ink_defects: list[str] = []
-    buttons = 0
-    for screen in screens_for(archivist=True):
-        screen.reach(page, live_workbench, e2e_corpus)
-        by_name = _walk_control_rows(page)
-        for prefix in screen.control_rows:
-            found = [n for n in by_name if n.startswith(prefix)]
-            assert found, f"[{screen.name}] no control row named {prefix!r}: {sorted(by_name)}"
-        defects += [f"[{screen.name}] {d}" for d in _control_row_defects(by_name)]
-        found_buttons, found_ink = _toolbar_button_defects(page, screen.name)
-        buttons += found_buttons
-        ink_defects += found_ink
+    screen.reach(page, live_workbench, e2e_corpus)
+    by_name = _walk_control_rows(page)
+    for prefix in screen.control_rows:
+        found = [n for n in by_name if n.startswith(prefix)]
+        assert found, f"no control row named {prefix!r}: {sorted(by_name)}"
+    defects = _control_row_defects(by_name)
     assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
-    assert buttons >= 2, (
-        f"the walk measured {buttons} toolbar buttons — the ink check proves nothing"
-    )
+    ink_defects = _toolbar_button_defects(page, screen.name)
     assert not ink_defects, "a toolbar button lost its button roles:\n" + "\n".join(ink_defects)
 
 
@@ -433,8 +426,7 @@ def _toolbar_buttons(page: Page) -> tuple[dict[str, str], list[dict[str, str | b
     return roles, buttons
 
 
-def _toolbar_button_defects(page: Page, where: str) -> tuple[int, list[str]]:
-    """Returns (buttons measured, role-pair defects)."""
+def _toolbar_button_defects(page: Page, where: str) -> list[str]:
     roles, buttons = _toolbar_buttons(page)
     defects: list[str] = []
     for button in buttons:
@@ -448,7 +440,7 @@ def _toolbar_button_defects(page: Page, where: str) -> tuple[int, list[str]]:
             defects.append(
                 f"{where}: '{button['label']}' computes {got}, not the button roles {want}"
             )
-    return len(buttons), defects
+    return defects
 
 
 def test_the_primary_toolbar_button_keeps_its_button_roles_under_the_pointer(
@@ -488,6 +480,12 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     # the published record has three files: three toolbars of three icon buttons (up · down · remove)
     media = [n for n in edit if n.startswith("span.file-row-tools[toolbar]") and len(edit[n]) >= 3]
     assert len(media) >= 3, f"the media register's row toolbars were not walked: {sorted(edit)}"
+
+    page.goto(live_workbench + f"{LIST}?article={e2e_corpus.published_ulid}")
+    buttons = len(_toolbar_buttons(page)[1])
+    assert buttons >= 2, (
+        f"the walk measured {buttons} toolbar buttons — the ink check proves nothing"
+    )
 
 
 #: Per overlay, opened in turn: its geometry plus the entries a centre hit-test misses (on-viewport
@@ -548,47 +546,35 @@ _OVERLAY_WALK_JS = (
 _CONTAINMENT_WIDTHS = (360, 540, 680, 900, 1100, 1440)
 
 
-def _walk_overlay_containment(
-    page: Page, live_workbench: str, corpus: CorpusHandles, *, anchored: bool
-) -> list[str]:
-    """``anchored`` also checks the anchored tier's promise: each panel hangs from its own
-    trigger."""
+def _overlay_containment_defects(page: Page, *, anchored: bool) -> list[str]:
+    """The reached screen's overlays at every containment width. ``anchored`` also checks the
+    anchored tier's promise: each panel hangs from its own trigger."""
     defects: list[str] = []
-    for screen in SCREENS:
-        if not screen.overlays:
-            continue
-        screen.reach(page, live_workbench, corpus)
-        found = page.locator(OVERLAY_TRIGGERS).count()
-        assert found >= screen.overlays, (
-            f"the overlay walker found only {found} panels on {screen.name}"
-        )
-        for width in _CONTAINMENT_WIDTHS:
-            page.set_viewport_size({"width": width, "height": 900})
-            for rect in page.evaluate(_OVERLAY_WALK_JS, OVERLAY_TRIGGERS):
-                where = f"{width}px · {screen.name} · {rect['label']}"
-                if rect["covered"]:
-                    defects.append(f"{where}: entries painted over: {rect['covered']}")
-                # unanchored, a popover panel (help, menu) is the centred native one by design
-                centred = rect["centred"] and not anchored
-                if not centred and float(str(rect["top"])) < float(str(rect["triggerBottom"])) - 1:
-                    defects.append(
-                        f"{where}: panel top {rect['top']}px covers its trigger "
-                        f"(bottom {rect['triggerBottom']}px)"
-                    )
-                # the drop gap is --space-1 (4px); the slack covers rounding
-                if anchored and float(str(rect["top"])) > float(str(rect["triggerBottom"])) + 8:
-                    defects.append(
-                        f"{where}: panel top {rect['top']}px does not hang from its trigger "
-                        f"(bottom {rect['triggerBottom']}px)"
-                    )
-                if float(str(rect["left"])) < -1:
-                    defects.append(f"{where}: panel starts off-viewport at {rect['left']}px")
-                if float(str(rect["right"])) > float(str(rect["viewport"])) + 1:
-                    defects.append(
-                        f"{where}: panel ends at {rect['right']}px > {rect['viewport']}px"
-                    )
-                if float(str(rect["docOverflow"])) > 1:
-                    defects.append(f"{where}: the open panel scrolls the document {rect}")
+    for width in _CONTAINMENT_WIDTHS:
+        page.set_viewport_size({"width": width, "height": 900})
+        for rect in page.evaluate(_OVERLAY_WALK_JS, OVERLAY_TRIGGERS):
+            where = f"{width}px · {rect['label']}"
+            if rect["covered"]:
+                defects.append(f"{where}: entries painted over: {rect['covered']}")
+            # unanchored, a popover panel (help, menu) is the centred native one by design
+            centred = rect["centred"] and not anchored
+            if not centred and float(str(rect["top"])) < float(str(rect["triggerBottom"])) - 1:
+                defects.append(
+                    f"{where}: panel top {rect['top']}px covers its trigger "
+                    f"(bottom {rect['triggerBottom']}px)"
+                )
+            # the drop gap is --space-1 (4px); the slack covers rounding
+            if anchored and float(str(rect["top"])) > float(str(rect["triggerBottom"])) + 8:
+                defects.append(
+                    f"{where}: panel top {rect['top']}px does not hang from its trigger "
+                    f"(bottom {rect['triggerBottom']}px)"
+                )
+            if float(str(rect["left"])) < -1:
+                defects.append(f"{where}: panel starts off-viewport at {rect['left']}px")
+            if float(str(rect["right"])) > float(str(rect["viewport"])) + 1:
+                defects.append(f"{where}: panel ends at {rect['right']}px > {rect['viewport']}px")
+            if float(str(rect["docOverflow"])) > 1:
+                defects.append(f"{where}: the open panel scrolls the document {rect}")
     return defects
 
 
@@ -606,35 +592,45 @@ def _serve_css_without_anchor_positioning(route: Route) -> None:
     route.fulfill(response=response, body=patched)
 
 
+@pytest.mark.parametrize("anchored", [True, False], ids=["anchored", "fallback"])
+@pytest.mark.parametrize("screen", [s for s in SCREENS if s.overlays], ids=lambda s: s.name)
 def test_overlays_stay_inside_the_viewport(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+    archivist_page: Page,
+    live_workbench: str,
+    e2e_corpus: CorpusHandles,
+    screen: Screen,
+    anchored: bool,
 ) -> None:
-    # both tiers (law F): anchored, then the fallback.
+    # both tiers (law F): anchored, and the fallback
     page = archivist_page
-    assert page.evaluate("() => CSS.supports('anchor-name: --a')"), (
-        "this browser has no anchor positioning — the anchored tier would go unproven"
-    )
-    defects = [
-        f"[anchored] {d}"
-        for d in _walk_overlay_containment(page, live_workbench, e2e_corpus, anchored=True)
-    ]
-    page.route("**/static/*.css", _serve_css_without_anchor_positioning)
-    page.goto(live_workbench + LIST)
-    anchored = page.evaluate(
+    if not anchored:
+        page.route("**/static/*.css", _serve_css_without_anchor_positioning)
+    screen.reach(page, live_workbench, e2e_corpus)
+    found = page.locator(OVERLAY_TRIGGERS).count()
+    assert found >= screen.overlays, f"the overlay walker found only {found} panels"
+    if anchored:
+        assert page.evaluate("() => CSS.supports('anchor-name: --a')"), (
+            "this browser has no anchor positioning — the anchored tier would go unproven"
+        )
+    else:
+        live = _anchoring(page)
+        assert not live, (
+            f"the enhancement is still live — the fallback tier would go unproven: {live}"
+        )
+    defects = _overlay_containment_defects(page, anchored=anchored)
+    assert not defects, "overlays leaving the viewport:\n" + "\n".join(defects)
+
+
+def _anchoring(page: Page) -> list[str]:
+    """The elements that take part in anchor positioning."""
+    anchoring: list[str] = page.evaluate(
         "() => [...document.querySelectorAll('*')].flatMap((e) => {"
         " const s = getComputedStyle(e);"
         " return [s.anchorName, s.anchorScope, s.positionAnchor]"
         "  .filter((v) => v.startsWith('--')).map((v) => `${e.localName}.${e.className} ${v}`);"
         "})"
     )
-    assert not anchored, (
-        f"the enhancement is still live — the fallback tier would go unproven: {anchored}"
-    )
-    defects += [
-        f"[fallback] {d}"
-        for d in _walk_overlay_containment(page, live_workbench, e2e_corpus, anchored=False)
-    ]
-    assert not defects, "overlays leaving the viewport:\n" + "\n".join(defects)
+    return anchoring
 
 
 def test_the_header_create_button_is_clickable_on_the_edit_screen(
@@ -707,7 +703,7 @@ def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workben
     # Filter by a decade and a file type (through "+ Filter"), open an article: "Archiv" leads to
     # the list as it was left. Editing and saving the article changes nothing about that.
     page = archivist_page
-    page.goto(live_workbench + f"{LIST}?decade=1960", wait_until="networkidle")
+    page.goto(live_workbench + f"{LIST}?decade=1960")
     page.locator(".search-sentence-add .menu-button").click()
     page.locator("#plus-filter").get_by_role("link", name="mit Fotos").click()
     page.wait_for_url("**file=image**")
@@ -733,7 +729,7 @@ def test_a_start_page_collection_opens_the_list_the_crumb_returns_to(
     # Start → a Collection → its list → an article → "Archiv": the list as it was left, Collection set;
     # the wordmark leads back to the start page.
     page = archivist_page
-    page.goto(live_workbench + "/", wait_until="networkidle")
+    page.goto(live_workbench + "/")
     page.locator("main").get_by_role("link", name="Bundesarchiv").click()
     page.wait_for_url(f"**{LIST}?collection=ROOT")
     page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
@@ -751,10 +747,10 @@ def test_each_start_page_area_opens_the_list_with_its_preset(
     # draft's edit page.
     page = archivist_page
     for name, url_part in (("Foto(s)", "media_type="), ("1960er", "decade=1960")):
-        page.goto(live_workbench + "/", wait_until="networkidle")
+        page.goto(live_workbench + "/")
         page.locator("main").get_by_role("link", name=name).first.click()
         page.wait_for_url(f"**{LIST}?*{url_part}*")
-    page.goto(live_workbench + "/", wait_until="networkidle")
+    page.goto(live_workbench + "/")
     page.locator(".resume").get_by_role("link").first.click()
     page.wait_for_url("**/articles/**/edit")
 
@@ -765,7 +761,7 @@ def test_an_old_list_link_lands_on_the_list_and_its_clear_links_stay_there(
     # The list's links are relative ("?…"): rendered at "/", closing the pane (an empty query)
     # would have led to the start page.
     page = archivist_page
-    page.goto(f"{live_workbench}/?article={e2e_corpus.published_ulid}", wait_until="networkidle")
+    page.goto(f"{live_workbench}/?article={e2e_corpus.published_ulid}")
     assert urlparse(page.url).path == LIST
     page.get_by_role("link", name="Vorschau schließen").click()
     page.wait_for_url(lambda url: urlparse(url).path == LIST and "artikel" not in url)
@@ -776,9 +772,9 @@ def test_a_way_back_remembered_before_the_list_moved_is_not_followed(
 ) -> None:
     # A tab that remembered the list at "/" (before it moved to LIST) keeps the crumb on the list.
     page = archivist_page
-    page.goto(f"{live_workbench}/articles/{e2e_corpus.published_ulid}", wait_until="networkidle")
+    page.goto(f"{live_workbench}/articles/{e2e_corpus.published_ulid}")
     page.evaluate("() => sessionStorage.setItem('list-address', '/?decade=1960')")
-    page.reload(wait_until="networkidle")
+    page.reload()
     crumb = page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True)
     expect(crumb).to_have_attribute("href", LIST)
 
@@ -1439,7 +1435,7 @@ def test_a_search_suggestion_sets_its_filter_with_the_keyboard(
     # A pick keeps the list's filters and drops the text (ruling 2); its options are links (ruling
     # 3); the heading the field sits in keeps its own name, the list open or closed.
     page = archivist_page
-    page.goto(f"{live_workbench}{LIST}?media_type=Foto(s)", wait_until="networkidle")
+    page.goto(f"{live_workbench}{LIST}?media_type=Foto(s)")
     field = page.locator("#search-field")
     heading = page.locator(".search-sentence[role=heading]")
     field.press_sequentially("meyer")
@@ -1512,7 +1508,7 @@ def _suggested_lager(browser: Browser, base: str, width: int, height: int) -> Pa
     add_archivist_cookies(context, base)
     page = context.new_page()
     page.route("**/suggestions?*", long_suggestions)
-    page.goto(f"{base}/", wait_until="networkidle")
+    page.goto(f"{base}/")
     page.locator("main #search-field").press_sequentially("lager")
     expect(page.locator(".autocomplete-list")).to_be_visible()
     return page
@@ -1573,7 +1569,7 @@ def test_a_suggested_count_is_drawn_as_a_filter_menus_count(
     # law C7: one renderer per fact type, and an Eintrag's date is not a count
     page = archivist_page
     page.route("**/suggestions/list?*", long_suggestions)
-    page.goto(f"{live_workbench}{LIST}", wait_until="networkidle")
+    page.goto(f"{live_workbench}{LIST}")
     page.locator("#search-field").press_sequentially("lager")
     suggestions = page.locator(".autocomplete-list")
     expect(suggestions).to_be_visible()
@@ -1596,7 +1592,7 @@ def test_a_suggested_count_is_drawn_as_a_filter_menus_count(
 
 def test_an_option_is_described_by_its_kind(archivist_page: Page, live_workbench: str) -> None:
     page = archivist_page
-    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.goto(f"{live_workbench}/")
     page.locator("main #search-field").press_sequentially("meyer")
     suggestions = page.locator(".autocomplete-list")
     expect(suggestions).to_be_visible()
@@ -1609,7 +1605,7 @@ def test_the_suggestion_list_stays_open_while_a_refinement_is_fetched(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.goto(f"{live_workbench}/")
     field = page.locator("main #search-field")
     field.press_sequentially("meye")
     suggestions = page.locator(".autocomplete-list")
@@ -1617,7 +1613,7 @@ def test_the_suggestion_list_stays_open_while_a_refinement_is_fetched(
     held: list[Route] = []
     page.route(re.compile(r"/suggestions\?q=meyer$"), lambda route: held.append(route))
     field.press_sequentially("r")
-    refinement = _held(page, held)  # out, unanswered
+    refinement = _held(page, held)  # unanswered
     expect(suggestions).to_be_visible()
     refinement.continue_()
     expect(page.locator("#search-field-suggestions-status")).to_have_text("3 Vorschläge")
@@ -1634,16 +1630,16 @@ def test_an_answer_for_older_text_is_never_shown(archivist_page: Page, live_work
     page.clock.install(time=0)
     held: list[Route] = []
     page.route(re.compile(r"/suggestions\?q=meye$"), lambda route: held.append(route))
-    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.goto(f"{live_workbench}/")
     page.clock.pause_at(60_000)  # the debounce fires only when the test runs the clock
     field = page.locator("main #search-field")
     suggestions = page.locator(".autocomplete-list")
     field.press_sequentially("meye")
     page.clock.run_for(150)
-    _held(page, held)  # the request for "meye" is out, unanswered
+    stale = _held(page, held)  # the request for "meye" is out, unanswered
     field.press_sequentially("r")
     with page.expect_response(re.compile(r"/suggestions\?q=meye$")) as answer:
-        long_suggestions(held[0])
+        long_suggestions(stale)
     answer.value.finished()
     page.wait_for_timeout(300)  # the answer is handled
     expect(suggestions).to_be_hidden()
@@ -1657,7 +1653,7 @@ def test_enter_on_a_list_the_field_moved_off_submits_the_field(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.goto(f"{live_workbench}/")
     field = page.locator("main #search-field")
     field.press_sequentially("meyer")
     expect(page.locator(".autocomplete-list")).to_be_visible()
@@ -1673,7 +1669,7 @@ def test_enter_after_typing_submits_though_the_open_list_had_a_marked_option(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.goto(f"{live_workbench}/")
     field = page.locator("main #search-field")
     field.press_sequentially("meyer")
     expect(page.locator(".autocomplete-list")).to_be_visible()
@@ -1692,7 +1688,7 @@ def test_tab_from_the_start_page_search_field_reaches_the_submit_button(
     # The options are links, yet Tab skips them: from the field one press reaches "Suchen",
     # the list open or closed, with or without an ArrowDown first.
     page = archivist_page
-    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.goto(f"{live_workbench}/")
     field = page.locator("main #search-field")
     submit = page.locator("main .search-sentence-submit")
     field.focus()
@@ -1714,7 +1710,7 @@ def test_without_js_the_search_field_just_submits(
     no_js_archivist_page: Page, live_workbench: str
 ) -> None:
     page = no_js_archivist_page
-    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.goto(f"{live_workbench}/")
     page.locator("main #search-field").fill("meyer")
     page.keyboard.press("Enter")
     page.wait_for_url(re.compile(r"/articles\?q=meyer"))
@@ -1826,11 +1822,11 @@ def test_a_stale_failed_request_leaves_the_newer_list_open(
     field = page.locator("main #field-tags")
     field.press_sequentially("x")  # "rx": its request hangs
     expect(page.locator(".autocomplete-list")).to_be_visible()
-    _held(page, held)  # past the debounce, the request is out
+    stale = _held(page, held)  # past the debounce
     with page.expect_response(re.compile(r"[?&]q=r(&|$)")):
         page.keyboard.press("Backspace")  # "r" again: a newer request, answered at once
     expect(page.locator(".autocomplete-list")).to_be_visible()
-    held[0].abort()  # the old request fails late
+    stale.abort()  # the old request fails late
     _fetches_settled(page)
     expect(page.locator(".autocomplete-list")).to_be_visible()
 
@@ -1950,7 +1946,6 @@ def test_publish_from_the_article_page_confirms_first(
     expect(panel).to_be_hidden()
     page.click('button:has-text("Veröffentlichen")')
     page.click('button:has-text("Jetzt veröffentlichen")')
-    page.wait_for_load_state("networkidle")
     expect(page.get_by_role("button", name="Veröffentlichen", exact=True)).to_have_count(0)
 
 
@@ -2705,7 +2700,7 @@ def test_on_a_phone_the_pager_links_are_thumb_sized_and_the_row_does_not_move(
 ) -> None:
     page = archivist_page
     page.set_viewport_size({"width": 390, "height": 900})
-    page.goto(live_workbench + "/_dev/components/", wait_until="networkidle")
+    page.goto(live_workbench + "/_dev/components/")
     steps = page.locator(".pager-steps > a").all()
     sizes = page.locator(".pager-sizes > a").all()
     assert steps
