@@ -93,8 +93,8 @@ def test_csrf_cookie_is_secure_in_production_and_not_in_dev() -> None:
 
 
 def test_the_upload_ceiling_is_four_gibibytes_by_default() -> None:
-    # Owner ruling, 2026-09-19. Per FILE — nginx's client_max_body_size bounds the whole request
-    # and stays above this number (deploy/nginx/nginx.conf), so the oversize error is this one.
+    # Owner ruling, 2026-09-19. Per FILE of the chunked upload, checked at its creation; nginx
+    # bounds each piece (16m), never the whole file.
     assert prod_settings.BUNDESARCHIV_MAX_UPLOAD_BYTES == 4 * 1024**3
 
 

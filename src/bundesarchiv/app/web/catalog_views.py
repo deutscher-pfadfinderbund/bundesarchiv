@@ -779,13 +779,11 @@ def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if (upload_id := request.POST.get("upload_id")) is not None:
         return _finish_upload(request, archive, Key(upload_id, archivist.username, ulid))
     files = request.FILES.getlist("files")
-    ceiling = settings.BUNDESARCHIV_MAX_UPLOAD_BYTES
+    ceiling = settings.BUNDESARCHIV_MAX_MULTIPART_UPLOAD_BYTES
     oversize = any(f.size is not None and f.size > ceiling for f in files)
     unnamed = any(cleaned_name(f.name or "") is None for f in files)
     if oversize or unnamed:
-        message = (
-            "Datei zu groß. Bitte kleinere Dateien hochladen." if oversize else _FILENAME_EMPTY
-        )
+        message = f"Datei zu groß (>{ceiling // 1_000_000} MB)" if oversize else _FILENAME_EMPTY
         return _media_surface(
             request, stored.article, stored.version, CollectionChooser.of(archive)
         ).render(request, overlay=MediaError(message))

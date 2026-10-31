@@ -254,12 +254,25 @@ def test_upload_the_same_file_again_stores_no_second_file(corpus: _MediaCorpus) 
 
 
 def test_upload_oversize_is_clean_error_not_500(corpus: _MediaCorpus) -> None:
-    big = SimpleUploadedFile("gross.jpg", b"x" * 1024, content_type="image/jpeg")
-    with override_settings(BUNDESARCHIV_MAX_UPLOAD_BYTES=100):
-        response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": big})
+    files_before = corpus.articles.keys_for(_ULID)
+    batch = [
+        SimpleUploadedFile("passt.jpg", b"x" * 100, content_type="image/jpeg"),
+        SimpleUploadedFile("gross.jpg", b"x" * 101, content_type="image/jpeg"),
+    ]
+    with override_settings(BUNDESARCHIV_MAX_MULTIPART_UPLOAD_BYTES=100):
+        response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": batch})
     assert response.status_code == 200  # a clean re-render, not a 500
-    assert "Datei zu groß" in response.content.decode()
+    assert response.context["media_error"]
     assert len(corpus.media()) == 2  # nothing attached
+    assert corpus.articles.keys_for(_ULID) == files_before  # nothing stored
+
+
+def test_upload_at_the_multipart_limit_is_taken(corpus: _MediaCorpus) -> None:
+    exact = SimpleUploadedFile("passt.jpg", b"x" * 100, content_type="image/jpeg")
+    with override_settings(BUNDESARCHIV_MAX_MULTIPART_UPLOAD_BYTES=100):
+        response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": exact})
+    assert not response.context["media_error"]
+    assert corpus.media()[-1].filename == "passt.jpg"
 
 
 def test_a_refused_upload_hands_a_stale_form_its_own_version_back(corpus: _MediaCorpus) -> None:
@@ -277,7 +290,7 @@ def test_a_refused_upload_hands_a_stale_form_its_own_version_back(corpus: _Media
     )
     assert other.status_code == 302
     big = SimpleUploadedFile("gross.jpg", b"x" * 1024, content_type="image/jpeg")
-    with override_settings(BUNDESARCHIV_MAX_UPLOAD_BYTES=100):
+    with override_settings(BUNDESARCHIV_MAX_MULTIPART_UPLOAD_BYTES=100):
         response = archivist.post(
             f"/artikel/{_ULID}/medien/hochladen",
             {"files": big, "expected_version": str(corpus.version)},
@@ -462,9 +475,9 @@ def test_only_the_gated_upload_route_takes_a_large_body() -> None:
     assert server_wide is not None
     assert re.fullmatch(r"\d+m", server_wide[1])
     upload = conf.split("medien/hochladen)$", 1)[1].split("}", 1)[0]
-    assert "client_max_body_size 8g;" in upload
+    assert "client_max_body_size 64m;" in upload
     assert "auth_request /_upload_gate;" in upload
-    assert conf.count("client_max_body_size 8g;") == 1
+    assert conf.count("client_max_body_size 64m;") == 1
 
 
 def test_the_upload_location_matches_both_spellings_of_the_upload_path() -> None:

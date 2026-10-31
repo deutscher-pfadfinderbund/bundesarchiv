@@ -159,10 +159,14 @@ BUNDESARCHIV_MIRROR_RECONCILE_CRON = os.environ.get(
     "BUNDESARCHIV_MIRROR_RECONCILE_CRON", "0 3 * * *"
 )
 
-# Per-file upload cap (owner ruling 2026-09-19). nginx's client_max_body_size sits higher, so its
-# English 413 never pre-empts the upload view's German error.
+# Per-file upload cap (owner ruling 2026-09-19) of the chunked upload, checked at its creation.
 BUNDESARCHIV_MAX_UPLOAD_BYTES = int(
     os.environ.get("BUNDESARCHIV_MAX_UPLOAD_BYTES", str(4 * 1024**3))
+)
+# Per-file cap of the multipart upload, the no-JS fallback (owner, 2026-10-31; ADR 0026). nginx's
+# client_max_body_size sits higher, so its English 413 never pre-empts the view's German error.
+BUNDESARCHIV_MAX_MULTIPART_UPLOAD_BYTES = int(
+    os.environ.get("BUNDESARCHIV_MAX_MULTIPART_UPLOAD_BYTES", "50000000")
 )
 # Chunked uploads until their finish (ADR 0026): local disk shared by app and worker, never the archive.
 BUNDESARCHIV_UPLOAD_STAGING_ROOT = os.environ.get(
