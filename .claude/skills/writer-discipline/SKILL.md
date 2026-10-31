@@ -76,7 +76,7 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 
 ### The deny contract
 
-- Every deny, absence, malformed param or disallowed method on a prod route is a plain 404 that reveals and changes nothing (`docs/requirements/owner-interview-2026-08.md`), via the shared `not_found()` — one constant German page, rendered once.
+- Every deny, absence, malformed param or disallowed method on a prod route is a plain 404 that reveals and changes nothing (`src/bundesarchiv/app/web/CLAUDE.md`), via the shared `not_found()` — one constant German page, rendered once.
 - Unauthorized content stays out of search results, listings and facet counts.
 - How a deny is tested and how a new route joins the leak matrix: `tests/CLAUDE.md`, "The deny contract".
 
@@ -103,7 +103,7 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 - ruff's RUF001/RUF002 reject confusables (en dash, bullet) that German legacy text needs: write `"\N{EN DASH}"` / `"\N{BULLET}"` in code.
 - No `--no-verify` except on a docs-only commit right after a code commit whose gates ran clean — never on a fixup.
 - Trim noisy hook output with `| tail` under `set -o pipefail` (a pipe returns `tail`'s status), or confirm with `git log -1` that the commit landed; the baseline is what the ledger records — never let it drop.
-- A ruling that changes standing law (a testing rule, the deny shape, a workflow) updates `.claude/agents/`, `.claude/skills/`, `CLAUDE.md` and `tests/CLAUDE.md` in the same wave, because a contradicting definition regenerates the old behavior.
+- A decision of the owner that changes a standing rule (a testing rule, the deny shape, a workflow) updates `.claude/agents/`, `.claude/skills/`, `CLAUDE.md` and `tests/CLAUDE.md` in the same wave, because a contradicting definition regenerates the old behavior.
 - Wave-internal fixes land as `git commit --fixup <sha>` and fold at wave end with `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash <wave-base>` (without `-i`, git before 2.44 folds nothing yet reports success), strictly over your own unaccepted commits. A signature change whose callers sit in several of your commits lands as a core fixup plus one plain signature commit: no single fixup is green alone, and the structure gates refuse a compatibility shim.
 - Never rebase a commit you did not create in this wave or one already accepted; no flip-flops in the log; no push, `reset --hard`, `clean` or `branch -D` (a hook blocks them).
 

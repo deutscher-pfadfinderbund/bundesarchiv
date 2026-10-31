@@ -1,6 +1,6 @@
 # Conventions
 
-How code in this repo is written. Binds human contributors and AI agents alike.
+How code in this repo is written.
 
 ## Stack & tooling
 

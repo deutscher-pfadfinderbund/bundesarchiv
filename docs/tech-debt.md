@@ -44,7 +44,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Indicator:** pair rules restated in 8 sites over 3 modules; 2 Dokumenttyp-option routes, 5 param aliases (2026-10-01, P5/W5)
 - **Evidence:** `catalog.py:149-160`, `bulk_views.py`, `bulk.py`, `catalog_views.py:995-1009`; `vocab.py` in `app/web` is imported by a command and injected into `legacy.py`. Every pair is valid today, so the refusal branches never run.
 - **Deletion test:** free text deletes all 8 pair rules and both routes; `vocab` lists become suggestions. `media_type` still names Medienart and MIME type: rename one.
-- **2026-10-21:** ruled in `docs/requirements/owner-interview-2026-08.md` ("Rulings of 2026-10-21"): Art becomes several independent questions (#72 folds in). The design waits on the archivists.
+- **2026-10-21:** owner: Art becomes several independent questions (#72 folds in). The design waits on the archivists.
 
 ## Packages
 
@@ -480,7 +480,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Left (2026-10-01):** each state rebuilds the corpus (`live_server` → `transactional_db` truncates the index), so the full run is ~9% slower (135 s) and `test:gallery-diff` takes ~4.5 min; a module-scoped corpus would cut both but changes the isolation `edit-conflict` relies on. The diff task's first version compared only the alpha band (always "identical"); fixed 2026-10-01 (RGB). A re-check of the rebuild (`f45b8db` vs `91a500b`) then showed 35 changed PNGs, all from the old single-test run leaking a bulk edit's author ("Sammel-Autor") into later states; per-state isolation removed that leak, so the new renders are the correct ones.
 ### 23. Tests pin UI copy and markup — Strong
 - **Indicator:** 109 `"…" in body`-style asserts in `tests/app`, 201 `get_by_*`/`locator(` calls in `tests/e2e` (2026-10-01; new grep, not comparable with 188 / 53 of 2026-09-30 — baseline reset)
-- **Evidence:** owner ruling 2026-09-30 (`owner-interview-2026-08.md`, "Ruling of 2026-09-30 (tests)"); the withdrawn exception came from `a08cbb6`
+- **Evidence:** owner, 2026-09-30; the withdrawn exception came from `a08cbb6`
 - **Deletion test:** a copy or layout change stops breaking tests; behaviour tests and the leak suites keep their proofs
 - **Sketch:** sweep `tests/app` and `tests/e2e`: delete copy pins, rewrite the rest to behaviour. Open: how e2e finds elements (roles + names, or stable hooks) — owner decides
 

@@ -43,7 +43,7 @@ Any authenticated DPB member (identity via Keycloak). In v1, reads/browses/searc
 _Avoid_: user.
 
 **Public** (*Öffentlich*):
-**Link-accessible**, not the open internet: later, a visitor holding a special link to one Article, with no login prompt (semi-public access, owner 2026-10-01). Today a Public viewer never passes the door: an anonymous request gets the sign-in page. Anonymous internet browsing does not exist — no public listing, browse, or search, ever (owner ruling 2026-08, `docs/requirements/owner-interview-2026-08.md`). The `PUBLIC` code identifier keeps its name for now.
+**Link-accessible**, not the open internet: later, a visitor holding a special link to one Article, with no login prompt (semi-public access, owner 2026-10-01). Today a Public viewer never passes the door: an anonymous request gets the sign-in page. Anonymous internet browsing does not exist — no public listing, browse, or search, ever (owner, 2026-08). The `PUBLIC` code identifier keeps its name for now.
 
 **Viewer** (code term, no single UI label):
 *Who is asking* — the union of Archivist, Member, and Public. The value object the access model takes (with the asker's Group names) to decide what they may see; data only, never reads Keycloak itself.
@@ -89,7 +89,7 @@ When an Article entered the archive, UTC. Set once at creation (the legacy impor
 The derived, disposable Postgres table rebuilt from the canonical `README.md` files. Holds each Article's resolved effective-audience columns (materialized at build time, ADR 0012) and searchable text. Rebuilt in full by `rebuild()`; queried by `search()`. Never canonical — the README is.
 
 **Reading view** (*Lesesaal*) and **table** (*Tabelle*) — URL param `view`:
-The two views of one search over the same route, address and hits (owner S1, 2026-10). A query reads in the Lesesaal unless `view=table`; without a query the list is the table. A Lesesaal row names the member-searchable field the query matched in (the why line) when the title does not hold the word. Selection exists only in the table. A sort is set at the table's column heads and carries into the Lesesaal, whose search sentence names it with a way back to relevance (search-ui-rulings-2026-10, ruling 1).
+The two views of one search over the same route, address and hits (owner S1, 2026-10). A query reads in the Lesesaal unless `view=table`; without a query the list is the table. A Lesesaal row names the member-searchable field the query matched in (the why line) when the title does not hold the word. Selection exists only in the table. A sort is set at the table's column heads and carries into the Lesesaal, whose search sentence names it with a way back to relevance (search-ui-rulings-2026-10, item 1).
 
 ### Lifecycle
 

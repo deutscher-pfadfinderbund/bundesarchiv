@@ -1,6 +1,6 @@
 # Storage topology: Nextcloud is the system of record, the VPS holds the working copy
 
-Status: Proposed (2026-09-24). Amends ADR 0002 (Nextcloud rejected as canonical) and
+Status: Proposed (2026-09-24), not yet accepted by the owner; built as proposed. Amends ADR 0002 (Nextcloud rejected as canonical) and
 ADR 0005 ("Deployment topology"). Stage B would amend ADR 0017 ("the mirror never serves
 users").
 

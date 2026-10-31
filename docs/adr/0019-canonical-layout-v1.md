@@ -1,6 +1,6 @@
 # Canonical layout v1: version history, named media files, a fixity check
 
-Status: Proposed (2026-09-24). Amends ADR 0005 (history, `changes/`, `.snapshots/`),
+Status: Proposed (2026-09-24), not yet accepted by the owner; built as proposed. Amends ADR 0005 (history, `changes/`, `.snapshots/`),
 ADR 0006 (media keys; its ULID-only folders stand), ADR 0013 (media exemption, secondary
 history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archivist's Keycloak username.
 
