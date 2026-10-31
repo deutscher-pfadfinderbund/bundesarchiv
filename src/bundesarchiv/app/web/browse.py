@@ -27,6 +27,7 @@ PARAM_DRAFTS = "drafts"
 PARAM_TEMPLATES = "templates"
 PARAM_SORT = "sort"
 PARAM_PAGE = "page"
+PARAM_PAGE_SIZE = "page_size"
 PARAM_VIEW = "view"
 
 #: The one ``view`` value: the table. A query reads in the Lesesaal unless the table is asked for;
@@ -54,12 +55,16 @@ _SEARCH_PARAMS: frozenset[str] = frozenset(
         PARAM_TEMPLATES,
         PARAM_SORT,
         PARAM_PAGE,
+        PARAM_PAGE_SIZE,
         PARAM_VIEW,
     }
 )
 
 
 PAGE_SIZE = 50
+#: The sizes on offer; any other ``page_size`` falls to ``PAGE_SIZE``.
+PAGE_SIZES: tuple[int, ...] = (25, 50, 100, 200)
+_PAGE_SIZES_BY_PARAM: dict[str, int] = {str(size): size for size in PAGE_SIZES}
 
 #: The ``sort`` values the index understands (``SortOrder``). An unknown value falls to the
 #: default (relevance), so a hand-edited URL can never 500 the sort.
@@ -79,6 +84,7 @@ class ParsedQuery:
     descending: bool
     page: int
     reading: bool = False
+    page_size: int = PAGE_SIZE
 
 
 _SORT_DESC_PREFIX = "-"
@@ -119,6 +125,7 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
         sort=sort,
         descending=descending,
         page=_page(params.get(PARAM_PAGE)),
+        page_size=_PAGE_SIZES_BY_PARAM.get(params.get(PARAM_PAGE_SIZE) or "", PAGE_SIZE),
         reading=text is not None and (params.get(PARAM_VIEW) or "").strip() != TABLE,
     )
 
@@ -233,16 +240,23 @@ def clear_filters_query(params: Mapping[str, str]) -> str:
 PARAM_SELECTION = "selection"
 
 
+def _paging_query(params: Mapping[str, str], selection: Sequence[str], key: str, value: int) -> str:
+    """The search without its page, ``key=value`` set, the selection kept."""
+    kept = [
+        (k, v) for k, v in _clean(params).items() if k not in (PARAM_SELECTION, PARAM_PAGE, key)
+    ]
+    return urlencode([*kept, (key, str(value)), *((PARAM_SELECTION, u) for u in selection)])
+
+
 def page_query_with_selection(
     params: Mapping[str, str], selection: Sequence[str], page: int
 ) -> str:
-    pairs: list[tuple[str, str]] = [
-        (k, v) for k, v in _clean(params).items() if k != PARAM_SELECTION
-    ]
-    pairs = [(k, v) for k, v in pairs if k != PARAM_PAGE]
-    pairs.append((PARAM_PAGE, str(page)))
-    pairs.extend((PARAM_SELECTION, u) for u in selection)
-    return urlencode(pairs)
+    return _paging_query(params, selection, PARAM_PAGE, page)
+
+
+def page_size_query(params: Mapping[str, str], selection: Sequence[str], size: int) -> str:
+    """The same list in pages of ``size``, from page 1."""
+    return _paging_query(params, selection, PARAM_PAGE_SIZE, size)
 
 
 def select_page_query(

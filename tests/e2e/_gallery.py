@@ -111,6 +111,13 @@ def _goto(path: str) -> Callable[[Page, str, CorpusHandles], None]:
     return reach
 
 
+def _reach_pagers(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    """The component library's pager samples at the top of the viewport: the corpus has no
+    two-page list."""
+    page.goto(base + "/_dev/components/", wait_until="networkidle")
+    page.locator("h2", has_text="Pagination").evaluate("h => h.scrollIntoView()")
+
+
 def _screen_state(screen: Screen) -> GalleryState:
     """One inventory screen as a gallery state — the screen already carries HOW to reach it."""
     return GalleryState(screen.name, screen.what, screen.archivist, screen.reach)
@@ -372,6 +379,14 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         True,
         _goto(f"{LIST}?q=Lager&tag=sommer&media_type=Foto(s)"),
         widths=(*WIDTHS, *PHONE),
+    ),
+    GalleryState(
+        "pagers",
+        "the pager samples: page 2 and page 1 of many, stepped; one page; each led by Pro Seite",
+        False,
+        _reach_pagers,
+        full_page=False,
+        widths=(1440, *PHONE),
     ),
     GalleryState(
         "workbench-templates",

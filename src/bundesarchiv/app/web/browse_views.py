@@ -50,7 +50,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
         sort=parsed.sort,
         descending=parsed.descending,
         page=parsed.page,
-        page_size=browse.PAGE_SIZE,  # explicit: the pager arithmetic reads the same constant
+        page_size=parsed.page_size,
         # the sentence's three slots + the file types of "+ Filter"
         facets=("collection", "decades", "document_type", "file_kind"),
         headlines=parsed.reading,
@@ -236,7 +236,12 @@ def _resolve_pane(
 
 
 #: ``q`` is the form's own input, and a new search resets ``page``.
-_FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT, browse.PARAM_VIEW)
+_FORM_FILTER_PARAMS: tuple[str, ...] = (
+    *browse.FILTER_PARAMS,
+    browse.PARAM_SORT,
+    browse.PARAM_VIEW,
+    browse.PARAM_PAGE_SIZE,
+)
 
 
 def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
@@ -294,7 +299,13 @@ def _results_context(
         ),
         # the view switch, with a query only: without one the list is the table
         "views": _views(params, reading=parsed.reading) if parsed.text else (),
-        "pager": _pager(parsed, page, params, ["", *selection] if selecting else [])
+        "pager": _pager(
+            parsed,
+            page,
+            params,
+            ["", *selection] if selecting else [],
+            page_size=parsed.page_size,
+        )
         if total
         else None,
         # "Spalten …" returns to this very list, pane and selection included
@@ -326,6 +337,14 @@ def _views(params: Mapping[str, str], *, reading: bool) -> tuple[_View, ...]:
 
 
 @dataclass(frozen=True, slots=True)
+class _PageSize:
+    """``query`` is ``None`` for the size on screen."""
+
+    label: str
+    query: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class _Pager:
     """A step that cannot move is ``None``; ``shown`` is empty past the last page."""
 
@@ -337,17 +356,36 @@ class _Pager:
     total: int
     total_label: str
     noun: str
+    sizes: tuple[_PageSize, ...] = ()
 
 
 def _pager(
-    parsed: browse.ParsedQuery, page: SearchPage, params: Mapping[str, str], selection: list[str]
+    parsed: browse.ParsedQuery,
+    page: SearchPage,
+    params: Mapping[str, str],
+    selection: list[str],
+    *,
+    page_size: int | None = None,
 ) -> _Pager:
-    """The pager's steps carry the selection (``selection``), so paging never drops it."""
+    """The pager's links carry the selection (``selection``), so paging never drops it. A
+    ``page_size`` brings the page-size chooser; without one the list pages by ``PAGE_SIZE``."""
+    sizes = (
+        tuple(
+            _PageSize(
+                str(size),
+                None if size == page_size else browse.page_size_query(params, selection, size),
+            )
+            for size in browse.PAGE_SIZES
+        )
+        if page_size is not None
+        else ()
+    )
+    page_size = page_size or browse.PAGE_SIZE
     n, hits = parsed.page, len(page.hits)
-    first = (n - 1) * browse.PAGE_SIZE + 1
+    first = (n - 1) * page_size + 1
     has_prev = n > 1
     has_next = browse.has_next_page(
-        page=n, page_size=browse.PAGE_SIZE, hits_on_page=hits, total=page.total
+        page=n, page_size=page_size, hits_on_page=hits, total=page.total
     )
     shown = f"{vocab.count(first)}\N{EN DASH}{vocab.count(first + hits - 1)}" if hits else ""
     noun = "Artikel"
@@ -364,6 +402,7 @@ def _pager(
         total=page.total,
         total_label=vocab.count(page.total),
         noun=noun,
+        sizes=sizes,
     )
 
 

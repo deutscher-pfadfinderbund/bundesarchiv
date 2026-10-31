@@ -2,16 +2,32 @@
 The pager — the result range between its steps, one group at the end edge (a2 round 10). Param:
 pager — browse_views._Pager, or nothing on a zero-hit page (the empty state speaks there). A step
 that cannot move yet stays, disabled: it becomes active on this list. A one-page list shows only its
-count and, with no steps, is no navigation (round 9). On the workbench, catalog_bulk.js (GH #22)
-rewrites ONLY the ?selection= params of the rel=prev/next links, so an unsubmitted bulk selection
+count and, with no steps, is no navigation (round 9). With pager.sizes the page-size chooser
+leads the row, on one page too; the steps and the range wrap as one group, and in a small container
+the steps show only their arrows, named by aria-label. On the workbench, catalog_bulk.js (GH #22)
+rewrites ONLY the ?selection= params of the pager's links, so an unsubmitted bulk selection
 survives paging.
 {% endcomment %}
 {% if pager.stepped %}
 <nav class="pager" aria-label="Seiten">
-  {% if pager.prev_query is not None %}<a href="?{{ pager.prev_query }}" rel="prev">‹ Zurück</a>{% else %}<a role="link" aria-disabled="true">‹ Zurück</a>{% endif %}
-  <span>{% if pager.shown %}<data value="{{ pager.first }}">{{ pager.shown }}</data> von {% endif %}<data value="{{ pager.total }}">{{ pager.total_label }}</data></span>
-  {% if pager.next_query is not None %}<a href="?{{ pager.next_query }}" rel="next">Weiter ›</a>{% else %}<a role="link" aria-disabled="true">Weiter ›</a>{% endif %}
+  {% include "workbench/_page_sizes.html" %}
+  <span class="pager-steps">
+    {% if pager.prev_query is not None %}
+    <a href="?{{ pager.prev_query }}" rel="prev" aria-label="Zurück">‹ <span>Zurück</span></a>
+    {% else %}
+    <a role="link" aria-disabled="true" aria-label="Zurück">‹ <span>Zurück</span></a>
+    {% endif %}
+    <span>{% if pager.shown %}<data value="{{ pager.first }}">{{ pager.shown }}</data> von {% endif %}<data value="{{ pager.total }}">{{ pager.total_label }}</data></span>
+    {% if pager.next_query is not None %}
+    <a href="?{{ pager.next_query }}" rel="next" aria-label="Weiter"><span>Weiter</span> ›</a>
+    {% else %}
+    <a role="link" aria-disabled="true" aria-label="Weiter"><span>Weiter</span> ›</a>
+    {% endif %}
+  </span>
 </nav>
 {% elif pager %}
-<p class="pager"><span><data value="{{ pager.total }}">{{ pager.total_label }}</data> {{ pager.noun }}</span></p>
+<p class="pager">
+  {% include "workbench/_page_sizes.html" %}
+  <span><data value="{{ pager.total }}">{{ pager.total_label }}</data> {{ pager.noun }}</span>
+</p>
 {% endif %}

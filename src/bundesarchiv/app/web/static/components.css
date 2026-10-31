@@ -1393,6 +1393,7 @@
      step that cannot move yet stays, in Faint (DESIGN.md), and in the same type so nothing moves
      when it becomes active. ---- */
   .pager {
+    container-type: inline-size;
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -1404,17 +1405,43 @@
   .pager data {
     color: var(--ink);
   }
+  /* the steps and the range: one group, so the row wraps between its two parts only */
+  .pager-steps {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-5);
+  }
   /* biome-ignore lint/style/noDescendingSpecificity: never a ledger cell's link */
-  .pager > a {
+  .pager-steps > a {
     font: var(--type-control);
     color: var(--ink);
     text-decoration: none;
   }
-  .pager > a[href]:hover {
+  .pager-steps > a[href]:hover {
     text-decoration: underline;
   }
-  .pager > a[aria-disabled] {
+  .pager-steps > a[aria-disabled] {
     color: var(--faint);
+  }
+  @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
+    /* the arrows alone, in a narrow pager (it is its own container); each step keeps its name
+       in aria-label */
+    .pager-steps > a > span {
+      display: none;
+    }
+  }
+  /* the page-size chooser leads the row; the size on screen in ink and no link, as the view
+     switch marks its view */
+  .pager-sizes {
+    display: flex;
+    gap: var(--space-4);
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: never inside a panel */
+  .pager-sizes > a {
+    color: inherit;
+  }
+  .pager-sizes > [aria-current] {
+    color: var(--ink);
   }
 
   /* ---- blank — a file without a thumbnail, in its thumbnail's slot: the placeholder cross under

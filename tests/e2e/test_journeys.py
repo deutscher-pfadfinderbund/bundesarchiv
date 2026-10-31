@@ -650,7 +650,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # the #results swap and refreshes out-of-band.
     page = archivist_page
     page.goto(live_workbench + LIST)
-    expect(page.locator(".pager")).to_have_text("6 Artikel")  # the canonical corpus, one page
+    expect(page.locator(".pager")).to_contain_text("6 Artikel")  # the canonical corpus, one page
     count = page.locator("#hit-count")
     expect(count).to_have_text("")
     # The live region's NODE must survive the swap or the polite announcement dies silently. Stamp
@@ -660,7 +660,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # real keystrokes (the hx-trigger is keyup; fill() sets the value without key events)
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
     expect(count).to_have_text("1 Treffer")  # refreshed out-of-band, no full navigation
-    expect(page.locator(".pager")).to_have_text("1 Artikel")
+    expect(page.locator(".pager")).to_contain_text("1 Artikel")
     assert "q=Sommerfahrt" in page.url  # it was the hx swap (pushed URL), not a page load
     assert page.evaluate("() => document.querySelector('#hit-count').__probe") == "same-node", (
         "the count's aria-live node was replaced by the swap — announcements die silently"
@@ -2142,6 +2142,10 @@ def test_bulk_fresh_ticks_survive_paging(
     # "Abbrechen" is NEVER rewritten — its purpose is leaving selection mode
     cancel_href = page.get_by_role("link", name="Abbrechen").get_attribute("href")
     assert "selection" not in (cancel_href or "")
+    # a page size carries the fresh state as the steps do
+    size_href = page.locator(".pager-sizes").get_by_role("link", name="25").get_attribute("href")
+    size_query = parse_qs(urlparse(size_href or "").query, keep_blank_values=True)
+    assert size_query["selection"] == ["", e2e_corpus.second_ulid]
     page.click('a[rel="next"]')
     page.wait_for_url("**page=2**")
     # the URL carries the fresh state: the tick travelled, the untick stuck

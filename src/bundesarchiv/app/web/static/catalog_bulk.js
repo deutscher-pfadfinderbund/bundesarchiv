@@ -56,13 +56,14 @@
       count.textContent = n > 0 ? `${n} ausgewählt` : "";
     }
 
-    // 2. Only the pager links carry the live ticks: "Abbrechen" leaves the mode.
+    // 2. Only the pager's links (steps and page sizes) carry the live ticks: "Abbrechen" leaves
+    // the mode.
     function rewriteSelectionLinks() {
       const boxes = rowBoxes();
       const pageUlids = boxes.map((b) => b.value);
       const checked = boxes.filter((b) => b.checked).map((b) => b.value);
       const results = form.closest("#results") || document;
-      const pagers = results.querySelectorAll('.pager a[rel="prev"], .pager a[rel="next"]');
+      const pagers = results.querySelectorAll(".pager a[href]");
       Array.prototype.forEach.call(pagers, (link) => {
         rewriteAuswahl(link, pageUlids, checked);
       });

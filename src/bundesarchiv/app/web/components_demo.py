@@ -197,6 +197,13 @@ def _demo_ledger() -> ledger.Ledger:
     )
 
 
+#: The page-size chooser of a pager sample, keyed like browse_views._PageSize: the default on
+#: screen.
+_PAGE_SIZES = tuple(
+    {"label": str(size), "query": None if size == browse.PAGE_SIZE else f"page_size={size}"}
+    for size in browse.PAGE_SIZES
+)
+
 #: Pager samples, keyed like browse_views._Pager: page 2 of many, page 1 of many, one page.
 _PAGERS = tuple(
     {
@@ -208,6 +215,7 @@ _PAGERS = tuple(
         "total": total,
         "total_label": label,
         "noun": "Artikel",
+        "sizes": _PAGE_SIZES,
     }
     for prev, nxt, first, shown, total, label in (
         ("page=1", "page=3", 51, "51\N{EN DASH}100", 2506, "2.506"),

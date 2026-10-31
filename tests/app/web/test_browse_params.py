@@ -3,7 +3,10 @@
 import datetime
 from typing import get_args
 
-from bundesarchiv.app.web.browse import ParsedQuery, parse_query
+import pytest
+from django.http import QueryDict
+
+from bundesarchiv.app.web.browse import PAGE_SIZE, PAGE_SIZES, ParsedQuery, parse_query
 from bundesarchiv.index.query import FileKind, SearchFilters, SortOrder
 
 
@@ -106,6 +109,46 @@ def test_page_parsed_and_clamped_to_at_least_one() -> None:
     assert _parse(page="-5").page == 1
     assert _parse(page="garbage").page == 1
     assert _parse().page == 1
+
+
+def test_each_offered_page_size_is_read() -> None:
+    assert [_parse(page_size=str(size)).page_size for size in PAGE_SIZES] == [25, 50, 100, 200]
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "",
+        "0",
+        "-25",
+        "51",
+        "1000",
+        "9" * 400,
+        "50.0",
+        " 25",
+        "25 ",
+        "+25",
+        "025",
+        "0x19",
+        "25abc",
+        "\N{ARABIC-INDIC DIGIT TWO}\N{ARABIC-INDIC DIGIT FIVE}",
+        "\N{FULLWIDTH DIGIT TWO}\N{FULLWIDTH DIGIT FIVE}",
+        "zwanzig",
+    ],
+)
+def test_any_other_page_size_falls_to_the_default(raw: str) -> None:
+    # int() accepts several of these (" 25", "+25", "025", unicode digits): only the offered
+    # spellings count
+    assert _parse(page_size=raw).page_size == PAGE_SIZE == 50
+
+
+def test_a_missing_page_size_is_the_default() -> None:
+    assert _parse().page_size == PAGE_SIZE
+
+
+def test_a_repeated_page_size_reads_its_last_value() -> None:
+    assert parse_query(QueryDict("page_size=25&page_size=100")).page_size == 100
+    assert parse_query(QueryDict("page_size=25&page_size=junk")).page_size == PAGE_SIZE
 
 
 def test_the_file_kind_parses_and_an_unknown_one_is_ignored() -> None:

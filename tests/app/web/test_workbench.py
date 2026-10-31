@@ -686,8 +686,8 @@ def _pager(body: str) -> str:
     return body.split('aria-label="Seiten"', 1)[1].split("</nav>", 1)[0]
 
 
-_BACK = "\N{SINGLE LEFT-POINTING ANGLE QUOTATION MARK} Zurück"
-_CONTINUE = "Weiter \N{SINGLE RIGHT-POINTING ANGLE QUOTATION MARK}"
+_BACK = 'aria-label="Zurück">\N{SINGLE LEFT-POINTING ANGLE QUOTATION MARK} <span>Zurück</span>'
+_CONTINUE = 'aria-label="Weiter"><span>Weiter</span> \N{SINGLE RIGHT-POINTING ANGLE QUOTATION MARK}'
 
 
 def test_the_pager_holds_the_range_between_its_steps(two_pages: Corpus) -> None:
@@ -697,15 +697,54 @@ def test_the_pager_holds_the_range_between_its_steps(two_pages: Corpus) -> None:
     assert (
         f'1\N{EN DASH}{browse.PAGE_SIZE}</data> von <data value="{total}">{total}</data>' in pager
     )
-    assert f'<a role="link" aria-disabled="true">{_BACK}</a>' in pager
-    assert re.search(rf'<a href="\?[^"]*page=2[^"]*" rel="next">{_CONTINUE}</a>', pager)
+    assert f'<a role="link" aria-disabled="true" {_BACK}</a>' in pager
+    assert re.search(rf'<a href="\?[^"]*page=2[^"]*" rel="next" {_CONTINUE}</a>', pager)
 
 
 def test_a_one_page_list_shows_its_count_and_no_steps(indexed_corpus: Corpus) -> None:
     total = len(list(indexed_corpus.articles.list_ulids()))
     body = _get(Archivist()).content.decode()
-    assert f'<data value="{total}">{total}</data> Artikel</span></p>' in body
+    assert f'<data value="{total}">{total}</data> Artikel</span>' in body
     assert 'aria-label="Seiten"' not in body
+    # the archivists asked for the choice, not for pagination: it shows on one page too
+    assert _sizes(body) == {
+        "25": ["page_size=25"],
+        "50": None,
+        "100": ["page_size=100"],
+        "200": ["page_size=200"],
+    }
+
+
+def _sizes(body: str) -> dict[str, list[str] | None]:
+    """The page-size chooser: each size's link query split into pairs, ``None`` for the current
+    size, which is no link."""
+    chooser = re.split(r" rel=|</p>", body.split('class="pager-sizes"', 1)[1], maxsplit=1)[0]
+    links = {
+        label: unescape(query).split("&")
+        for query, label in re.findall(r'<a href="\?([^"]*)">(\d+)</a>', chooser)
+    }
+    current = re.findall(r'<span aria-current="true">(\d+)</span>', chooser)
+    return {**links, **dict.fromkeys(current)}
+
+
+def test_the_pager_counts_and_steps_in_the_chosen_page_size(two_pages: Corpus) -> None:
+    pager = _pager(_get(Archivist(), "page_size=25&page=2").content.decode())
+    assert '<data value="26">26\N{EN DASH}50</data>' in pager
+    steps = [parse_qs(unescape(q)) for q in re.findall(r'href="\?([^"]*)" rel=', pager)]
+    assert steps == [{"page_size": ["25"], "page": ["1"]}, {"page_size": ["25"], "page": ["3"]}]
+
+
+def test_a_page_size_link_goes_to_page_one_and_keeps_the_rest(two_pages: Corpus) -> None:
+    body = _get(
+        Archivist(), f"collection=FOTOS&page=2&page_size=100&selection={PANE_PUB_ULID}"
+    ).content.decode()
+    kept = ["selection=", f"selection={PANE_PUB_ULID}"]  # selection mode and its tick
+    assert _sizes(body) == {
+        "25": ["collection=FOTOS", "page_size=25", *kept],
+        "50": ["collection=FOTOS", "page_size=50", *kept],
+        "100": None,
+        "200": ["collection=FOTOS", "page_size=200", *kept],
+    }
 
 
 def _heads(body: str) -> list[str]:
@@ -995,7 +1034,11 @@ def test_a_url_selection_ticks_its_row(indexed_corpus: Corpus) -> None:
 def _steps(query: str) -> list[dict[str, list[str]]]:
     """The pager's links on page 1 (Weiter) and on page 2 (Zurück) of the archivist's list."""
     bodies = (_get(Archivist(), f"{query}&page={n}").content.decode() for n in (1, 2))
-    return [q for body in bodies for q in _queries(_pager(body))]
+    return [
+        parse_qs(unescape(q), keep_blank_values=True)
+        for body in bodies
+        for q in re.findall(r'href="\?([^"]*)" rel=', _pager(body))
+    ]
 
 
 def test_selection_survives_pagination_links(two_pages: Corpus) -> None:
