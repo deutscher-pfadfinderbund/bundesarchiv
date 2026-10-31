@@ -50,7 +50,6 @@ _LEGACY_MEDIA_TYPES = (
     "Wappen und Zeichen",
 )
 
-#: In legacy (lookup-table) order, not alphabetical.
 _LEGACY_DOCUMENT_TYPES = (
     "Adressverzeichnis",
     "Chronik / Dokumentation",
@@ -65,9 +64,9 @@ _LEGACY_DOCUMENT_TYPES = (
     "Schöpferisches (Gedicht, Lieder, ...)",
     "Schriftwechsel",
     "Sonstiges",
+    "Urkunde",
     "Zeitschrift",
     "Zeitungsartikel",
-    "Urkunde",
 )
 
 
@@ -77,6 +76,13 @@ def test_media_types_are_the_legacy_vocabulary_verbatim() -> None:
 
 def test_document_types_are_the_legacy_vocabulary_verbatim() -> None:
     assert vocab.DOCUMENT_TYPES == _LEGACY_DOCUMENT_TYPES
+
+
+def test_document_types_are_alphabetical_by_german_rules() -> None:
+    def din_5007_key(value: str) -> str:
+        return value.casefold().translate(str.maketrans("äöüß", "aous"))
+
+    assert list(vocab.DOCUMENT_TYPES) == sorted(vocab.DOCUMENT_TYPES, key=din_5007_key)
 
 
 def test_every_media_type_offers_the_whole_document_type_list() -> None:

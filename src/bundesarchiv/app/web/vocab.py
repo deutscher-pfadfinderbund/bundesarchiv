@@ -31,7 +31,7 @@ MEDIA_TYPES: tuple[str, ...] = (
     "Wappen und Zeichen",
 )
 
-#: The Dokumenttypen, verbatim and in the legacy lookup table's order.
+#: The Dokumenttypen, verbatim, in alphabetical order (DIN 5007-1: ö sorts as o).
 DOCUMENT_TYPES: tuple[str, ...] = (
     "Adressverzeichnis",
     "Chronik / Dokumentation",
@@ -46,9 +46,9 @@ DOCUMENT_TYPES: tuple[str, ...] = (
     "Schöpferisches (Gedicht, Lieder, ...)",
     "Schriftwechsel",
     "Sonstiges",
+    "Urkunde",
     "Zeitschrift",
     "Zeitungsartikel",
-    "Urkunde",
 )
 
 #: Medienart → the Dokumenttypen it offers. Insertion order is the render order of the Medienart
