@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Bump on any change to build_row's output or to the ADR 0011 FTS config, collation or tsvector
 # wrappers; rows of another version trigger a rebuild.
-CONFIG_VERSION = 9
+CONFIG_VERSION = 8
 
 # Never change it, never reuse it for another lock (ADR 0014).
 _INDEX_WRITER_LOCK_KEY = 0x42554E44
@@ -126,16 +126,11 @@ def build_row(article: Article, chain: ResolvedChain, *, cap_year: int) -> Index
     )
 
 
-# The German parser reads "Liederheft_1998.pdf" as one token, which no search for "Liederheft" hits.
-_FILENAME_SEPARATORS = re.compile(r"[\s_.-]+")
-
-
 def _body_text(article: Article) -> str:
-    """Captions (ADR 0015) and filenames are member-visible, so they ride the body weight, not
+    """Captions are member-visible (ADR 0015), so they ride the body weight, not
     ``archivist_text``."""
     captions = [m.caption for m in article.media if m.caption]
-    filenames = [_FILENAME_SEPARATORS.sub(" ", m.filename).strip() for m in article.media]
-    return " ".join([article.body, *captions, *filenames]).strip()
+    return " ".join([article.body, *captions]).strip()
 
 
 # The stdlib's built-in table only, never the host's mime.types: a rebuild on any machine yields the

@@ -1,8 +1,7 @@
-"""Page text (ADR 0023) and filenames: a word on a page or in a filename reaches an Article only
-through the viewer's scope.
+"""Page text (ADR 0023): a word on a page reaches an Article only through the viewer's scope.
 
 Every restricted Article below carries a word that exists nowhere but on a page of its own file,
-and one that exists nowhere but in that file's name, so each absence is the scope's.
+so each absence is the scope's.
 """
 
 import io
@@ -61,18 +60,6 @@ _PAGE_WORDS: Mapping[str, Mapping[str, frozenset[str]]] = {
     "Gemeinschaftsseite": {_SHARED: _EVERYONE, _SHARED_HIDDEN: _BOARD_UP},
 }
 
-# A word only in a filename -> the Articles it must reach, and the viewers they reach.
-_FILE_WORDS: Mapping[str, Mapping[str, frozenset[str]]] = {
-    "Abenddatei": {_PUBLIC: _EVERYONE},
-    "Mitgliederdatei": {_MEMBER_ONLY: _MEMBERS_UP},
-    "Vorstandsdatei": {_GROUP: _BOARD_UP},
-    "Entwurfsdatei": {_DRAFT: _ARCHIVIST},
-    "Vorlagendatei": {_TEMPLATE: _ARCHIVIST},
-    "Waisendatei": {_ORPHAN: _ARCHIVIST},
-    "Papierkorbdatei": {_TRASH: frozenset()},
-    "Gemeinschaftsdatei": {_SHARED: _EVERYONE, _SHARED_HIDDEN: _BOARD_UP},
-}
-
 # (ulid, index of the file in its media) -> the file's page texts; () is the unreadable-file marker.
 _PAGES: Mapping[tuple[str, int], tuple[str, ...]] = {
     (_PUBLIC, 0): ("Lagerfeuer", "nichts", "Lagerfeuer Kochtopf Kochtopf Kochtopf"),
@@ -99,16 +86,16 @@ def _articles() -> tuple[tuple[Article, tuple[tuple[str, bytes], ...]], ...]:
     """Each Article with its files as (name, bytes); none carries a page word in its record."""
     hidden = ("verborgen",)
     return (
-        (make_article(_PUBLIC, collection_id=_OPEN, title="Abendbericht"), (("Abenddatei_1998.pdf", b"a"), ("b.pdf", b"b"))),
+        (make_article(_PUBLIC, collection_id=_OPEN, title="Abendbericht"), (("a.pdf", b"a"), ("b.pdf", b"b"))),
         (make_article(_RECORD, collection_id=_OPEN, title="Kochtopf und Rezept"), (("scan.pdf", b"s"), ("lock.pdf", b"l"))),
-        (make_article(_SHARED, collection_id=_OPEN, title="Geteilt"), (("Gemeinschaftsdatei_1998.pdf", _SHARED_BYTES),)),
-        (make_article(_SHARED_HIDDEN, collection_id=_BOARD, title="Auch geteilt", tags=hidden), (("Gemeinschaftsdatei_1998.pdf", _SHARED_BYTES),)),
-        (make_article(_MEMBER_ONLY, collection_id=_MEMBERS, title="Akte", tags=hidden), (("Mitgliederdatei_1998.pdf", b"m"),)),
-        (make_article(_GROUP, collection_id=_BOARD, title="Protokoll", tags=hidden), (("Vorstandsdatei_1998.pdf", b"g"),)),
-        (make_article(_DRAFT, collection_id=_OPEN, title="Entwurf", lifecycle=Lifecycle.DRAFT, tags=hidden), (("Entwurfsdatei-1998.pdf", b"d"),)),
-        (make_article(_TEMPLATE, collection_id=_OPEN, title="Vorlage", lifecycle=Lifecycle.DRAFT, template=True, tags=hidden), (("Vorlagendatei-1998.pdf", b"t"),)),
-        (make_article(_TRASH, collection_id=_OPEN, title="Weggeworfen", tags=hidden), (("Papierkorbdatei.1998.pdf", b"p"),)),
-        (make_article(_ORPHAN, collection_id="TX_GHOST", title="Verwaist", tags=hidden), (("Waisendatei 1998.pdf", b"o"),)),
+        (make_article(_SHARED, collection_id=_OPEN, title="Geteilt"), (("shared.pdf", _SHARED_BYTES),)),
+        (make_article(_SHARED_HIDDEN, collection_id=_BOARD, title="Auch geteilt", tags=hidden), (("shared.pdf", _SHARED_BYTES),)),
+        (make_article(_MEMBER_ONLY, collection_id=_MEMBERS, title="Akte", tags=hidden), (("m.pdf", b"m"),)),
+        (make_article(_GROUP, collection_id=_BOARD, title="Protokoll", tags=hidden), (("g.pdf", b"g"),)),
+        (make_article(_DRAFT, collection_id=_OPEN, title="Entwurf", lifecycle=Lifecycle.DRAFT, tags=hidden), (("d.pdf", b"d"),)),
+        (make_article(_TEMPLATE, collection_id=_OPEN, title="Vorlage", lifecycle=Lifecycle.DRAFT, template=True, tags=hidden), (("t.pdf", b"t"),)),
+        (make_article(_TRASH, collection_id=_OPEN, title="Weggeworfen", tags=hidden), (("p.pdf", b"p"),)),
+        (make_article(_ORPHAN, collection_id="TX_GHOST", title="Verwaist", tags=hidden), (("o.pdf", b"o"),)),
     )  # fmt: skip
 
 
@@ -204,14 +191,6 @@ def test_a_page_word_reaches_only_the_articles_the_viewer_may_see(corpus: _Corpu
         assert (set(_ulids(page)), page.total) == (reached, len(reached)), f"[{label}] {word}"
         if not reached:
             assert page == before[label, word], f"[{label}] {word} changed a count"
-
-
-def test_a_filename_word_reaches_only_the_articles_the_viewer_may_see(corpus: _Corpus) -> None:
-    for label, viewer in _VIEWERS:
-        for word, reach in _FILE_WORDS.items():
-            reached = {ulid for ulid, labels in reach.items() if label in labels}
-            page = _search(viewer, word)
-            assert (set(_ulids(page)), page.total) == (reached, len(reached)), f"[{label}] {word}"
 
 
 def test_a_hit_lists_pages_of_its_own_files_only(corpus: _Corpus) -> None:

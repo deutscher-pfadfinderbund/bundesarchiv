@@ -2318,6 +2318,57 @@ def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
     expect(page.get_by_text("Noch keine Medien")).to_be_visible()
 
 
+_LARGE_UPLOAD = "Große Datei. Hochladen, das länger als 60 Sekunden dauert, bricht ab."
+_ABORTED_UPLOAD = "Abgebrochen: Hochladen darf höchstens 60 Sekunden dauern. Melde dich bei BBI."
+
+
+def test_a_large_chosen_file_is_warned_about_and_still_goes_up(
+    archivist_page: Page, live_workbench: str, tmp_path: Path
+) -> None:
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Große Datei"))
+    page.route("**/media/upload", lambda route: None)  # never answered: the upload is under way
+    large = tmp_path / "gross.tif"
+    with large.open("wb") as file:
+        file.truncate(51 * 1024 * 1024)  # sparse: nothing written, and past Playwright's buffer cap
+    with page.expect_request("**/media/upload"):
+        page.set_input_files('#media-drawer input[type="file"]', large)
+    expect(page.locator("#media-drawer [role=alert]")).to_have_text(_LARGE_UPLOAD)
+
+
+def test_a_failed_upload_says_it_was_cut_off(archivist_page: Page, live_workbench: str) -> None:
+    # The gateway's answer swaps nothing (the htmx-config noSwap), so the drawer must say why the
+    # files did not arrive.
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Abgebrochen"))
+    held: list[Route] = []
+    page.route("**/media/upload", lambda route: held.append(route))
+    page.set_input_files(
+        '#media-drawer input[type="file"]',
+        {"name": "klein.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
+    )
+    page.wait_for_timeout(300)  # the upload is out, unanswered
+    notice = page.locator("#media-drawer [role=alert]")
+    expect(notice).to_be_hidden()  # a small file gets no warning
+    held[0].fulfill(status=504, body="Gateway Timeout")
+    expect(notice).to_have_text(_ABORTED_UPLOAD)
+
+
+def test_a_denied_upload_leaves_the_cut_off_notice_hidden(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Only the gateway's cuts are about the 60 s; any other failure is the global banner's.
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Verweigert hochgeladen"))
+    page.route("**/media/upload", lambda route: route.fulfill(status=404, body=""))
+    page.set_input_files(
+        '#media-drawer input[type="file"]',
+        {"name": "klein.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
+    )
+    expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
+    expect(page.locator("#upload-notice")).to_be_hidden()
+
+
 def test_the_forms_own_media_actions_never_make_its_save_conflict(
     archivist_page: Page, live_workbench: str
 ) -> None:

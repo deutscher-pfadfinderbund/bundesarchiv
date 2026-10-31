@@ -99,6 +99,7 @@ save gets HX-Redirect.{% endcomment %}
              hx-include:inherited="#expected-version, #media-drawer input[form=edit-form]" hx-select-oob:inherited="#expected-version">
       <header class="section-head"><h2 id="h-media">Medien</h2></header>
       {% if media_error %}<p class="error" role="alert">{{ media_error }}</p>{% endif %}
+      <p class="error" role="alert" id="upload-notice" hidden></p>
       {% include "components/index_lag.html" with index_lag=drawer_index_lag only %}
       {% if media_rows %}
       <ul class="register">
