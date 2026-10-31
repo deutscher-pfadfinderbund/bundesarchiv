@@ -56,7 +56,7 @@ class Tile:
 
 #: How many titles "Weiter bearbeiten" names before it folds the rest into "und n weitere".
 _RESUME_TITLES = 3
-#: How many Medienarten "Nach Art" shows before "Mehr …" folds the rest (the expandable list).
+#: How many Medienarten "Medienart" shows before "Mehr …" folds the rest (the expandable list).
 _MEDIA_TYPES = 7
 #: How many Articles "Zuletzt hinzugefügt" lists.
 _RECENT_COUNT = 5
@@ -87,8 +87,8 @@ def search_area(
 def collections_area(
     _viewer: Viewer, _request: HttpRequest, counts: Counts, chooser: CollectionChooser
 ) -> Mapping[str, object]:
-    """The top-level Bestände the viewer has Articles in, most first. ``counts`` is already
-    viewer-scoped, and a Bestand it does not count is not named."""
+    """The top-level Collections the viewer has Articles in, most first. ``counts`` is already
+    viewer-scoped, and a Collection it does not count is not named."""
     top: dict[str, str] = {
         c.ulid: c.name for c in chooser.by_ulid().values() if c.parent_id is None
     }
@@ -191,7 +191,7 @@ def timeline_area(
 def recent_area(
     viewer: Viewer, _request: HttpRequest, _counts: Counts, chooser: CollectionChooser
 ) -> Mapping[str, object]:
-    """The newest Articles by ``added_at`` the viewer may see: the day added, title, Bestand."""
+    """The newest Articles by ``added_at`` the viewer may see: the day added, title, Collection."""
     hits = search(viewer, sort="added", page_size=_RECENT_COUNT, facets=()).hits
     known = chooser.by_ulid()
     days = [vocab.day(h.added_at) if h.added_at else "" for h in hits]

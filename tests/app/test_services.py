@@ -848,7 +848,7 @@ def _narrowed(collection: Collection) -> Collection:
 
 @pytest.mark.django_db(transaction=True)
 def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: Archive) -> None:
-    """The Bestand save path has the same bound as the Article save path."""
+    """The Collection save path has the same bound as the Article save path."""
     archive = _with_lock_timeout(pg_archive)
     stored = archive.collections.load(ID_FOTOS)
     with _index_lock_held():
@@ -871,8 +871,8 @@ def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: 
 
 @pytest.mark.django_db(transaction=True)
 def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(pg_archive: Archive) -> None:
-    """The index holds no Bestand name and a new Bestand holds no Articles, so neither waits on the
-    index lock nor queues a reindex, and the renamed Bestand still finds its Article."""
+    """The index holds no Collection name and a new Collection holds no Articles, so neither waits on the
+    index lock nor queues a reindex, and the renamed Collection still finds its Article."""
     stored_article = pg_archive.articles.load(ID_01FOTO)
     save_article(pg_archive, stored_article.article, stored_article.version, changed_by="tester")
     archive = _with_lock_timeout(pg_archive)

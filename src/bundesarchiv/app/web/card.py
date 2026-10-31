@@ -180,10 +180,10 @@ FIELDS: tuple[_Field, ...] = (
         focusable=True,
         seed=_seed_groups,
     ),
-    # Bestand has no diff row: a bulk/CAS diff of collection MOVES is its own surface, not this one.
+    # Collection has no diff row: a bulk/CAS diff of collection MOVES is its own surface, not this one.
     _Field(
         "collection_id",
-        label="Bestand",
+        label="Sammlungsteil",
         control="select",
         section="core",
         required=True,
@@ -326,7 +326,7 @@ class CardRow:
     """One field of the form, ready to render: the registry's declaration joined to THIS render's
     value, error, conflict and focus. ``workbench/_field.html`` prints it and nothing else, so a field
     is on the form exactly when the registry says so. ``was`` is the winner's stored value when a
-    CAS conflict touches the field, else ``None``. A row built outside the registry (the Bestand
+    CAS conflict touches the field, else ``None``. A row built outside the registry (the Collection
     forms) sets only what it uses."""
 
     name: str

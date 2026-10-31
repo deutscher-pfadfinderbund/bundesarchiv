@@ -512,7 +512,7 @@
 
   /* ---- tiles — a list of links in as many columns as fit, one per tile; no width query. ---- */
   .tiles {
-    /* a ~24-character Bestand name in the entry face beside its count; no token measures a tile */
+    /* a ~24-character Collection name in the entry face beside its count; no token measures a tile */
     --_tiles-min: var(--tiles-min, min(32ch, 100%));
     container: tiles / inline-size;
     display: grid;

@@ -34,7 +34,7 @@ def _post(**overrides: str | list[str]) -> dict[str, list[str]]:
     return base
 
 
-#: The two Bestände the form offered; the parse layer accepts these and nothing else.
+#: The two Collections the form offered; the parse layer accepts these and nothing else.
 _COLLECTION = CollectionChooser(
     lambda: (
         Collection(ulid=ULID("COLL1"), name="Eins"),
@@ -151,12 +151,12 @@ def test_missing_title_is_a_field_error() -> None:
 
 def test_missing_collection_is_a_field_error() -> None:
     result = _parse(_post(collection_id=""))
-    assert result.errors["collection_id"] == "Bitte einen Bestand wählen."
+    assert result.errors["collection_id"] == "Bitte einen Sammlungsteil wählen."
 
 
 def test_collection_not_in_options_is_rejected() -> None:
     result = _parse(_post(collection_id="NOT-A-COLL"))
-    assert result.errors["collection_id"] == "Bitte einen Bestand wählen."
+    assert result.errors["collection_id"] == "Bitte einen Sammlungsteil wählen."
 
 
 def test_missing_media_type_is_a_field_error() -> None:
@@ -282,7 +282,7 @@ def _without(post: dict[str, list[str]], *keys: str) -> dict[str, list[str]]:
     ids=["absent", "groups-only", "unknown", "case", "whitespace", "unknown-first"],
 )
 def test_a_post_naming_no_rung_keeps_the_stored_audience(post: dict[str, list[str]]) -> None:
-    # inheriting would widen a GROUPS record to its Bestand's rung, public included
+    # inheriting would widen a GROUPS record to its Collection's rung, public included
     art = _parse(post, stored=_STORED).article
     assert art is not None
     assert art.audience == _STORED

@@ -3,7 +3,7 @@
    per-group fills, no card shadows; that flatness is load-bearing. */
 
 @layer compositions {
-  /* the standalone forms (Bestand, delete confirm) are near-empty: their fields are the focal point */
+  /* the standalone forms (Collection, delete confirm) are near-empty: their fields are the focal point */
   .column.narrow form {
     display: flex;
     flex-direction: column;

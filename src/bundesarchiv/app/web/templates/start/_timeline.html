@@ -3,7 +3,7 @@
 <section data-absent="s" aria-labelledby="start-timeline">
   <header class="section-head"><h2 id="start-timeline">Zeitleiste</h2></header>
   <ul class="tiles">
-    {% for row in area.rows %}<li{% if row.apart %} class="register-apart"{% endif %}><a class="register-row" href="{{ row.tile.href }}" aria-label="{{ row.tile.label }}: {{ row.tile.count_label }} Artikel"><span class="register-label">{{ row.tile.label }}</span><meter class="register-bar" value="{{ row.tile.count }}" max="{{ row.top }}" aria-hidden="true"></meter></a></li>
+    {% for row in area.rows %}<li{% if row.apart %} class="register-apart"{% endif %}><a class="register-row" href="{{ row.tile.href }}" aria-label="{{ row.tile.label }}: {{ row.tile.count_label }} Einträge"><span class="register-label">{{ row.tile.label }}</span><meter class="register-bar" value="{{ row.tile.count }}" max="{{ row.top }}" aria-hidden="true"></meter></a></li>
     {% endfor %}
   </ul>
 </section>

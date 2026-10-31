@@ -67,7 +67,7 @@ def _validate(
 ) -> str | None:
     """The verbatim German refusal of an apply, or ``None`` when it may proceed."""
     if not selection:
-        return "Keine Artikel ausgewählt."
+        return "Keine Einträge ausgewählt."
     if not field or not bulk.is_allowed_field(field):
         return "Bitte ein Feld wählen."
     if field == "media_type" and (value.strip() not in vocab.media_types()):
@@ -78,7 +78,7 @@ def _validate(
         loaded = _load_all(archive, selection)
         if not bulk.document_type_fits_all(value.strip(), loaded):
             return (
-                f"„{value.strip()}“ gehört nicht zur Medienart aller ausgewählten Artikel. "
+                f"„{value.strip()}“ gehört nicht zur Medienart aller ausgewählten Einträge. "
                 "Bitte zuerst die Medienart angleichen oder die Auswahl einschränken."
             )
     return None

@@ -387,7 +387,7 @@
     color: var(--ink-2);
   }
 
-  /* a name at the end edge where a count would stand (the Bestand in Zuletzt hinzugefügt): words,
+  /* a name at the end edge where a count would stand (the Collection in Zuletzt hinzugefügt): words,
      so the meta face, not the data face */
   .register-aside {
     font: var(--type-meta);
@@ -651,7 +651,7 @@
     border-block-end-width: var(--focus-width);
   }
 
-  /* ---- crumbs — the place, not the path: "Archiv", then the Bestand chain, each step opening the
+  /* ---- crumbs — the place, not the path: "Archiv", then the Collection chain, each step opening the
      scoped list (design-system.md, navigation). ---- */
   .crumbs {
     font: var(--type-meta);
@@ -1147,7 +1147,7 @@
   .toolpanel > * + * {
     margin-block-start: var(--space-5);
   }
-  /* a form's fields stack, each the panel's width ("Neuer Artikel …") */
+  /* a form's fields stack, each the panel's width ("Neuer Eintrag …") */
   .toolpanel > .field {
     --field-display: flex;
   }

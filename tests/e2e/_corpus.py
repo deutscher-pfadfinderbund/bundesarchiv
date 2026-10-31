@@ -68,7 +68,7 @@ MARKED_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZB")  # in the Papierkorb
 MANY_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZC")
 TEMPLATE_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZD")
 
-#: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Bestand ·
+#: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Collection ·
 #: subdivision · volume, the longest code the archive is expected to carry.
 CEILING_REF_CODE = "F12/3-b2"
 KARTEN_ULID = ULID("01KX939S67DNGH0AB53HNXGB9B")

@@ -203,7 +203,7 @@ def test_count_groups_thousands_with_a_dot(number: int, expected: str) -> None:
         (True, True, (), "Öffentlich"),
         (False, True, (), "Alle Mitglieder"),
         (False, False, ("vorstand", "kasse"), "Gruppe: vorstand, kasse"),
-        (False, False, (), "Niemand (kein Bestand-Zugriff)"),
+        (False, False, (), "Niemand (kein Sammlungsteil-Zugriff)"),
     ],
 )
 def test_exposure_label_names_the_widest_rung(
@@ -216,13 +216,13 @@ def test_exposure_label_names_the_widest_rung(
 @pytest.mark.parametrize(
     ("public", "members", "groups", "expected"),
     [
-        (True, True, (), "Nach dem Veröffentlichen ist dieser Artikel öffentlich."),
-        (False, True, (), "Nach dem Veröffentlichen sehen alle Mitglieder diesen Artikel."),
+        (True, True, (), "Nach dem Veröffentlichen ist dieser Eintrag öffentlich."),
+        (False, True, (), "Nach dem Veröffentlichen sehen alle Mitglieder diesen Eintrag."),
         (
             False,
             False,
             ("vorstand",),
-            "Nach dem Veröffentlichen sehen nur Mitglieder der Gruppe vorstand diesen Artikel.",
+            "Nach dem Veröffentlichen sehen nur Mitglieder der Gruppe vorstand diesen Eintrag.",
         ),
         (
             False,
@@ -230,14 +230,14 @@ def test_exposure_label_names_the_widest_rung(
             ("vorstand", "kasse"),
             (
                 "Nach dem Veröffentlichen sehen nur Mitglieder der Gruppen vorstand, kasse diesen "
-                "Artikel."
+                "Eintrag."
             ),
         ),
         (
             False,
             False,
             (),
-            "Nach dem Veröffentlichen sieht niemand außer dem Archiv diesen Artikel.",
+            "Nach dem Veröffentlichen sieht niemand außer dem Archiv diesen Eintrag.",
         ),
     ],
 )

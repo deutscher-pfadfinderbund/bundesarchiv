@@ -1,7 +1,7 @@
 """Suggestions while typing in the search field (``GET /suggestions``): a member route.
 
 The pure core ``build`` groups, caps and spells what the shell ``suggestions`` asked the index
-for: the list's own ``search`` for the Artikel and the total, ``values_containing`` for Autor, Ort
+for: the list's own ``search`` for the Articles and the total, ``values_containing`` for Autor, Ort
 and Schlagworte, all with the request's viewer and the form's filters. No query of its own.
 """
 
@@ -33,7 +33,7 @@ _VALUES = 2
 @dataclass(frozen=True, slots=True)
 class Entry:
     """One option: its words split around the first match of the text, where a pick leads, and what
-    it adds (an Artikel's date, a value's count)."""
+    it adds (an Article's date, a value's count)."""
 
     before: str
     match: str
@@ -92,7 +92,7 @@ def build(
         for h in page.hits[:_ARTICLES]
     )
     groups = (
-        Group("Artikel", articles),
+        Group("Einträge", articles),
         *(
             Group(label, _values(text, within, _kept(field, values.get(field, ())), param))
             for field, label, param in _VALUE_GROUPS

@@ -99,7 +99,7 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
 
 # --- Sichtbarkeit (audience) German labels -----------------------------------------
 
-AUDIENCE_INHERIT = "Vom Bestand erben"
+AUDIENCE_INHERIT = "Wie der Sammlungsteil"
 AUDIENCE_PUBLIC = "Öffentlich"
 AUDIENCE_MEMBERS = "Alle Mitglieder"
 #: The GROUPS rung's caption where no group NAMES are known yet — the Sichtbarkeit ``<select>``'s own
@@ -141,23 +141,23 @@ def exposure_label(result: VisibilityPreview) -> str:
         return groups_label(result.groups)
     if result.members:
         return AUDIENCE_MEMBERS
-    return "Niemand (kein Bestand-Zugriff)"
+    return "Niemand (kein Sammlungsteil-Zugriff)"
 
 
 def publish_statement(result: VisibilityPreview) -> str:
     """The Veröffentlichen confirmation (a3 round 7): who sees the record once published, from the
     same ``preview()`` as ``exposure_label``."""
     if result.public:
-        return "Nach dem Veröffentlichen ist dieser Artikel öffentlich."
+        return "Nach dem Veröffentlichen ist dieser Eintrag öffentlich."
     if result.groups:
         group_word = "Gruppe" if len(result.groups) == 1 else "Gruppen"
         return (
             f"Nach dem Veröffentlichen sehen nur Mitglieder der {group_word} "
-            f"{', '.join(result.groups)} diesen Artikel."
+            f"{', '.join(result.groups)} diesen Eintrag."
         )
     if result.members:
-        return "Nach dem Veröffentlichen sehen alle Mitglieder diesen Artikel."
-    return "Nach dem Veröffentlichen sieht niemand außer dem Archiv diesen Artikel."
+        return "Nach dem Veröffentlichen sehen alle Mitglieder diesen Eintrag."
+    return "Nach dem Veröffentlichen sieht niemand außer dem Archiv diesen Eintrag."
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,7 +177,7 @@ BULK_INDEX_LAG = "Die Suche zeigt einige Änderungen in Kürze."
 
 #: "Löschen" puts the record in the Papierkorb, so its confirm says where it goes (ADR 0022).
 TRASH_CONFIRM = DeleteConfirm(
-    question="Artikel löschen?",
+    question="Eintrag löschen?",
     consequence="Er kommt in den Papierkorb. Dort kannst du ihn wiederherstellen.",
     button="In den Papierkorb",
 )
@@ -195,9 +195,9 @@ def delete_permanently_confirm(files: int) -> DeleteConfirm:
     return DeleteConfirm(
         question="Endgültig löschen?",
         consequence=f"{gone} Das lässt sich nicht rückgängig machen.",
-        button=f"Artikel und {files_text} endgültig löschen"
+        button=f"Eintrag und {files_text} endgültig löschen"
         if files
-        else "Artikel endgültig löschen",
+        else "Eintrag endgültig löschen",
     )
 
 

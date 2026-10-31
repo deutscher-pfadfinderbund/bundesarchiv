@@ -3,7 +3,7 @@
 {% comment %}
 The frame of an archivist column page: the header without its search, then one centred column.
 A page fills title, heading and column; it states its width (narrow) as a block, and overrides header
-to keep the search. The crumbs show where the view hands them, empty ones included (a root Bestand).
+to keep the search. The crumbs show where the view hands them, empty ones included (a root Collection).
 {% endcomment %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}

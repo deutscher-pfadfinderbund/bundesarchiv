@@ -44,12 +44,12 @@ _HITS = tuple(
 _LEDGER_QUERY = {"sort": "ref_code"}
 
 
-#: The search sentence's parts -- the demo mirror of browse_views._sentence: a set Bestand, two
+#: The search sentence's parts -- the demo mirror of browse_views._sentence: a set Collection, two
 #: open slots, one set filter no slot shows, and "+ Filter" (the archivist's two checks).
 _SLOTS: tuple[dict[str, object], ...] = (
     {
         "label": "Aktenbestand",
-        "unset_label": "allen Beständen",
+        "unset_label": "allen Sammlungsteilen",
         "clear_query": "tag=sommer",
         "items": (
             {"label": "Fotografien", "count": "24", "query": "collection=FOTOS", "active": False},
@@ -119,7 +119,7 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
                 "stepped": False,
                 "total": len(_HITS),
                 "total_label": str(len(_HITS)),
-                "noun": "Artikel",
+                "noun": "Einträge",
             },
             "preview": _PREVIEW,
             "new": new_article_panel(CollectionChooser(lambda: ())),

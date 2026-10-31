@@ -214,7 +214,7 @@ _PAGERS = tuple(
         "shown": shown,
         "total": total,
         "total_label": label,
-        "noun": "Artikel",
+        "noun": "Einträge",
         "sizes": _PAGE_SIZES,
     }
     for prev, nxt, first, shown, total, label in (

@@ -147,7 +147,7 @@ def test_every_choice_of_columns_round_trips_through_the_cookie(keys: tuple[str,
 
 def test_the_cookie_holds_only_known_columns() -> None:
     # the delimiter inside one posted key, the empty-choice token, unicode, percent, whitespace
-    posted = ["date", "type.collection", ledger.cookie_value(()), "Bestand", "digitäl", "%2E"]
+    posted = ["date", "type.collection", ledger.cookie_value(()), "Sammlungsteil", "digitäl", "%2E"]
     assert ledger.cookie_value([*posted, " ref-code", "ref-code "]) == ledger.cookie_value(["date"])
 
 

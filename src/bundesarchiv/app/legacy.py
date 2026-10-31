@@ -28,7 +28,7 @@ from bundesarchiv.persistence.repository import cleaned_name
 #: more. It is passed in (``unknown_vocabulary``) so the mapping stays below ``app.web``.
 type Vocabulary = Collection[str]
 
-#: The Bestand for the rows whose `collection` is empty — a real, visible place, not a null.
+#: The Collection for the rows whose `collection` is empty — a real, visible place, not a null.
 UNSORTED = "Unsortiert"
 
 #: The ``changed_by`` of every imported version (ADR 0019). Keycloak stores usernames lowercase,
@@ -140,7 +140,7 @@ class MediaFile:
 @dataclass(frozen=True, slots=True)
 class MappedItem:
     """One legacy row as the command can write it: the Article (ULID already minted, media still
-    empty — the blobs are stored first), the Bestand it belongs to, and its files in slot order."""
+    empty — the blobs are stored first), the Collection it belongs to, and its files in slot order."""
 
     legacy_id: str
     collection: str
@@ -218,7 +218,7 @@ def collection_name(row: Mapping[str, str]) -> str:
 
 
 def collection_names(rows: Iterable[Mapping[str, str]]) -> tuple[str, ...]:
-    """Every Bestand the export needs, in first-seen order with ``Unsortiert`` last — the order the
+    """Every Collection the export needs, in first-seen order with ``Unsortiert`` last — the order the
     command creates them in, so a re-read of the tree reads like the export."""
     names = dict.fromkeys(collection_name(row) for row in rows)
     names.pop(UNSORTED, None)
@@ -234,7 +234,7 @@ def map_item(
     """Map one legacy row (plus its `files.csv` rows, any order) onto a fresh Article.
 
     The Article is PUBLISHED with no explicit audience: the legacy site showed all of this, and the
-    Bestand chain is where the archivists will narrow it (ADR 0001). Its media is still empty — the
+    Collection chain is where the archivists will narrow it (ADR 0001). Its media is still empty — the
     blobs must be stored before a README may reference them, so the files ride alongside.
     `pub_date` is when the record was entered, so it is the date added.
     """
@@ -274,9 +274,9 @@ def plan(
     media_rows: Iterable[Mapping[str, str]],
     collection_ids: Mapping[str, ULID],
 ) -> Plan:
-    """Map every row against the already-created Bestände and report over the result.
+    """Map every row against the already-created Collections and report over the result.
 
-    ``collection_ids`` maps Bestand NAME → ULID (what ``collection_names`` asked the command to
+    ``collection_ids`` maps Collection NAME → ULID (what ``collection_names`` asked the command to
     create); a name it does not know is a ``KeyError`` here rather than a mis-filed Article.
     """
     by_item: dict[str, list[Mapping[str, str]]] = {}

@@ -122,7 +122,7 @@ def reach_tag_suggestions(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def reach_search_suggestions(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    """The start page with "meyer" typed in its search field: an Artikel and its Autor offered."""
+    """The start page with "meyer" typed in its search field: an Eintrag and its Autor offered."""
     page.goto(f"{base}/", wait_until="networkidle")
     page.locator("main #search-field").press_sequentially("meyer")
     expect(page.locator(".autocomplete-list")).to_be_visible()
@@ -136,7 +136,7 @@ def reach_search_suggestions(page: Page, base: str, _corpus: CorpusHandles) -> N
 SCREENS: tuple[Screen, ...] = (
     Screen(
         "start",
-        "the start page: the search sentence and the Bestände",
+        "the start page: the search sentence and the Sammlungsteile",
         True,
         _at("/"),
         "start",

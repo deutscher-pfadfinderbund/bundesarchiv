@@ -25,7 +25,7 @@ class Column:
     """One column after the Titel: its key (the CSS class and the stored choice), its head, the
     sort label it sorts by (``None``: not sortable), the filter param its cell sets (``None``: the
     cell is plain text), how a hit spells its value, and the value the filter takes when the
-    words are not it (a Bestand's name stands for its ulid)."""
+    words are not it (a Collection's name stands for its ulid)."""
 
     key: str
     label: str
@@ -42,7 +42,7 @@ COLUMNS: tuple[Column, ...] = (
     Column("ref-code", "Signatur", "ref_code", None, lambda hit, _: hit.ref_code or ""),
     Column(
         "collection",
-        "Bestand",
+        "Sammlungsteil",
         None,
         browse.PARAM_COLLECTION,
         lambda hit, b: b.name_of(hit.collection_id) or "",

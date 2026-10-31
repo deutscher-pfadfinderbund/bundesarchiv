@@ -289,13 +289,13 @@ def test_plain_get_renders_full_page(indexed_corpus: Corpus) -> None:
 
 
 def test_hx_request_renders_only_results_partial(indexed_corpus: Corpus) -> None:
-    # As Archivist so the "Neuer Artikel" absence below is load-bearing (the button DOES render on
+    # As Archivist so the "Neuer Eintrag" absence below is load-bearing (the button DOES render on
     # the Archivist's full page — its absence here proves the topbar is outside the partial).
     response = _get(Archivist(), "q=Foto", hx=True)
     body = response.content.decode()
     assert 'id="results"' in body
     assert "<html" not in body
-    assert "Neuer Artikel" not in body
+    assert "Neuer Eintrag" not in body
 
 
 def test_history_restore_request_renders_full_page(indexed_corpus: Corpus) -> None:
@@ -556,11 +556,11 @@ def test_the_templates_filter_answers_the_archivist_and_nobody_else(indexed_corp
 def test_a_collection_empty_only_under_another_filter_is_not_an_empty_collection(
     indexed_corpus: Corpus,
 ) -> None:
-    # "Noch keine Artikel in diesem Bestand" and its create link are for a Bestand with no record at
+    # "Noch keine Einträge in diesem Sammlungsteil" and its create link are for a Collection with no record at
     # all; AKTEN has records, just none with files.
     body = _get(Archivist(), "collection=AKTEN&digital=1").content.decode()
     assert _listed(body) == set()
-    assert "Noch keine Artikel in diesem Bestand" not in body
+    assert "Noch keine Einträge in diesem Sammlungsteil" not in body
 
 
 # --- facet click → filtered results + removable chip -----------------------------
@@ -704,7 +704,7 @@ def test_the_pager_holds_the_range_between_its_steps(two_pages: Corpus) -> None:
 def test_a_one_page_list_shows_its_count_and_no_steps(indexed_corpus: Corpus) -> None:
     total = len(list(indexed_corpus.articles.list_ulids()))
     body = _get(Archivist()).content.decode()
-    assert f'<data value="{total}">{total}</data> Artikel</span>' in body
+    assert f'<data value="{total}">{total}</data> Einträge</span>' in body
     assert 'aria-label="Seiten"' not in body
     # the archivists asked for the choice, not for pagination: it shows on one page too
     assert _sizes(body) == {
@@ -753,7 +753,7 @@ def _heads(body: str) -> list[str]:
 
 def test_the_ledger_prints_the_columns_its_viewers_cookie_chose(indexed_corpus: Corpus) -> None:
     # The "Spalten …" choice is a per-person cookie (ruling 2026-09-29): it reaches the ledger, and
-    # the Bestand column names the record's own Bestand — for a member too, whose rows it scopes.
+    # the Collection column names the record's own Collection — for a member too, whose rows it scopes.
     client = client_as(Member(groups=()))
     client.cookies[ledger.COOKIE] = ledger.cookie_value(["collection", "date"])
     body = client.get(list_url()).content.decode()

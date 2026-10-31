@@ -10,12 +10,12 @@ The domain of the Deutscher Pfadfinderbund (DPB) multimedia archive — a long-l
 
 ### Core entities
 
-**Article** (*Artikel*):
+**Article** (*Eintrag*):
 A single catalog record describing one archived thing — digital file(s), a physical object, or both.
 _Avoid_: Item, entry, document.
 
-**Collection** (*Bestand*):
-The single owning, nestable division an Article belongs to, and the source of its Audience. Collections form a single-parent tree (shallow in practice: a handful of top Bestände, ≤2–3 levels — owner 2026-08-22). Exactly one per Article. May carry an optional description (owner 2026-08-22).
+**Collection** (*Sammlungsteil*):
+The single owning, nestable division an Article belongs to, and the source of its Audience. Collections form a single-parent tree (shallow in practice: a handful of top Collections, ≤2–3 levels — owner 2026-08-22). Exactly one per Article. May carry an optional description (owner 2026-08-22).
 _Avoid_: Sammlung (superseded UI label, owner 2026-08-22), Catalogue, Fonds; do not also use "Collection" for thematic grouping.
 
 **Reference code** (*Signatur*) — code field `ref_code`:
@@ -99,8 +99,8 @@ _Avoid_: pattern, master, blueprint.
 Where a deleted Article waits (ADR 0022). "Löschen" marks the Article with who deleted it and when; its folder, media and history stay. A marked Article is Archivist-only and shows only in the Trash, never in the list or search; it cannot be edited until it is restored. *Wiederherstellen* takes the mark off; *Endgültig löschen* removes the Article for good. Emptied by hand.
 _Avoid_: bin, soft delete, archived (the whole thing is the archive). German UI copy says *Papierkorb*, never "Trash" or "bin".
 
-**Start page areas** — code names `timeline` (*Zeitleiste*, decades), `by_media_type` (*Nach Art*), `recent` (*Zuletzt hinzugefügt*):
-The start page's blocks, each a preset of the one list (`app/web/start.py`); `collections` (*Bestände*) and `search` are the others.
+**Start page areas** — code names `timeline` (*Zeitleiste*, decades), `by_media_type` (*Medienart*), `recent` (*Zuletzt hinzugefügt*):
+The start page's blocks, each a preset of the one list (`app/web/start.py`); `collections` (*Sammlungsteile*) and `search` are the others.
 
 **Submission** (*Einreichung*) — _deferred, not in v1_:
 Material a Member sends to the archive; lands as a **Submitted** (*Eingereicht*) Article in the Archivist inbox, never visible to anyone but Archivists until reviewed and Published.

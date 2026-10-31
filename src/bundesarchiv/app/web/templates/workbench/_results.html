@@ -48,13 +48,13 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
   {% endif %}
   {% endif %}
   {% else %}
-  {% comment %}Zero hits with a Bestand as the only filter: that Bestand's own empty state, with an
-  archivist create button, which opens the header's "Neuer Artikel" panel with that Bestand preselected (4.8).{% endcomment %}
+  {% comment %}Zero hits with a Collection as the only filter: that Collection's own empty state, with an
+  archivist create button, which opens the header's "Neuer Eintrag" panel with that Collection preselected (4.8).{% endcomment %}
   {% if empty_collection %}
   <div class="empty-state">
     <div class="emblem" aria-hidden="true"></div>
-    <p>Noch keine Artikel in diesem Bestand.</p>
-    {% if is_archivist %}<p><button class="primary" type="button" popovertarget="new-article">+ Neuer Artikel</button></p>{% endif %}
+    <p>Noch keine Einträge in diesem Sammlungsteil.</p>
+    {% if is_archivist %}<p><button class="primary" type="button" popovertarget="new-article">+ Neuer Eintrag</button></p>{% endif %}
   </div>
   {% else %}
   {% if any_filter_set %}

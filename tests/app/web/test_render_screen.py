@@ -15,7 +15,7 @@ def _render_header(context: dict[str, object]) -> str:
 
 
 def test_caller_context_cannot_assert_archivist_chrome() -> None:
-    assert "Neuer Artikel" not in _render_header({"is_archivist": True})
+    assert "Neuer Eintrag" not in _render_header({"is_archivist": True})
 
 
 def test_caller_context_cannot_assert_signed_in_chrome() -> None:

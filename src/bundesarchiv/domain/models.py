@@ -83,7 +83,7 @@ class MediaRef:
 
 @dataclass(frozen=True, slots=True)
 class Collection:
-    """The single owning, nestable division an Article belongs to (*Bestand*).
+    """The single owning, nestable division an Article belongs to (*Sammlungsteil*).
     Collections form a single-parent tree; the root has `parent_id is None`."""
 
     ulid: ULID
@@ -94,7 +94,7 @@ class Collection:
 
 @dataclass(frozen=True, slots=True)
 class Article:
-    """A single catalog record describing one archived thing (*Artikel*).
+    """A single catalog record describing one archived thing (*Eintrag*).
 
     `body` is the Markdown description; the remaining fields are metadata that
     round-trips through the README.md front-matter.

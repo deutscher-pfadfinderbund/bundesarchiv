@@ -26,7 +26,7 @@ def archive(tmp_path: Path) -> Iterator[Archive]:
 
 @pytest.fixture
 def scans(archive: Archive) -> tuple[MediaRef, MediaRef]:
-    """A Bestand saved twice, and an Article saved twice: its first version names a scan and a
+    """A Collection saved twice, and an Article saved twice: its first version names a scan and a
     second file uploaded under the same name, its second version only the scan."""
     archive.collections.save(Collection(ULID(COLLECTION), "Bund"), 0, changed_by="tester")
     archive.collections.save(Collection(ULID(COLLECTION), "Bund (alt)"), 1, changed_by="tester")

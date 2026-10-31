@@ -184,11 +184,11 @@ components; this storyboard updates in lockstep with them.
     <label class="visually-hidden" for="demo-title-{{ mode }}">Titel</label>
     <h1 class="title-field"><textarea id="demo-title-{{ mode }}" rows="1" placeholder="Titel">Die Kompassnadel, Nr. 20</textarea></h1>
     <header class="section-head"><h2>Kerndaten</h2></header>
-    <header class="section-head"><h2>Mehr aus diesem Bestand</h2><a class="section-head-aside" href="#demo-form-head">Bund · alle ›</a></header>
+    <header class="section-head"><h2>Mehr aus diesem Sammlungsteil</h2><a class="section-head-aside" href="#demo-form-head">Bund · alle ›</a></header>
   </div>
   {% endfor %}
 </div>
-<code class="doc">nav.crumbs: "Archiv", then the Bestand chain, "›" between steps · h1.title-field: the Titel is the heading, editable in place — no frame, an edge under it on hover, the focus width on focus · header.section-head &gt; h2: a section's rank; a .section-head-aside (link or note) touches its heading</code>
+<code class="doc">nav.crumbs: "Archiv", then the Collection chain, "›" between steps · h1.title-field: the Titel is the heading, editable in place — no frame, an edge under it on hover, the focus width on focus · header.section-head &gt; h2: a section's rank; a .section-head-aside (link or note) touches its heading</code>
 
 <h2>
   Record margin — conflict, Status, audience, actions (the edit form)
@@ -203,7 +203,7 @@ components; this storyboard updates in lockstep with them.
     <aside class="record-meta" aria-label="Status und Aktionen">
       <div class="conflict-notice" role="alert">
         <p class="conflict-notice-head">Inzwischen geändert</p>
-        <p>Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Prüfe <a href="#demo-date-conflict-{{ mode }}">Datierung</a> und speichere erneut.</p>
+        <p>Ein anderer Bearbeiter hat diesen Eintrag gespeichert, während du ihn bearbeitet hast. Prüfe <a href="#demo-date-conflict-{{ mode }}">Datierung</a> und speichere erneut.</p>
       </div>
       <div class="field">
         <label for="demo-status-{{ mode }}">Status</label>
@@ -215,7 +215,7 @@ components; this storyboard updates in lockstep with them.
       <div class="field">
         <label for="demo-audience-{{ mode }}">Sichtbar für</label>
         <select id="demo-audience-{{ mode }}" name="audience">
-          <option value="">Vom Bestand erben</option>
+          <option value="">Wie der Sammlungsteil</option>
           <option value="groups">Gruppe(n)</option>
         </select>
       </div>
@@ -238,7 +238,7 @@ components; this storyboard updates in lockstep with them.
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <aside class="record-meta" aria-label="Status und Aktionen">
-      <p class="record-meta-state">Neuer Artikel</p>
+      <p class="record-meta-state">Neuer Eintrag</p>
       <p class="record-meta-line">Wird als Entwurf angelegt; die übrigen Angaben folgen danach.</p>
       <div class="record-meta-actions">
         <button class="primary" type="button">Anlegen</button>
@@ -331,7 +331,7 @@ list anchored to its own button. {% endcomment %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; anchor-scope: --menu-button">
     <button class="menu-button" type="button" popovertarget="demo-menu-{{ mode }}">+ Neu …</button>
     <ul class="menu" id="demo-menu-{{ mode }}" popover>
-      <li><a href="#demo-menu">Neuer Artikel</a></li>
+      <li><a href="#demo-menu">Neuer Eintrag</a></li>
       {% comment %} A panel entry that must POST (Duplizieren mutates, so it cannot be a link): the
       edit form's "Mehr …" carries this flavour, and the panel-entry rule covers both.
       {% endcomment %}
@@ -389,7 +389,7 @@ list anchored to its own button. {% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/ledger.html · ledger=ledger.build(…) bulk=… — Titel · Datierung · Typ · Digital · Signatur (ledger.COLUMNS; Bestand on choice); sortable heads cycle asc→desc→default; a Typ sets its filter; Bearbeiten follows the title and shows with its row on pointer devices; the draft row's Entwurf mark rides its title</code>
+<code class="doc">components/ledger.html · ledger=ledger.build(…) bulk=… — Titel · Datierung · Typ · Digital · Signatur (ledger.COLUMNS; Sammlungsteil on choice); sortable heads cycle asc→desc→default; a Typ sets its filter; Bearbeiten follows the title and shows with its row on pointer devices; the draft row's Entwurf mark rides its title</code>
 
 <h2>
   Ledger — narrow container (intrinsic tightening)
@@ -409,7 +409,7 @@ list anchored to its own button. {% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">width is the only density input, absorbed intrinsically (law C11): the Titel takes the slack and wraps; every other cell keeps one line and a word cell (Typ, Bestand) ends in … at --measure-word; the last column shrinks to its content (round 2)</code>
+<code class="doc">width is the only density input, absorbed intrinsically (law C11): the Titel takes the slack and wraps; every other cell keeps one line and a word cell (Typ, Sammlungsteil) ends in … at --measure-word; the last column shrinks to its content (round 2)</code>
 
 <h2>
   Ledger — S container (the title over one line of facts)
@@ -435,7 +435,7 @@ list anchored to its own button. {% endcomment %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="expandable">
       <ul class="demo-list">
-        {% for tile in expandable %}<li{% if forloop.counter > shown %} class="expandable-rest"{% endif %}><a class="register-row" href="{{ tile.href }}" aria-label="{{ tile.label }}: {{ tile.count_label }} Artikel"><span class="register-label">{{ tile.label }}</span><span class="register-figure"><data value="{{ tile.count }}">{{ tile.count_label }}</data></span></a></li>
+        {% for tile in expandable %}<li{% if forloop.counter > shown %} class="expandable-rest"{% endif %}><a class="register-row" href="{{ tile.href }}" aria-label="{{ tile.label }}: {{ tile.count_label }} Einträge"><span class="register-label">{{ tile.label }}</span><span class="register-figure"><data value="{{ tile.count }}">{{ tile.count_label }}</data></span></a></li>
         {% endfor %}
       </ul>
       {% if expandable|length > shown %}

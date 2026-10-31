@@ -61,7 +61,7 @@ _TIERS = {
         "NOPE",
         Lifecycle.PUBLISHED,
         (40, 200, 200),
-    ),  # no such Bestand
+    ),  # no such Collection
 }
 
 

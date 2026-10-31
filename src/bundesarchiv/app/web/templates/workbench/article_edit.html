@@ -6,7 +6,7 @@ native controls, one POST, server re-render preserving every value. The composit
 form-sheet — lead · margin · body (a1 mocks, docs/design/explorations/2026-09-26-monochrome/a1-formular).
 The hidden expected_version rides the form for CAS (ADR 0013).
 {% endcomment %}
-{% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
+{% block title %}{{ values.title|default:"Eintrag" }} — bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">
 <script src="{% static "catalog_form.js" %}" defer></script>
 <script src="{% static "hx-browser-indicator.min.js" %}" defer></script>{% endblock %}
@@ -29,7 +29,7 @@ save gets HX-Redirect.{% endcomment %}
   the Status (a1 round 4). The publish refusal is the server's (catalog_views._handle_edit_post).{% endcomment %}
   <aside class="record-meta" aria-label="Status und Aktionen">
     {% if conflict %}
-    {% include "components/conflict_notice.html" with what="Artikel" rows=conflict_rows only %}
+    {% include "components/conflict_notice.html" with what="Eintrag" rows=conflict_rows only %}
     {% endif %}
     <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
     {% include "components/index_lag.html" %}
@@ -38,7 +38,7 @@ save gets HX-Redirect.{% endcomment %}
       <button class="primary" type="submit" form="edit-form">Speichern</button>
       <button class="menu-button" type="button" popovertarget="more-menu">Mehr …</button>
       <ul class="menu" id="more-menu" popover>
-        <li><a href="{% url 'article-detail' values.ulid %}">Zur Artikelseite</a></li>
+        <li><a href="{% url 'article-detail' values.ulid %}">Zur Eintragsseite</a></li>
         <li>{% include "workbench/_copy.html" with ulid=values.ulid %}</li>
         {% url 'article-delete' values.ulid as delete_href %}
         <li><button class="link" type="button" popovertarget="delete">Löschen …</button></li>

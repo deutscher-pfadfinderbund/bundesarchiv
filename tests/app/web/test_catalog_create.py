@@ -31,10 +31,10 @@ def test_create_form_renders_for_archivist(empty_archive: Corpus) -> None:
     response = client_as(Archivist()).get("/articles/new")
     assert response.status_code == 200
     body = response.content.decode()
-    assert "Neuer Artikel" in body
+    assert "Neuer Eintrag" in body
     assert 'name="title"' in body
     assert 'name="collection_id"' in body
-    # the Bestand options list the collections by name
+    # the Collection options list the collections by name
     assert "Öffentlich" in body
     assert "Mitglieder" in body
 
@@ -83,7 +83,7 @@ def test_create_post_missing_collection_re_renders_state_b(empty_archive: Corpus
     )
     assert response.status_code == 200
     body = response.content.decode()
-    assert "Bitte einen Bestand wählen." in body
+    assert "Bitte einen Sammlungsteil wählen." in body
     # the typed title is preserved
     assert "Wanderfahrt" in body
     assert list(empty_archive.articles.list_ulids()) == []

@@ -71,15 +71,15 @@ class Command(BaseCommand):
     def _create_collections(
         self, archive: Archive, items: Sequence[dict[str, str]]
     ) -> dict[str, ULID]:
-        """Create every Bestand the export needs as a top-level Collection, idempotently BY NAME.
+        """Create every Collection the export needs as a top-level Collection, idempotently BY NAME.
 
-        By name, because the run may be resumed against a root that already holds the Bestände but
+        By name, because the run may be resumed against a root that already holds the Collections but
         no Articles (the refusal above only guards Articles) — creating a second "Bund" would split
-        the archive in two. So an unreadable Bestand, whose name is unknown, stops the run.
+        the archive in two. So an unreadable Collection, whose name is unknown, stops the run.
         """
         scan = archive.collections.scan()
         if scan.unreadable:
-            raise CommandError(f"Bestand unreadable: {', '.join(scan.unreadable)}")
+            raise CommandError(f"Collection unreadable: {', '.join(scan.unreadable)}")
         existing = {c.name: c.ulid for c in scan.readable}
         for name in legacy.collection_names(items):
             if name in existing:
@@ -195,5 +195,5 @@ def _refuse_a_media_root_without_the_files(
 
 
 def _dry_ids(items: Sequence[dict[str, str]]) -> dict[str, ULID]:
-    """Throwaway Bestand ULIDs for the dry run, which creates nothing but still maps every row."""
+    """Throwaway Collection ULIDs for the dry run, which creates nothing but still maps every row."""
     return {name: identity.new_ulid() for name in legacy.collection_names(items)}

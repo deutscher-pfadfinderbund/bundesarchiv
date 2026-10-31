@@ -96,14 +96,14 @@ def test_columns_keeps_its_choice_and_returns_to_the_same_list(
     page.goto(f"{live_workbench}{LIST}?{query}")
     page.get_by_role("button", name="Spalten …").click()
     panel = page.locator("#columns")
-    panel.get_by_role("checkbox", name="Bestand").check()
+    panel.get_by_role("checkbox", name="Sammlungsteil").check()
     panel.get_by_role("checkbox", name="Signatur").uncheck()
     panel.locator("button[type=submit]").click()
     page.wait_for_url(lambda url: parse_qs(urlparse(url).query) == parse_qs(query))
-    expect(page.locator(".ledger th.collection")).to_have_text("Bestand")
+    expect(page.locator(".ledger th.collection")).to_have_text("Sammlungsteil")
     expect(page.locator(".ledger th.ref-code")).to_have_count(0)
     page.goto(live_workbench + LIST)
-    expect(page.locator(".ledger th.collection")).to_have_text("Bestand")
+    expect(page.locator(".ledger th.collection")).to_have_text("Sammlungsteil")
 
 
 def test_an_abandoned_panel_change_never_rides_along(
@@ -115,10 +115,10 @@ def test_an_abandoned_panel_change_never_rides_along(
     page.goto(live_workbench + f"{LIST}?selection={e2e_corpus.published_ulid}")
     columns = page.locator("#columns")
     page.get_by_role("button", name="Spalten …").click()
-    columns.get_by_role("checkbox", name="Bestand").check()
+    columns.get_by_role("checkbox", name="Sammlungsteil").check()
     columns.get_by_role("button", name="Abbrechen").click()
     page.get_by_role("button", name="Spalten …").click()
-    expect(columns.get_by_role("checkbox", name="Bestand")).not_to_be_checked()
+    expect(columns.get_by_role("checkbox", name="Sammlungsteil")).not_to_be_checked()
     columns.get_by_role("button", name="Fertig").click()
     expect(page.locator(".ledger th.ref-code")).to_be_visible()
     expect(page.locator(".ledger th.collection")).to_have_count(0)
@@ -650,7 +650,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # the #results swap and refreshes out-of-band.
     page = archivist_page
     page.goto(live_workbench + LIST)
-    expect(page.locator(".pager")).to_contain_text("6 Artikel")  # the canonical corpus, one page
+    expect(page.locator(".pager")).to_contain_text("6 Einträge")  # the canonical corpus, one page
     count = page.locator("#hit-count")
     expect(count).to_have_text("")
     # The live region's NODE must survive the swap or the polite announcement dies silently. Stamp
@@ -660,7 +660,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # real keystrokes (the hx-trigger is keyup; fill() sets the value without key events)
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
     expect(count).to_have_text("1 Treffer")  # refreshed out-of-band, no full navigation
-    expect(page.locator(".pager")).to_contain_text("1 Artikel")
+    expect(page.locator(".pager")).to_contain_text(re.compile(r"(^|\s)1 Eintrag\b"))
     assert "q=Sommerfahrt" in page.url  # it was the hx swap (pushed URL), not a page load
     assert page.evaluate("() => document.querySelector('#hit-count').__probe") == "same-node", (
         "the count's aria-live node was replaced by the swap — announcements die silently"
@@ -698,7 +698,7 @@ def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workben
 def test_a_start_page_collection_opens_the_list_the_crumb_returns_to(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # Start → a Bestand → its list → an article → "Archiv": the list as it was left, Bestand set;
+    # Start → a Collection → its list → an article → "Archiv": the list as it was left, Collection set;
     # the wordmark leads back to the start page.
     page = archivist_page
     page.goto(live_workbench + "/", wait_until="networkidle")
@@ -715,7 +715,7 @@ def test_a_start_page_collection_opens_the_list_the_crumb_returns_to(
 def test_each_start_page_area_opens_the_list_with_its_preset(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # Nach Art, Zeitleiste and Weiter bearbeiten each lead somewhere: a preset of the list, or the
+    # Medienart, Zeitleiste and Weiter bearbeiten each lead somewhere: a preset of the list, or the
     # draft's edit page.
     page = archivist_page
     for name, url_part in (("Foto(s)", "media_type="), ("1960er", "decade=1960")):
@@ -1269,7 +1269,7 @@ def test_download_saves_the_original_under_its_own_name(
 
 
 def _create_draft(page: Page, base: str, title: str) -> str:
-    """Drive the create step (Titel + Bestand → Anlegen) then set the required Medienart on the edit
+    """Drive the create step (Titel + Sammlungsteil → Anlegen) then set the required Medienart on the edit
     form, so the draft is saveable/publishable. Returns the new draft's edit-form URL."""
     page.goto(base + "/articles/new")
     page.fill('textarea[name="title"]', title)
@@ -1454,7 +1454,7 @@ def test_a_search_suggestion_sets_its_filter_with_the_keyboard(
     suggestions = page.locator(".autocomplete-list")
     expect(suggestions).to_be_visible()
     expect(field).to_have_attribute("aria-expanded", "true")
-    expect(page.locator(".autocomplete-kind")).to_have_text(["Artikel", "Autor"])
+    expect(page.locator(".autocomplete-kind")).to_have_text(["Einträge", "Autor"])
     expect(heading).not_to_have_accessible_name(re.compile("Vorschl"))
     options = suggestions.locator('a[role="option"]')
     expect(page.locator(".autocomplete-all")).to_have_count(0)
@@ -1477,7 +1477,7 @@ def test_a_search_suggestion_sets_its_filter_with_the_keyboard(
     field.press("x")
     field.press("Backspace")
     expect(suggestions).to_be_visible()
-    page.keyboard.press("ArrowDown")  # the Artikel
+    page.keyboard.press("ArrowDown")  # the Eintrag
     page.keyboard.press("ArrowDown")  # the Autor
     expect(field).to_have_attribute(
         "aria-activedescendant", re.compile(r"search-field-suggestions-\d+")
@@ -1577,7 +1577,7 @@ def test_a_short_suggestion_list_ends_with_its_last_option(
 def test_a_suggested_count_is_drawn_as_a_filter_menus_count(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # law C7: one renderer per fact type, and an Artikel's date is not a count
+    # law C7: one renderer per fact type, and an Eintrag's date is not a count
     page = archivist_page
     page.route("**/suggestions/list?*", long_suggestions)
     page.goto(f"{live_workbench}{LIST}", wait_until="networkidle")
@@ -1609,7 +1609,7 @@ def test_an_option_is_described_by_its_kind(archivist_page: Page, live_workbench
     expect(suggestions).to_be_visible()
     options = suggestions.locator("a[role=option]")
     expect(options.nth(1)).to_have_accessible_description("Autor")
-    expect(options.nth(0)).to_have_accessible_description("Artikel")
+    expect(options.nth(0)).to_have_accessible_description("Einträge")
 
 
 def test_the_suggestion_list_stays_open_while_a_refinement_is_fetched(
@@ -1949,7 +1949,7 @@ def test_publish_from_the_article_page_confirms_first(
     panel = page.locator("#publish")
     expect(panel).to_be_hidden()
     page.click('button:has-text("Veröffentlichen")')
-    expect(panel).to_contain_text("Nach dem Veröffentlichen ist dieser Artikel öffentlich.")
+    expect(panel).to_contain_text("Nach dem Veröffentlichen ist dieser Eintrag öffentlich.")
     page.keyboard.press("Escape")
     expect(panel).to_be_hidden()
     page.click('button:has-text("Veröffentlichen")')

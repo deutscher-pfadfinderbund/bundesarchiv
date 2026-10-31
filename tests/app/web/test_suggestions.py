@@ -54,7 +54,7 @@ def test_each_group_is_capped_and_an_empty_one_left_out() -> None:
         },
     )
     assert [(g.kind, len(g.entries)) for g in groups] == [
-        ("Artikel", 3),
+        ("Einträge", 3),
         ("Autor", 2),
         ("Schlagworte", 2),
     ]
@@ -68,7 +68,7 @@ def test_a_tag_used_once_is_dropped() -> None:
 def test_an_entry_marks_the_first_match_and_leads_to_its_pick() -> None:
     article, creator = build("KÖNIG", {}, _page(1), {"creator": _counts(("Hans König", 1_234))})
     assert article == Group(
-        "Artikel",
+        "Einträge",
         (Entry("", "König", "stein 0", reverse("article-detail", args=["U0"]), date="1960"),),
     )
     (entry,) = creator.entries

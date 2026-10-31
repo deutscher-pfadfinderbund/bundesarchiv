@@ -1,7 +1,7 @@
 """The state a redirect hands the next page: built and parsed here, nowhere else.
 
 Keys are German and stay so (they are URLs). Every value read back is closed: a flag compares
-against one literal, a Bestand id is checked here against the real set. No text from the URL is
+against one literal, a Collection id is checked here against the real set. No text from the URL is
 ever shown."""
 
 from urllib.parse import urlencode
@@ -35,7 +35,7 @@ def noting_lag(url: str, index_updated: bool) -> str:
 
 
 def preselected_collection(request: HttpRequest, chooser: CollectionChooser) -> str:
-    """The pre-selected Bestand's ulid if it is a real one, else "" (a bogus id is no oracle)."""
+    """The pre-selected Collection's ulid if it is a real one, else "" (a bogus id is no oracle)."""
     ulid = request.GET.get(PARAM_COLLECTION, "").strip()
     return ulid if chooser.accepts(ulid) else ""
 

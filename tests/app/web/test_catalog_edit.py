@@ -41,7 +41,7 @@ _ULID = ULID("01KX7YT9E3VX0CP3A5Q49RZMVH")
 
 
 class _EditCorpus:
-    """The archive this file edits against: PUB (public) + MEM (members, the Bestand the CAS-diff
+    """The archive this file edits against: PUB (public) + MEM (members, the Collection the CAS-diff
     test moves to) and one DRAFT article, plus the version that article was stored at — every CAS
     expectation here is written relative to it. The standard corpus does not fit: its draft carries
     another Titel and Signatur, and these renders assert both verbatim."""
@@ -131,15 +131,15 @@ def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _EditCorpus)
 
 def test_the_inherit_option_names_who_will_see_the_record(corpus: _EditCorpus) -> None:
     # owner ruling 5: the exposure statement is permanently on screen — here the inherit option says
-    # which rung the Bestand hands down, even when the article's own setting overrides it
+    # which rung the Collection hands down, even when the article's own setting overrides it
     body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
-    assert '<option value="" selected>Öffentlich (wie Bestand)</option>' in body
+    assert '<option value="" selected>Wie der Sammlungsteil (Öffentlich)</option>' in body
     own = PUBLISHED_ULID
     corpus.add_article(
         make_article(own, collection_id="PUB", audience=Audience(AudienceTier.MEMBERS), title="X")
     )
     body = client_as(Archivist()).get(f"/articles/{own}/edit").content.decode()
-    assert '<option value="">Öffentlich (wie Bestand)</option>' in body
+    assert '<option value="">Wie der Sammlungsteil (Öffentlich)</option>' in body
 
 
 # --- GET/POST: archivist gate (both methods, all tiers) ---------------------------
@@ -188,7 +188,7 @@ def test_an_edit_naming_no_rung_keeps_the_stored_audience(corpus: _EditCorpus) -
     edit = client_as(Archivist()).post
     # a re-render (custom_add) shows the stored rung, so the next Speichern posts it back
     body = edit(f"/articles/{ulid}/edit", {**post, "custom_add": ""}).content.decode()
-    main = body[body.index("<main") :]  # the header's new-Bestand panel has a Sichtbarkeit too
+    main = body[body.index("<main") :]  # the header's new-Collection panel has a Sichtbarkeit too
     assert _status(main, "audience").selected == [vocab.audience_value(stored)]
     saved = edit(f"/articles/{ulid}/edit", {**post, "expected_version": str(version)})
     assert saved.status_code == 302
@@ -489,7 +489,7 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Ed
 
 class _ControlScanner(HTMLParser):
     """The attributes of every named control a render prints, in document order — the page's own,
-    not those of a form in a tool panel (the header's "Neuer Artikel …")."""
+    not those of a form in a tool panel (the header's "Neuer Eintrag …")."""
 
     def __init__(self) -> None:
         super().__init__()

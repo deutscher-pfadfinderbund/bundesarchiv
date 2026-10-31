@@ -1,11 +1,11 @@
-"""The Bestand chooser; its placeholder is verbatim user contract."""
+"""The Collection chooser; its placeholder is verbatim user contract."""
 
 import pytest
 
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.models import ULID, Collection
 
-#: Two Bestände whose load order (the store lists by ulid) is the REVERSE of their name order, so
+#: Two Collections whose load order (the store lists by ulid) is the REVERSE of their name order, so
 #: any test that passes under load order fails under name order and vice versa.
 _LOAD_ORDER = (
     Collection(ulid=ULID("01ZEITUNGSAUSSCHNITTE00000"), name="Zeitungsausschnitte"),
@@ -22,14 +22,14 @@ def _chooser(*collections: Collection) -> CollectionChooser:
 
 def test_options_lead_with_the_placeholder_then_every_collection_by_name() -> None:
     assert _chooser(*_LOAD_ORDER).options() == (
-        ("", "— Bestand wählen —"),
+        ("", "— Sammlungsteil wählen —"),
         ("02FOTOGRAFIEN0000000000000", "Fotografien"),
         ("01ZEITUNGSAUSSCHNITTE00000", "Zeitungsausschnitte"),
     )
 
 
 def test_an_empty_archive_still_offers_the_placeholder() -> None:
-    assert _chooser().options() == (("", "— Bestand wählen —"),)
+    assert _chooser().options() == (("", "— Sammlungsteil wählen —"),)
 
 
 # --- membership: no existence oracle -----------------------------------------------
@@ -86,7 +86,7 @@ def test_chain_of_is_the_collection_chain_leaf_first() -> None:
 @pytest.mark.parametrize(
     "collection_id",
     [
-        "UNKNOWN",  # names no Bestand
+        "UNKNOWN",  # names no Collection
         "WAISE",  # its parent is missing
         "",
     ],

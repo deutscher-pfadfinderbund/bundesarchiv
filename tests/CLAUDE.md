@@ -101,7 +101,7 @@ adversarial inputs.
   session into a template, each test gets its own copy of the files and builds its own objects
   from that copy. Tests share files, never objects, dicts or handles.
   Articles for any suite come from `tests/_articles.py::make_article` (PUBLISHED by default);
-  the web suite's `make_article` is that builder with the public Bestand filled in.
+  the web suite's `make_article` is that builder with the public Collection filled in.
 - `e2e/` — real-browser journeys + the state gallery (both deselected from the
   default run); each journey walks a loss/leak spine or pins a named regression.
   `test_a11y.py` is the axe-core WCAG 2.2 AA pass over the journey pages
@@ -117,7 +117,7 @@ adversarial inputs.
   rule is the canonical pair). That is layering, not duplication; the comment at
   each site says so.
 
-The header's tool panels list every Bestand on every archivist page. A test asserting that a
+The header's tool panels list every Collection on every archivist page. A test asserting that a
 value reaches a page scopes itself to the region under test (`<main`), or it passes vacuously.
 The list lives at `/articles` (`/` is the start page), and its search field echoes `q`: assert a
 hit by its ulid inside `<main`, never by its title in the body.

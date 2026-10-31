@@ -1,7 +1,7 @@
-"""THE Bestand chooser: one per-request answer to "which Bestände may this be filed into?".
+"""THE Collection chooser: one per-request answer to "which Collections may this be filed into?".
 
-Every Bestand ``<select>`` on the archivist's surface — the create step, the record card, the bulk
-chooser's Bestand widget — and every server-side check of a submitted Bestand value reads ONE of
+Every Collection ``<select>`` on the archivist's surface — the create step, the record card, the bulk
+chooser's Collection widget — and every server-side check of a submitted Collection value reads ONE of
 these, so the ordering, the placeholder wording, the refusal and the membership rule cannot drift
 apart again (debt #7).
 
@@ -11,11 +11,11 @@ The rules it owns:
 - One placeholder, verbatim user contract: ``options`` leads with a placeholder that is always
   refused.
 - No existence oracle: empty, malformed and well-formed-but-unknown are one ``False`` carrying one
-  ``error()``, so a POST can never learn whether a Bestand it may not have exists.
+  ``error()``, so a POST can never learn whether a Collection it may not have exists.
 
 Its lifetime is ONE request: ``of`` reads the Collection set at most once and only when something is
 actually asked, so a render that shows no chooser and resolves no name pays no read. Never a
-process-level cache — a Bestand created in this request must be choosable in the next one.
+process-level cache — a Collection created in this request must be choosable in the next one.
 """
 
 from collections.abc import Callable, Mapping
@@ -25,15 +25,15 @@ from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import ULID, Collection
 
-_PLACEHOLDER = "— Bestand wählen —"
-_REFUSAL = "Bitte einen Bestand wählen."
+_PLACEHOLDER = "— Sammlungsteil wählen —"
+_REFUSAL = "Bitte einen Sammlungsteil wählen."
 
 #: A ``<select>``'s options as the templates loop over them: ``(value, caption)``.
 type Options = tuple[tuple[str, str], ...]
 
 
 class CollectionChooser:
-    """The Bestände offered to a form, and the rules for choosing one."""
+    """The Collections offered to a form, and the rules for choosing one."""
 
     __slots__ = ("_load", "_loaded")
 
@@ -49,14 +49,14 @@ class CollectionChooser:
         return cls(archive.collections.load_all)
 
     def by_ulid(self) -> Mapping[ULID, Collection]:
-        """Every saved Bestand keyed by ulid — the whole set, for the callers that need Collections
+        """Every saved Collection keyed by ulid — the whole set, for the callers that need Collections
         rather than options."""
         if self._loaded is None:
             self._loaded = {c.ulid: c for c in self._load()}
         return self._loaded
 
     def chain_of(self, collection_id: ULID) -> ResolvedChain | None:
-        """The Bestand chain above ``collection_id``, leaf first, or ``None`` when it does not
+        """The Collection chain above ``collection_id``, leaf first, or ``None`` when it does not
         resolve (unknown, orphaned, cyclic). ``None`` is THE publish gate: no chain, no exposure
         statement, no publishing."""
         try:
@@ -68,17 +68,17 @@ class CollectionChooser:
         return {ulid: c.name for ulid, c in self.by_ulid().items()}
 
     def options(self) -> Options:
-        """The Bestand select: the placeholder (empty value, always refused) then every Bestand."""
+        """The Collection select: the placeholder (empty value, always refused) then every Collection."""
         return (("", _PLACEHOLDER), *self._by_name())
 
     def resolve(self, raw: str) -> ULID | None:
-        """The ulid of the Bestand ``raw`` names, or ``None``: membership in the saved set is the
+        """The ulid of the Collection ``raw`` names, or ``None``: membership in the saved set is the
         parse. Surrounding whitespace is stripped first, like every other form value."""
         found = self._find(raw)
         return found.ulid if found is not None else None
 
     def accepts(self, raw: str) -> bool:
-        """Whether ``raw`` names a Bestand that may be filed into."""
+        """Whether ``raw`` names a Collection that may be filed into."""
         return self.resolve(raw) is not None
 
     def error(self) -> str:
@@ -86,7 +86,7 @@ class CollectionChooser:
         return _REFUSAL
 
     def name_of(self, raw: str) -> str | None:
-        """The name of the Bestand ``raw`` names, or ``None`` — the caller decides what an
+        """The name of the Collection ``raw`` names, or ``None`` — the caller decides what an
         unresolvable value shows; this never raises."""
         found = self._find(raw)
         return found.name if found is not None else None

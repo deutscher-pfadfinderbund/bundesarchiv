@@ -1,5 +1,5 @@
 """The start page (``/``) and the redirect of old list links to ``/articles``. Leak spine: a
-Bestand's count is what this viewer may see; one with nothing visible to them is not named.
+Collection's count is what this viewer may see; one with nothing visible to them is not named.
 """
 
 import datetime
@@ -37,8 +37,8 @@ _FAHRTEN = "01KX8A00000000000000000FHR"
 
 @pytest.fixture
 def indexed_corpus(db: None, make_corpus: Callable[[], Corpus]) -> Corpus:
-    """Two top-level Bestände beside the fixture's ROOT: "Bund" (two published Articles, one of them
-    in its sub-Bestand "Fahrten", and a draft) and "Verborgen" (a draft only)."""
+    """Two top-level Collections beside the fixture's ROOT: "Bund" (two published Articles, one of them
+    in its sub-Collection "Fahrten", and a draft) and "Verborgen" (a draft only)."""
     corpus = make_corpus()
     public = Audience(AudienceTier.PUBLIC)
     corpus.add_collection(make_collection(_BUND, "Bund", parent_id=None, audience=public))
@@ -73,7 +73,7 @@ def _get(viewer: Viewer, path: str) -> Any:
 
 
 def _collection_counts(response: Any) -> dict[str, str]:
-    """Each Bestand link in ``<main>`` and the count it carries."""
+    """Each Collection link in ``<main>`` and the count it carries."""
     main = response.content.decode().split("<main", 1)[1]
     return dict(
         re.findall(r'href="/articles\?collection=(\w+)".*?<data value="(\d+)"', main, re.DOTALL)
@@ -120,7 +120,7 @@ def _preset_counts(response: Any, param: str) -> dict[str, str]:
     """Each link of the list preset ``param`` in ``<main>`` and the count its name carries."""
     main = response.content.decode().split("<main", 1)[1]
     found = re.findall(
-        rf'href="/articles\?{param}=([^"]+)" aria-label="[^"]*: (\d+) Artikel"', main
+        rf'href="/articles\?{param}=([^"]+)" aria-label="[^"]*: (\d+) Einträge"', main
     )
     return {unquote(value): count for value, count in found}
 
@@ -147,7 +147,7 @@ def test_by_media_type_and_timeline_count_what_the_viewer_may_see(
 
 
 def _by_media_type(kinds: int) -> tuple[list[str], list[str], bool]:
-    """Nach Art over ``kinds`` Medienarten, most first: the presets it shows, the ones it folds, and
+    """Medienart over ``kinds`` Medienarten, most first: the presets it shows, the ones it folds, and
     whether it offers to unfold."""
     counts = {"media_type": tuple(FacetCount(f"Art {n}", 20 - n) for n in range(kinds))}
     area = start.by_media_type_area(

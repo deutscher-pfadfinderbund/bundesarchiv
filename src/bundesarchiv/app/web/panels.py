@@ -36,7 +36,7 @@ def new_article_panel(
     collection_id: str = "",
     errors: FormErrors | None = None,
 ) -> FormPanel:
-    """The create step as the header's "Neuer Artikel" tool panel."""
+    """The create step as the header's "Neuer Eintrag" tool panel."""
     return FormPanel(
         id="new-article",
         action=reverse("article-create"),
@@ -48,7 +48,7 @@ def new_article_panel(
 def article_rows(
     chooser: CollectionChooser, title: str, collection_id: str, errors: FormErrors
 ) -> tuple[CardRow, CardRow]:
-    """Titel and Bestand from the registry, with the preserved values, the field errors, and the
+    """Titel and Collection from the registry, with the preserved values, the field errors, and the
     server-computed autofocus target (Titel unless it already has a value)."""
     autofocus = "collection_id" if title and "title" not in errors else "title"
     fields = card_fields(

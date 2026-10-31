@@ -56,9 +56,11 @@ from bundesarchiv.persistence import errors
 from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.repository import Stored, cleaned_name
 
-#: The refusal when Veröffentlichen arrives for a record whose Bestand chain the domain cannot
-#: resolve, said as a field error on the Bestand.
-_PUBLISH_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffentlichen ist gesperrt."
+#: The refusal when Veröffentlichen arrives for a record whose Collection chain the domain cannot
+#: resolve, said as a field error on the Collection.
+_PUBLISH_UNRESOLVABLE = (
+    "Der Sammlungsteil lässt sich nicht auflösen — Veröffentlichen ist gesperrt."
+)
 
 
 def _load_gated(
@@ -82,7 +84,7 @@ def _load(archive: Archive, ulid: ULID, *, marked: bool) -> Stored | None:
 
 
 def article_create(request: HttpRequest) -> HttpResponseBase:
-    """``GET/POST /articles/new`` — the create step: a DRAFT from Titel + Bestand."""
+    """``GET/POST /articles/new`` — the create step: a DRAFT from Titel + Collection."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist):
         return not_found()
@@ -209,7 +211,7 @@ def _handle_edit_post(
         and lifecycle is Lifecycle.PUBLISHED
         and chooser.chain_of(result.article.collection_id) is None
     ):
-        # fail-closed: a broken Bestand chain bumps no article version, so the CAS cannot
+        # fail-closed: a broken Collection chain bumps no article version, so the CAS cannot
         # catch one broken since the form loaded
         result = replace(
             result,
@@ -406,7 +408,7 @@ class EditSurface:
 
 
 def _crumbs(article: Article, chooser: CollectionChooser) -> tuple[CollectionCrumb, ...]:
-    """The saved article's Bestand chain as crumbs, root first — the detail page's own builder. A
+    """The saved article's Collection chain as crumbs, root first — the detail page's own builder. A
     chain the domain cannot resolve yields none: the crumbs show a place, and there is none."""
     chain = chooser.chain_of(article.collection_id)
     return () if chain is None else collection_crumbs(chain)
@@ -513,7 +515,7 @@ def _conflict_rows(mine: Article, theirs: Article) -> list[_ConflictRow]:
 
 class _PublishRefused(Exception):
     """The record handed to the publish transform is not the draft the archivist confirmed, or its
-    Bestand chain does not resolve: nothing is written."""
+    Collection chain does not resolve: nothing is written."""
 
 
 def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -662,7 +664,7 @@ def _confirmed_delete(
 
 
 #: Why a delete asked again: the record was saved after its confirm was shown.
-_DELETE_STALE = "Jemand hat diesen Artikel inzwischen gespeichert. Prüfe, was gelöscht wird, und bestätige erneut."
+_DELETE_STALE = "Jemand hat diesen Eintrag inzwischen gespeichert. Prüfe, was gelöscht wird, und bestätige erneut."
 
 
 def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -703,7 +705,7 @@ def _audience_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
     audience with the article's own setting cleared; unresolvable, the plain caption stays."""
     if inherited is None:
         return vocab.AUDIENCE_OPTIONS
-    return (("", f"{inherited} (wie Bestand)"), *vocab.AUDIENCE_OPTIONS[1:])
+    return (("", f"Wie der Sammlungsteil ({inherited})"), *vocab.AUDIENCE_OPTIONS[1:])
 
 
 #: How many times a structural media save re-loads after a concurrent version bump before giving up

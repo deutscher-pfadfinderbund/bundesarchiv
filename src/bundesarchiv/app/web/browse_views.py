@@ -388,7 +388,7 @@ def _pager(
         page=n, page_size=page_size, hits_on_page=hits, total=page.total
     )
     shown = f"{vocab.count(first)}\N{EN DASH}{vocab.count(first + hits - 1)}" if hits else ""
-    noun = "Artikel"
+    noun = "Eintrag" if page.total == 1 else "Einträge"
     if parsed.filters.templates_only:
         noun = "Vorlage" if page.total == 1 else "Vorlagen"
     elif parsed.filters.drafts_only:
@@ -448,7 +448,7 @@ def _sentence(
     *,
     is_archivist: bool,
 ) -> dict[str, object]:
-    """The search sentence's parts: its three slots (Bestand, Jahrzehnt, Typ), every set filter no
+    """The search sentence's parts: its three slots (Collection, Jahrzehnt, Typ), every set filter no
     slot shows, the "+ Filter" checks (Entwürfe for archivists only), and the query that clears
     every filter once two or more are set (else ``None``)."""
     f = parsed.filters
@@ -471,7 +471,7 @@ def _sentence(
             params,
             browse.PARAM_COLLECTION,
             f.collection and names.get(f.collection, f.collection),
-            "allen Beständen",
+            "allen Sammlungsteilen",
             _facet_items(
                 params,
                 browse.PARAM_COLLECTION,
@@ -623,7 +623,7 @@ def preset_url(param: str, value: str, within: Mapping[str, str] | None = None) 
 
 @dataclass(frozen=True, slots=True)
 class CollectionCrumb:
-    """One Bestand breadcrumb hop: the collection name + the workbench link into its facet."""
+    """One Collection breadcrumb hop: the collection name + the workbench link into its facet."""
 
     name: str
     href: str

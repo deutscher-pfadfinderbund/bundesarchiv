@@ -384,7 +384,7 @@ def _article_whose_collection_chain_is_broken(
 ) -> str:
     """Save an article filed under a collection whose PARENT does not exist, so ``resolve_chain``
     raises ``BrokenCollectionTree`` and ``preview()`` can compute no exposure at all. The collection
-    itself IS in the store, so the Bestand select still offers it and the edit form renders."""
+    itself IS in the store, so the Collection select still offers it and the edit form renders."""
     corpus.add_collection(make_collection("WAISE", "Waise", "FEHLT", Audience(AudienceTier.PUBLIC)))
     corpus.add_article(
         make_article(
@@ -433,7 +433,7 @@ def _publish_post(corpus: Corpus, ulid: str, **overrides: str) -> dict[str, str]
 
 def test_publishing_an_unresolvable_chain_is_refused_by_the_SERVER(corpus: Corpus) -> None:
     # The render half above hides the affordance; this is the half that actually holds. The broken chain
-    # needs a hand edit of the store (no UI re-parents a Bestand; v1 is sole-writer); the article's
+    # needs a hand edit of the store (no UI re-parents a Collection; v1 is sole-writer); the article's
     # own version is untouched, so CAS passes.
     ulid = _article_whose_collection_chain_is_broken(corpus)
     before = corpus.articles.load(ULID(ulid))
@@ -445,7 +445,7 @@ def test_publishing_an_unresolvable_chain_is_refused_by_the_SERVER(corpus: Corpu
     assert after.article.lifecycle is Lifecycle.DRAFT  # nothing published
     assert after.version == before.version  # ...and nothing written at all
     body = response.content.decode()
-    assert "Der Bestand lässt sich nicht auflösen — Veröffentlichen ist gesperrt." in body
+    assert "Der Sammlungsteil lässt sich nicht auflösen — Veröffentlichen ist gesperrt." in body
     assert ">Frisch getippt</textarea>" in body  # the archivist's input is preserved
 
 
@@ -576,14 +576,14 @@ def test_the_confirmation_says_who_will_see_the_record(corpus: Corpus) -> None:
     assert f'action="/articles/{DRAFT_ULID}/publish"' in body
     version = corpus.articles.load(ULID(DRAFT_ULID)).version
     assert f'name="expected_version" value="{version}"' in body
-    assert "Nach dem Veröffentlichen ist dieser Artikel öffentlich." in body  # PUB is public
+    assert "Nach dem Veröffentlichen ist dieser Eintrag öffentlich." in body  # PUB is public
     # the statement follows the record's own audience, not a fixed wording
     articles = corpus.articles
     stored = articles.load(ULID(DRAFT_ULID))
     members = replace(stored.article, audience=Audience(AudienceTier.MEMBERS))
     articles.save(members, stored.version, changed_by="tester")
     body = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}").content.decode()
-    assert "Nach dem Veröffentlichen sehen alle Mitglieder diesen Artikel." in body
+    assert "Nach dem Veröffentlichen sehen alle Mitglieder diesen Eintrag." in body
 
 
 def test_a_published_record_has_no_confirmation(corpus: Corpus) -> None:

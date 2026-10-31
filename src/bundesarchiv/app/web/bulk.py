@@ -22,7 +22,7 @@ class BulkField:
     is_custom: bool
 
 
-#: In spec §1 order; never ``audience`` or ``lifecycle`` (spec §0.7); a Bestand move still changes a published
+#: In spec §1 order; never ``audience`` or ``lifecycle`` (spec §0.7); a Collection move still changes a published
 #: Article's inherited Sichtbarkeit (GitHub #73).
 FIELDS: tuple[BulkField, ...] = (
     BulkField("physical_location", "Standort", "Standorte", "value_text", False),
@@ -31,7 +31,7 @@ FIELDS: tuple[BulkField, ...] = (
     BulkField("media_type", "Medienart", "Medienarten", "value_media_type", False),
     BulkField("document_type", "Dokumenttyp", "Dokumenttypen", "value_document_type", False),
     BulkField("Quelle", "Quelle", "Quellen", "value_text", True),
-    BulkField("collection_id", "Bestand", "Bestände", "value_collection_id", False),
+    BulkField("collection_id", "Sammlungsteil", "Sammlungsteile", "value_collection_id", False),
     BulkField("Querverweis", "Querverweis", "Querverweise", "value_text", True),
     BulkField("Besitzer", "Besitzer", "Besitzer", "value_text", True),
 )
@@ -156,7 +156,7 @@ def field_display(field: str, value: str, chooser: CollectionChooser) -> str:
 
 def current_display(article: Article, field: str, chooser: CollectionChooser) -> str:
     """The value an allowed ``field`` holds on ``article`` now, as the check page shows what a commit
-    replaces: a Bestand by its name; empty when unset."""
+    replaces: a Collection by its name; empty when unset."""
     raw = (
         dict(article.custom).get(field, "") if field in _CUSTOM_FIELDS else getattr(article, field)
     )
@@ -164,7 +164,7 @@ def current_display(article: Article, field: str, chooser: CollectionChooser) ->
 
 
 def _display(field: str, raw: str, chooser: CollectionChooser) -> str:
-    """A raw value of ``field`` as a person reads it: a Bestand by its name, else verbatim."""
+    """A raw value of ``field`` as a person reads it: a Collection by its name, else verbatim."""
     if field == "collection_id":
         return chooser.name_of(raw) or raw
     return raw

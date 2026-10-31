@@ -1,4 +1,4 @@
-"""The Artikel detail page (``/articles/<ulid>``): no archivist-only value reaches a member or
+"""The Article detail page (``/articles/<ulid>``): no archivist-only value reaches a member or
 public body."""
 
 import io
@@ -40,7 +40,7 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence._layout import ARTICLES
 from bundesarchiv.persistence._writer import history_key
 
-# The detail page only PRINTS the Bestand id (as a ?collection= facet link) and never routes on it, so
+# The detail page only PRINTS the Collection id (as a ?collection= facet link) and never routes on it, so
 # a mnemonic reads better here than a ULID.
 FOTOS = "FOTOS"
 
@@ -489,7 +489,7 @@ def test_member_published_view_has_no_draft_mark_or_red(corpus: _DetailArchive) 
     assert "--error" not in body
 
 
-# --- Bestand + Schlagworte links (the browsing loop) ------------------------------
+# --- Collection + Schlagworte links (the browsing loop) ------------------------------
 
 
 def test_collection_breadcrumb_links_into_collection_facet(corpus: _DetailArchive) -> None:

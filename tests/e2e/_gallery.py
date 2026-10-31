@@ -55,7 +55,7 @@ def long_suggestions(route: Route) -> None:
     kind of group and big counts, which the corpus is too small to offer."""
     groups = (
         Group(
-            "Artikel",
+            "Einträge",
             tuple(
                 Entry(
                     "",
@@ -303,7 +303,7 @@ def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> N
 _INTERACTION_STATES: tuple[GalleryState, ...] = (
     GalleryState(
         "workbench-slot-open",
-        "workbench, the search sentence's Bestand slot open",
+        "workbench, the search sentence's Sammlungsteil slot open",
         True,
         _reach_slot_open,
     ),
@@ -414,7 +414,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "new-article-open",
-        "the header's 'Neuer Artikel' panel open from '+ Neu …' (Titel and Bestand)",
+        "the header's 'Neuer Eintrag' panel open from '+ Neu …' (Titel and Sammlungsteil)",
         True,
         _reach_new_article_open,
     ),
@@ -482,7 +482,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "start-suggestions",
-        "the start page, the search field suggesting Artikel and Autor for what is typed",
+        "the start page, the search field suggesting Einträge and Autor for what is typed",
         True,
         reach_search_suggestions,
     ),

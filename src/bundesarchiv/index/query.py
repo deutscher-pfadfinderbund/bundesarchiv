@@ -135,7 +135,9 @@ class SearchHit:
     media_type: str | None
     document_type: str | None
     is_draft: bool
-    collection_id: ULID  # the Bestand the Article sits in; names no Bestand on a fail-closed row
+    collection_id: (
+        ULID  # the Collection the Article sits in; names no Collection on a fail-closed row
+    )
     # (kind, count) in FileKind order, zero kinds left out; () = no files.
     file_counts: tuple[tuple[FileKind, int], ...]
     # The Papierkorb mark (ADR 0022); None on a live row. Only archivist_only rows carry one.

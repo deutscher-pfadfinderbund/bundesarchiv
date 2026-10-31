@@ -21,8 +21,8 @@ _B = "01KX7YT9E3VX0CP3A5Q49RZM02"
 
 @pytest.fixture
 def two_drafts(make_corpus: Callable[[], Corpus]) -> Corpus:
-    """Two DRAFT photos in PUB, plus a second Bestand. Bulk edit needs a multi-article selection
-    whose editable fields all start out empty, and a Bestand choice set with more than one entry."""
+    """Two DRAFT photos in PUB, plus a second Collection. Bulk edit needs a multi-article selection
+    whose editable fields all start out empty, and a Collection choice set with more than one entry."""
     corpus = make_corpus()
     corpus.add_collection(
         make_collection("PUB", "Öffentlich", audience=Audience(AudienceTier.PUBLIC))
@@ -91,7 +91,7 @@ def test_validation_error_re_renders_drawer_with_selection_preserved(two_drafts:
 
 
 #: One submittable value per value-input widget. A <select> only echoes an option it actually
-#: renders, so these are real vocabulary values / a real Bestand ulid from ``two_drafts``. A new
+#: renders, so these are real vocabulary values / a real Collection ulid from ``two_drafts``. A new
 #: ``BulkField.value_input`` fails the echo test here until it names its value.
 _ECHOED_VALUE = {
     "value_text": "Quisenberry-Zephyroth",
@@ -112,7 +112,7 @@ def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, field: str) -
         "/articles/bulk-edit", {"field": field, widget: value, "confirmed": "1"}
     )
     body = response.content.decode()
-    assert "Keine Artikel ausgewählt." in body  # verbatim error
+    assert "Keine Einträge ausgewählt." in body  # verbatim error
     assert f'<option value="{field}" selected>' in body  # the chosen Feld stays chosen
     echoed = (
         f'name="{widget}" value="{value}"'
@@ -156,7 +156,7 @@ def test_collection_value_outside_set_same_as_empty(two_drafts: Corpus) -> None:
             "confirmed": "1",
         },
     )
-    assert "Bitte einen Bestand wählen." in response.content.decode()
+    assert "Bitte einen Sammlungsteil wählen." in response.content.decode()
     assert _stored(two_drafts, _A).collection_id == "PUB"  # unchanged
 
 
@@ -203,7 +203,7 @@ def test_the_check_page_shows_each_value_it_replaces(
     previous: str,
     saved_as: dict[str, object],
 ) -> None:
-    # the value a record loses reaches the page before the commit; a Bestand by its name
+    # the value a record loses reaches the page before the commit; a Collection by its name
     two_drafts.articles.save(
         make_article(
             _A, collection_id="PUB", lifecycle=Lifecycle.DRAFT, title="Foto A", **saved_as
@@ -216,7 +216,7 @@ def test_the_check_page_shows_each_value_it_replaces(
         .post("/articles/bulk-edit", {"selection": [_A], "field": field, widget: value})
         .content.decode()
     )
-    assert previous in body.split("<main", 1)[1]  # the header's panels list every Bestand
+    assert previous in body.split("<main", 1)[1]  # the header's panels list every Collection
 
 
 # --- commit phase (confirmed=1) ---------------------------------------------------
@@ -322,7 +322,7 @@ def test_document_type_mismatch_rejects_whole_apply(two_drafts: Corpus) -> None:
         },
     )
     body = response.content.decode()
-    assert "gehört nicht zur Medienart aller ausgewählten Artikel" in body
+    assert "gehört nicht zur Medienart aller ausgewählten Einträge" in body
     assert _stored(two_drafts, _A).document_type is None  # unchanged
 
 
