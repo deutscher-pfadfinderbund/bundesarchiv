@@ -2286,11 +2286,11 @@ def test_a_failed_upload_says_it_was_cut_off(archivist_page: Page, live_workbenc
     page.goto(_create_draft(page, live_workbench, "E2E Abgebrochen"))
     held: list[Route] = []
     page.route("**/media/upload", lambda route: held.append(route))
-    page.set_input_files(
-        '#media-drawer input[type="file"]',
-        {"name": "klein.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
-    )
-    page.wait_for_timeout(300)  # the upload is out, unanswered
+    with page.expect_request("**/media/upload"):
+        page.set_input_files(
+            '#media-drawer input[type="file"]',
+            {"name": "klein.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
+        )
     notice = page.locator("#media-drawer [role=alert]")
     expect(notice).to_be_hidden()  # a small file gets no warning
     held[0].fulfill(status=504, body="Gateway Timeout")

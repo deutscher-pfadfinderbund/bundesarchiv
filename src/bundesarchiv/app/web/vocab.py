@@ -106,6 +106,13 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
 AUDIENCE_INHERIT = "Geerbt vom Sammlungsteil"
 AUDIENCE_PUBLIC = "Öffentlich"
 AUDIENCE_MEMBERS = "Alle Mitglieder"
+
+
+def inherited_caption(inherited: str) -> str:
+    """The inherit option's caption once the rung it inherits is known."""
+    return f"{inherited} (geerbt)"
+
+
 #: The GROUPS rung's caption where no group NAMES are known yet — the Sichtbarkeit ``<select>``'s own
 #: option, chosen together with the Gruppen field. ``groups_label`` spells the same rung once the
 #: names exist; both live here so the form's option list is not a second source (law C7).

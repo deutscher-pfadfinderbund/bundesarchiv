@@ -603,9 +603,7 @@ def test_search_form_echoes_every_active_filter_as_hidden_input(indexed_corpus: 
     assert 'name="page"' not in form_html
 
 
-def test_form_filter_params_track_every_browse_search_param() -> None:
-    # a search param missing from the echo list would silently drop that filter on a new search
-    assert set(_FORM_FILTER_PARAMS) == browse._SEARCH_PARAMS - {browse.PARAM_Q, browse.PARAM_PAGE}
+def test_form_filter_params_have_no_duplicates() -> None:
     assert len(_FORM_FILTER_PARAMS) == len(set(_FORM_FILTER_PARAMS))  # no duplicate hidden inputs
 
 

@@ -417,13 +417,12 @@ def _crumbs(article: Article, chooser: CollectionChooser) -> tuple[CollectionCru
 
 @dataclass(frozen=True, slots=True)
 class _MediaRow:
-    """One media register row (spec §6.3): the file's tile, its human byte size, the caption value,
+    """One media register row (spec §6.3): the file's tile, the caption value,
     and the structural flags. ``is_cover`` marks the FIRST row; ``confirm_remove`` puts this row into
     the two-step remove confirm; ``is_first``/``is_last`` disable the reorder controls at the ends."""
 
     tile: MediaTile
     content_hash: str
-    size: str
     caption: str
     description: str  # the stored Bildbeschreibung (the form value), not the page's alt
     is_cover: bool
@@ -439,7 +438,6 @@ def _media_rows(ulid: ULID, media: tuple[MediaRef, ...], remove_hash: str) -> tu
         _MediaRow(
             tile=tile,
             content_hash=ref.content_hash,
-            size=vocab.human_size(ref.byte_size),
             caption=catalog.none_if_blank(ref.caption or "") or "",
             description=catalog.none_if_blank(ref.alt or "") or "",
             is_cover=i == 0,
@@ -706,7 +704,7 @@ def _audience_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
     audience with the article's own setting cleared; unresolvable, the plain caption stays."""
     if inherited is None:
         return vocab.AUDIENCE_OPTIONS
-    return (("", f"{inherited} (geerbt)"), *vocab.AUDIENCE_OPTIONS[1:])
+    return (("", vocab.inherited_caption(inherited)), *vocab.AUDIENCE_OPTIONS[1:])
 
 
 #: How many times a structural media save re-loads after a concurrent version bump before giving up

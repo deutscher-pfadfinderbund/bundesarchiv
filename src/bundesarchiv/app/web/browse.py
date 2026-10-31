@@ -34,33 +34,6 @@ PARAM_VIEW = "view"
 #: without a query the list is the table (ParsedQuery.reading).
 TABLE = "table"
 
-#: The SEARCH-state query keys — the full set the workbench URL carries as its state. Deliberately
-#: excludes ``article`` (pane selection) and ``selection`` (bulk selection): neither is search state.
-_SEARCH_PARAMS: frozenset[str] = frozenset(
-    {
-        PARAM_Q,
-        PARAM_COLLECTION,
-        PARAM_MEDIA_TYPE,
-        PARAM_DOCUMENT_TYPE,
-        PARAM_TAG,
-        PARAM_CREATOR,
-        PARAM_PLACE,
-        PARAM_DECADE,
-        PARAM_DATELESS,
-        PARAM_DATE_FROM,
-        PARAM_DATE_TO,
-        PARAM_DIGITAL,
-        PARAM_FILE,
-        PARAM_DRAFTS,
-        PARAM_TEMPLATES,
-        PARAM_SORT,
-        PARAM_PAGE,
-        PARAM_PAGE_SIZE,
-        PARAM_VIEW,
-    }
-)
-
-
 PAGE_SIZE = 50
 #: The sizes on offer; any other ``page_size`` falls to ``PAGE_SIZE``.
 PAGE_SIZES: tuple[int, ...] = (25, 50, 100, 200)

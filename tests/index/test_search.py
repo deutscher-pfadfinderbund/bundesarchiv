@@ -142,10 +142,7 @@ def test_text_ranks_the_best_match_first_within_scope(corpus: None) -> None:
 @pytest.mark.parametrize(
     "filename", ["Liederheft_1998.pdf", "liederheft-1998.pdf", "Liederheft 1998.PDF"]
 )
-@pytest.mark.parametrize("text", ["Liederheft", "pdf", "1998"])
-def test_text_finds_an_article_by_a_word_of_its_filename(
-    corpus: None, filename: str, text: str
-) -> None:
+def test_text_finds_an_article_by_a_word_of_its_filename(corpus: None, filename: str) -> None:
     store = InMemoryObjectStore()
     CollectionRepository(store).save(
         Collection(ulid=ULID("DATEI"), name="Dateien", parent_id=None), 0, changed_by="tester"
@@ -158,7 +155,8 @@ def test_text_finds_an_article_by_a_word_of_its_filename(
     repo.save(replace(article, media=(ref,)), 0, changed_by="tester")
     indexer.index_article(store, article.ulid)
 
-    assert "ART_DATEI" in _ulids(search(PUBLIC, text=text))
+    for text in ("Liederheft", "pdf", "1998"):
+        assert "ART_DATEI" in _ulids(search(PUBLIC, text=text))
 
 
 # ===========================================================================

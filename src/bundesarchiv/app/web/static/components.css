@@ -1471,11 +1471,10 @@
 
   /* ---- blank — a file without a thumbnail, in its thumbnail's slot: the glyph of its kind over
      its kind and name, so a missing preview never looks broken (owner, 2026-10-01; glyph
-     2026-10-31). The slot sizes it as it sizes an img. Part: -label. Knobs: --blank-ratio
-     (default square), --blank-display (grid: the glyph centred, the label at the foot). ---- */
+     2026-10-31). The slot sizes it as it sizes an img. Part: -label. Knob: --blank-ratio
+     (default square). ---- */
   .blank {
-    --_blank-display: var(--blank-display, grid);
-    display: var(--_blank-display);
+    display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     place-items: center;
     container-type: size; /* the glyph scales with the tile's short side */

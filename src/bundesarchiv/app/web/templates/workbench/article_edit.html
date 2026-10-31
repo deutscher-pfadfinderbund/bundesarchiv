@@ -108,7 +108,7 @@ save gets HX-Redirect.{% endcomment %}
           <a class="file-row-thumb" href="{{ row.tile.file_url }}" target="_blank" rel="noopener" aria-label="{{ row.tile.name }} öffnen">{% if row.tile.thumb_url %}<img src="{{ row.tile.thumb_url }}" alt="" loading="lazy">{% else %}{% include "components/blank.html" with kind=row.tile.kind glyph=row.tile.glyph only %}{% endif %}</a>
           <span class="file-row-name">
             <span>{{ row.tile.name }}</span>
-            <small>{{ row.size }}{% if row.is_cover %} <span class="mark">Titelbild</span>{% endif %} <a href="{{ row.tile.file_url }}" download>Herunterladen</a></small>
+            <small>{{ row.tile.size }}{% if row.is_cover %} <span class="mark">Titelbild</span>{% endif %} <a href="{{ row.tile.file_url }}" download>Herunterladen</a></small>
           </span>
           <label class="field">
             <span>Bildunterschrift</span>
