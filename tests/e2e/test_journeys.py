@@ -26,6 +26,7 @@ from tests.e2e._pages import (
     reach_tag_suggestions,
     screens_for,
 )
+from tests.e2e.conftest import add_archivist_cookies
 
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import ULID
@@ -173,6 +174,10 @@ def _fetches_settled(page: Page) -> None:
 }""")
 
 
+def _draft_edit_url(base: str, corpus: CorpusHandles) -> str:
+    return base + f"/articles/{corpus.draft_ulid}/edit"
+
+
 def _held(page: Page, held: list[Route]) -> Route:
     """The first request the test's route holds, once it is out."""
     deadline = time.monotonic() + 5
@@ -213,7 +218,7 @@ def test_search_works_from_a_screen_without_the_results_region(
     # the forms carry no search at all: it invites leaving a form with unsaved edits
     for form_url in (
         live_workbench + "/articles/new",
-        live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit",
+        _draft_edit_url(live_workbench, e2e_corpus),
     ):
         page.goto(form_url)
         expect(page.locator('[role="search"]')).to_have_count(0)
@@ -638,7 +643,7 @@ def test_the_header_create_button_is_clickable_on_the_edit_screen(
     # is the archivist's real click.
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
-    page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
+    page.goto(_draft_edit_url(live_workbench, e2e_corpus))
     page.click("header > button.link", timeout=5000)
     panel = page.locator("#new-article")
     expect(panel).to_be_visible()
@@ -1316,23 +1321,20 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     _create_draft(page, live_workbench, "E2E Zu Bearbeiten")
     page.fill('input[name="ref_code"]', "E2E-1")
     page.fill('input[name="creator"]', "K. Meyer")
-    # a round trip that keeps the Signatur typed; the custom row sits outside #edit-form's subtree,
-    # and saving is part of publishing (owner, 2026-08-08)
+    # the custom row: a round trip that keeps the Signatur typed, outside #edit-form's subtree
     page.click('button:has-text("+ Angabe hinzufügen")')
     page.fill('input[name="custom_key"]', "Quelle")
     page.fill('input[name="custom_value"]', "Privatbesitz Meyer")
+    page.select_option('select[name="lifecycle"]', "published")  # saving publishes (2026-08-08)
     # Enter, not a click: Speichern sits outside #edit-form (form=), so implicit submission must
     # still find it as the default button.
-    page.select_option('select[name="lifecycle"]', "published")
     page.click('input[name="ref_code"]')
     page.keyboard.press("Enter")
-    # save 302s to the read view
     page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
-    expect(page.get_by_text("E2E-1")).to_be_visible()  # Enter saved the form...
-    expect(
-        page.locator("main").get_by_text("Privatbesitz Meyer")
-    ).to_be_visible()  # ...the custom row...
-    expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)  # ...and applied the Status
+    main = page.locator("main")
+    expect(page.get_by_text("E2E-1")).to_be_visible()
+    expect(main.get_by_text("Privatbesitz Meyer")).to_be_visible()
+    expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)  # the Status applied
 
 
 def test_a_double_clicked_save_sends_one_save(archivist_page: Page, live_workbench: str) -> None:
@@ -1386,7 +1388,7 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     page = archivist_page
     # Custom-bag fields are form= ASSOCIATED with #edit-form but sit outside its
     # DOM subtree (the #media-drawer split) — the dirty register must still see their first edit.
-    edit_url = live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit"
+    edit_url = _draft_edit_url(live_workbench, e2e_corpus)
     page.goto(edit_url)
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
     page.click('button:has-text("+ Angabe hinzufügen")')
@@ -1479,8 +1481,6 @@ _TEXT_EDGE = (
 
 def _suggested_lager(browser: Browser, base: str, width: int, height: int) -> Page:
     """The start page at this viewport with "lager" typed, answered by ``long_suggestions``."""
-    from tests.e2e.conftest import add_archivist_cookies
-
     context = browser.new_context(viewport={"width": width, "height": height})
     add_archivist_cookies(context, base)
     page = context.new_page()
@@ -1817,19 +1817,12 @@ def test_cas_conflict_second_saver_sees_panel(
     # Two archivists open the SAME draft edit form at the same version; the first save wins, the
     # second's swap shows the conflict panel and keeps the typed value (CAS, ADR 0013). What the
     # panel says is the server's: tests/app/web/test_catalog_edit.py.
-    edit_url = live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit"
+    edit_url = _draft_edit_url(live_workbench, e2e_corpus)
     archivist_page.goto(edit_url)
-    archivist_page.select_option('select[name="media_type"]', "Foto(s)")
-
-    from tests.e2e.conftest import add_archivist_cookies
-
     ctx2 = browser.new_context()
     add_archivist_cookies(ctx2, live_workbench)
     page2 = ctx2.new_page()
     page2.goto(edit_url)  # both now hold the same expected_version
-    # both forms carry a valid Medienart so each save reaches the CAS path (not a validation error);
-    # the draft on disk has none yet, so page2 sets its own too.
-    page2.select_option('select[name="media_type"]', "Foto(s)")
 
     archivist_page.fill('input[name="creator"]', "Erster")
     archivist_page.click('button:has-text("Speichern")')
@@ -2126,7 +2119,7 @@ def test_error_fields_compute_the_error_border(
 ) -> None:
     # C13: an outranked rule looks live in source, so only the computed border counts.
     page = archivist_page
-    page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
+    page.goto(_draft_edit_url(live_workbench, e2e_corpus))
     page.select_option('select[name="media_type"]', "")  # Medienart is required
     page.fill('input[name="date"]', "nicht-ein-datum")  # an unparseable EDTF value
     page.click('button:has-text("Speichern")')
@@ -2148,7 +2141,7 @@ def test_a_groups_error_shows_in_the_margin_with_the_focus(
     # re-renders the message in the margin, and the caret must land on the input — "on screen" and
     # "focused" are browser facts.
     page = archivist_page
-    page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
+    page.goto(_draft_edit_url(live_workbench, e2e_corpus))
     groups_text = page.locator('main textarea[name="groups"]')
     expect(groups_text).to_be_hidden()  # not at the GROUPS rung
     # Gruppen stays empty -> invalid
@@ -2456,8 +2449,6 @@ def test_a_media_action_never_hides_anothers_save_from_the_form(
     # The other half of the contract above: another archivist saved after this form loaded, so the
     # form's media action must not advance its version past that save (ADR 0013).
     edit_url = _create_draft(archivist_page, live_workbench, "E2E Medien nach fremdem Speichern")
-
-    from tests.e2e.conftest import add_archivist_cookies
 
     ctx2 = browser.new_context()
     add_archivist_cookies(ctx2, live_workbench)

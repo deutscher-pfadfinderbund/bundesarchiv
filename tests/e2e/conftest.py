@@ -3,6 +3,7 @@ middleware.
 """
 
 import os
+import shutil
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -20,7 +21,7 @@ from playwright.sync_api import Browser, BrowserContext, Page
 from pytest_django.live_server_helper import LiveServer
 from pytest_django.plugin import DjangoDbBlocker
 from tests._login import DEV_KEY, viewer_cookies
-from tests.e2e._corpus import CorpusHandles, build_corpus
+from tests.e2e._corpus import HANDLES, CorpusHandles, index_corpus, write_corpus
 
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import settings_dev
@@ -48,16 +49,27 @@ def _no_csp_violations(browser: Browser, monkeypatch: pytest.MonkeyPatch) -> Ite
     assert not violations, f"CSP violations: {violations}"
 
 
-@pytest.fixture
-def _e2e_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Per test: pytest-django truncates the index between tests, so a session corpus would
-    vanish."""
-    return tmp_path_factory.mktemp("e2e-canonical")
+@pytest.fixture(scope="session")
+def _e2e_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The corpus's files (canonical/, thumbs/), written once per worker; each test writes to its
+    own copy, which ``e2e_corpus`` indexes: pytest-django truncates the index between tests."""
+    root = tmp_path_factory.mktemp("e2e-template")
+    (root / "canonical").mkdir()
+    (root / "thumbs").mkdir()
+    write_corpus(root / "canonical", thumbnail_root=root / "thumbs")
+    return root
 
 
 @pytest.fixture
-def _e2e_thumbs(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    return tmp_path_factory.mktemp("e2e-thumbs")
+def _e2e_copy(tmp_path_factory: pytest.TempPathFactory, _e2e_template: Path) -> Path:
+    copy = tmp_path_factory.mktemp("e2e")
+    shutil.copytree(_e2e_template, copy, dirs_exist_ok=True)
+    return copy
+
+
+@pytest.fixture
+def _e2e_root(_e2e_copy: Path) -> Path:
+    return _e2e_copy / "canonical"
 
 
 @pytest.fixture
@@ -67,7 +79,7 @@ def _e2e_staging(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture
 def _e2e_settings(
-    _e2e_root: Path, _e2e_thumbs: Path, _e2e_staging: Path
+    _e2e_copy: Path, _e2e_root: Path, _e2e_staging: Path
 ) -> Iterator[dict[str, object]]:
     """``settings_dev``'s layer, so a dev change never skips this suite. Views read the roots per
     request, so the session-scoped ``live_server`` follows each test's dirs.
@@ -87,7 +99,7 @@ def _e2e_settings(
         "VIEWER_SIGNING_KEY": settings_dev.VIEWER_SIGNING_KEY,
         "DEV_VIEWER_SIGNING_KEY": DEV_KEY,
         "BUNDESARCHIV_CANONICAL_ROOT": str(_e2e_root),
-        "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_thumbs),
+        "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_copy / "thumbs"),
         "BUNDESARCHIV_UPLOAD_STAGING_ROOT": str(_e2e_staging),
         "DEBUG": False,
     }
@@ -98,14 +110,14 @@ def _e2e_settings(
 @pytest.fixture
 def e2e_corpus(
     _e2e_root: Path,
-    _e2e_thumbs: Path,
     _e2e_settings: dict[str, object],
     transactional_db: None,
     django_db_blocker: DjangoDbBlocker,
 ) -> CorpusHandles:
     """Committed through ``transactional_db`` so the live server's thread reads it."""
     with django_db_blocker.unblock():
-        return build_corpus(_e2e_root, thumbnail_root=_e2e_thumbs)
+        index_corpus(_e2e_root)
+    return HANDLES
 
 
 @pytest.fixture

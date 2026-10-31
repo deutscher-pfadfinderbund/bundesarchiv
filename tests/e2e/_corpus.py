@@ -111,7 +111,7 @@ class CorpusHandles:
     sound_ulid: str
 
 
-def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
+def write_corpus(root: Path, thumbnail_root: Path | None = None) -> None:
     """With ``thumbnail_root``, pre-generate the thumbnails the absent worker would, so media <img>s
     render."""
     store = LocalFsObjectStore(root)
@@ -306,9 +306,6 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         winterlager, articles.save(winterlager, 0, changed_by="tester"), changed_by="tester"
     )
 
-    indexer.rebuild(store)
-    filled = media_text.fill(Archive.of(store), PUBLISHED_ULID)
-    assert len(filled) == 1  # fill never raises; a miss is silent
     if thumbnail_root is not None:
         for ulid, ref in (
             (PUBLISHED_ULID, cover),
@@ -318,13 +315,23 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             *((MANY_ULID, ref) for ref in many),
         ):
             thumbnails.generate_thumbnail(store, ULID(ulid), ref.content_hash, thumbnail_root)
-    return CorpusHandles(
-        draft_ulid=DRAFT_ULID,
-        published_ulid=PUBLISHED_ULID,
-        second_ulid=SECOND_ULID,
-        marked_ulid=MARKED_ULID,
-        ceiling_ulid=CEILING_ULID,
-        many_ulid=MANY_ULID,
-        template_ulid=TEMPLATE_ULID,
-        sound_ulid=SOUND_ULID,
-    )
+
+
+HANDLES = CorpusHandles(
+    draft_ulid=DRAFT_ULID,
+    published_ulid=PUBLISHED_ULID,
+    second_ulid=SECOND_ULID,
+    marked_ulid=MARKED_ULID,
+    ceiling_ulid=CEILING_ULID,
+    many_ulid=MANY_ULID,
+    template_ulid=TEMPLATE_ULID,
+    sound_ulid=SOUND_ULID,
+)
+
+
+def index_corpus(root: Path) -> None:
+    """The PDF text lives in the index too."""
+    store = LocalFsObjectStore(root)
+    indexer.rebuild(store)
+    filled = media_text.fill(Archive.of(store), PUBLISHED_ULID)
+    assert len(filled) == 1  # fill never raises; a miss is silent
