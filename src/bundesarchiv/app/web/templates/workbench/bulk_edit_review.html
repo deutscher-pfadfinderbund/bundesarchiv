@@ -17,7 +17,7 @@ it loses. Hidden inputs carry selection, field and value into the commit (no ser
   </form>
   <p><a href="{% url 'workbench' %}?{{ cancel_query }}">Zurück zur Auswahl</a></p>
   {% else %}
-  <p>{{ field_label }} für {{ count }} Einträge: <strong>{{ value_display }}</strong></p>
+  <p>{{ field_label }} für {{ count }} {{ count|pluralize:"Eintrag,Einträge" }}: <strong>{{ value_display }}</strong></p>
 
   <table class="affected">
     <thead>

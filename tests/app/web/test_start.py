@@ -120,7 +120,7 @@ def _preset_counts(response: Any, param: str) -> dict[str, str]:
     """Each link of the list preset ``param`` in ``<main>`` and the count its name carries."""
     main = response.content.decode().split("<main", 1)[1]
     found = re.findall(
-        rf'href="/articles\?{param}=([^"]+)" aria-label="[^"]*: (\d+) Einträge"', main
+        rf'href="/articles\?{param}=([^"]+)" aria-label="[^"]*: (\d+) Eintr(?:ag|äge)"', main
     )
     return {unquote(value): count for value, count in found}
 
@@ -243,3 +243,17 @@ def test_the_timeline_folds_two_or_more_sparse_leading_decades_into_one_row() ->
         [FacetCount(d, n) for d, n in (("1860", 1), ("1890", 1), *dense)]
     )
     assert "date_to=1919-12-31" in folded.href
+
+
+@pytest.mark.parametrize(
+    "partial", ["start/_collections.html", "start/_by_media_type.html", "start/_timeline.html"]
+)
+@pytest.mark.parametrize(("n", "words"), [(1, "1 Eintrag"), (2, "2 Einträge")])
+def test_a_start_list_names_its_count_in_singular_and_plural(
+    partial: str, n: int, words: str
+) -> None:
+    tile = start.Tile("Fotos", n, str(n), "/x")
+    html = render_to_string(
+        partial, {"area": {"tiles": (tile,), "shown": 1, "rows": (start.Row(tile, n),)}}
+    )
+    assert f'aria-label="Fotos: {words}"' in html

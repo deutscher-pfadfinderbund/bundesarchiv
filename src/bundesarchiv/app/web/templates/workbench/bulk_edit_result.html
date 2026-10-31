@@ -9,8 +9,8 @@ listed, each leading to its edit form, plus one collective recovery.
 {% block column %}
   <p>{{ field_label }} → {{ value_display }}</p>
   {% include "components/index_lag.html" with index_lag=bulk_index_lag only %}
-  {% if doctype_cleared_count %}<p>Bei {{ doctype_cleared_count }} Einträgen wurde der Dokumenttyp geleert.</p>{% endif %}
-  {% if missing_count %}<p>{{ missing_count }} Einträge gibt es nicht mehr.</p>{% endif %}
+  {% if doctype_cleared_count %}<p>Bei {{ doctype_cleared_count }} {{ doctype_cleared_count|pluralize:"Eintrag,Einträgen" }} wurde der Dokumenttyp geleert.</p>{% endif %}
+  {% if missing_count %}<p>{{ missing_count }} {{ missing_count|pluralize:"Eintrag,Einträge" }} gibt es nicht mehr.</p>{% endif %}
 
   {% if conflicted %}
   <div class="section-head"><h2>Nicht gespeichert</h2></div>

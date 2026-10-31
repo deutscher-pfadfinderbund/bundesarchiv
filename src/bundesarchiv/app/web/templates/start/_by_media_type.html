@@ -4,7 +4,7 @@
   <header class="section-head"><h2 id="start-by-media-type">Medienart</h2></header>
   <div class="expandable">
     <ul class="tiles">
-      {% for tile in area.tiles %}<li{% if forloop.counter > area.shown %} class="expandable-rest"{% endif %}><a class="register-row" href="{{ tile.href }}" aria-label="{{ tile.label }}: {{ tile.count_label }} Einträge"><span class="register-label">{{ tile.label }}</span><span class="register-figure"><data value="{{ tile.count }}">{{ tile.count_label }}</data></span></a></li>
+      {% for tile in area.tiles %}<li{% if forloop.counter > area.shown %} class="expandable-rest"{% endif %}><a class="register-row" href="{{ tile.href }}" aria-label="{{ tile.label }}: {{ tile.count_label }} {{ tile.count|pluralize:"Eintrag,Einträge" }}"><span class="register-label">{{ tile.label }}</span><span class="register-figure"><data value="{{ tile.count }}">{{ tile.count_label }}</data></span></a></li>
       {% endfor %}
     </ul>
     {% if area.tiles|length > area.shown %}

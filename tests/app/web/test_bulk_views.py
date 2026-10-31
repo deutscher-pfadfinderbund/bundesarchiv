@@ -402,3 +402,57 @@ def test_bulk_document_types_post_is_404(two_drafts: Corpus) -> None:
         .status_code
         == 404
     )
+
+
+# --- counts in singular and plural -------------------------------------------------
+
+_GONE = ("01KX7YT9E3VX0CP3A5Q49RZM08", "01KX7YT9E3VX0CP3A5Q49RZM09")
+
+
+@pytest.mark.parametrize(("n", "words"), [(1, "1 Eintrag"), (2, "2 Einträge")])
+def test_the_check_page_names_its_count_in_singular_and_plural(
+    two_drafts: Corpus, n: int, words: str
+) -> None:
+    response = client_as(Archivist()).post(
+        "/articles/bulk-edit",
+        {"selection": [_A, _B][:n], "field": "creator", "value_text": "Meier"},
+    )
+    assert f"für {words}:" in response.content.decode()
+
+
+@pytest.mark.parametrize(
+    ("n", "cleared", "missing"),
+    [
+        (1, "Bei 1 Eintrag wurde", "1 Eintrag gibt es nicht mehr"),
+        (2, "Bei 2 Einträgen wurde", "2 Einträge gibt es nicht mehr"),
+    ],
+)
+def test_the_result_page_names_its_counts_in_singular_and_plural(
+    two_drafts: Corpus, n: int, cleared: str, missing: str
+) -> None:
+    selection = [_A, _B][:n]
+    for ulid in selection:
+        two_drafts.articles.save(
+            make_article(
+                ULID(ulid),
+                collection_id="PUB",
+                lifecycle=Lifecycle.DRAFT,
+                media_type="Schrifttum",
+                document_type="Brief",
+            ),
+            two_drafts.articles.load(ULID(ulid)).version,
+            changed_by="tester",
+        )
+    response = client_as(Archivist()).post(
+        "/articles/bulk-edit",
+        {
+            "selection": [*selection, *_GONE[:n]],
+            "field": "media_type",
+            "value_media_type": "Foto(s)",
+            "confirmed": "1",
+            "clear_document_type": "1",
+        },
+    )
+    body = response.content.decode()
+    assert cleared in body
+    assert missing in body
