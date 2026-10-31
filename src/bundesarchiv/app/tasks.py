@@ -15,6 +15,7 @@ from procrastinate.exceptions import AlreadyEnqueued  # noqa: TID251
 from bundesarchiv.app import jobs, media_text, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.push_record import PostgresPushRecord
+from bundesarchiv.app.upload_staging import STALE_AFTER_SECONDS, Staging
 from bundesarchiv.domain.models import ULID
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
@@ -27,6 +28,9 @@ _MIRROR_RETRY = RetryStrategy(max_attempts=5, exponential_wait=3)
 
 #: ADR 0019 "Fixity".
 _VERIFY_CRON = "0 4 1 * *"
+
+#: Hourly, off the hour the reconcile takes.
+_SWEEP_CRON = "30 * * * *"
 
 #: A connect to the system of record that takes longer than 5 s is a partition, not a slow server:
 #: fail the attempt then, not after the 30 s a slow answer may take, so the one worker moves on.
@@ -89,6 +93,13 @@ def reconcile(timestamp: int) -> None:
 def verify(timestamp: int) -> None:
     """A finding raises ``CommandError`` and so fails the job."""
     call_command("verify")
+
+
+@app.periodic(cron=_SWEEP_CRON)
+@app.task(name="sweep_upload_staging")
+def sweep(timestamp: int) -> None:
+    """ADR 0026: chunked uploads abandoned before their finish."""
+    Staging.configured().sweep(older_than=timestamp - STALE_AFTER_SECONDS)
 
 
 # --- mirror jobs (ADR 0020): a no-op when no system of record is configured --------

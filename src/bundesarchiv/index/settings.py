@@ -164,6 +164,10 @@ BUNDESARCHIV_MIRROR_RECONCILE_CRON = os.environ.get(
 BUNDESARCHIV_MAX_UPLOAD_BYTES = int(
     os.environ.get("BUNDESARCHIV_MAX_UPLOAD_BYTES", str(4 * 1024**3))
 )
+# Chunked uploads until their finish (ADR 0026): local disk shared by app and worker, never the archive.
+BUNDESARCHIV_UPLOAD_STAGING_ROOT = os.environ.get(
+    "BUNDESARCHIV_UPLOAD_STAGING_ROOT", "var/upload-staging"
+)
 # The media manager renders one caption input per file; raised from Django's 1000.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("BUNDESARCHIV_MAX_FORM_FIELDS", "2000"))
 
