@@ -3,24 +3,23 @@ The search sentence's parts that follow the query (a2): the slots ("in" inside t
 wraps with it), the set filters no slot shows, then "+ Filter". On S the unset slots after the
 first and "+ Filter" fold into "Filter", whose panel repeats their entries. Every link is built from the request's query, so an htmx q-swap refreshes them
 out-of-band (_results.html) while the field keeps its focus. Each slot is its own box: one trigger
-per anchor scope (law C12). A slot's menu clears it when set, then lists the values the index
-counts; a set filter no slot shows is a link that removes it.
+per anchor scope (law C12). A slot's menu clears it when set (a nested slot first clears the one
+it sits under), then lists the values the index counts; a set filter no slot shows is a link
+that removes it.
 {% endcomment %}
 <div class="filterset" id="filterset"{% if oob %} hx-swap-oob="innerHTML"{% endif %}>
   <div class="search-sentence-slots">
     {% for slot in slots %}
-    <div class="{% if slot.clear_query is not None %}is-set{% else %}is-minor{% endif %}">
+    <div class="{% if slot.clears %}is-set{% else %}is-minor{% endif %}">
       {% if forloop.first %}
       <span class="search-sentence-in">in</span>
       {% endif %}
-      {% if slot.items or slot.clear_query is not None %}
+      {% if slot.items or slot.clears %}
       <button class="menu-button" type="button" popovertarget="slot-{{ forloop.counter }}">{{ slot.label }}</button>
       <ul class="menu" id="slot-{{ forloop.counter }}" popover>
-        {% if slot.clear_query is not None %}
-        <li>
-          <a href="?{{ slot.clear_query }}">{{ slot.unset_label }}</a>
-        </li>
-        {% endif %}
+        {% for item in slot.clears %}
+        {% include "workbench/_facet_item.html" with item=item only %}
+        {% endfor %}
         {% for item in slot.items %}
         {% include "workbench/_facet_item.html" with item=item only %}
         {% endfor %}
@@ -40,7 +39,7 @@ counts; a set filter no slot shows is a link that removes it.
     <button class="menu-button" type="button" popovertarget="slot-more">Filter</button>
     <div class="toolpanel" id="slot-more" popover>
       {% for slot in slots %}
-      {% if not forloop.first and slot.clear_query is None and slot.items %}
+      {% if not forloop.first and not slot.clears and slot.items %}
       <p class="toolpanel-head" id="fold-{{ forloop.counter }}">{{ slot.unset_label }}</p>
       <ul class="menu" aria-labelledby="fold-{{ forloop.counter }}">
         {% for item in slot.items %}

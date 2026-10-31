@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from html import unescape
 from html.parser import HTMLParser
-from typing import cast
+from typing import Any, cast
 from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
@@ -408,22 +408,66 @@ def _sentence_queries(viewer: Viewer, query: str = "") -> list[dict[str, list[st
     return [parse_qs(unescape(href)) for href in re.findall(r'href="\?([^"]*)"', form_html)]
 
 
+def _context(viewer: Viewer, query: str = "") -> Any:
+    return client_as(viewer).get(f"{list_url()}?{query}").context
+
+
 def test_the_list_computes_only_the_facets_its_sentence_shows(indexed_corpus: Corpus) -> None:
-    page = client_as(Archivist()).get(list_url()).context["page"]
-    assert set(page.facets) == {"collection", "decades", "document_type", "file_kind"}
+    shown = {"collection", "decades", "media_type", "file_kind"}
+    assert set(_context(Archivist())["page"].facets) == shown
+    typed = _context(Archivist(), f"media_type={vocab.DOCUMENT_TYPE_MEDIA_TYPE}")["page"]
+    assert set(typed.facets) == {*shown, "document_type"}
 
 
-def test_the_slots_offer_the_collection_decade_type_and_dateless_values(
+def test_the_slots_offer_the_collection_decade_media_type_and_dateless_values(
     indexed_corpus: Corpus,
 ) -> None:
     queries = _sentence_queries(Public())
     for param, value in [
         ("collection", "FOTOS"),
-        ("document_type", "Lagerheft"),
+        ("media_type", "Foto"),
         ("dateless", "1"),  # Undatiertes Liederheft has no date
     ]:
         assert {param: [value]} in queries
     assert any(set(q) == {"decade"} for q in queries)
+
+
+def test_a_medienart_link_drops_the_dokumenttyp(indexed_corpus: Corpus) -> None:
+    for query in ("document_type=Lagerheft", "media_type=Schrifttum&document_type=Liederheft"):
+        medienart = _context(Public(), query)["slots"][2]
+        links = [item.query for item in (*medienart.items, *medienart.clears)]
+        assert medienart.items, query
+        assert all("document_type" not in parse_qs(link) for link in links), query
+
+
+def test_the_dokumenttyp_slot_shows_under_schrifttum_only(indexed_corpus: Corpus) -> None:
+    assert len(_context(Public())["slots"]) == 3
+    assert len(_context(Public(), "media_type=Foto&document_type=Lagerheft")["slots"]) == 3
+    dokumenttyp = _context(Public(), "media_type=Schrifttum")["slots"][3]
+    assert [parse_qs(item.query) for item in dokumenttyp.items] == [
+        {"media_type": ["Schrifttum"], "document_type": ["Liederheft"]}
+    ]
+
+
+def test_a_set_dokumenttyp_clears_to_any_medienart_or_to_any_dokumenttyp(
+    indexed_corpus: Corpus,
+) -> None:
+    query = "q=Lied&media_type=Schrifttum&document_type=Liederheft"
+    dokumenttyp = _context(Public(), query)["slots"][3]
+    assert [parse_qs(item.query) for item in dokumenttyp.clears] == [
+        {"q": ["Lied"]},
+        {"q": ["Lied"], "media_type": ["Schrifttum"]},
+    ]
+
+
+def test_a_medienart_count_is_the_rows_its_link_lands_on(indexed_corpus: Corpus) -> None:
+    # beside a Dokumenttyp, which the link drops: a count that kept it would understate
+    medienart = _context(Public(), "media_type=Schrifttum&document_type=Lagerheft")["slots"][2]
+    offered = [item for item in medienart.items if not item.active]
+    assert offered
+    for item in offered:
+        landed = _context(Public(), item.query)["page"].total
+        assert item.count == vocab.count(landed), item.label
 
 
 def test_the_decade_menu_reads_in_time_order(indexed_corpus: Corpus) -> None:

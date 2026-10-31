@@ -471,7 +471,7 @@ def test_sentence_links_keep_the_typed_q_after_a_live_swap(
     # Both set filters show in no slot, so each is its own removing link.
     page = archivist_page
     for nth in (0, 1):
-        page.goto(live_workbench + f"{LIST}?tag=sommer&media_type=Foto(s)")
+        page.goto(live_workbench + f"{LIST}?tag=sommer&place=Harz")
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
         page.wait_for_url("**q=Sommerfahrt**")
         expect(page.locator("#hit-count")).not_to_be_empty()
@@ -491,7 +491,7 @@ def test_on_a_phone_the_folded_slots_stay_reachable(
 ) -> None:
     page = archivist_page
     page.set_viewport_size({"width": 390, "height": 900})
-    for param in ("decade", "document_type"):
+    for param in ("decade", "media_type"):
         page.goto(live_workbench + LIST)
         page.locator(".search-sentence-more .menu-button").click()
         entry = page.locator(f'.search-sentence-more .menu a[href*="{param}="]').first

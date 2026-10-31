@@ -50,7 +50,9 @@ _SLOTS: tuple[dict[str, object], ...] = (
     {
         "label": "Aktenbestand",
         "unset_label": "allen Sammlungsteilen",
-        "clear_query": "tag=sommer",
+        "clears": (
+            {"label": "allen Sammlungsteilen", "count": "", "query": "tag=sommer", "active": False},
+        ),
         "items": (
             {"label": "Fotografien", "count": "24", "query": "collection=FOTOS", "active": False},
             {"label": "Aktenbestand", "count": "8", "query": "", "active": True},
@@ -59,18 +61,18 @@ _SLOTS: tuple[dict[str, object], ...] = (
     {
         "label": "alle Jahrzehnte",
         "unset_label": "alle Jahrzehnte",
-        "clear_query": None,
+        "clears": (),
         "items": (
             {"label": "1950er", "count": "6", "query": "decade=1950", "active": False},
             {"label": "1960er", "count": "14", "query": "decade=1960", "active": False},
         ),
     },
     {
-        "label": "jeder Typ",
-        "unset_label": "jeder Typ",
-        "clear_query": None,
+        "label": "jede Medienart",
+        "unset_label": "jede Medienart",
+        "clears": (),
         "items": (
-            {"label": "Bericht", "count": "12", "query": "document_type=Bericht", "active": False},
+            {"label": "Foto(s)", "count": "12", "query": "media_type=Foto(s)", "active": False},
         ),
     },
 )

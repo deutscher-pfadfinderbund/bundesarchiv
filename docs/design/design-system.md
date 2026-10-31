@@ -177,7 +177,8 @@ Destinations are few: **start · one list · article · forms (edit, new, bulk) 
 | **Breadcrumbs show the place, not the path** | where the article lives; each step opens the scoped list | orientation and a way onward | — | first step "Archiv"; none on start or list (the sentence is the location); the way back to a search is browser Back |
 
 - The list's heading is the search sentence: "Suche [Feld] in Gruppen des DPB · alle Jahrzehnte ·
-  jeder Typ + Filter". Set filters ink, open ones quieter, centre dots between them; no chevrons,
+  jede Medienart + Filter". Under Medienart "Schrifttum" a fourth slot "jeder Dokumenttyp"
+  follows; its menu clears to "jede Medienart" or "jeder Dokumenttyp". Set filters ink, open ones quieter, centre dots between them; no chevrons,
   no chip row. S: the field takes its own line, one filter stays, the rest fold behind "Filter".
 - Start compartments: search · "Weiter bearbeiten" (archivists, one quiet line) · Bestände ·
   Nach Art · Zeitleiste · Zuletzt hinzugefügt · later Highlights. Phone start: search,

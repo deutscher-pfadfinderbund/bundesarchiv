@@ -678,9 +678,9 @@ def _facets(
     matched: QuerySet[ArticleIndex], filters: SearchFilters, wanted: tuple[str, ...]
 ) -> Mapping[str, tuple[FacetCount, ...]]:
     """The ``wanted`` facets. ``matched`` is the scoped + text-matched queryset (facets DO reflect the
-    text search and every filter EXCEPT the facet's own dimension). Each facet re-applies the
-    other filters via ``_apply_filters`` over a per-facet copy of ``filters`` with its own
-    dimension cleared, so the scope predicate rides along on every aggregate query."""
+    text search and every filter EXCEPT the facet's own dimension and those nested under it). Each
+    facet re-applies the other filters via ``_apply_filters`` over a per-facet copy of ``filters``
+    with those dimensions cleared, so the scope predicate rides along on every aggregate query."""
     scalar = {
         key: _scalar_facet(matched, column=column, filters=_without(filters, key))
         for key, column in _SCALAR_FACETS
@@ -713,11 +713,15 @@ def _file_kind_facet(
     return tuple(FacetCount(k.value, counts[k.value]) for k in FileKind if counts[k.value])
 
 
+#: The Dokumenttyp sits under the Medienart: picking a Medienart leaves the Dokumenttyp behind.
+_NESTED: Mapping[str, tuple[str, ...]] = {"media_type": ("document_type",)}
+
+
 def _without(filters: SearchFilters, key: str) -> SearchFilters:
     field = {"tags": "tag", "decades": "decade"}.get(key, key)
     # ``field`` is always a nullable dimension, never a bool, so None is well-typed; ``Any`` keeps
     # ``replace`` from narrowing the value against the union of field types.
-    kwargs: dict[str, Any] = {field: None}
+    kwargs: dict[str, Any] = dict.fromkeys((field, *_NESTED.get(field, ())))
     return replace(filters, **kwargs)
 
 

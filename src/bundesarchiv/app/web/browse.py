@@ -157,22 +157,27 @@ def _clean(params: Mapping[str, str]) -> dict[str, str]:
     return {k: v for k, v in params.items() if v != ""}
 
 
+#: A param's dependents: a link that changes the key leaves them behind. The Dokumenttyp belongs to
+#: the Medienart it was picked under.
+_DEPENDENTS: Mapping[str, tuple[str, ...]] = {PARAM_MEDIA_TYPE: (PARAM_DOCUMENT_TYPE,)}
+
+
+def _changing(params: Mapping[str, str], key: str) -> dict[str, str]:
+    """The base of a link that changes ``key``, without ``key`` itself, its dependents and ``page``
+    — the result set changed, so page 1 is honest."""
+    dropped = {key, PARAM_PAGE, *_DEPENDENTS.get(key, ())}
+    return {k: v for k, v in _clean(params).items() if k not in dropped}
+
+
 def with_param(params: Mapping[str, str], key: str, value: str) -> str:
-    """The query string for the current state PLUS ``key=value`` (a facet click). Replaces any
-    existing value for ``key`` and resets ``page`` — the result set changed, so page 1 is honest."""
-    updated = _clean(params)
-    updated[key] = value
-    updated.pop(PARAM_PAGE, None)
-    return urlencode(updated)
+    """The query string for the current state PLUS ``key=value`` (a facet click), replacing any
+    existing value for ``key``."""
+    return urlencode({**_changing(params, key), key: value})
 
 
 def without_param(params: Mapping[str, str], key: str) -> str:
-    """The query string for the current state MINUS ``key`` (a chip ✕ / facet un-click). Resets
-    ``page`` for the same reason ``with_param`` does — the narrowing changed."""
-    updated = _clean(params)
-    updated.pop(key, None)
-    updated.pop(PARAM_PAGE, None)
-    return urlencode(updated)
+    """The query string for the current state MINUS ``key`` (a chip ✕ / facet un-click)."""
+    return urlencode(_changing(params, key))
 
 
 def view_query(params: Mapping[str, str], *, table: bool) -> str:

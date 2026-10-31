@@ -32,7 +32,14 @@ from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import ULID, Change, Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.indexer import file_kind, mime_type
-from bundesarchiv.index.query import FacetCount, FileKind, SearchFilters, SearchPage, search
+from bundesarchiv.index.query import (
+    Facet,
+    FacetCount,
+    FileKind,
+    SearchFilters,
+    SearchPage,
+    search,
+)
 from bundesarchiv.persistence.errors import ArchiveError
 
 #: The preview-pane selection param, not a search param. A denied, absent or malformed value shows
@@ -54,8 +61,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
         descending=parsed.descending,
         page=parsed.page,
         page_size=parsed.page_size,
-        # the sentence's three slots + the file types of "+ Filter"
-        facets=("collection", "decades", "document_type", "file_kind"),
+        facets=_sentence_facets(parsed.filters),
         headlines=parsed.reading,
     )
     archive = Archive.canonical()
@@ -124,15 +130,14 @@ class _FacetItem:
 
 @dataclass(frozen=True, slots=True)
 class _Slot:
-    """One slot of the search sentence (a2): its words, and its menu -- the entry that clears it
-    (``unset_label`` and ``clear_query``, which is ``None`` while unset), then the values the index
-    counts."""
+    """One slot of the search sentence (a2): its words, and its menu -- the entries that clear it
+    (none while unset; a nested slot's first clears the slot it sits under), then the values the
+    index counts."""
 
     label: str
     unset_label: str
-    clear_query: str | None
+    clears: tuple[_FacetItem, ...]
     items: tuple[_FacetItem, ...]
-    open: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -456,9 +461,10 @@ def _sentence(
     *,
     is_archivist: bool,
 ) -> dict[str, object]:
-    """The search sentence's parts: its three slots (Collection, Jahrzehnt, Typ), every set filter no
-    slot shows, the "+ Filter" checks (Entwürfe for archivists only), and the query that clears
-    every filter once two or more are set (else ``None``)."""
+    """The search sentence's parts: its slots (Collection, Jahrzehnt, Medienart, and under
+    Schrifttum the Dokumenttyp), every set filter no slot shows, the "+ Filter" checks (Entwürfe
+    for archivists only), and the query that clears every filter once two or more are set (else
+    ``None``)."""
     f = parsed.filters
     facets = page.facets
     names = chooser.names()
@@ -474,6 +480,8 @@ def _sentence(
             _toggle(params, browse.PARAM_DATELESS, vocab.UNDATED, f.dateless, page.dateless_count),
         )
     undated_slot = f.dateless and f.decade is None  # set beside a decade, it stays a set filter
+    any_medienart = "jede Medienart"
+    typed = _typed(f)
     slots = (
         _slot(
             params,
@@ -497,14 +505,34 @@ def _sentence(
         ),
         _slot(
             params,
-            browse.PARAM_DOCUMENT_TYPE,
-            f.document_type,
-            "jeder Typ",
-            _facet_items(params, browse.PARAM_DOCUMENT_TYPE, facets.get("document_type", ())),
+            browse.PARAM_MEDIA_TYPE,
+            f.media_type,
+            any_medienart,
+            _facet_items(params, browse.PARAM_MEDIA_TYPE, facets.get("media_type", ())),
+        ),
+        *(
+            (
+                _slot(
+                    params,
+                    browse.PARAM_DOCUMENT_TYPE,
+                    f.document_type,
+                    "jeder Dokumenttyp",
+                    _facet_items(
+                        params, browse.PARAM_DOCUMENT_TYPE, facets.get("document_type", ())
+                    ),
+                    under=((browse.PARAM_MEDIA_TYPE, any_medienart),),
+                ),
+            )
+            if typed
+            else ()
         ),
     )
     unslotted = (
-        (browse.PARAM_MEDIA_TYPE, f.media_type and f"Medienart: {f.media_type}"),
+        # without Schrifttum (an old link) it has no slot, but must stay removable
+        (
+            browse.PARAM_DOCUMENT_TYPE,
+            None if typed else f.document_type and f"Dokumenttyp: {f.document_type}",
+        ),
         (browse.PARAM_TAG, f.tag and f"Schlagwort: {f.tag}"),
         (browse.PARAM_CREATOR, f.creator and f"Urheber: {f.creator}"),
         (browse.PARAM_PLACE, f.place and f"Ort: {f.place}"),
@@ -532,7 +560,7 @@ def _sentence(
         for param, label in unslotted
         if label
     )
-    set_count = len(set_filters) + sum(slot.clear_query is not None for slot in slots)
+    set_count = len(set_filters) + sum(bool(slot.clears) for slot in slots)
     order = _order(params, parsed)
     return {
         "slots": slots,
@@ -562,18 +590,41 @@ def _bound(day: datetime.date, year_edge: tuple[int, int]) -> str:
     return str(day.year) if (day.month, day.day) == year_edge else day.isoformat()
 
 
+def _sentence_facets(filters: SearchFilters) -> tuple[Facet, ...]:
+    """The facets ``_sentence`` reads: its slots' and the file types of "+ Filter"."""
+    return (
+        "collection",
+        "decades",
+        "media_type",
+        *(("document_type",) if _typed(filters) else ()),
+        "file_kind",
+    )
+
+
+def _typed(filters: SearchFilters) -> bool:
+    """Does the sentence offer the Dokumenttyp slot (a Medienart that carries one is set)?"""
+    return filters.media_type == vocab.DOCUMENT_TYPE_MEDIA_TYPE
+
+
 def _slot(
     params: dict[str, str],
     param: str,
     value_label: str | None,
     unset_label: str,
     items: tuple[_FacetItem, ...],
+    *,
+    under: tuple[tuple[str, str], ...] = (),
 ) -> _Slot:
-    """A slot reads its set value's words, else ``unset_label``; its menu clears it when set."""
+    """A slot reads its set value's words, else ``unset_label``; its menu clears it when set, after
+    the slots it sits ``under`` (param, unset label), whose clearing takes it along."""
+    clears = (*under, (param, unset_label)) if value_label is not None else ()
     return _Slot(
         label=value_label or unset_label,
         unset_label=unset_label,
-        clear_query=browse.without_param(params, param) if value_label is not None else None,
+        clears=tuple(
+            _FacetItem(label=label, count="", active=False, query=browse.without_param(params, p))
+            for p, label in clears
+        ),
         items=items,
     )
 

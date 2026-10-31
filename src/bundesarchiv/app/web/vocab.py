@@ -60,6 +60,11 @@ CUSTOM_KEYS: tuple[str, ...] = ("Anmerkungen", "Anzahl", "Besitzer", "Quelle", "
 #: legacy pair can be refused by a narrowing nobody asked for.
 MEDIA_TYPE_DOCUMENT_TYPES: dict[str, tuple[str, ...]] = dict.fromkeys(MEDIA_TYPES, DOCUMENT_TYPES)
 
+#: The one Medienart whose records carry a Dokumenttyp (archivists, 2026-11): the search sentence
+#: offers the Dokumenttyp slot under it only. The edit form still pairs every Medienart with every
+#: Dokumenttyp until the schema settles.
+DOCUMENT_TYPE_MEDIA_TYPE = "Schrifttum"
+
 #: The single optgroup's label while every Medienart shares one Dokumenttyp list.
 ALL_MEDIA_TYPES = "Alle Medienarten"
 

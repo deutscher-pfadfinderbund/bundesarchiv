@@ -265,7 +265,7 @@ viewport, not the container, so a heading keeps its rank in a narrow column.
 
 Destinations are few: start, one list, article, forms, door. Everything else (a Bestand, a decade,
 a search, "Meine Entwürfe") is a preset of the one list. The list's heading is a search sentence:
-"Suche [Feld] in Gruppen des DPB · alle Jahrzehnte · jeder Typ + Filter". Breadcrumbs show the
+"Suche [Feld] in Gruppen des DPB · alle Jahrzehnte · jede Medienart + Filter". Breadcrumbs show the
 place ("Archiv › Bund").
 
 ### Named Rules

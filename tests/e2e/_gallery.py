@@ -115,9 +115,17 @@ def _screen_state(screen: Screen) -> GalleryState:
     return GalleryState(screen.name, screen.what, screen.archivist, screen.reach)
 
 
-def _reach_slot_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles")
-    page.locator(".search-sentence-slots .menu-button").first.click()
+def _reach_slot_open(
+    path: str, *, last: bool = False
+) -> Callable[[Page, str, CorpusHandles], None]:
+    """``path`` with its search sentence's first slot open, or its ``last``."""
+
+    def reach(page: Page, base: str, _corpus: CorpusHandles) -> None:
+        page.goto(base + path)
+        slots = page.locator(".search-sentence-slots .menu-button")
+        (slots.last if last else slots.first).click()
+
+    return reach
 
 
 def _reach_sound(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -326,7 +334,14 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench-slot-open",
         "workbench, the search sentence's Sammlungsteil slot open",
         True,
-        _reach_slot_open,
+        _reach_slot_open("/articles"),
+    ),
+    GalleryState(
+        "workbench-type-slot-open",
+        "workbench under Schrifttum, the Dokumenttyp slot open: it clears to any Medienart or any"
+        " Dokumenttyp",
+        True,
+        _reach_slot_open("/articles?media_type=Schrifttum&document_type=Protokoll", last=True),
     ),
     GalleryState(
         "workbench-filter-open",
