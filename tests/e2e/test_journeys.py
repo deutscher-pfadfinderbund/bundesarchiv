@@ -614,7 +614,7 @@ def test_the_header_create_button_is_clickable_on_the_edit_screen(
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
     page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
-    page.click("header .menu-button", timeout=5000)
+    page.click("header > button.link", timeout=5000)
     panel = page.locator("#new-article")
     expect(panel).to_be_visible()
     expect(panel.locator('input[type="text"]').first).to_be_focused()

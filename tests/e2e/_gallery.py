@@ -141,7 +141,7 @@ def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> No
 
 def _reach_new_article_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     page.goto(f"{base}{LIST}", wait_until="networkidle")
-    page.click("header .menu-button")
+    page.click("header > button.link")
 
 
 def _reach_columns_open(page: Page, base: str, _corpus: CorpusHandles) -> None:

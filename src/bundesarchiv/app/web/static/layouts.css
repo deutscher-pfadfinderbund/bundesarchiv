@@ -365,7 +365,7 @@
       order: 1;
       flex-basis: 100%;
     }
-    header > .wordmark + [role="search"] ~ .menu-button {
+    header > .wordmark + [role="search"] ~ button.link {
       margin-left: auto;
     }
   }
@@ -380,13 +380,13 @@
   }
   /* no search (the article forms): nothing grows, so the create menu docks the tools right as one
      group, as in the a1 top bar — a wrapped line of them too */
-  body > header:has(> .wordmark + .menu-button) {
+  body > header:has(> .wordmark + button.link) {
     justify-content: flex-end;
   }
-  header > .wordmark + .menu-button {
+  header > .wordmark + button.link {
     margin-left: auto;
   }
-  header > .wordmark + .menu-button ~ :last-child {
+  header > .wordmark + button.link ~ :last-child {
     margin-left: 0;
   }
 

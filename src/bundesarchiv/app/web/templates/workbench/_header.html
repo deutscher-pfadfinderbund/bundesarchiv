@@ -27,7 +27,7 @@ screen without #results.
 {% comment %}The header's create slot: a second create action makes this button a menu
 again, never a second header button.{% endcomment %}
 {% if is_archivist %}{% with panel=new %}
-<button class="menu-button" type="button" popovertarget="{{ panel.id }}">+ Neu …</button>
+<button class="link" type="button" popovertarget="{{ panel.id }}">+ Neu …</button>
 {% include "workbench/_formpanel.html" %}
 {% endwith %}{% endif %}
 {% comment %}A POST form: a logout changes state and carries the CSRF token like every write.{% endcomment %}
