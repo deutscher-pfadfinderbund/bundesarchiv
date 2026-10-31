@@ -51,7 +51,6 @@ Unintentional + has bitten = rethink candidate. Intentional (ADR-backed) + repea
 ## Maintenance duties
 
 - **Debt trend.** Re-measure every open ledger entry's indicator; record the new number and date and mark it better / worse / stable. Close entries whose pattern is gone. A trend check is re-measurement, not recollection.
-- **Records hygiene.** Law and ledger files are re-read for growth. Every sentence must change what a reader does — otherwise delete it. The conciseness pass is done by an agent that did NOT write the text; defending an existing sentence requires naming who reads it and when.
 
 ### Framework health
 

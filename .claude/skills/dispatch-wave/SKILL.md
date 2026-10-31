@@ -30,7 +30,6 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - A type tightening is sized by a probe (change the type, count mypy errors per file) and done by a throwaway codemod driven by `mypy --show-column-numbers`, never by hand.
 - Name **contracts to pin, not test instruments**: the writer picks the instrument under `tests/CLAUDE.md`.
 - **Verify at the source** every load-bearing claim before it enters a brief or a ruling: a library call's signature, a framework's default behaviour, the code-behaviour premise of a grilled or ADR-backed decision, that a guard you ask to pin is load-bearing, and the measured cause behind any option the brief rules out. A wrong claim widens a fence for nothing, or closes the right route.
-- A brief built on a ruling greps `docs/requirements/` for every later ruling on the same subject.
 - Two items that touch the same lines: name the item that owns them.
 - Review findings handed to a writer come grouped per file, each anchored on its symbol with its covering test.
 - Ask for **DX feedback (top 3)** in the report: it is the brief-quality loop.
@@ -62,7 +61,6 @@ Data and runtime:
 
 - Read deviations first: a good writer deviates where law beats brief; verify the reason, then accept or redirect.
 - Relay every design gap in a writer or gate report to the owner verbatim; never resolve one yourself. A gap the owner defers goes to the design-system journal, `design-system/gaps.md`.
-- Consume learnings in the same session: a brief-mechanics lesson goes into this skill, a law lesson into the law file, a pattern, missing-tool or fence report into `docs/tech-debt.md`. No retro archives.
 - A fixer applying review dispositions that involve a design choice stops and asks the owner, even under an announced silence rule.
 - A fix ruling from the controller gets the same scoped re-review as any fix round.
 - A writer that stalls twice at the same step (watchdog, no process of its own running): drop the step from its task and run it yourself. After a third stall, a fresh finisher starts from the commits on disk and re-derives the mutation proofs.
@@ -75,6 +73,5 @@ Any rule breach or unexpected red stops the wave line. Find the cause chain firs
 
 - Before merging each unit (or 2–3 tiny ones together): `ponytail-review` (what to delete), then `code-review` at `medium` or above (`low` reads the diff once, skips tests and verifies nothing), both on the explicit range `git diff main...<branch>` (given a bare branch name, a review reads code already on main). Bugs come last because cuts change code; the writer already ran `simplify`. Fix confirmed findings first; no second review round.
 - Merge from the main checkout with `.claude/skills/dispatch-wave/scripts/merge.sh <branch> -- mise run check`. The writer ran `test:affected`; the full gate runs once, in the pre-push hook — never per unit or per merge.
-- Land commits that append to a doc after the branches that append to the same file.
 - A rename merged while other writers run: at their merge, grep each branch's new test lines for the old spelling (a negative check passes vacuously, aliases keep old GETs green).
-- Wave hygiene: re-measure the indicator on every ledger entry the wave touched. Prose added to law files gets code scrutiny: an addition without a deletion is suspect.
+- Wave hygiene: re-measure the indicator on every ledger entry the wave touched.
