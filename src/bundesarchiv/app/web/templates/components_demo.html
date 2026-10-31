@@ -320,7 +320,7 @@ components; this storyboard updates in lockstep with them.
 <code class="doc">components/icon.html · name=pencil|panel|x|arrow-up|arrow-down|log-out|chevron-down|chevron-left|chevron-right|contrast — hairline-stroke inline SVG, 24px grid, stroke-width 2, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: register row 9. The two arrows joined for the media register's row toolbar (owner ruling 6, 2026-08-08)</code>
 
 <h2>
-  Menu — the header's "+ Neu …" popover
+  Menu — the form margin's "Mehr …" popover
   <span class="status">Menu: {{ status.menu }}</span>
   <span class="status">Menu button: {{ status.menu_button }}</span>
 </h2>
@@ -340,7 +340,7 @@ list anchored to its own button. {% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">button.menu-button + ul.menu[popover] (workbench header, Mock B — owner 2026-08-07) · the ONE create menu: "+ Neu …" is a text control, not a framed button, and consumes the header row's --control-height knob; the list is a floating panel with the ink edge (register row 12), page surface even in the band, in the top layer, dropped under its button with right edges aligned (anchor() insets; without anchor positioning the browser centres it); the list is the header's create SLOT. Entry height + type come from the PANEL's own --control-height knob, so a link entry and an entry that must POST (a button) cannot read as different kinds of thing. The edit form's "Mehr …" is the same menu; its Löschen carries the .danger context</code>
+<code class="doc">button.menu-button + ul.menu[popover] (Mock B — owner 2026-08-07) · the button is a text control, not a framed button, and consumes its row's --control-height knob; the list is a floating panel with the ink edge (register row 12), page surface even in the band, in the top layer, dropped under its button with right edges aligned (anchor() insets; without anchor positioning the browser centres it). Entry height + type come from the PANEL's own --control-height knob, so a link entry and an entry that must POST (a button) cannot read as different kinds of thing. In the edit form's "Mehr …" its Löschen carries the .danger context</code>
 
 <h2>
   Split button — the article page's Bearbeiten

@@ -6,7 +6,7 @@ from django.shortcuts import render
 
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.app.web.panels import header_panels
+from bundesarchiv.app.web.panels import new_article_panel
 from bundesarchiv.domain.models import ULID
 from bundesarchiv.index.query import FileKind, SearchHit
 
@@ -122,6 +122,6 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
                 "noun": "Artikel",
             },
             "preview": _PREVIEW,
-            "new": header_panels(CollectionChooser(lambda: ()), active=None),
+            "new": new_article_panel(CollectionChooser(lambda: ())),
         },
     )

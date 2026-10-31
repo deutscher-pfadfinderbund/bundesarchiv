@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
 from django.http import HttpResponse
+from django.urls import reverse
 from tests.app.web._fixtures import (
     Corpus,
     client_as,
@@ -320,9 +321,10 @@ def test_no_template_comment_syntax_leaks_into_page(indexed_corpus: Corpus) -> N
 def test_new_article_chrome_only_for_archivist(indexed_corpus: Corpus) -> None:
     # The ROUTE is archivist-gated regardless; this pins the CHROME — Public/Member must not be
     # shown an admin affordance that 404s when clicked (and must not learn it exists).
-    assert "Neuer Artikel" in _get(Archivist()).content.decode()
-    assert "Neuer Artikel" not in _get(Public()).content.decode()
-    assert "Neuer Artikel" not in _get(Member(groups=())).content.decode()
+    create = f'action="{reverse("article-create")}"'
+    assert create in _get(Archivist()).content.decode()
+    assert create not in _get(Public()).content.decode()
+    assert create not in _get(Member(groups=())).content.decode()
 
 
 @pytest.mark.parametrize("viewer", [Archivist(), Member(groups=())])

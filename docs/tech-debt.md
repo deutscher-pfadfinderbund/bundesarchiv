@@ -201,8 +201,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   and the chip × — all now the one `.danger` context; `.facts-quiet`, the set-apart register
   label and the `--section-head-ink` / `--register-ink` knobs — all now the one `.quiet` context;
   `.button-sso` gone (the door's login is just a primary button). Wave K1: `.badge.entwurf`,
-  the boxed `#dirty-flag` and the Titelbild rule — now the one `.mark`; the Bestand form's quiet
-  facts — now `.quiet`; the record row's `<details class="menu">` — now the one popover menu, its
+  the boxed `#dirty-flag` and the Titelbild rule — now the one `.mark`; the record row's `<details class="menu">` — now the one popover menu, its
   Löschen / Verwerfen under `.danger`. 2026-09-27: `.badge` deleted (no production user left);
   the empty Signatur shows nothing (no dash placeholder).
 - **Open, mock system** (`docs/design/explorations/2026-09-26-monochrome/system/system.css`):

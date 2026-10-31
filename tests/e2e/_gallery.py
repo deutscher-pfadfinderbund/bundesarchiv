@@ -128,19 +128,9 @@ def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> No
     triggers.filter(visible=True).click()
 
 
-def _reach_header_new_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/articles", wait_until="networkidle")
-    page.click(".menu-button")
-
-
-def _reach_header_panel(page: Page, base: str, path: str, entry: str) -> None:
-    page.goto(f"{base}{path}", wait_until="networkidle")
-    page.click("header .menu-button")
-    page.get_by_role("button", name=entry).click()
-
-
 def _reach_new_article_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    _reach_header_panel(page, base, LIST, "Neuer Artikel …")
+    page.goto(f"{base}{LIST}", wait_until="networkidle")
+    page.click("header .menu-button")
 
 
 def _reach_columns_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
@@ -327,12 +317,6 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         height=667,
     ),
     GalleryState(
-        "header-new-open",
-        "workbench, header '+ Neu …' create menu open (Mock B popover)",
-        True,
-        _reach_header_new_open,
-    ),
-    GalleryState(
         "workbench-columns-open",
         "workbench, the 'Spalten …' check list open at the tool row's end edge",
         True,
@@ -415,7 +399,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "new-article-open",
-        "the header's 'Neuer Artikel …' panel open from '+ Neu …' (Titel and Bestand)",
+        "the header's 'Neuer Artikel' panel open from '+ Neu …' (Titel and Bestand)",
         True,
         _reach_new_article_open,
     ),

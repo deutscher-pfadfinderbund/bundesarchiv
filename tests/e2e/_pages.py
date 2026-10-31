@@ -129,7 +129,7 @@ def reach_search_suggestions(page: Page, base: str, _corpus: CorpusHandles) -> N
 
 
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared
-#: header, hence one overlay (the "+ Neu …" create menu) at minimum; a list with hits adds its
+#: header, hence one overlay (the "+ Neu …" panel) at minimum; a list with hits adds its
 #: "Spalten …" panel, the filtered workbench one dropdown per filter-rail facet group, the edit surface the margin's "Mehr …" and the article
 #: page its split button's menu (a draft's also its Veröffentlichen confirmation; a record edited
 #: twice its version list).

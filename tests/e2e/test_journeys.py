@@ -445,7 +445,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     page.goto(live_workbench + f"{LIST}?tag=sommer")
     filtered = _walk_control_rows(page)
     header = next(n for n in filtered if n.startswith("header"))
-    assert filtered[header]  # the "+ Neu …" button (the search field is the sentence's here)
+    assert "+ Neu …" in [c["label"] for c in filtered[header]], filtered[header]
     panels = [n for n in filtered if n.startswith("ul#") and len(filtered[n]) >= 2]
     assert panels, f"the walker measured no panel entries: {sorted(filtered)}"
 
@@ -606,7 +606,7 @@ def test_overlays_stay_inside_the_viewport(
     assert not defects, "overlays leaving the viewport:\n" + "\n".join(defects)
 
 
-def test_the_header_menu_is_clickable_on_the_edit_screen(
+def test_the_header_create_button_is_clickable_on_the_edit_screen(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # Sticky-overlay regression class (CLAUDE.md): the walker's hit-test covers it generically; this
@@ -614,8 +614,7 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
     page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
-    page.click("header .menu-button")
-    page.get_by_role("button", name="Neuer Artikel …").click(timeout=5000)
+    page.click("header .menu-button", timeout=5000)
     panel = page.locator("#new-article")
     expect(panel).to_be_visible()
     expect(panel.locator('input[type="text"]').first).to_be_focused()
@@ -631,7 +630,6 @@ def test_a_tool_panel_opened_from_a_menu_closes_the_menu(
     page = archivist_page
     edit = f"/articles/{e2e_corpus.draft_ulid}/edit"
     for path, menu, entry, panel in (
-        (edit, "#new-menu", "Neuer Artikel …", "#new-article"),
         (edit, "#more-menu", "Löschen …", "#delete"),
         (f"/articles/{e2e_corpus.published_ulid}", "#actions-menu", "Löschen …", "#delete"),
     ):
