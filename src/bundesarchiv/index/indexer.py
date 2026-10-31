@@ -134,7 +134,7 @@ def _body_text(article: Article) -> str:
     """Captions (ADR 0015) and filenames are member-visible, so they ride the body weight, not
     ``archivist_text``."""
     captions = [m.caption for m in article.media if m.caption]
-    filenames = [" ".join(_FILENAME_SEPARATORS.split(m.filename)).strip() for m in article.media]
+    filenames = [_FILENAME_SEPARATORS.sub(" ", m.filename).strip() for m in article.media]
     return " ".join([article.body, *captions, *filenames]).strip()
 
 
