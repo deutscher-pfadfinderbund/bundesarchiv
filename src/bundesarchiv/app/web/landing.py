@@ -13,18 +13,13 @@ from bundesarchiv.app.web.browse import PARAM_COLLECTION
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.models import ULID
 
-_CREATED, _FOCUS, _INDEX = "created", "focus", "index"
-_YES, _REF_CODE, _LAGGING = "1", "ref_code", "lagging"
+_FOCUS, _INDEX = "focus", "index"
+_REF_CODE, _LAGGING = "ref_code", "lagging"
 
 #: The keys that hand state to ONE page: no link built from that page's address may carry them on.
-FLAG_KEYS = frozenset({_CREATED, _FOCUS, _INDEX})
+FLAG_KEYS = frozenset({_FOCUS, _INDEX})
 #: What the address-clearing script (``list_address.js``) spells; pinned by a test.
 LAG_FLAG = (_INDEX, _LAGGING)
-
-
-def created_collection_url(ulid: ULID) -> str:
-    """The create-article form with the just-created Bestand pre-selected and announced."""
-    return f"{reverse('article-create')}?{urlencode({PARAM_COLLECTION: ulid, _CREATED: _YES})}"
 
 
 def copy_url(ulid: ULID) -> str:
@@ -43,13 +38,6 @@ def preselected_collection(request: HttpRequest, chooser: CollectionChooser) -> 
     """The pre-selected Bestand's ulid if it is a real one, else "" (a bogus id is no oracle)."""
     ulid = request.GET.get(PARAM_COLLECTION, "").strip()
     return ulid if chooser.accepts(ulid) else ""
-
-
-def created_collection_name(request: HttpRequest, chooser: CollectionChooser) -> str:
-    """The name to announce as just created: the pre-selected real Bestand's, or "" without one."""
-    if request.GET.get(_CREATED) != _YES:
-        return ""
-    return chooser.name_of(preselected_collection(request, chooser)) or ""
 
 
 def focus_ref_code(request: HttpRequest) -> bool:

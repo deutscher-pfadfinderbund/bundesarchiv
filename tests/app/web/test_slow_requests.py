@@ -19,7 +19,7 @@ def _serve(
     """Run one request to a ULID path that took `seconds`."""
     ticks = itertools.cycle([0.0, seconds])
     monkeypatch.setattr(time, "monotonic", lambda: next(ticks))
-    request = RequestFactory().get("/collections/01ABCDEF/edit")
+    request = RequestFactory().get("/articles/01ABCDEF/edit")
     request.resolver_match = resolve(request.path)
 
     def view(_: HttpRequest) -> HttpResponse:
@@ -37,7 +37,7 @@ def test_a_slow_request_logs_its_route_name_not_its_path(
     (record,) = caplog.records
     fields = vars(record)
     assert (fields["route"], fields["method"], fields["status"], fields["duration_ms"]) == (
-        "collection-edit",
+        "article-edit",
         "GET",
         200,
         1500,

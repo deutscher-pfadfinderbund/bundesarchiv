@@ -117,7 +117,6 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             title="",
             collection_id=landing.preselected_collection(request, chooser),
             errors={},
-            just_created=landing.created_collection_name(request, chooser),
         ),
         chooser=chooser,
     )
@@ -142,16 +141,9 @@ def _create_context(
     title: str,
     collection_id: str,
     errors: catalog.FormErrors,
-    just_created: str = "",
 ) -> dict[str, object]:
-    """The create page's template context: its two fields and ``created``, the just-created
-    Bestand's name for the success hinweis (empty on the plain create step)."""
     title_field, collection_field = article_rows(chooser, title, collection_id, errors)
-    return {
-        "title_field": title_field,
-        "collection_field": collection_field,
-        "created": just_created,
-    }
+    return {"title_field": title_field, "collection_field": collection_field}
 
 
 def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:

@@ -243,30 +243,6 @@ SCREENS: tuple[Screen, ...] = (
         control_rows=("header", "div.record-meta-actions"),
     ),
     Screen(
-        "collection-create",
-        "create a Bestand",
-        True,
-        _at("/collections/new"),
-        "collection-create",
-        overlays=1,
-    ),
-    Screen(
-        "collection-edit",
-        "rename a Bestand (Name only)",
-        True,
-        _goto(lambda c: f"/collections/{c.renamable_ulid}/edit"),
-        "collection-edit",
-        overlays=1,
-    ),
-    Screen(
-        "collection-landing",
-        "create-article form after a new Bestand (pre-selected + hinweis)",
-        True,
-        _goto(lambda c: f"/articles/new?collection={c.renamable_ulid}&created=1"),
-        "article-create",
-        overlays=1,
-    ),
-    Screen(
         "edit-form",
         "the edit surface (a draft: the Löschen confirm in 'Mehr …')",
         True,
@@ -396,7 +372,7 @@ SCREENS: tuple[Screen, ...] = (
 
 #: The count pin: a walker over a shorter list stays green, and the route join cannot see a dropped
 #: screen because several share one route.
-SCREEN_COUNT = 31
+SCREEN_COUNT = 28
 
 
 def screens_for(*, archivist: bool) -> tuple[Screen, ...]:

@@ -71,8 +71,7 @@ TEMPLATE_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZD")
 #: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Bestand ·
 #: subdivision · volume, the longest code the archive is expected to carry.
 CEILING_REF_CODE = "F12/3-b2"
-# /collections/<ulid>/edit accepts only a real ULID, unlike the literal ROOT/FOTOS ids.
-RENAMABLE_ULID = ULID("01KX939S67DNGH0AB53HNXGB9B")
+KARTEN_ULID = ULID("01KX939S67DNGH0AB53HNXGB9B")
 
 #: The photos of MANY_ULID: (filename, caption, pixel size) — landscape, portrait, square, wide.
 MANY_PHOTOS = (
@@ -104,7 +103,6 @@ class CorpusHandles:
     draft_ulid: str
     published_ulid: str
     second_ulid: str
-    renamable_ulid: str
     marked_ulid: str
     ceiling_ulid: str
     many_ulid: str
@@ -130,7 +128,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         changed_by="tester",
     )
     collections.save(
-        Collection(RENAMABLE_ULID, "Karten", ID_FOTOS, Audience(AudienceTier.PUBLIC)),
+        Collection(KARTEN_ULID, "Karten", ID_FOTOS, Audience(AudienceTier.PUBLIC)),
         0,
         changed_by="tester",
     )
@@ -302,7 +300,6 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         draft_ulid=DRAFT_ULID,
         published_ulid=PUBLISHED_ULID,
         second_ulid=SECOND_ULID,
-        renamable_ulid=RENAMABLE_ULID,
         marked_ulid=MARKED_ULID,
         ceiling_ulid=CEILING_ULID,
         many_ulid=MANY_ULID,

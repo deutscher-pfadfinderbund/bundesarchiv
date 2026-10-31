@@ -181,7 +181,6 @@ def test_search_works_from_a_screen_without_the_results_region(
     # the forms carry no search at all: it invites leaving a form with unsaved edits
     for form_url in (
         live_workbench + "/articles/new",
-        live_workbench + "/collections/new",
         _create_draft(page, live_workbench, "E2E Formular ohne Suche"),
     ):
         page.goto(form_url)
@@ -448,7 +447,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     header = next(n for n in filtered if n.startswith("header"))
     assert filtered[header]  # the "+ Neu …" button (the search field is the sentence's here)
     panels = [n for n in filtered if n.startswith("ul#") and len(filtered[n]) >= 2]
-    assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(filtered)}"
+    assert panels, f"the walker measured no panel entries: {sorted(filtered)}"
 
     page.goto(live_workbench + f"/articles/{e2e_corpus.published_ulid}/edit")
     edit = _walk_control_rows(page)
@@ -614,15 +613,12 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
     # is the archivist's real click.
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
-    for entry, panel in (
-        ("Neuer Artikel …", "#new-article"),
-        ("Neuer Bestand …", "#new-collection"),
-    ):
-        page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
-        page.click("header .menu-button")
-        page.get_by_role("button", name=entry).click(timeout=5000)
-        expect(page.locator(panel)).to_be_visible()
-        expect(page.locator(panel).locator('input[type="text"]').first).to_be_focused()
+    page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
+    page.click("header .menu-button")
+    page.get_by_role("button", name="Neuer Artikel …").click(timeout=5000)
+    panel = page.locator("#new-article")
+    expect(panel).to_be_visible()
+    expect(panel.locator('input[type="text"]').first).to_be_focused()
 
 
 def test_a_tool_panel_opened_from_a_menu_closes_the_menu(
@@ -1269,31 +1265,6 @@ def test_download_saves_the_original_under_its_own_name(
     with page.expect_download() as saved:
         page.locator(".cover").get_by_role("link", name="Herunterladen").click()
     assert saved.value.suggested_filename == MINUTES_FILENAME
-
-
-# --- create a Bestand (4.8) --------------------------------------------------------
-
-
-def test_create_collection_then_file_an_article_under_it(
-    archivist_page: Page, live_workbench: str
-) -> None:
-    page = archivist_page
-    page.goto(live_workbench + LIST)
-    page.click(".menu-button")
-    page.get_by_role("button", name="Neuer Bestand …").click()
-    panel = page.locator("#new-collection")
-    panel.locator('input[name="name"]').fill("Plakate")
-    panel.get_by_role("button", name="Anlegen").click()
-    page.wait_for_url("**/articles/new?**")  # HX-Redirect to the create-article form, not the list
-    expect(page.get_by_text("Bestand „Plakate“ angelegt.")).to_be_visible()  # success hinweis
-    expect(page.locator('main select[name="collection_id"]')).to_contain_text("Plakate")
-    page.fill('textarea[name="title"]', "Ein Plakat")  # the new Bestand is already pre-selected
-    page.click('main button:has-text("Anlegen")')
-    page.wait_for_url("**/edit**")
-    # now the Bestand has an article, so it appears in the search sentence's Bestand slot menu
-    page.goto(live_workbench + LIST)
-    page.locator(".search-sentence-slots .menu-button").first.click()
-    expect(page.locator(".search-sentence .menu a", has_text="Plakate")).to_be_visible()
 
 
 # --- create a draft ----------------------------------------------------------------

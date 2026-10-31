@@ -152,20 +152,7 @@ Journeys: `test_bulk_select_confirm_apply`,
 Known parked defects: refresh on the result page re-POSTs (no PRG, #23);
 the full rework of this flow is parked until after the UI wave (#25).
 
-## 6. Manage Bestände
-
-```mermaid
-flowchart TD
-    WB["Workbench"] -->|"+ Neuer Bestand"| BNEU["Create Bestand (collection-create)"]
-    BNEU -->|"POST: created"| LAND["Create-article step,\nnew Bestand pre-selected + Hinweis"]
-    LAND -->|"file the first article"| EDIT["Edit form"]
-    WB -->|"(from Bestand context)"| BED["Rename Bestand\n(collection-edit, Name only)"]
-    BED -->|"POST: renamed"| WB
-```
-
-Journey: `test_create_collection_then_file_an_article_under_it`.
-
-## 7. Arrival and access
+## 6. Arrival and access
 
 How each viewer tier reaches the workbench, per ADR 0018 as amended by the
 2026-08 rulings (owner). The Keycloak

@@ -369,7 +369,7 @@ def test_floored_fields_present_for_archivist_only_where_intended(indexed_corpus
 def test_visibility_column_renders_for_nobody(indexed_corpus: Corpus) -> None:
     # owner ruling 2026-08-07: no visibility column
     page = _get(Archivist()).content.decode()
-    # the ledger alone: the header's "Neuer Bestand …" form offers a Sichtbarkeit of its own
+    # the ledger alone
     arch = page[page.index("<table") : page.index("</table>")]
     assert "Sichtbarkeit" not in arch
     # no audience caption of any rung, and no group name, in any spelling
@@ -559,7 +559,6 @@ def test_a_collection_empty_only_under_another_filter_is_not_an_empty_collection
     body = _get(Archivist(), "collection=AKTEN&digital=1").content.decode()
     assert _listed(body) == set()
     assert "Noch keine Artikel in diesem Bestand" not in body
-    assert 'popovertarget="collection-edit"' not in body  # the empty state's own button
 
 
 # --- facet click → filtered results + removable chip -----------------------------

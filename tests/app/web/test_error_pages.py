@@ -15,13 +15,13 @@ _TYPED = "Quisenberry-Zephyroth"
 @pytest.mark.usefixtures("corpus")
 def test_a_refused_form_gets_the_expired_page_and_repeats_nothing() -> None:
     response = client_as(Archivist(), enforce_csrf=True).post(
-        f"/collections/new?q={_TYPED}", {"name": _TYPED}
+        f"/articles/new?q={_TYPED}", {"title": _TYPED}
     )
     assert response.status_code == 403
     body = response.content.decode()
     assert f'href="{reverse("start")}"' in body
     assert _TYPED not in body
-    assert "/collections/new" not in body
+    assert "/articles/new" not in body
 
 
 @pytest.mark.usefixtures("corpus")

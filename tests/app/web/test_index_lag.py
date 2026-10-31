@@ -27,10 +27,7 @@ from bundesarchiv.index.refresh import InMemoryIndex, Refresh
 _LAG_KEYS = ("index_lag", "drawer_index_lag", "bulk_index_lag")
 _DB = pytest.mark.django_db  # the landing page runs a search
 
-_NEEDS_DB = {"article-delete-permanently", "collection-edit"}
-#: Neither Bestand route syncs the index: a new Bestand holds no Article, and the rename route
-#: changes the name only, which moves no Article's visibility.
-_NO_SYNC = {"collection-create", "collection-edit"}
+_NEEDS_DB = {"article-delete-permanently"}
 
 
 def _media(corpus: Corpus) -> tuple[str, ...]:
@@ -56,8 +53,6 @@ _STOOD: dict[str, Callable[[Corpus], bool]] = {
     "article-media-move": lambda c: _media(c) == ("b.pdf", "a.pdf"),
     "article-media-remove": lambda c: _media(c) == ("b.pdf",),
     "article-bulk-edit": lambda c: c.articles.load(ULID(DRAFT_ULID)).article.creator == "Kurt",
-    "collection-create": lambda c: "Karten" in {x.name for x in c.collections.load_all()},
-    "collection-edit": lambda c: c.collections.load(ULID(PUB)).collection.name == "Umbenannt",
 }
 
 #: Every route that writes nothing to the archive.
@@ -105,10 +100,8 @@ def test_a_write_whose_index_update_failed_shows_the_lag(
         response = client.get(response["Location"])
     assert response.status_code == 200
     assert _STOOD[route](corpus)
-    synced = route not in _NO_SYNC
-    assert bool(failing_index) is synced
-    shown = any(response.context.get(key) for key in _LAG_KEYS)
-    assert shown is synced
+    assert failing_index
+    assert any(response.context.get(key) for key in _LAG_KEYS)
 
 
 def test_every_route_is_a_write_row_or_a_read() -> None:

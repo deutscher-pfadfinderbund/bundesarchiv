@@ -1,8 +1,8 @@
-"""The Bestand chooser; its two role placeholders are verbatim user contract."""
+"""The Bestand chooser; its placeholder is verbatim user contract."""
 
 import pytest
 
-from bundesarchiv.app.web.collection_chooser import TOP_LEVEL_LABEL, CollectionChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.models import ULID, Collection
 
 #: Two Bestände whose load order (the store lists by ulid) is the REVERSE of their name order, so
@@ -26,11 +26,6 @@ def test_options_lead_with_the_placeholder_then_every_collection_by_name() -> No
         ("02FOTOGRAFIEN0000000000000", "Fotografien"),
         ("01ZEITUNGSAUSSCHNITTE00000", "Zeitungsausschnitte"),
     )
-
-
-def test_parent_options_lead_with_the_top_level_marker_then_the_same_order() -> None:
-    chooser = _chooser(*_LOAD_ORDER)
-    assert chooser.parent_options() == (("", TOP_LEVEL_LABEL), *chooser.options()[1:])
 
 
 def test_an_empty_archive_still_offers_the_placeholder() -> None:

@@ -32,7 +32,6 @@ _KEYS = {
     "seite": browse.PARAM_PAGE,
     "auswahl": browse.PARAM_SELECTION,
     "artikel": browse_views._PANE_PARAM,
-    "angelegt": landing._CREATED,
     "fokus": landing._FOCUS,
 }
 _SORTS: dict[str, SortOrder] = {

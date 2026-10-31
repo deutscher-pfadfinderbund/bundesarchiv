@@ -62,5 +62,5 @@ Docstring and comment lines per 100 lines of `src` code over the repo's history 
 - Issue #72: the Medienart/Dokumenttyp vocabulary lives in the web layer (one pinned import-linter exception).
 - Issue #73: a bulk Bestand move can change inherited visibility without the over-exposure check.
 - Issue #74: the 35 debatable comments.
-- Assertions that cannot fail: `tests/app/web/test_workbench.py` checks the old `artikel`/`entwuerfe` params, which no link carries since the English rename; `test_collection_edit.py`'s parent-name assert passes on the "Bundesarchiv" wordmark; the `test_catalog_edit.py` field-order test filters exactly as the code does, so a reorder stays green.
+- Assertions that cannot fail: `tests/app/web/test_workbench.py` checks the old `artikel`/`entwuerfe` params, which no link carries since the English rename; the `test_catalog_edit.py` field-order test filters exactly as the code does, so a reorder stays green.
 - Not covered by the gate yet: Jinja template comments (`{# #}`) and JS comments inside Python strings.

@@ -2,7 +2,7 @@
 One field of the form: the label, the control, then the hint and the error. Params: feld — a
 card.CardRow, the field registry joined to this render's value/error/focus; form — the
 owning form's id where the control sits outside it. The edit form's sections loop this partial, so
-the registry is the only place a field exists; the Bestand forms print rows of their own.
+the registry is the only place a field exists.
 
 A div with a <label for>, because the hint's ⓘ button and its popover may not sit inside a label.
 {% endcomment %}{% with base=field.base %}{% with control_id=field.control_id %}<div class="field"{% if field.span %} data-span="all"{% endif %}{% if field.shows_with %} data-shows-with="{{ field.shows_with }}"{% endif %}>

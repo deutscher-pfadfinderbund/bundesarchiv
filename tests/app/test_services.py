@@ -337,10 +337,10 @@ def test_create_article_mints_ulid_and_indexes(pg_archive: Archive) -> None:
 
 
 def test_create_collection_mints_ulid_and_saves_top_level(archive: Archive) -> None:
-    result = create_collection(archive, name="Neuer Bestand", parent_id=None, changed_by="tester")
+    result = create_collection(archive, name="Karten", parent_id=None, changed_by="tester")
     assert result.version == 1
     stored = archive.collections.load(result.ulid)
-    assert stored.collection.name == "Neuer Bestand"
+    assert stored.collection.name == "Karten"
     assert stored.collection.parent_id is None
     assert stored.collection.audience is None  # inherit by default
 

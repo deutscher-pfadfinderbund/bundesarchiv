@@ -1147,7 +1147,7 @@
   .toolpanel > * + * {
     margin-block-start: var(--space-5);
   }
-  /* a form's fields stack, each the panel's width ("Neuer Bestand …") */
+  /* a form's fields stack, each the panel's width ("Neuer Artikel …") */
   .toolpanel > .field {
     --field-display: flex;
   }

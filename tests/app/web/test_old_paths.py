@@ -27,8 +27,6 @@ _OLD_TO_NEW = {
     f"/artikel/{_U}/delete-permanently": f"/articles/{_U}/delete-permanently",
     "/artikel/sammelbearbeitung": "/articles/bulk-edit",
     "/artikel/sammelbearbeitung/dokumenttypen": "/articles/bulk-edit/document-types",
-    "/bestand/neu": "/collections/new",
-    f"/bestand/{_U}/bearbeiten": f"/collections/{_U}/edit",
     "/spalten": "/columns",
 }
 
@@ -50,9 +48,7 @@ def test_reverse_yields_the_english_path_for_every_route() -> None:
         if (route.name or "").startswith("alias-"):
             continue
         args = [_U] * str(route.pattern).count("<")
-        assert not reverse(str(route.name), args=args).startswith(
-            ("/artikel", "/bestand", "/spalten")
-        )
+        assert not reverse(str(route.name), args=args).startswith(("/artikel", "/spalten"))
 
 
 @pytest.mark.parametrize("old", _OLD_TO_NEW)

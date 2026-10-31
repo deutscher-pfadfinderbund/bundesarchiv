@@ -274,9 +274,9 @@ rail; they are split out only as swap units (law C7).
 | Signatur mark | `.c-sig` | `components/ref_code_tab` | `components.css` Signatur mark | approved (2026-10-11) |
 | Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers), `workbench/_copy` (the entry that POSTs); an entry's tool panel follows the menu, and opening it closes the menu (`menu.js`) | `components.css` menu | approved (2026-10-11) |
 | Menu button | `.menu-button` | inline, before each `.menu` it opens (the split button's chevron among them) | `components.css` menu | proposed |
-| Toolpanel | `.toolpanel` | `components/confirm` (the delete and Veröffentlichen confirms), `workbench/_formpanel` (the header's "Neuer Artikel …", "Neuer Bestand …", "Bestand bearbeiten …"), inline (the list's "Spalten …" and "Feld ändern …", `workbench/_tools`; the phone "Filter" and "+ Filter", `workbench/_filterset`); each ends in `components/toolpanel_cancel` | `components.css` toolpanel | approved (2026-10-11) |
+| Toolpanel | `.toolpanel` | `components/confirm` (the delete and Veröffentlichen confirms), `workbench/_formpanel` (the header's "Neuer Artikel …"), inline (the list's "Spalten …" and "Feld ändern …", `workbench/_tools`; the phone "Filter" and "+ Filter", `workbench/_filterset`); each ends in `components/toolpanel_cancel` | `components.css` toolpanel | approved (2026-10-11) |
 | Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button | approved (2026-10-11) |
-| Byline | `.byline` | inline (article page: the origin and the labelled lines; `workbench/_formpanel` facts), `components/byline_links` (Schlagworte, a result row's pages: part `.byline-links`; knob `--byline-font`) | `components.css` byline | proposed |
+| Byline | `.byline` | inline (article page: the origin and the labelled lines), `components/byline_links` (Schlagworte, a result row's pages: part `.byline-links`; knob `--byline-font`) | `components.css` byline | proposed |
 | Ledger | `.ledger` | `components/ledger`, `components/ledger_row` | `components.css` ledger | approved (2026-10-11) |
 | Reading list | `.reading` | `components/reading` (the Lesesaal: a search's hits with the why line; parts `.reading-title`, `.reading-why`; knob `--reading-measure`) | `components.css` reading | proposed |
 | View switch | `.view-switch` | `components/view_switch` (the list's tool row: "N Treffer" and "Lesesaal · Tabelle") | `components.css` view-switch | proposed |
@@ -284,7 +284,7 @@ rail; they are split out only as swap units (law C7).
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` honest empty state | approved (2026-10-11) |
 | Blank | `.blank` | `components/blank` (a file without a thumbnail: the article page, the pane, the edit form's file rows) | `components.css` blank | approved (2026-10-11) |
 | Icon | `.icon` | `components/icon` | none | approved (2026-10-11) |
-| Field | `.field` | `workbench/_field` (the edit form, the create step, the Bestand forms) | `components.css` field | approved (2026-10-11) |
+| Field | `.field` | `workbench/_field` (the edit form, the create step) | `components.css` field | approved (2026-10-11) |
 | Affected | `.affected` | inline (the bulk check and result pages, the Papierkorb) | `components.css` affected | approved (2026-10-11) |
 | Index lag notice | `.hint` | `components/index_lag` (the list, the article page, the edit form and its drawer, the bulk result, the Papierkorb) | `components.css` hint | proposed |
 | Conflict notice | `.conflict-notice` | `components/conflict_notice` (both edit forms) | `components.css` conflict notice | approved (2026-10-11) |
