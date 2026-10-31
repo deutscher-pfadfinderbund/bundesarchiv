@@ -431,7 +431,7 @@ The intent is the Overview above. The required rules stay at their sources:
 `docs/design/design-system.md` (construction law, principles, tokens, and the component inventory,
 families and layout primitives that the design lint reads), `docs/design/design-review-law.md`
 (review catechism, cue register, cascade rules, lintable subset), `.claude/skills/ui-build/SKILL.md`
-(how UI is built and checked) and the owner rulings in `docs/requirements/`.
+(how UI is built and checked) and the frozen records in `docs/requirements/`.
 
 In the design-system skill's words: a component is a row of the component inventory, a layout is
 a row of the layout primitives. A context (`.quiet`, `.danger`) re-points roles; it is not a
