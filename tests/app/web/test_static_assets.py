@@ -37,6 +37,9 @@ _KNOWN_ASSETS = frozenset(
         "menu.js",
         "theme.js",
         "tokens.css",
+        "tus.min.js",
+        "tus.min.js.LICENSE.txt",
+        "tus.min.js.map",
     }
 )
 
