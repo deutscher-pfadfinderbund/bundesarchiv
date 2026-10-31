@@ -146,10 +146,39 @@ _COUNT_HTMX_JS = """() => {
     });
 }"""
 
-#: Just past the type-to-search debounce on #results: long enough that a debounced request WOULD have
-#: fired, and not a sleep in disguise — the assertions are on the request counter above; this only
-#: opens the window in which a request could appear.
+#: Just past the type-to-search debounce on #results, run on the fake clock: a debounced request
+#: WOULD have fired; the assertions are on the request counter above.
 _PAST_SEARCH_DEBOUNCE_MS = 450
+
+
+# Keeps every fetch the page makes, settled either way.
+_TRACK_FETCHES = """
+window.fetched = [];
+const untracked = window.fetch;
+window.fetch = (...args) => {
+  const response = untracked(...args);
+  window.fetched.push(response.catch(() => {}));
+  return response;
+};
+"""
+
+
+def _fetches_settled(page: Page) -> None:
+    """Every fetch so far has settled and its handlers have run, a body read aside."""
+    page.evaluate("""async () => {
+  await Promise.all(window.fetched);
+  const { port1, port2 } = new MessageChannel();  // a task later: the handlers' microtasks ran
+  await new Promise((resolve) => { port1.onmessage = resolve; port2.postMessage(null); });
+}""")
+
+
+def _held(page: Page, held: list[Route]) -> Route:
+    """The first request the test's route holds, once it is out."""
+    deadline = time.monotonic() + 5
+    while not held:
+        assert time.monotonic() < deadline, "the held request never went out"
+        page.wait_for_timeout(10)  # the sync API dispatches the route only while it waits
+    return held[0]
 
 
 def test_search_works_from_a_screen_without_the_results_region(
@@ -157,6 +186,7 @@ def test_search_works_from_a_screen_without_the_results_region(
 ) -> None:
     # htmx stays out of the header search off the workbench.
     page = archivist_page
+    page.clock.install()
     article = f"/articles/{e2e_corpus.published_ulid}"
     for path, submit in (
         (article, "click"),
@@ -166,7 +196,7 @@ def test_search_works_from_a_screen_without_the_results_region(
         page.goto(path if path.startswith("http") else live_workbench + path)
         page.evaluate(_COUNT_HTMX_JS)
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
-        page.wait_for_timeout(_PAST_SEARCH_DEBOUNCE_MS)
+        page.clock.run_for(_PAST_SEARCH_DEBOUNCE_MS)
         assert page.evaluate("() => window.__htmxErrors") == [], f"{path}: htmx raised an error"
         assert page.evaluate("() => window.__requests") == [], (
             f"{path}: htmx fired a request from a screen the enhancement does not live on"
@@ -1048,11 +1078,12 @@ def test_an_image_tile_opens_the_lightbox_and_esc_returns_to_it(
 
 
 def _open_lightbox_at_third(page: Page, live_workbench: str, e2e_corpus: CorpusHandles) -> Locator:
+    page.add_init_script(_COUNT_MORPHS)
     page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
     page.locator(".media-rows figure > a").nth(1).click()
     box = page.locator(".lightbox")
     _expect_shown(page, "3 / 7")
-    page.wait_for_timeout(500)  # the opening transition ends; until then the page takes the pointer
+    page.evaluate("Promise.all(window.morphed)")  # until the morph ends, it takes the pointer
     return box
 
 
@@ -1061,17 +1092,19 @@ def test_the_lightbox_counter_skips_nothing_and_focus_stays_in_it_at_the_ends(
 ) -> None:
     page = public_page
     box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
+    strip = box.locator(".lightbox-strip")
+    strip.evaluate("s => s.addEventListener('scrollend', () => (window.scrollEnded = true))")
     page.keyboard.press("ArrowRight")
     page.keyboard.press("ArrowRight")  # a second step while the first still scrolls
     _expect_shown(page, "5 / 7")
-    page.wait_for_timeout(600)  # the scroll has ended and stays on the fifth
-    _expect_shown(page, "5 / 7")
+    page.wait_for_function("() => window.scrollEnded")
+    _expect_shown(page, "5 / 7")  # the scroll has ended and stays on the fifth
     # a resize re-aligns the strip to the shown image
     page.set_viewport_size({"width": 900, "height": 700})
-    page.wait_for_timeout(200)
-    shown = box.locator("figure img").nth(4).bounding_box()
-    assert shown is not None
-    assert abs(shown["x"] + shown["width"] / 2 - 450) < 2
+    page.wait_for_function(
+        "img => { const b = img.getBoundingClientRect(); return Math.abs(b.x + b.width / 2 - 450) < 2; }",
+        arg=box.locator("figure img").nth(4).element_handle(),
+    )
     box.get_by_role("button", name="Nächstes Bild").focus()
     page.keyboard.press("Enter")
     page.keyboard.press("Enter")
@@ -1095,8 +1128,9 @@ def test_the_lightbox_closes_on_the_black_only_when_press_and_click_both_land_th
     page.mouse.down()
     page.mouse.move(text["x"] + 300, middle)
     page.mouse.up()
-    page.wait_for_timeout(400)  # past the exit fade
+    # a close starts in the click: it closes the dialog or starts a morph
     assert box.evaluate("d => d.open")
+    assert page.evaluate("window.morphs") == 1
 
 
 def test_the_black_takes_the_wheel_and_a_click_but_the_picture_keeps_the_lightbox_open(
@@ -1111,10 +1145,13 @@ def test_the_black_takes_the_wheel_and_a_click_but_the_picture_keeps_the_lightbo
     width = box.locator(".lightbox-strip").evaluate("s => s.clientWidth")
     page.mouse.wheel(width * 0.7, 0)  # past half a slide: the snap goes on
     _expect_shown(page, "4 / 7")
-    page.wait_for_timeout(600)  # the snap settles
+    page.wait_for_function(  # the snap settles
+        "s => Math.abs(s.scrollLeft - 3 * s.clientWidth) < 1",
+        arg=box.locator(".lightbox-strip").element_handle(),
+    )
     box.locator("figure img").nth(3).click()
-    page.wait_for_timeout(400)  # past the exit fade, if it had closed
-    assert box.evaluate("d => d.open")
+    assert box.evaluate("d => d.open")  # a close starts in the click
+    assert page.evaluate("window.morphs") == 1
     page.mouse.click(*black)
     expect(box.locator(".lightbox-strip")).to_be_hidden()
 
@@ -1149,13 +1186,16 @@ def test_without_view_transition_types_the_lightbox_opens_and_closes_unmorphed(
     expect(tile).to_be_focused()
 
 
-# Counts the view transitions the page starts: each morph is one.
+# Counts the view transitions the page starts (each morph is one) and keeps their ends.
 _COUNT_MORPHS = """
 window.morphs = 0;
+window.morphed = [];
 const start = document.startViewTransition.bind(document);
 document.startViewTransition = (options) => {
   window.morphs += 1;
-  return start(options);
+  const transition = start(options);
+  window.morphed.push(transition.finished.catch(() => {}));
+  return transition;
 };
 """
 
@@ -1227,7 +1267,6 @@ def test_the_lightbox_closes_unmorphed_onto_a_tile_out_of_view_and_keeps_its_pic
     public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = public_page
-    page.add_init_script(_COUNT_MORPHS)
     box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
     assert page.evaluate("window.morphs") == 1
     # a turned phone: the viewport ends above the shown slide's tile
@@ -1578,9 +1617,9 @@ def test_the_suggestion_list_stays_open_while_a_refinement_is_fetched(
     held: list[Route] = []
     page.route(re.compile(r"/suggestions\?q=meyer$"), lambda route: held.append(route))
     field.press_sequentially("r")
-    page.wait_for_timeout(400)  # past the debounce: the refinement's request is out, unanswered
+    refinement = _held(page, held)  # out, unanswered
     expect(suggestions).to_be_visible()
-    held[0].continue_()
+    refinement.continue_()
     expect(page.locator("#search-field-suggestions-status")).to_have_text("3 Vorschläge")
     expect(suggestions).to_be_visible()
     # an answer with no option closes it
@@ -1601,7 +1640,7 @@ def test_an_answer_for_older_text_is_never_shown(archivist_page: Page, live_work
     suggestions = page.locator(".autocomplete-list")
     field.press_sequentially("meye")
     page.clock.run_for(150)
-    page.wait_for_timeout(300)  # the request for "meye" is out, unanswered
+    _held(page, held)  # the request for "meye" is out, unanswered
     field.press_sequentially("r")
     with page.expect_response(re.compile(r"/suggestions\?q=meye$")) as answer:
         long_suggestions(held[0])
@@ -1753,6 +1792,7 @@ def test_the_live_region_speaks_only_for_matches(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
+    page.add_init_script(_TRACK_FETCHES)
     reach_tag_suggestions(page, live_workbench, e2e_corpus)
     status = page.locator("#field-tags-suggestions-status")
     expect(status).to_have_text("2 Vorschläge")
@@ -1761,8 +1801,9 @@ def test_the_live_region_speaks_only_for_matches(
     expect(status).to_have_text("")
     # a failed request is as silent as a miss
     page.route("**/tags/suggestions*", lambda route: route.fulfill(status=500))
-    page.locator("main #field-tags").press_sequentially("x")
-    page.wait_for_timeout(500)
+    with page.expect_request("**/tags/suggestions*"):
+        page.locator("main #field-tags").press_sequentially("x")
+    _fetches_settled(page)
     expect(status).to_have_text("")
 
 
@@ -1770,6 +1811,7 @@ def test_a_stale_failed_request_leaves_the_newer_list_open(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
+    page.add_init_script(_TRACK_FETCHES)
     reach_tag_suggestions(page, live_workbench, e2e_corpus)  # "r" on the last line
 
     held: list[Route] = []
@@ -1784,12 +1826,12 @@ def test_a_stale_failed_request_leaves_the_newer_list_open(
     field = page.locator("main #field-tags")
     field.press_sequentially("x")  # "rx": its request hangs
     expect(page.locator(".autocomplete-list")).to_be_visible()
-    page.wait_for_timeout(300)  # past the debounce, the request is out
+    _held(page, held)  # past the debounce, the request is out
     with page.expect_response(re.compile(r"[?&]q=r(&|$)")):
         page.keyboard.press("Backspace")  # "r" again: a newer request, answered at once
     expect(page.locator(".autocomplete-list")).to_be_visible()
     held[0].abort()  # the old request fails late
-    page.wait_for_timeout(500)
+    _fetches_settled(page)
     expect(page.locator(".autocomplete-list")).to_be_visible()
 
 
@@ -2384,8 +2426,10 @@ def test_a_finish_lost_to_the_gateway_goes_again_unseen(
 def test_a_finish_refused_after_every_retry_names_its_file(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # the server's answer to a finish that lost every save race (ADR 0026); the retries take ~9 s
+    # the server's answer to a finish that lost every save race (ADR 0026); the retries wait
+    # 0, 1, 3 and 5 s, run here on the fake clock
     page = archivist_page
+    page.clock.install()
     page.goto(_create_draft(page, live_workbench, "E2E Abschluss scheitert"))
     finishes: list[Route] = []
 
@@ -2395,8 +2439,12 @@ def test_a_finish_refused_after_every_retry_names_its_file(
 
     page.route("**/media/upload", refuse)
     page.set_input_files('#media-drawer input[type="file"]', _EINS)
-    expect(page.locator("#upload-notice")).to_contain_text("eins.png", timeout=20_000)
-    assert len(finishes) == 5  # the first finish and its four retries
+    deadline = time.monotonic() + 10
+    while len(finishes) < 5:  # the first finish and its four retries
+        assert time.monotonic() < deadline, f"only {len(finishes)} finishes went out"
+        page.clock.run_for(1000)
+    expect(page.locator("#upload-notice")).to_contain_text("eins.png")
+    assert len(finishes) == 5
 
 
 def test_files_chosen_while_a_swap_replaces_the_picker_still_go_up(
