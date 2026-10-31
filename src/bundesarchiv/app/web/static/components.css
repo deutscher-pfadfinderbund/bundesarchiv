@@ -1127,7 +1127,9 @@
       --toolpanel-inset-inline,
       var(--gutter) max(var(--gutter), anchor(end))
     );
-    --_toolpanel-justify: var(--toolpanel-justify-self, end);
+    /* safe: a panel wider than the room left of its trigger starts at the gutter; the default
+       overflow alignment would shift it to the viewport edge */
+    --_toolpanel-justify: var(--toolpanel-justify-self, safe end);
     --panel-padding: var(--space-5);
     inline-size: var(--measure-query);
     max-inline-size: min(100%, 100vw - 2 * var(--gutter)); /* the page gutter, also on S */

@@ -430,6 +430,13 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_new_article_open,
     ),
     GalleryState(
+        "new-article-open-phone",
+        "the header's 'Neuer Eintrag' panel open on a phone: between the page gutters",
+        True,
+        _reach_new_article_open,
+        widths=PHONE,
+    ),
+    GalleryState(
         "detail-actions-open",
         "the article page, the split button's menu open (Duplizieren, Löschen)",
         True,
