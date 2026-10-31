@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 from playwright.sync_api import Browser, Dialog, FilePayload, Locator, Page, Route, expect
+from pytest_django.fixtures import Settings
 from pytest_django.plugin import DjangoDbBlocker
 from tests.app.web._asserts import assert_login_target
 from tests.e2e._corpus import MINUTES_FILENAME, CorpusHandles, _png
@@ -2261,57 +2262,227 @@ def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
     expect(page.get_by_text("Noch keine Medien")).to_be_visible()
 
 
-_LARGE_UPLOAD = "Große Datei. Hochladen, das länger als 60 Sekunden dauert, bricht ab."
-_ABORTED_UPLOAD = "Abgebrochen: Hochladen darf höchstens 60 Sekunden dauern. Melde dich bei BBI."
+_EINS = FilePayload(name="eins.png", mimeType="image/png", buffer=_png((10, 20, 30)))
+_ZWEI = FilePayload(name="zwei.png", mimeType="image/png", buffer=_png((30, 20, 10)))
+_DREI = FilePayload(name="drei.png", mimeType="image/png", buffer=_png((20, 30, 10)))
 
 
-def test_a_large_chosen_file_is_warned_about_and_still_goes_up(
+def _patches(page: Page) -> list[str]:
+    """The URLs of the pieces (tus PATCH requests) the page sends from now on."""
+    sent: list[str] = []
+    page.on(
+        "request", lambda request: sent.append(request.url) if request.method == "PATCH" else None
+    )
+    return sent
+
+
+def test_a_chosen_file_goes_up_in_pieces_and_lands_in_the_drawer(
     archivist_page: Page, live_workbench: str, tmp_path: Path
 ) -> None:
+    # ADR 0026: pieces of 8 MiB, so a file of 9 MiB takes two.
     page = archivist_page
-    page.goto(_create_draft(page, live_workbench, "E2E Große Datei"))
-    page.route("**/media/upload", lambda route: None)  # never answered: the upload is under way
-    large = tmp_path / "gross.tif"
-    with large.open("wb") as file:
-        file.truncate(51 * 1024 * 1024)  # sparse: nothing written, and past Playwright's buffer cap
-    with page.expect_request("**/media/upload"):
-        page.set_input_files('#media-drawer input[type="file"]', large)
-    expect(page.locator("#media-drawer [role=alert]")).to_have_text(_LARGE_UPLOAD)
+    page.goto(_create_draft(page, live_workbench, "E2E Stückweise"))
+    pieces = _patches(page)
+    scan = tmp_path / "scan.bin"
+    with scan.open("wb") as file:
+        file.truncate(9 * 1024 * 1024)  # sparse: nothing written, and past Playwright's buffer cap
+    with page.expect_request("**/media/upload") as finished:
+        page.set_input_files('#media-drawer input[type="file"]', scan)
+    expect(page.locator("#media-drawer .file-row")).to_have_count(1)
+    assert len(pieces) == 2
+    # The finish names the upload; the file's bytes went up in the pieces alone. Chromium hands
+    # Playwright no body (None) for a post that carries a file.
+    finish = finished.value.post_data_buffer
+    assert finish is not None
+    assert b"upload_id" in finish
 
 
-def test_a_failed_upload_says_it_was_cut_off(archivist_page: Page, live_workbench: str) -> None:
-    # The gateway's answer swaps nothing (the htmx-config noSwap), so the drawer must say why the
-    # files did not arrive.
-    page = archivist_page
-    page.goto(_create_draft(page, live_workbench, "E2E Abgebrochen"))
-    held: list[Route] = []
-    page.route("**/media/upload", lambda route: held.append(route))
-    with page.expect_request("**/media/upload"):
-        page.set_input_files(
-            '#media-drawer input[type="file"]',
-            {"name": "klein.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
-        )
-    notice = page.locator("#media-drawer [role=alert]")
-    expect(notice).to_be_hidden()  # a small file gets no warning
-    held[0].fulfill(status=504, body="Gateway Timeout")
-    expect(notice).to_have_text(_ABORTED_UPLOAD)
-
-
-def test_a_denied_upload_leaves_the_cut_off_notice_hidden(
+def test_chosen_files_land_one_after_another_in_their_order(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # Only the gateway's cuts are about the 60 s.
     page = archivist_page
-    page.goto(_create_draft(page, live_workbench, "E2E Verweigert hochgeladen"))
-    page.route("**/media/upload", lambda route: route.fulfill(status=404, body=""))
-    _settle_after(
-        page,
-        lambda: page.set_input_files(
-            '#media-drawer input[type="file"]',
-            {"name": "klein.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
-        ),
+    page.goto(_create_draft(page, live_workbench, "E2E Zwei Dateien"))
+    page.set_input_files('#media-drawer input[type="file"]', [_EINS, _ZWEI])
+    names = page.locator("#media-drawer .file-row-name > span")
+    expect(names).to_have_text(["eins.png", "zwei.png"])
+
+
+def test_while_files_go_up_the_drawer_counts_them_and_leaving_asks_first(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Unterwegs"))
+    # never answered: the first file is under way
+    page.route("**/media/uploads", lambda route: None)
+    page.locator("#h-media").click()  # Chromium asks before leaving only a page the user touched
+    progress = page.locator("#upload-progress")
+    page.set_input_files('#media-drawer input[type="file"]', [_EINS, _ZWEI])
+    expect(progress).to_contain_text("1/2")
+    # a file chosen while the batch runs joins its count at once
+    page.set_input_files('#media-drawer input[type="file"]', _DREI)
+    expect(progress).to_contain_text("1/3")
+    with page.expect_event("dialog") as asked:
+        page.close(run_before_unload=True)
+    assert asked.value.type == "beforeunload"
+    asked.value.dismiss()
+
+
+def test_files_that_fail_are_named_and_the_next_still_lands(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Zwei scheitern"))
+    refused: list[Route] = []
+
+    def refuse_the_first_two(route: Route) -> None:
+        if len(refused) == 2:
+            route.continue_()
+        else:
+            refused.append(route)
+            route.fulfill(status=404, body="")
+
+    page.route("**/media/uploads", refuse_the_first_two)
+    page.set_input_files('#media-drawer input[type="file"]', [_EINS, _ZWEI, _DREI])
+    expect(page.locator("#media-drawer .file-row-name > span")).to_have_text(["drei.png"])
+    # the third file's finish swapped the drawer, notice and all
+    notice = page.locator("#upload-notice")
+    expect(notice).to_contain_text("eins.png")
+    expect(notice).to_contain_text("zwei.png")
+
+
+_WATCH_NOTICE = """() => {
+    window.noticeShown = false;
+    new MutationObserver(() => {
+        window.noticeShown ||= document.getElementById("upload-notice")?.hidden === false;
+    }).observe(document, {subtree: true, childList: true, attributes: true});
+}"""
+
+
+def test_a_finish_lost_to_the_gateway_goes_again_unseen(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # ADR 0026: a repeated finish answers as the first, so the client sends it again.
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Abschluss wiederholt"))
+    cut: list[Route] = []
+
+    def cut_the_first(route: Route) -> None:
+        if cut:
+            route.continue_()
+        else:
+            cut.append(route)
+            route.fulfill(status=504, body="Gateway Timeout")
+
+    page.route("**/media/upload", cut_the_first)
+    page.evaluate(_WATCH_NOTICE)
+    page.set_input_files('#media-drawer input[type="file"]', _EINS)
+    expect(page.locator("#media-drawer .file-row-name > span")).to_have_text(["eins.png"])
+    assert cut
+    assert not page.evaluate("window.noticeShown")
+
+
+def test_a_finish_refused_after_every_retry_names_its_file(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # the server's answer to a finish that lost every save race (ADR 0026); the retries take ~9 s
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Abschluss scheitert"))
+    finishes: list[Route] = []
+
+    def refuse(route: Route) -> None:
+        finishes.append(route)
+        route.fulfill(status=503, body="")
+
+    page.route("**/media/upload", refuse)
+    page.set_input_files('#media-drawer input[type="file"]', _EINS)
+    expect(page.locator("#upload-notice")).to_contain_text("eins.png", timeout=20_000)
+    assert len(finishes) == 5  # the first finish and its four retries
+
+
+def test_files_chosen_while_a_swap_replaces_the_picker_still_go_up(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # A finish swaps the drawer, file input and all, while the picker may be open.
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Auswahl über den Tausch"))
+    held: list[Route] = []
+
+    def hold_the_first(route: Route) -> None:
+        if held:
+            route.continue_()
+        else:
+            held.append(route)
+
+    page.route("**/media/upload", hold_the_first)
+    created: list[str] = []
+    page.on("request", lambda r: created.append(r.url) if r.url.endswith("/uploads") else None)
+    label = page.locator("#media-drawer .upload label")
+    with page.expect_file_chooser() as first:
+        label.click()
+    with page.expect_request("**/media/upload"):
+        first.value.set_files(_EINS)
+    with page.expect_file_chooser() as second:
+        label.click()
+    held[0].continue_()
+    names = page.locator("#media-drawer .file-row-name > span")
+    expect(names).to_have_text(["eins.png"])
+    second.value.set_files(_ZWEI)
+    expect(names).to_have_text(["eins.png", "zwei.png"])
+    assert len(created) == 2  # each chosen file went up once
+
+
+def test_a_finish_that_throws_fails_its_file_and_the_next_still_goes(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Abschluss wirft"))
+    # htmx.ajax resolves on every failed request; this stands in for a throw on the finish's way
+    page.evaluate("""() => {
+        const ajax = htmx.ajax.bind(htmx);
+        let thrown = false;
+        htmx.ajax = (...args) => thrown ? ajax(...args) : (thrown = true, Promise.reject(new Error()));
+    }""")
+    page.set_input_files('#media-drawer input[type="file"]', [_EINS, _ZWEI])
+    names = page.locator("#media-drawer .file-row-name > span")
+    expect(names).to_have_text(["zwei.png"])
+    expect(page.locator("#upload-notice")).to_be_visible()
+    expect(page.locator("#upload-progress")).to_be_hidden()
+    page.set_input_files('#media-drawer input[type="file"]', _EINS)
+    expect(names).to_have_text(["zwei.png", "eins.png"])
+
+
+def test_a_file_over_the_ceiling_is_refused_before_its_bytes_go_up(
+    archivist_page: Page, live_workbench: str, settings: Settings
+) -> None:
+    settings.BUNDESARCHIV_MAX_UPLOAD_BYTES = 100
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Zu groß"))
+    pieces = _patches(page)
+    page.set_input_files(
+        '#media-drawer input[type="file"]',
+        {"name": "gross.bin", "mimeType": "application/octet-stream", "buffer": bytes(101)},
     )
-    expect(page.locator("#upload-notice")).to_be_hidden()
+    expect(page.locator("#upload-notice")).to_contain_text("gross.bin")
+    expect(page.locator("#media-drawer .file-row")).to_have_count(0)
+    assert pieces == []
+
+
+def test_without_tus_the_chosen_files_post_the_form_and_a_failure_says_so(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    edit_url = _create_draft(page, live_workbench, "E2E Ohne tus")
+    page.route("**/tus.min.js", lambda route: route.abort())
+    page.goto(edit_url)
+    held: list[Route] = []
+    page.route("**/media/upload", lambda route: held.append(route))
+    with page.expect_request("**/media/upload") as posted:
+        page.set_input_files('#media-drawer input[type="file"]', _EINS)
+    assert "multipart/form-data" in posted.value.headers["content-type"]
+    notice = page.locator("#upload-notice")
+    expect(notice).to_be_hidden()
+    held[0].fulfill(status=504, body="Gateway Timeout")
+    expect(notice).to_be_visible()
 
 
 def test_the_forms_own_media_actions_never_make_its_save_conflict(
@@ -2321,13 +2492,7 @@ def test_the_forms_own_media_actions_never_make_its_save_conflict(
     # has to follow, or Speichern loses to the archivist's own upload, reorder or removal.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Medien dann Speichern")
-    page.set_input_files(
-        '#media-drawer input[type="file"]',
-        [
-            FilePayload(name="eins.png", mimeType="image/png", buffer=_png((10, 20, 30))),
-            FilePayload(name="zwei.png", mimeType="image/png", buffer=_png((30, 20, 10))),
-        ],
-    )
+    page.set_input_files('#media-drawer input[type="file"]', [_EINS, _ZWEI])
     rows = page.locator("#media-drawer .file-row")
     expect(rows).to_have_count(2)
     page.get_by_role("button", name="Nach unten").first.click()
@@ -2377,13 +2542,7 @@ def test_a_media_action_keeps_the_captions_typed_before_it(
     # before it must come back with their files and still save with Speichern (ADR 0015).
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Bildunterschrift vor Medienaktion")
-    page.set_input_files(
-        '#media-drawer input[type="file"]',
-        [
-            FilePayload(name="eins.png", mimeType="image/png", buffer=_png((10, 20, 30))),
-            FilePayload(name="zwei.png", mimeType="image/png", buffer=_png((30, 20, 10))),
-        ],
-    )
+    page.set_input_files('#media-drawer input[type="file"]', [_EINS, _ZWEI])
     rows = page.locator("#media-drawer .file-row")
     expect(rows).to_have_count(2)
     rows.nth(0).get_by_label("Bildunterschrift").fill("Erste Seite")

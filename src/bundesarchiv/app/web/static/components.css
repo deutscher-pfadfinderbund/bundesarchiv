@@ -559,7 +559,7 @@
 
   /* ---- upload — "+ Dateien hinzufügen" over the file input. Once catalog_form.js marks the root
      the chosen files upload at once, so the input hides and the submit goes; without it both
-     stay. ---- */
+     stay. While files go up, a .mark beside it says how far ("2/3 · 40 %"). ---- */
   .upload {
     display: flex;
     flex-wrap: wrap;

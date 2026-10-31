@@ -61,7 +61,14 @@ def _e2e_thumbs(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture
-def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, object]]:
+def _e2e_staging(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return tmp_path_factory.mktemp("e2e-staging")
+
+
+@pytest.fixture
+def _e2e_settings(
+    _e2e_root: Path, _e2e_thumbs: Path, _e2e_staging: Path
+) -> Iterator[dict[str, object]]:
     """``settings_dev``'s layer, so a dev change never skips this suite. Views read the roots per
     request, so the session-scoped ``live_server`` follows each test's dirs.
     """
@@ -81,6 +88,7 @@ def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, obje
         "DEV_VIEWER_SIGNING_KEY": DEV_KEY,
         "BUNDESARCHIV_CANONICAL_ROOT": str(_e2e_root),
         "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_thumbs),
+        "BUNDESARCHIV_UPLOAD_STAGING_ROOT": str(_e2e_staging),
         "DEBUG": False,
     }
     with override_settings(**settings):

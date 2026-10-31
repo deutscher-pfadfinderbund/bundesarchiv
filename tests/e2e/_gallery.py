@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Literal
 
 from django.template.loader import render_to_string
-from playwright.sync_api import Browser, Page, Route, expect
-from tests.e2e._corpus import TEMPLATE_ULID, CorpusHandles
+from playwright.sync_api import Browser, FilePayload, Page, Route, expect
+from tests.e2e._corpus import TEMPLATE_ULID, CorpusHandles, _png
 from tests.e2e._pages import (
     LIST,
     READING_QUERY,
@@ -188,6 +188,46 @@ def _reach_edit_more_open(page: Page, base: str, corpus: CorpusHandles) -> None:
 def _reach_edit_delete_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     _reach_edit_more_open(page, base, corpus)
     page.click('[popovertarget="delete"]')
+
+
+def _reach_edit_uploading(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
+    patches: list[Route] = []
+
+    def hold_the_second_piece(route: Route) -> None:
+        if route.request.method == "PATCH":
+            patches.append(route)
+            if len(patches) == 2:
+                return  # never answered: the first file's first piece is in, its second under way
+        route.continue_()
+
+    page.route("**/media/uploads/*", hold_the_second_piece)
+    scan = FilePayload(name="scan.tif", mimeType="image/tiff", buffer=bytes(9 * 1024 * 1024))
+    pictures = [
+        FilePayload(name=f"foto-{n}.png", mimeType="image/png", buffer=_png((n, 20, 30)))
+        for n in (1, 2)
+    ]
+    page.set_input_files('#media-drawer input[type="file"]', [scan, *pictures])
+    progress = page.locator("#upload-progress")
+    expect(progress).not_to_contain_text("· 0 %")
+    progress.scroll_into_view_if_needed()
+
+
+def _reach_edit_upload_failed(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
+    refusals = [413, 404]
+    page.route("**/media/uploads", lambda route: route.fulfill(status=refusals.pop(0), body=""))
+    page.set_input_files(
+        '#media-drawer input[type="file"]',
+        [
+            FilePayload(name="scan.pdf", mimeType="application/pdf", buffer=b"%PDF-1.4"),
+            FilePayload(name="foto.jpg", mimeType="image/jpeg", buffer=b"\xff\xd8"),
+        ],
+    )
+    notice = page.locator("#upload-notice")
+    expect(notice).to_contain_text("foto.jpg")
+    expect(page.locator("#upload-progress")).to_be_hidden()
+    notice.scroll_into_view_if_needed()
 
 
 def _reach_detail_actions_open(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -416,6 +456,18 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface, the margin's 'Mehr …' menu open (a draft)",
         True,
         _reach_edit_more_open,
+    ),
+    GalleryState(
+        "edit-uploading",
+        "the edit surface with media, three files chosen: the first one's second piece under way",
+        True,
+        _reach_edit_uploading,
+    ),
+    GalleryState(
+        "edit-upload-failed",
+        "the edit surface after two chosen files failed: one too large, one aborted, each named",
+        True,
+        _reach_edit_upload_failed,
     ),
     GalleryState(
         "edit-delete-open",
