@@ -88,7 +88,10 @@ decision is recorded where it binds, or not at all.
 Nothing current is read from an ADR (owner, 2026-11-07). An ADR records what was decided and
 why; the binding rule lives in the package `CLAUDE.md`, a docstring or a test, citing the ADR.
 An ADR that no longer holds is dropped, or corrected when the error is minor; its status line
-names what superseded it. An ADR never blocks a change.
+names what superseded it. An ADR never blocks a change. An ADR keeps its context, the decision,
+the rejected options with their reasons, and the consequences; mechanics that code, a `CLAUDE.md`
+or a test hold (op lists, keys, settings, "not yet" notes) are cut, not rewritten (owner,
+2026-11-07).
 
 ### Testing razor
 
