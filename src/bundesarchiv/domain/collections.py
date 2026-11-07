@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import pairwise
 
 from bundesarchiv.domain.errors import BrokenCollectionTree, MisresolvedChain
@@ -48,3 +48,9 @@ def resolve_chain(collection_id: ULID, collections: Mapping[ULID, Collection]) -
         seen.add(current)
         current = collection.parent_id
     return ResolvedChain(tuple(chain))
+
+
+def moves_visibility(before: Collection, after: Collection) -> bool:
+    """Does saving ``after`` over ``before`` move the effective audience of any Article under it?
+    Every field but the name feeds ``effective_audience`` through the chain."""
+    return replace(before, name=after.name) != after

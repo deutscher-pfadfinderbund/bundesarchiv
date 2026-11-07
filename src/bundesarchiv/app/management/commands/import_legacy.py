@@ -1,9 +1,9 @@
 """IO only; every mapping decision is ``app.legacy``.
 
-It writes through the repository, not the ``app.articles`` shell, so it owes that shell's
-after-steps (app/CLAUDE.md): one ``indexer.rebuild`` at the end (which takes over the shared index;
-``rebuild_index`` hands it back), thumbnails inline (no worker drains the queue), the mirror push
-left to the periodic reconcile.
+It writes through the repositories, each write followed by ``after_write.queue``, but for what it
+does itself: the thumbnails inline, since no worker drains the queue during the batch, and one
+``indexer.rebuild`` at the end for every reindex, which takes over the shared index
+(``rebuild_index`` hands it back).
 """
 
 import csv
@@ -17,13 +17,17 @@ from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
-from bundesarchiv.app import legacy, thumbnails
+from bundesarchiv.app import after_write, legacy, thumbnails
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.jobs import ReindexArticle, Thumbnail
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.models import ULID, Collection, MediaRef
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.repository import cleaned_name
+
+#: The jobs of a write this command does itself, in batch (module docstring).
+_DONE_HERE = (ReindexArticle, Thumbnail)
 
 #: How often the run says where it is. The import takes minutes; silence looks like a hang.
 _PROGRESS_EVERY = 250
@@ -86,6 +90,7 @@ class Command(BaseCommand):
                 continue
             collection = Collection(ulid=identity.new_ulid(), name=name, parent_id=None)
             archive.collections.save(collection, 0, changed_by=legacy.CHANGED_BY)
+            after_write.queue(after_write.CreatedCollection(collection), skip=_DONE_HERE)
             existing[name] = collection.ulid
         return existing
 
@@ -112,9 +117,9 @@ class Command(BaseCommand):
                             item.article.ulid, media_file.filename, source, media_file.media_type
                         )
                     )
-            archive.articles.save(
-                replace(item.article, media=tuple(refs)), 0, changed_by=legacy.CHANGED_BY
-            )
+            article = replace(item.article, media=tuple(refs))
+            archive.articles.save(article, 0, changed_by=legacy.CHANGED_BY)
+            after_write.queue(after_write.SavedArticle(article), skip=_DONE_HERE)
             thumbnail_count += sum(
                 thumbnails.generate_thumbnail(
                     archive.store, item.article.ulid, ref.content_hash, thumbnail_root

@@ -1,14 +1,12 @@
-"""Collection write services: a save that moves any Article's visibility (an audience or parent
-edit) reindexes the whole subtree."""
-
-from dataclasses import replace
+"""Collection write services."""
 
 from bundesarchiv.app import after_write
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import CreateResult, SaveResult
 from bundesarchiv.domain import identity
-from bundesarchiv.domain.models import ULID, Audience, Collection, Version
-from bundesarchiv.persistence.errors import ArchiveError, NotFound
+from bundesarchiv.domain.models import ULID, Audience, Collection
+from bundesarchiv.persistence.collections import StoredCollection
+from bundesarchiv.persistence.errors import NotFound
 
 
 def create_collection(
@@ -19,14 +17,13 @@ def create_collection(
     parent_id: ULID | None = None,
     audience: Audience | None = None,
 ) -> CreateResult:
-    """A new leaf holds no Articles, so its audience exposes nothing and nothing is reindexed."""
     if parent_id is not None and not _collection_exists(archive, parent_id):
         raise NotFound(f"parent collection {parent_id!r} does not exist")
     collection = Collection(
         ulid=identity.new_ulid(), name=name, parent_id=parent_id, audience=audience
     )
     new_version = archive.collections.save(collection, 0, changed_by=changed_by)  # first: v1
-    index_updated = after_write.run(archive, after_write.SavedCollection(collection.ulid))
+    index_updated = after_write.run(archive, after_write.CreatedCollection(collection))
     return CreateResult(ulid=collection.ulid, version=new_version, index_updated=index_updated)
 
 
@@ -39,23 +36,10 @@ def _collection_exists(archive: Archive, ulid: ULID) -> bool:
 
 
 def save_collection(
-    archive: Archive, collection: Collection, expected_version: Version, *, changed_by: str
+    archive: Archive, stored: StoredCollection, collection: Collection, *, changed_by: str
 ) -> SaveResult:
-    """A stale ``expected_version`` raises ``Conflict``."""
-    moves = _moves_visibility(archive, collection, expected_version)
-    new_version = archive.collections.save(collection, expected_version, changed_by=changed_by)
-    written = after_write.MovedCollection if moves else after_write.SavedCollection
-    index_updated = after_write.run(archive, written(collection.ulid))
-    return SaveResult(version=new_version, index_updated=index_updated)
-
-
-def _moves_visibility(archive: Archive, collection: Collection, expected_version: Version) -> bool:
-    """Does saving ``collection`` change anything but the stored name? Read before the save: at
-    ``expected_version`` the CAS refuses the save if another write lands in between. A stored
-    Collection at any other version, or an unreadable one, counts as a change."""
-    try:
-        stored = archive.collections.load(collection.ulid)
-    except ArchiveError:
-        return True
-    unchanged = replace(stored.collection, name=collection.name) == collection
-    return stored.version != expected_version or not unchanged
+    """Save ``collection`` over ``stored``, the copy it was edited from: the CAS at its version
+    raises ``Conflict`` once another write landed, so ``stored`` is what the save replaces."""
+    new_version = archive.collections.save(collection, stored.version, changed_by=changed_by)
+    written = after_write.SavedCollection(stored.collection, collection)
+    return SaveResult(version=new_version, index_updated=after_write.run(archive, written))

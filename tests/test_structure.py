@@ -165,10 +165,6 @@ _RACE = "race"
 #: never patch our own code"); the rest is ``docs/tech-debt.md`` #55. A patch no static read can
 #: resolve counts under ``<unresolved>``.
 TEST_PATCHES: dict[str, tuple[int, str]] = {
-    "app/test_services.py:test_gate_a_rename_at_a_version_it_did_not_read_still_reindexes:bundesarchiv.app.archive.Archive.collections.load": (
-        2,
-        _RACE,
-    ),
     "app/test_tasks.py:test_the_reconcile_job_logs_the_archive_stats_and_survives_their_failure:bundesarchiv.app.stats.log_archive_stats": (
         1,
         _CRASH,

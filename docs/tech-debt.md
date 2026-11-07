@@ -180,14 +180,14 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** concentrates
 - **Sketch:** `app/media.py`: `attach(archive, ulid, incoming, *, changed_by) -> UpdateOutcome`, `finish_staged(archive, staging, key) -> UpdateOutcome | Repeated | None`, pure `admit(...) -> Refusal | None`; the routes keep protocol and gate only. Owner-grilled 2026-11-07.
 
-### 65. What runs after a canonical write has no single owner — Strong
-- **Indicator:** 6 `after_write.run` call sites in 2 files; `_enqueue_derived` at 2 more; `import_legacy` writes canonical twice with 0 `after_write` calls (2026-11-07)
+### 65. What runs after a canonical write has no single owner — done
+- **Indicator:** 6 `after_write.run` call sites in 2 files; `_enqueue_derived` at 2 more; `import_legacy` writes canonical twice with 0 `after_write` calls (2026-11-07). Now: every canonical write goes through `after_write` once: `run` at 6 sites in 2 files, `queue` at 2 in `import_legacy`, which skips the reindex and tile jobs it does itself in batch; `after_write.jobs` is the one list of what a write entails; `_enqueue_derived` 0; `domain.collections.moves_visibility` picks the Collection reindex from the copy the save replaces (2026-11-07)
 - **Evidence:** `app/after_write.py:55-73` owns index sync + mirror enqueue, not the derived jobs (`SavedArticle(ulid)` drops the media); `app/articles.py:36,105,139,157,192-203`, `app/collections.py:28-61` (picks the `Written` variant by reading the stored copy itself); `import_legacy.py:88,115` has a third policy (sync thumbnails, full rebuild, no mirror push, no page text)
 - **Deletion test:** concentrates — the ADR 0013/0014 order lives in one module
 - **Sketch:** `after_write.run(archive, written) -> bool` with `SavedArticle` carrying the Article; pure `after_write.jobs(written) -> tuple[Job, ...]`; pure `domain.collections.moves_visibility(before, after)` picks the variant. Pairs with #66.
 
-### 66. A job is spread over three modules and string-typed references — Strong
-- **Indicator:** 10 `@app.task` + 7 `enqueue_*` wrappers in `tasks.py`, bodies for 4 in `jobs.py`; tests pin 25 task-name string literals through 24 `queued(` calls (2026-11-07)
+### 66. A job is spread over three modules and string-typed references — done
+- **Indicator:** 10 `@app.task` + 7 `enqueue_*` wrappers in `tasks.py`, bodies for 4 in `jobs.py`; tests pin 25 task-name string literals through 24 `queued(` calls (2026-11-07). Now: `jobs.Job`, a closed union of 6 values; `jobs.run(job, deps)` the one dispatch; `tasks.enqueue(job)` and one table (task, queueing lock) the one Procrastinate mapping; 0 `enqueue_*` wrappers, 0 mirror pass-throughs, 0 `isinstance` on the WebDAV adapter; `MirrorPush` carries the record kind; task-name literals in tests: 7, all in the one adapter test (`test_tasks.py`), 0 in `test_services.py` (2026-11-07)
 - **Evidence:** `app/tasks.py:58-180`, `app/jobs.py:22-72` (mirror pass-throughs; `isinstance(remote, WebDavObjectStore)` at :67 leaks the adapter through the `ObjectStore` port), `app/articles.py:162-189` (typed `Thumbnail`/`PageText` flattened to str kwargs + lock strings)
 - **Deletion test:** moves for the mirror pass-throughs, concentrates for the enqueue wrappers
 - **Sketch:** `type Job = Reindex | ReindexSubtree | Thumbnail | PageText | MirrorPush | MirrorDelete`; `enqueue(job)` the one Procrastinate adapter call; `run(job, deps)` the one dispatch; tests assert `Job` values (ADR 0014's reference-job rule kept)
@@ -292,10 +292,10 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   part that should answer a context binds itself to `var(--ink)` (the menu entries had to).
 
 ### 74. Record kind (Article | Collection) has no single seam — Speculative
-- **Indicator:** 10 same-named methods across `ArticleRepository` and `CollectionRepository`; `fixity.py:78-98` dispatches on the key prefix; `mirror.push` tries both repositories for a bare ulid (`mirror.py:106,135`) because `enqueue_mirror_push(ulid)` dropped the kind `after_write` knew (2026-11-07)
+- **Indicator:** 10 same-named methods across `ArticleRepository` and `CollectionRepository`; `persistence/fixity.py:78-98` dispatches on the key prefix; `app.mirror.RecordKind` names the kind once more, which `mirror.push` maps back to a repository (`mirror.py:110`) while `mirror.reconcile` iterates both (`mirror.py:138`) (2026-11-07, after #66)
 - **Evidence:** `persistence/_layout.py:66-67` (`Records` covers the layout part only), `repository.py`, `collections.py`, `fixity.py`, `app/mirror.py`
 - **Deletion test:** concentrates
-- **Sketch:** `RecordKind(layout, codec, media_of, version_of)` with ARTICLE and COLLECTION; repositories, fixity and the mirror iterate the kinds; conformance tests parametrized by kind. Reads better once #66 carries the kind in the job.
+- **Sketch:** `RecordKind(layout, codec, media_of, version_of)` with ARTICLE and COLLECTION; repositories, fixity and the mirror iterate the kinds; conformance tests parametrized by kind. `MirrorPush` carries a `RecordKind` since #66; that literal becomes the seam's kind.
 
 ### 75. The edit overlay union stops being a union at `render()` — Speculative
 - **Indicator:** 5 `isinstance(overlay` in `catalog_views.py`, 0 `match`/`assert_never` on `Overlay` (2026-11-07)
