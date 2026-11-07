@@ -25,14 +25,7 @@ from bundesarchiv.app.jobs import (
     ReindexSubtree,
     Thumbnail,
 )
-from bundesarchiv.app.tasks import (
-    enqueue_extract_media_text,
-    enqueue_generate_thumbnail,
-    enqueue_mirror_delete_article,
-    enqueue_mirror_push,
-    enqueue_reindex_article,
-    enqueue_reindex_subtree,
-)
+from bundesarchiv.app.tasks import enqueue
 from bundesarchiv.domain.collections import moves_visibility
 from bundesarchiv.domain.models import ULID, Article, Collection
 
@@ -80,16 +73,17 @@ def jobs(written: Written) -> tuple[Job, ...]:
     """What ``written`` entails, in the order ``run`` runs it."""
     match written:
         case SavedArticle(article):
-            return (ReindexArticle(article.ulid), MirrorPush(article.ulid), *derived_jobs(article))
+            push = MirrorPush(article.ulid, "article")
+            return (ReindexArticle(article.ulid), push, *derived_jobs(article))
         case TrashedArticle(ulid):
-            return (ReindexArticle(ulid), MirrorPush(ulid))
+            return (ReindexArticle(ulid), MirrorPush(ulid, "article"))
         case RemovedArticle(ulid):
             return (ReindexArticle(ulid), MirrorDelete(ulid))
         case CreatedCollection(collection):
-            return (MirrorPush(collection.ulid),)
+            return (MirrorPush(collection.ulid, "collection"),)
         case SavedCollection(before, after):
             reindex = (ReindexSubtree(after.ulid),) if moves_visibility(before, after) else ()
-            return (*reindex, MirrorPush(after.ulid))
+            return (*reindex, MirrorPush(after.ulid, "collection"))
         case _:
             assert_never(written)
 
@@ -145,18 +139,4 @@ def _enqueue(job: Job) -> None:
     # for the mirror reconcile, a lost thumbnail for rebuild_thumbnails; a lost delete shows as
     # remote_only
     with contextlib.suppress(Exception):
-        match job:
-            case ReindexArticle(ulid):
-                enqueue_reindex_article(ulid)
-            case ReindexSubtree(collection_ulid):
-                enqueue_reindex_subtree(collection_ulid)
-            case Thumbnail(ulid, content_hash):
-                enqueue_generate_thumbnail(ulid, content_hash)
-            case PageText(ulid):
-                enqueue_extract_media_text(ulid)
-            case MirrorPush(ulid):
-                enqueue_mirror_push(ulid)
-            case MirrorDelete(ulid):
-                enqueue_mirror_delete_article(ulid)
-            case _:
-                assert_never(job)
+        enqueue(job)

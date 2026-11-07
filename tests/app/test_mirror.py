@@ -12,6 +12,7 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.mirror import (
     Pushed,
     PushRecord,
+    RecordKind,
     delete_article,
     push,
     reconcile,
@@ -127,7 +128,7 @@ type _Sync = Callable[[Archive, _Remote, PushRecord], None]
 
 
 def _by_push(archive: Archive, remote: _Remote, record: PushRecord) -> None:
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, "article")
 
 
 def _by_reconcile(archive: Archive, remote: _Remote, record: PushRecord) -> None:
@@ -178,7 +179,7 @@ def test_a_save_landing_while_the_push_lists_the_article_never_reaches_it_half()
     archive, remote = Archive.of(working), _Remote()
     _save(archive, ("eins.jpg", b"eins"))
     working.then.append(lambda: _save(archive, ("zwei.jpg", b"zwei"), title="Neu"))
-    push(archive, remote, InMemoryPushRecord(), ARTICLE_ULID)
+    push(archive, remote, InMemoryPushRecord(), ARTICLE_ULID, "article")
     assert _dangling(remote.store) == []
     assert _same_tree(archive, remote)
 
@@ -186,10 +187,10 @@ def test_a_save_landing_while_the_push_lists_the_article_never_reaches_it_half()
 def test_an_unchanged_file_is_never_sent_twice() -> None:
     archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
     _save(archive, ("scan.pdf", b"a scan"))
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, "article")
     _save(archive, title="Neue Bildunterschrift")
-    push(archive, remote, record, ARTICLE_ULID)
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, "article")
+    push(archive, remote, record, ARTICLE_ULID, "article")
     media, history, readme = (key.key for key in archive.articles.keys_for(ARTICLE_ULID))
     assert remote.sent == [media, readme, history, readme]
 
@@ -203,16 +204,19 @@ def _collection_saved(archive: Archive, name: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "save",
-    [lambda archive, name: _save(archive, title=name), _collection_saved],
+    ("save", "kind"),
+    [
+        (lambda archive, name: _save(archive, title=name), "article"),
+        (_collection_saved, "collection"),
+    ],
     ids=["article", "collection"],
 )
-def test_a_changed_readme_is_pushed(save: Callable[[Archive, str], None]) -> None:
+def test_a_changed_readme_is_pushed(save: Callable[[Archive, str], None], kind: RecordKind) -> None:
     archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
     save(archive, "eins")
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, kind)
     save(archive, "zwei")
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, kind)
     assert _same_tree(archive, remote)
 
 
@@ -221,10 +225,10 @@ def test_a_write_once_file_already_there_is_recorded_not_sent_again() -> None:
     sends the whole body before it learns the key is taken)."""
     archive, remote = Archive.of(InMemoryObjectStore()), _Remote()
     _save(archive, ("video.mp4", b"a long film"))
-    push(archive, remote, InMemoryPushRecord(), ARTICLE_ULID)
+    push(archive, remote, InMemoryPushRecord(), ARTICLE_ULID, "article")
     _save(archive, title="Neu")
     before = len(remote.sent)
-    push(archive, remote, InMemoryPushRecord(), ARTICLE_ULID)
+    push(archive, remote, InMemoryPushRecord(), ARTICLE_ULID, "article")
     _, history, readme = (key.key for key in archive.articles.keys_for(ARTICLE_ULID))
     assert remote.sent[before:] == [history, readme]
     assert _same_tree(archive, remote)
@@ -244,7 +248,7 @@ def test_a_write_once_file_a_broken_off_push_left_unrecorded_is_never_replaced(
     record = InMemoryPushRecord()
     record.note(readme, Pushed("0" * 64, "gone"))
     with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
-        push(archive, remote, record, ARTICLE_ULID)
+        push(archive, remote, record, ARTICLE_ULID, "article")
     same = there == b"a scan"
     assert remote.store.read(media) == there
     assert (media in record.entries(), media in caplog.text) == (same, not same)
@@ -253,10 +257,10 @@ def test_a_write_once_file_a_broken_off_push_left_unrecorded_is_never_replaced(
 def test_the_push_of_a_hard_deleted_article_deletes_nothing() -> None:
     archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
     _save(archive, ("scan.pdf", b"a scan"))
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, "article")
     pushed = list(remote.store.list())
     archive.articles.hard_delete(ARTICLE_ULID, archive.articles.load(ARTICLE_ULID).version)
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, "article")
     assert (remote.deleted, list(remote.store.list())) == ([], pushed)
 
 
@@ -368,7 +372,7 @@ def test_progress_is_logged_at_most_once_a_minute_and_counts_the_work_so_far(
 def test_a_file_the_system_of_record_lost_is_pushed_again_though_the_record_holds_it() -> None:
     archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
     _save(archive, ("scan.pdf", b"a scan"))
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, "article")
     media, readme = (key.key for key in archive.articles.keys_for(ARTICLE_ULID))
     remote.store.delete(media)
     remote.store.delete(readme)
@@ -383,7 +387,7 @@ def test_the_reconcile_deletes_nothing_and_reports_what_only_the_system_of_recor
     shows in the report (ADR 0020, accepted risk); so does a file that is not the app's."""
     archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
     _save(archive, ("scan.pdf", b"a scan"))
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, "article")
     deleted = [key.key for key in archive.articles.keys_for(ARTICLE_ULID)]
     archive.articles.hard_delete(ARTICLE_ULID, archive.articles.load(ARTICLE_ULID).version)
     remote.store.write_atomic("Notizen/liste.txt", b"not the app's")
@@ -400,7 +404,7 @@ def test_a_hand_edit_on_the_system_of_record_is_reported_and_left_alone(
 ) -> None:
     archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
     _save(archive, ("scan.pdf", b"a scan"))
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, "article")
     _, readme = (key.key for key in archive.articles.keys_for(ARTICLE_ULID))
     remote.store.write_atomic(readme, b"edited by hand")
     sent = len(remote.sent)
@@ -435,12 +439,12 @@ def test_a_readme_that_no_longer_decodes_is_never_pushed(caplog: pytest.LogCaptu
     the per-save push or by the reconcile; the repository says which README does not decode."""
     archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
     _save(archive, ("scan.pdf", b"a scan"))
-    push(archive, remote, record, ARTICLE_ULID)
+    push(archive, remote, record, ARTICLE_ULID, "article")
     _, readme = (key.key for key in archive.articles.keys_for(ARTICLE_ULID))
     intact, noted = remote.store.read(readme), record.entries()
     archive.store.write_atomic(readme, intact.replace(b"Foto", b"F\xf6to"))
     with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
-        push(archive, remote, record, ARTICLE_ULID)
+        push(archive, remote, record, ARTICLE_ULID, "article")
         report = reconcile(archive, remote, record)
     assert report.unreadable == (readme,)
     assert (remote.store.read(readme), record.entries()) == (intact, noted)
@@ -457,7 +461,7 @@ def test_a_write_once_file_there_in_another_size_is_reported_and_neither_recorde
     media, _ = (key.key for key in archive.articles.keys_for(ARTICLE_ULID))
     remote.store.create(media, b"another file")
     with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
-        push(archive, remote, record, ARTICLE_ULID)
+        push(archive, remote, record, ARTICLE_ULID, "article")
     assert (remote.store.read(media), media in record.entries()) == (b"another file", False)
     assert media in caplog.text
     report = reconcile(archive, remote, record)

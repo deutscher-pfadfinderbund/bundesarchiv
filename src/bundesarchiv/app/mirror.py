@@ -10,7 +10,7 @@ import logging
 import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.models import ULID
@@ -28,6 +28,8 @@ _TASK = "mirror_reconcile"
 
 #: Seconds between the progress lines of a reconcile.
 _PROGRESS_INTERVAL = 60
+
+type RecordKind = Literal["article", "collection"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,13 +100,14 @@ class ReconcileReport:
     remote_keys: int
 
 
-def push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: ULID) -> Sent:
-    """Push the saved Article or Collection `ulid` to `remote`: each key `record` does not hold with
-    the SHA-256 of its local bytes. A write-once key `remote` holds already is recorded, not sent.
+def push(
+    archive: Archive, remote: ObjectStore, record: PushRecord, ulid: ULID, kind: RecordKind
+) -> Sent:
+    """Push the saved `kind` record `ulid` to `remote`: each key `record` does not hold with the
+    SHA-256 of its local bytes. A write-once key `remote` holds already is recorded, not sent.
     Raises `ArchiveError` at the first call that fails, and sends nothing after it."""
     run = _Push(archive.store, remote, record, sweep=None)
-    for repository in (archive.collections, archive.articles):
-        run.folder(repository, ulid)
+    run.folder(archive.articles if kind == "article" else archive.collections, ulid)
     return Sent(len(run.sent), run.sent_bytes)
 
 

@@ -27,7 +27,7 @@ def test_push_sends_an_article_with_its_media_to_a_live_webdav_store(
     archive.articles.save(Article(ID_01A, "Brief", ID_FOTOS, media=(scan,)), 0, changed_by="tester")
     archive.articles.save(Article(ID_01A, "Brief", ID_FOTOS, media=(scan,)), 1, changed_by="tester")
 
-    push(archive, webdav_store, InMemoryPushRecord(), ID_01A)
+    push(archive, webdav_store, InMemoryPushRecord(), ID_01A, "article")
 
     local = {key: archive.store.read(key) for key in archive.store.list()}
     assert {key: webdav_store.read(key) for key in webdav_store.list()} == local
@@ -67,11 +67,11 @@ def test_a_save_pushes_its_new_history_file_and_readme_in_one_request_each(
             version,
             changed_by="tester",
         )
-    push(archive, remote, record, ID_01A)
+    push(archive, remote, record, ID_01A, "article")
     archive.articles.save(Article(ID_01A, "Neu", ID_FOTOS, media=(scan,)), 2, changed_by="tester")
     first = len(sent)
     try:
-        push(archive, remote, record, ID_01A)
+        push(archive, remote, record, ID_01A, "article")
     finally:
         client.close()
 

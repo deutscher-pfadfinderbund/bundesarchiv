@@ -472,7 +472,7 @@ def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
     jobs = queued(
         lambda: results.append(hard_delete_article(archive, ID_01FOTO, version)),
         mirror=True,
-        refuse=frozenset({"mirror_delete_article"}),
+        refuse=frozenset({MirrorDelete}),
     )
     (result,) = results
 
@@ -501,7 +501,7 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
 
     assert result.index_updated is False
     assert result.version == 2  # canonical write STOOD despite the index failure
-    assert jobs == [("reindex_article", {"ulid": "01FOTO"})]  # the retry, and no push: no mirror
+    assert jobs == [ReindexArticle(ID_01FOTO)]  # the retry, and no push: no mirror
     # canonical truth is durable at the new version:
     assert archive.articles.load(ID_01FOTO).version == 2
 
@@ -517,7 +517,7 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
         lambda: results.append(
             save_article(archive, stored.article, stored.version, changed_by="tester")
         ),
-        refuse=frozenset({"reindex_article"}),
+        refuse=frozenset({ReindexArticle}),
     )
     (result,) = results
 
@@ -536,7 +536,7 @@ def test_save_collection_swallows_enqueue_failure_after_index_failure(
         lambda: results.append(
             save_collection(archive, stored, _narrowed(stored.collection), changed_by="tester")
         ),
-        refuse=frozenset({"reindex_subtree"}),
+        refuse=frozenset({ReindexSubtree}),
     )
     (result,) = results
 
@@ -597,7 +597,7 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: Arc
     (result,) = results
 
     assert result.index_updated is False
-    assert jobs == [("reindex_article", {"ulid": "01FOTO"})]
+    assert jobs == [ReindexArticle(ID_01FOTO)]
     assert elapsed < 2
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
@@ -687,20 +687,27 @@ _FOTOS = Collection(ID_FOTOS, "Fotos", parent_id=ID_ROOT)
 _ENTAILED: tuple[tuple[after_write.Written, tuple[object, ...]], ...] = (
     (
         after_write.SavedArticle(_SCANNED),
-        (ReindexArticle(ID_01FOTO), MirrorPush(ID_01FOTO), Thumbnail(ID_01FOTO, "hash-image")),
+        (
+            ReindexArticle(ID_01FOTO),
+            MirrorPush(ID_01FOTO, "article"),
+            Thumbnail(ID_01FOTO, "hash-image"),
+        ),
     ),
-    (after_write.TrashedArticle(ID_01FOTO), (ReindexArticle(ID_01FOTO), MirrorPush(ID_01FOTO))),
+    (
+        after_write.TrashedArticle(ID_01FOTO),
+        (ReindexArticle(ID_01FOTO), MirrorPush(ID_01FOTO, "article")),
+    ),
     (after_write.RemovedArticle(ID_01FOTO), (ReindexArticle(ID_01FOTO), MirrorDelete(ID_01FOTO))),
-    (after_write.CreatedCollection(_FOTOS), (MirrorPush(ID_FOTOS),)),
+    (after_write.CreatedCollection(_FOTOS), (MirrorPush(ID_FOTOS, "collection"),)),
     (
         after_write.SavedCollection(_FOTOS, replace(_FOTOS, name="Bilder")),
-        (MirrorPush(ID_FOTOS),),
+        (MirrorPush(ID_FOTOS, "collection"),),
     ),
     (
         after_write.SavedCollection(
             _FOTOS, replace(_FOTOS, audience=Audience(AudienceTier.MEMBERS))
         ),
-        (ReindexSubtree(ID_FOTOS), MirrorPush(ID_FOTOS)),
+        (ReindexSubtree(ID_FOTOS), MirrorPush(ID_FOTOS, "collection")),
     ),
 )
 
@@ -765,20 +772,20 @@ def test_a_save_queues_the_jobs_its_files_derive(archive: Archive) -> None:
 
     image, doc = archive.articles.load(ID_01FOTO).article.media
     assert jobs == [
-        ("generate_thumbnail", {"ulid": "01FOTO", "content_hash": image.content_hash}),
-        ("generate_thumbnail", {"ulid": "01FOTO", "content_hash": doc.content_hash}),
-        ("extract_media_text", {"ulid": "01FOTO"}),
+        Thumbnail(ID_01FOTO, image.content_hash),
+        Thumbnail(ID_01FOTO, doc.content_hash),
+        PageText(ID_01FOTO),
     ]
 
 
 def test_a_failed_thumbnail_enqueue_neither_breaks_the_save_nor_skips_the_page_text(
     archive: Archive,
 ) -> None:
-    jobs = queued(lambda: _save_scan_and_pdf(archive), refuse=frozenset({"generate_thumbnail"}))
+    jobs = queued(lambda: _save_scan_and_pdf(archive), refuse=frozenset({Thumbnail}))
 
     saved = archive.articles.load(ID_01FOTO).article
     assert [ref.filename for ref in saved.media] == ["scan.jpg", "notes.pdf"]
-    assert jobs == [("extract_media_text", {"ulid": "01FOTO"})]
+    assert jobs == [PageText(ID_01FOTO)]
 
 
 # ---------------------------------------------------------------------------
@@ -793,7 +800,7 @@ def test_save_article_enqueues_one_push_of_the_article(archive: Archive) -> None
         mirror=True,
     )
 
-    assert jobs == [("mirror_push", {"ulid": "01FOTO"})]
+    assert jobs == [MirrorPush(ID_01FOTO, "article")]
 
 
 def test_a_write_enqueues_nothing_without_a_mirror(archive: Archive) -> None:
@@ -812,14 +819,14 @@ def test_delete_article_enqueues_one_push_of_the_mark(archive: Archive) -> None:
         mirror=True,
     )
 
-    assert jobs == [("mirror_push", {"ulid": "01FOTO"})]
+    assert jobs == [MirrorPush(ID_01FOTO, "article")]
 
 
 def test_hard_delete_article_enqueues_the_delete_and_no_push(archive: Archive) -> None:
     version = archive.articles.load(ID_01FOTO).version
     jobs = queued(lambda: hard_delete_article(archive, ID_01FOTO, version), mirror=True)
 
-    assert jobs == [("mirror_delete_article", {"ulid": "01FOTO"})]
+    assert jobs == [MirrorDelete(ID_01FOTO)]
 
 
 def test_create_article_enqueues_the_push_of_the_new_article(archive: Archive) -> None:
@@ -831,7 +838,7 @@ def test_create_article_enqueues_the_push_of_the_new_article(archive: Archive) -
         mirror=True,
     )
 
-    assert jobs == [("mirror_push", {"ulid": created[0].ulid})]
+    assert jobs == [MirrorPush(created[0].ulid, "article")]
 
 
 def test_save_collection_enqueues_one_push_of_the_collection(archive: Archive) -> None:
@@ -841,7 +848,7 @@ def test_save_collection_enqueues_one_push_of_the_collection(archive: Archive) -
         mirror=True,
     )
 
-    assert jobs == [("mirror_push", {"ulid": "FOTOS"})]
+    assert jobs == [MirrorPush(ID_FOTOS, "collection")]
 
 
 def test_save_article_mirror_enqueue_failure_does_not_break_save(archive: Archive) -> None:
@@ -854,7 +861,7 @@ def test_save_article_mirror_enqueue_failure_does_not_break_save(archive: Archiv
             save_article(archive, stored.article, stored.version, changed_by="tester")
         ),
         mirror=True,
-        refuse=frozenset({"mirror_push"}),
+        refuse=frozenset({MirrorPush}),
     )
     (result,) = results
 
@@ -911,7 +918,7 @@ def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: 
     (result,) = results
 
     assert result.index_updated is False
-    assert jobs == [("reindex_subtree", {"collection_ulid": "FOTOS"})]
+    assert jobs == [ReindexSubtree(ID_FOTOS)]
     assert elapsed < 2
 
 

@@ -13,9 +13,11 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
 from PIL import Image
+from tests._queue import queued
 
 from bundesarchiv.app import legacy
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.jobs import MirrorPush, PageText
 from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import ULID, Lifecycle
@@ -624,8 +626,8 @@ def test_the_import_ends_with_the_fixity_check_of_what_it_wrote(tmp_path: Path) 
 
 @pytest.mark.django_db
 def test_the_import_derives_the_thumbnails_itself(tmp_path: Path) -> None:
-    # It writes past the `app.articles` shell, which is what enqueues them, and no worker drains a
-    # queue during a one-shot batch — so without this every imported cover would 404 forever.
+    # No worker drains a queue during a one-shot batch, so the import renders the tiles instead of
+    # queueing them — without this every imported cover would 404 forever.
     csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
     _write_export(csv_dir, media_root)
     with _roots(tmp_path):
@@ -639,6 +641,27 @@ def test_the_import_derives_the_thumbnails_itself(tmp_path: Path) -> None:
     hash_ = image.media[0].content_hash
     assert thumbnail_path(tmp_path / "thumbnails", hash_).is_file()
     assert "Thumbnails generated: 1" in out  # the PDF is no image and stays a no-op
+
+
+@pytest.mark.django_db
+def test_the_import_queues_what_each_write_entails_but_what_it_does_itself(
+    tmp_path: Path,
+) -> None:
+    """The closing rebuild stands for each reindex, the inline pass for each tile."""
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    with _roots(tmp_path):
+        sent = queued(lambda: _run(csv_dir, media_root), mirror=True)
+        archive = Archive.canonical()
+        articles = [archive.articles.load(u).article for u in archive.articles.list_ulids()]
+        collections = archive.collections.load_all()
+    (with_pdf,) = (article for article in articles if article.title == "Mit Datei")
+    expected = [
+        *(MirrorPush(collection.ulid, "collection") for collection in collections),
+        *(MirrorPush(article.ulid, "article") for article in articles),
+        PageText(with_pdf.ulid),
+    ]
+    assert sorted(sent, key=repr) == sorted(expected, key=repr)
 
 
 @pytest.mark.django_db
