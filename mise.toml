@@ -6,7 +6,9 @@ task.source_freshness_hash_contents = true
 biome = "2.5.15"
 
 [env]
-BUNDESARCHIV_PG_DSN = "{{ env.DATABASE_URL }}"
+# A worktree under .claude/worktrees also loads the main checkout's mise.toml, before DATABASE_URL
+# is set; the fallback is the main checkout's port, and the worktree's own mise.toml then wins.
+BUNDESARCHIV_PG_DSN = "{{ env.DATABASE_URL | default(value='postgresql://postgres@127.0.0.1:5434/bundesarchiv') }}"
 PYTHONDONTWRITEBYTECODE = false # some agent shells set it
 PYTHONPYCACHEPREFIX = "{{ config_root }}/.var/pycache"
 
