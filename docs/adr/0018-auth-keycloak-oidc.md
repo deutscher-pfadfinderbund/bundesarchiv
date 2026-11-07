@@ -1,14 +1,11 @@
 # Authentication: Keycloak OIDC, tokens held by the browser
 
-**Status.** Built 2026-08-30: OIDC login that minted one signed Viewer cookie.
-Reworked 2026-09-26 (owner): an OIDC login keeps Keycloak's tokens in the
-browser and the server refreshes them; built 2026-09-26. The signed Viewer
-cookie was removed 2026-09-29 (owner). The second login path is **capability
-links** (deferred, issue #58); they supersede the app-local guest passwords
-this ADR first specified (owner, 2026-08) and choose their session mechanism
-when built. The file name keeps the old title for link stability.
-
-**Amended 2026-10-21:** logout also clears the browser's cache of the site ("Logout", step 5).
+**Status.** An OIDC login keeps Keycloak's tokens in the browser, and the
+server refreshes them. Members log in as ordinary realm users (planned; owner,
+2026-11-07): with a personal account through a mail link on the realm's login
+page, or with the shared member account, realm role `shared-account`. Both map
+to `Member(groups=…)`; nothing in this app changes for them. Capability links
+and app-local guest passwords are dropped for good.
 
 ## Context
 
@@ -78,6 +75,8 @@ to this ADR.
   `groups`; all into the access token.
 - **`offline_access`** is an optional client scope of `bundesarchiv` and a
   default realm role.
+- **Browser flow override (planned):** the realm's default browser flow denies realm role
+  `shared-account`; the flow override on `bundesarchiv` admits it.
 - **Refresh token rotation ("Revoke Refresh Token") stays off.** Two requests
   that refresh at once (two tabs, parallel htmx requests) then both succeed.
   With rotation on, the second would fail and sign the user out. The upload
@@ -94,7 +93,6 @@ to this ADR.
 |---|---|---|
 | OIDC, realm role `Bundesarchiv` | `realm_access.roles`, `preferred_username` | `Archivist(username)`, `unbekannt` when absent (ADR 0019) |
 | OIDC, any other realm user | `groups` | `Member(groups=…)`, `()` when absent |
-| Capability link (deferred) | the link's token | `Member(groups=<token>)` |
 | none / invalid / refresh failed | — | `Public` |
 
 `Archivist` and `Member` stay inert value objects.
@@ -173,7 +171,8 @@ Verified against the real realm on 2026-09-26 (Keycloak 26.5.2, local run):
   1.3 kB, refresh token 0.7 kB.
 - After more than one minute idle, the next click carries a new access token.
 - Logout shows no confirmation page, removes both cookies, and leaves no
-  Keycloak session (offline included); the next login asks for the password.
+  Keycloak session (offline included); the next login starts at the realm's
+  login page.
 
 Not run: two tabs refreshing at once.
 
@@ -221,17 +220,13 @@ deploy-runbook smoke step: one real login per realm change.
 - **mozilla-django-oidc / django-allauth**: require `contrib.auth` and
   SessionMiddleware, a parallel identity system this app does not have.
 - **oauth2-proxy in front of the app**: authorizes on trusted-header contracts
-  (a misconfiguration foot-gun) and would have to let capability links past
-  it.
-- **Guest accounts inside Keycloak**: brute-force lockout locks out a whole
-  group, and a cross-site auto-login link cannot carry a password safely.
+  (a misconfiguration foot-gun).
+- **Capability links minted by the main site**: the realm holds the shared
+  account, so there is no second token format to verify.
 - **Sessions in Postgres**: a second identity system alongside `Viewer`. Not an
   ephemerality argument: Postgres may hold admin data (owner, 2026-08-30).
 
 ## Deferred (deliberately, with the door open)
 
-Capability links (issue #58: an HMAC-signed short-expiry link that lands the
-reader in content with no prompt, per the 2026-08 access-model ruling; the
-session mechanism is chosen when built); kiosk mode; per-item links; a
-true internet-public tier for curated exhibitions (the dormant `PUBLIC`
+Kiosk mode; per-item links; a true internet-public tier for curated exhibitions (the dormant `PUBLIC`
 audience rung stays reserved for it).
