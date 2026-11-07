@@ -2,10 +2,10 @@
 
 **Status.** An OIDC login keeps Keycloak's tokens in the browser, and the
 server refreshes them. Members log in as ordinary realm users (planned; owner,
-2026-11-07): with a personal account through a mail link on the realm's login
-page, or with the shared member account, realm role `shared-account`. Both map
-to `Member(groups=…)`; nothing in this app changes for them. Capability links
-and app-local guest passwords are dropped for good.
+2026-11-07): with a personal account through a one-time code sent by mail, on
+the realm's login page, or with the shared member account, realm role
+`shared-account`. Both map to `Member(groups=…)`; nothing in this app changes
+for them. Capability links and app-local guest passwords are dropped for good.
 
 ## Context
 
@@ -75,7 +75,7 @@ to this ADR.
   `groups`; all into the access token.
 - **`offline_access`** is an optional client scope of `bundesarchiv` and a
   default realm role.
-- **Browser flow override (planned):** the realm's default browser flow denies realm role
+- **Browser flow override:** the realm's default browser flow denies realm role
   `shared-account`; the flow override on `bundesarchiv` admits it.
 - **Refresh token rotation ("Revoke Refresh Token") stays off.** Two requests
   that refresh at once (two tabs, parallel htmx requests) then both succeed.
