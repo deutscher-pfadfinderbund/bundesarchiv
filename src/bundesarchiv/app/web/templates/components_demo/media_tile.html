@@ -47,24 +47,10 @@ kind without one), few (a photo, a PDF, the small photo, a placeholder), long.{%
       </div>
       {% endfor %}
     </div>
-    <div class="demo-tiles">
-      {% for file in few %}
-      <div class="demo-box demo-both">
-        {% include "components/media_tile.html" with file=file only %}
-      </div>
-      {% endfor %}
-    </div>
-    <div class="demo-tiles">
-      {% for file in few %}
-      <div class="demo-box demo-row">
-        {% include "components/media_tile.html" with file=file only %}
-      </div>
-      {% endfor %}
-    </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">the container's box, set on the tile's root (the rule edge marks it), is a maximum: the stand-in is never drawn larger than its own pixels (the small photo; a placeholder's are a thumbnail's square). An inline size only (16rem); an inline and a block size (16rem × 12rem): the stand-in fits inside in its own shape, a placeholder as a square; a block size only (10rem), as a row of equal height gives it</code>
+<code class="doc">the container's box, set on the tile's root (the rule edge marks it), is a maximum: the stand-in is never drawn larger than its own pixels (the small photo; a placeholder's are a thumbnail's square). The box is an inline size (16rem); the height follows the stand-in's shape</code>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">

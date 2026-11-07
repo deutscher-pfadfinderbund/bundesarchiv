@@ -170,6 +170,7 @@ class MediaTile:
     thumb_url: str
     display_url: str = ""
     aspect: tuple[int, int] | None = None
+    display_aspect: tuple[int, int] | None = None  # the display version's pixels, once cached
     size: str = ""  # the original's size in words ("1,8 MB"), empty when unknown
     slot: int = -1  # an image's place in the article page's lightbox (-1: not in it)
     alt: str = ""  # an image's accessible name: its description, else caption, else file name
@@ -187,19 +188,36 @@ class MediaTile:
 
     @property
     def pixels(self) -> tuple[int, int]:
-        """The stand-in's own width and height, the largest a tile draws it: the thumbnail's, else
-        the square a thumbnail fits in (a placeholder has no pixels of its own)."""
-        return self.aspect or (Size.TILE, Size.TILE)
+        """The stand-in's own width and height, the largest a tile draws it: its largest version's,
+        else the square a thumbnail fits in (a placeholder has no pixels of its own)."""
+        if self.aspect is None:
+            return (Size.TILE, Size.TILE)
+        return self.display_aspect or self.aspect
 
 
 def media_tiles(ulid: ULID, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
-    """``media`` as tiles, in its order (cover first, ADR 0015). One tile header read per file: the
-    thumbnail cache is local (ADR 0017)."""
+    """``media`` as tiles, in its order (cover first, ADR 0015). One header read per cached version
+    (the tile; an image's display version too): the thumbnail cache is local (ADR 0017)."""
     root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
-    return tuple(_tile(ulid, ref, thumbnails.tile_size(root, ref.content_hash)) for ref in media)
+    return tuple(
+        _tile(
+            ulid,
+            ref,
+            thumbnails.version_size(root, ref.content_hash),
+            thumbnails.version_size(root, ref.content_hash, Size.DISPLAY)
+            if thumbnails.renders(ref, Size.DISPLAY)
+            else None,
+        )
+        for ref in media
+    )
 
 
-def _tile(ulid: ULID, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile:
+def _tile(
+    ulid: ULID,
+    ref: MediaRef,
+    aspect: tuple[int, int] | None,
+    display_aspect: tuple[int, int] | None,
+) -> MediaTile:
     image = thumbnails.renders(ref, Size.DISPLAY)
     caption = trim_or_none(ref.caption) or ""
     kind = file_kind(ref)
@@ -214,6 +232,7 @@ def _tile(ulid: ULID, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTil
         display_url=(display_url(ulid, ref.content_hash) if image else ""),
         thumb_url=thumbnail_url(ulid, ref.content_hash) if aspect else "",
         aspect=aspect,
+        display_aspect=display_aspect,
     )
 
 

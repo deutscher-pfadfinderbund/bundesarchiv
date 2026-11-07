@@ -13,6 +13,10 @@ its name). Contract: design-system/components/media-tile.md.{% endcomment %}
   <img
     class="media-tile-thumb"
     src="{{ file.thumb_url }}"
+    {% if file.display_aspect %}
+    srcset="{{ file.thumb_url }} {{ file.aspect.0 }}w, {{ file.display_url }} {{ file.display_aspect.0 }}w"
+    sizes="auto, min(100vw, {{ file.pixels.0 }}px)"
+    {% endif %}
     width="{{ file.pixels.0 }}"
     height="{{ file.pixels.1 }}"
     alt="{{ file.alt }}"

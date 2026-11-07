@@ -277,9 +277,9 @@
   }
 
   /* ---- the files after the cover: rows of equal height, each image in its own shape. Without
-     script the rows end ragged; media.js sets each figure's --r (its width over its height) and
-     marks the row [data-justified], and every row then fills the width. A caption is one line and
-     never widens its tile. ---- */
+     script every tile takes one width and the rows end ragged; media.js sets each figure's --r
+     (its width over its height) and marks the row [data-justified], and every row then fills the
+     width. A caption is one line and never widens its tile. ---- */
   .media-rows h2 {
     margin: 0 0 var(--space-3);
     font: var(--type-subhead);
@@ -299,8 +299,9 @@
     min-width: 0;
     margin: 0;
   }
+  /* without the script every tile takes one width and its picture its own height */
   .media-rows figure > .media-tile {
-    block-size: var(--_row-height);
+    inline-size: var(--_row-height);
   }
   /* under a picture: its caption, then the download line, both quiet words, as under the cover */
   .media-rows :is(figcaption, .download) {
