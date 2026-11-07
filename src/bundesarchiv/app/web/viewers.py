@@ -25,7 +25,6 @@ from django.utils.module_loading import import_string
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import landing, vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.app.web.keycloak import KeycloakRealm
 from bundesarchiv.app.web.oidc import Realm, Tokens, viewer_from_claims
 from bundesarchiv.app.web.panels import FormPanel, new_article_panel
 from bundesarchiv.domain.viewer import Archivist, Public, Viewer
@@ -76,12 +75,12 @@ _VIEWER_CACHE_ATTR = "_bundesarchiv_viewer"
 def realm() -> Realm:
     """The login realm: ``settings.BUNDESARCHIV_REALM`` when set (dev and tests; the WSGI entry
     refuses to serve with it), else Keycloak. A settings module names it by dotted path, since
-    settings may not import ``app``; a test passes the instance."""
-    configured: Realm | str | None = getattr(settings, "BUNDESARCHIV_REALM", None)
-    if isinstance(configured, str):
-        realm_class: type[Realm] = import_string(configured)
-        return realm_class()
-    return configured if configured is not None else KeycloakRealm()
+    settings may not import ``app``; a test passes the instance. Keycloak is named the same way:
+    its module loads authlib."""
+    configured: Realm | str = getattr(
+        settings, "BUNDESARCHIV_REALM", "bundesarchiv.app.web.keycloak.KeycloakRealm"
+    )
+    return import_string(configured)() if isinstance(configured, str) else configured
 
 
 def set_token_cookies(tokens: Tokens, response: HttpResponse) -> None:
