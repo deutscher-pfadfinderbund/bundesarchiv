@@ -12,7 +12,7 @@ The layout demo includes this file too.
       <h2>{{ pane.title }}</h2>
       <a href="{{ pane.close_href }}" aria-label="Vorschau schließen" title="Vorschau schließen">{% include "components/icon.html" with name="x" only %}</a>
     </header>
-    <div role="toolbar" aria-label="Artikelaktionen">
+    <div role="toolbar" aria-label="Eintragsaktionen">
       <a class="button primary" href="{{ pane.open_href }}">Öffnen</a>
       {% if pane.edit_href %}<a class="button" href="{{ pane.edit_href }}">Bearbeiten</a>{% endif %}
     </div>
