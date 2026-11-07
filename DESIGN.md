@@ -403,7 +403,7 @@ Behaviour: `src/bundesarchiv/app/web/static/combobox.js`; the list's surface:
   column head, the audience in "Sichtbar für".
 - **Do** keep paired controls visible and disabled when inactive (Zurück / Weiter, the end arrows),
   drawn in Faint.
-- **Do** make every icon-only control name itself (`aria-label`); icons come from the one set.
+- **Do** make every icon-only control name itself (`aria-label`); icons come from `components/icon.html`, each picked on its own (no single set).
 - **Do** use centre dots to separate items in a line.
 
 ### Don't:

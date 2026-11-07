@@ -23,21 +23,6 @@ requires demonstrating the original Expected result.
 - **Decision needed:** when an action outside a menu takes a text look; the button size (DESIGN.md
   and the mock against the shipped CSS); a disabled state for the framed looks.
 
-### The kind glyphs have no decided icon set
-
-- **Source:** owner ruling 2026-10-28 (MediaTile): a file without a stand-in shows a placeholder
-  glyph matching its kind; owner, 2026-10-29: no icon set has been decided in this project.
-- **Need:** a decided source for icons before any glyph is drawn into a component.
-- **Actual result:** `src/bundesarchiv/app/web/templates/components/icon.html` calls itself "the one
-  vendored inline-SVG set" on the strength of a law row no owner decision backs; the Media tile
-  shows the cross for every file without a stand-in.
-- **Expected result:** the owner decides the icon set (or that there is none); the Media tile's
-  "No thumbnail" state gets its glyph per kind and the contract closes that open decision.
-- **Evidence:** `design-system/components/media-tile.md`, "Open decisions"; the doc audit of
-  2026-10-29.
-- **Next step:** the icon set is one line of the doc-sanction cleanup's verdict table; after it,
-  a craft round on the glyphs.
-
 ### The Lightbox has no contract and is not on every page with image tiles
 
 - **Source:** owner ruling 2026-10-28 (MediaTile): opening the Lightbox is the tile's behaviour;
