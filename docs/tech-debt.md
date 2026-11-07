@@ -254,12 +254,6 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `index/query.py` ranking; parked on GH #19 until real data exists. Trigger: the archivists' first real searches
 - **Sketch:** collect misranked queries, then weights, a synonym or unaccent dictionary, or a trigram fallback
 
-### 54. A save conflict re-shows the loser's per-file fields over the winner's media — Strong
-- **Indicator:** 2 per-file fields (caption, alt) restored from a conflict without a base comparison (2026-10-07)
-- **Evidence:** `EditSurface.of(...).submitted(...)` -> `apply_media_fields`: the re-shown form overlays the losing editor's caption and alt onto the winner's media, so a second save can silently undo the winner's per-file edits
-- **Sketch:** carry the base version into the conflict re-render and overlay only the fields the loser changed against it
-- **Tracked:** issue #91
-
 ### 60. `test:affected` runs no Postgres-backed web test for a template-only diff — Worth exploring
 - **Indicator:** `scripts/affected.py` RULES: `app/web/**/*.html|css|js` selects `test:gallery` and `test:e2e` only (2026-10-21)
 - **Evidence:** the 2026-10-21 template refactor wrote `tests/app/web` by hand (1464 passed); those tests render the templates

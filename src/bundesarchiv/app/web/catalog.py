@@ -1,7 +1,7 @@
 """The edit form's pure parse and its save shell, this form's ADR 0013 ``Conflict`` catch site."""
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Protocol, runtime_checkable
@@ -186,33 +186,40 @@ def parse_edit_form(
     return ParseResult(article=article, errors={}, expected_version=expected_version)
 
 
-def _edited(raw: str | None, current: str | None) -> str | None:
-    """The form's value (``"" → None``), or ``current`` when the form sent none or the value is the
-    one ``current`` already shows (so a save without edits changes no README byte)."""
-    if raw is None:
-        return current
-    edited = none_if_blank(raw)
-    return current if edited == none_if_blank(current or "") else edited
-
-
 def apply_media_fields(
     post: Mapping[str, object], current_media: tuple[MediaRef, ...]
 ) -> tuple[MediaRef, ...]:
     """``current_media`` with the form's ``caption[<hash>]`` / ``alt[<hash>]`` applied (spec
-    §6.3/§8); an absent field keeps the stored value, and only an image takes an alt."""
+    §6.3/§8) where the archivist changed them against ``caption_base[<hash>]`` /
+    ``alt_base[<hash>]``, the stored value the form was rendered with: after a lost save (ADR
+    0013) a field left alone keeps the newer stored value. An absent field keeps the stored value,
+    an absent base counts as the stored value, and only an image takes an alt. A value the stored
+    one already shows keeps it, so a save without edits changes no README byte."""
 
     def field(name: str, key: str) -> str | None:
         values = _getlist(post, f"{name}[{key}]")
         return values[0] if values else None
 
-    def alt(ref: MediaRef) -> str | None:
-        raw = field("alt", ref.content_hash)
-        if raw is None or not thumbnails.renders(ref, Size.DISPLAY):
-            return ref.alt
-        return _edited(one_line(raw), ref.alt)
+    def merged(name: str, key: str, current: str | None, clean: Callable[[str], str]) -> str | None:
+        raw, base = field(name, key), field(f"{name}_base", key)
+        if raw is None:
+            return current
+        edited = none_if_blank(clean(raw))
+        seen = current if base is None else clean(base)
+        return (
+            current
+            if edited in (none_if_blank(seen or ""), none_if_blank(current or ""))
+            else edited
+        )
 
     return tuple(
-        replace(ref, caption=_edited(field("caption", ref.content_hash), ref.caption), alt=alt(ref))
+        replace(
+            ref,
+            caption=merged("caption", ref.content_hash, ref.caption, str),
+            alt=merged("alt", ref.content_hash, ref.alt, one_line)
+            if thumbnails.renders(ref, Size.DISPLAY)
+            else ref.alt,
+        )
         for ref in current_media
     )
 

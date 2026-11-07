@@ -16,9 +16,9 @@ from tests.app.web._fixtures import (
     PUBLISHED_ULID,
     Corpus,
     client_as,
+    edit_form,
     make_article,
     make_collection,
-    page_forms,
 )
 
 from bundesarchiv.app.web import vocab
@@ -227,7 +227,7 @@ def test_the_form_as_rendered_saves_every_other_value_unchanged(
     version = corpus.articles.save(before, stored.version, changed_by="tester")
     archivist = client_as(Archivist())
     body = archivist.get(f"/articles/{_ULID}/edit").content.decode()
-    rendered = next(fields for action, fields in page_forms(body) if action.endswith("/edit"))
+    rendered = edit_form(body)
     # a browser submits a textarea's line breaks as CRLF
     post = {name: value.replace("\n", "\r\n") for name, value in rendered.items()}
     post["title"] = title or post["title"]

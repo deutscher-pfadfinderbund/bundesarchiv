@@ -400,7 +400,7 @@ class EditSurface:
                         else LIFECYCLE_OPTIONS
                     ),
                 ),
-                "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
+                "media_rows": _media_rows(self.stored.ulid, self.media, self.stored.media, confirm),
                 "custom_keys": vocab.CUSTOM_KEYS,
                 "delete_confirm": vocab.TRASH_CONFIRM,
                 "crumbs": _crumbs(self.stored, self.chooser),
@@ -430,27 +430,40 @@ class _MediaRow:
     content_hash: str
     caption: str
     description: str  # the stored Bildbeschreibung (the form value), not the page's alt
+    caption_base: str
+    description_base: str
     is_cover: bool
     is_first: bool
     is_last: bool
     confirm_remove: bool
 
 
-def _media_rows(ulid: ULID, media: tuple[MediaRef, ...], remove_hash: str) -> tuple[_MediaRow, ...]:
-    """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015)."""
+def _media_rows(
+    ulid: ULID, media: tuple[MediaRef, ...], stored: tuple[MediaRef, ...], remove_hash: str
+) -> tuple[_MediaRow, ...]:
+    """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015).
+    ``media`` is what the fields show, ``stored`` the same files as saved: their values are the
+    base ``catalog.apply_media_fields`` tells the archivist's edits by."""
+
+    def shown(value: str | None) -> str:
+        return catalog.none_if_blank(value or "") or ""
+
     last = len(media) - 1
+    tiles = media_tiles(ulid, media)
     return tuple(
         _MediaRow(
             tile=tile,
             content_hash=ref.content_hash,
-            caption=catalog.none_if_blank(ref.caption or "") or "",
-            description=catalog.none_if_blank(ref.alt or "") or "",
+            caption=shown(ref.caption),
+            description=shown(ref.alt),
+            caption_base=shown(base.caption),
+            description_base=shown(base.alt),
             is_cover=i == 0,
             is_first=i == 0,
             is_last=i == last,
             confirm_remove=ref.content_hash == remove_hash,
         )
-        for i, (ref, tile) in enumerate(zip(media, media_tiles(ulid, media), strict=True))
+        for i, (ref, base, tile) in enumerate(zip(media, stored, tiles, strict=True))
     )
 
 

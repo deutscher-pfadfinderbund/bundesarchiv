@@ -20,6 +20,7 @@ from tests.app.web._fixtures import (
     Corpus,
     client_as,
     download_hrefs,
+    edit_form,
     make_article,
     make_collection,
     page_hrefs,
@@ -574,10 +575,11 @@ def test_validation_error_re_render_keeps_typed_caption(corpus: _MediaCorpus) ->
         },
     )
     assert response.status_code == 200
-    body = response.content.decode()
-    assert "Titel ist erforderlich." in body
-    assert 'value="Meine neue Unterschrift"' in body
-    assert 'value="Titelbild"' not in body  # the stale stored caption, not just duplicated
+    assert "Titel ist erforderlich." in response.content.decode()
+    assert (
+        edit_form(response.content.decode())[f"caption[{corpus.ref_a.content_hash}]"]
+        == "Meine neue Unterschrift"
+    )
     # nothing saved
     assert corpus.media() == (corpus.ref_a, corpus.ref_b)
 
@@ -608,6 +610,26 @@ def test_conflict_re_render_keeps_typed_caption(corpus: _MediaCorpus) -> None:
     body = loser.content.decode()
     assert "Inzwischen geändert" in body  # the conflict panel heading
     assert 'value="Gelöschte Unterschrift"' in body
+
+
+def test_saving_the_conflict_form_keeps_the_winners_file_fields_the_loser_left(
+    corpus: _MediaCorpus,
+) -> None:
+    a, b = corpus.ref_a.content_hash, corpus.ref_b.content_hash
+    archivist = client_as(Archivist())
+    loaded = edit_form(archivist.get(f"/articles/{_ULID}/edit").content.decode())
+    stored = corpus.articles.load(_ULID)
+    won = (replace(corpus.ref_a, caption="Vom Gewinner", alt="Gewinner-Bild"), corpus.ref_b)
+    corpus.articles.save(replace(stored.article, media=won), stored.version, changed_by="gewinner")
+    lost = archivist.post(f"/articles/{_ULID}/edit", {**loaded, f"alt[{b}]": "Vom Verlierer"})
+    assert lost.status_code == 200, "the save did not conflict"
+    assert (
+        archivist.post(f"/articles/{_ULID}/edit", edit_form(lost.content.decode())).status_code
+        == 302
+    )
+    by_hash = {m.content_hash: m for m in corpus.media()}
+    assert (by_hash[a].caption, by_hash[a].alt) == ("Vom Gewinner", "Gewinner-Bild")
+    assert by_hash[b].alt == "Vom Verlierer"
 
 
 def test_custom_remove_keeps_media_register_and_typed_caption(corpus: _MediaCorpus) -> None:
