@@ -20,7 +20,7 @@ from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
 from bundesarchiv.domain.audience import ARCHIVIST_ONLY, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import ULID, Article, Collection, Lifecycle, MediaRef
+from bundesarchiv.domain.models import ULID, Article, Aspect, Collection, Lifecycle, MediaRef
 from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.index.query import FileKind
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Bump on any change to build_row's output or to the ADR 0011 FTS config, collation or tsvector
 # wrappers; rows of another version trigger a rebuild.
-CONFIG_VERSION = 9
+CONFIG_VERSION = 10
 
 # Never change it, never reuse it for another lock (ADR 0014).
 _INDEX_WRITER_LOCK_KEY = 0x42554E44
@@ -110,6 +110,9 @@ class _ScopeRow(TypedDict):
     archivist_only: bool
     tier: str | None
     groups: list[str]
+    files_archivist_only: bool
+    files_tier: str | None
+    files_groups: list[str]
 
 
 class IndexRow(_ContentRow, _ScopeRow):
@@ -120,9 +123,11 @@ class IndexRow(_ContentRow, _ScopeRow):
 
 def build_row(article: Article, chain: ResolvedChain, *, cap_year: int) -> IndexRow:
     ancestors = [c.ulid for c in chain.collections]
-    scope = _scope_columns(effective_audience(article, chain))
+    record = _scope_columns(effective_audience(article, chain, Aspect.RECORD))
+    files = _scope_columns(effective_audience(article, chain, Aspect.FILES))
     return IndexRow(
-        **_content_columns(article, ancestors=ancestors, cap_year=cap_year), **_scope_dict(scope)
+        **_content_columns(article, ancestors=ancestors, cap_year=cap_year),
+        **_scope_dict(record, files),
     )
 
 
@@ -193,11 +198,14 @@ def _content_columns(article: Article, *, ancestors: list[ULID], cap_year: int) 
     }
 
 
-def _scope_dict(scope: ScopeColumns) -> _ScopeRow:
+def _scope_dict(record: ScopeColumns, files: ScopeColumns) -> _ScopeRow:
     return {
-        "archivist_only": scope.archivist_only,
-        "tier": scope.tier,
-        "groups": list(scope.groups),
+        "archivist_only": record.archivist_only,
+        "tier": record.tier,
+        "groups": list(record.groups),
+        "files_archivist_only": files.archivist_only,
+        "files_tier": files.tier,
+        "files_groups": list(files.groups),
     }
 
 
@@ -215,7 +223,8 @@ def _date_columns(
 def _fail_closed_row(article: Article, *, cap_year: int) -> IndexRow:
     """Still indexed, so an Archivist can find and repair the source (ADR 0012)."""
     content = _content_columns(article, ancestors=[], cap_year=cap_year)
-    return IndexRow(**content, **_scope_dict(_scope_columns(ARCHIVIST_ONLY)))
+    closed = _scope_columns(ARCHIVIST_ONLY)
+    return IndexRow(**content, **_scope_dict(closed, closed))
 
 
 def _row_for(

@@ -59,6 +59,11 @@ class ArticleIndex(models.Model):
     archivist_only = models.BooleanField()
     tier = models.TextField(null=True)  # "PUBLIC" | "MEMBERS" | "GROUPS"; None iff archivist_only
     groups = ArrayField(models.TextField(), default=list)
+    # The same three for the FILES aspect (ADR 0027), gated on top of the record's.
+    # Closed by default: a row from before these columns opens no files until the rebuild.
+    files_archivist_only = models.BooleanField(default=True)
+    files_tier = models.TextField(null=True)
+    files_groups = ArrayField(models.TextField(), default=list)
     # Chrome, never scope: archivist_only also covers rows that are not drafts.
     is_draft = models.BooleanField(default=False)
     is_template = models.BooleanField(default=False)  # a Vorlage
