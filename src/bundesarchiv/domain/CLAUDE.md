@@ -8,3 +8,4 @@ An Article is a leaf: no nested READMEs. Parts without identity are media entrie
 become a Collection of Articles (ADR 0015).
 Never sync or validate audience group names against Keycloak: a group nobody carries matches nobody
 (ADR 0018; `tests/domain/test_access.py`).
+It resolves one rung per `Aspect` (ADR 0027), and a viewer clears an aspect only together with the record.
