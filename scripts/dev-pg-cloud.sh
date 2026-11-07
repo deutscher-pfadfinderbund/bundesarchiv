@@ -4,7 +4,7 @@
 # aside when a container runtime is available. Safe to re-run any time — including mid-session when the
 # sandbox reclaimed the server ("connection refused ... 5434" from the test guard).
 #
-# What it builds: the same thing docker/postgres/ builds — a plain Postgres — except from the distro Postgres
+# What it builds: a plain Postgres like the VPS runs (compose.yml), except from the distro Postgres
 # (whatever major version the sandbox image ships) instead of the pinned image. Good enough for tests;
 # the pinned version is a VPS-deploy concern.
 set -euo pipefail

@@ -10,8 +10,10 @@ updates:
         update-types:
         - "patch"
 
-  - package-ecosystem: docker
-    directory: /docker/postgres
+  - package-ecosystem: docker-compose
+    directory: /
+    allow:
+      - dependency-name: postgres
     schedule:
       interval: weekly
 

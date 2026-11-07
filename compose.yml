@@ -65,11 +65,9 @@ services:
       - upload-staging:/upload-staging
     restart: unless-stopped
 
-  # Postgres image (docker/postgres/, published by
-  # .github/workflows/postgres-image.yml). NO published port: it is reachable only from this
-  # stack's default network.
+  # NO published port: it is reachable only from this stack's default network. CI runs this tag.
   postgres:
-    image: ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest
+    image: postgres:18.6
     # Not env_file: that would hand the database container the app's secret key, the viewer signing
     # key, the OIDC client secret and the mirror password for nothing. These three come from
     # production.env through compose's own --env-file, which Komodo passes on every deploy — without

@@ -43,19 +43,19 @@ jobs:
               - 'src/**'
               - 'tests/index/**'
               - 'tests/app/**'
-              - 'docker/postgres/**'
+              - 'compose.yml'
               - 'pyproject.toml'
               - 'uv.lock'
               - '.github/workflows/ci.yml'
 
-      # Pulls in the background while the checks run. Trust auth: mise exports a DSN without a password.
+      # Trust auth: mise exports a DSN without a password.
       - name: Start Postgres
         if: &db github.event_name == 'push' || steps.changes.outputs.db == 'true'
         run: |
-          docker run -d --pull=always --name pg -p 5434:5432 \
+          image=$(sed -n 's/^ *image: *\(postgres:.*\)$/\1/p' compose.yml)
+          docker run -d --name pg -p 5434:5432 \
             -e POSTGRES_DB=bundesarchiv -e POSTGRES_HOST_AUTH_METHOD=trust \
-            ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest \
-            >"$RUNNER_TEMP/postgres.log" 2>&1 &
+            "$image" >"$RUNNER_TEMP/postgres.log" 2>&1 &
 
       - name: Install uv
         # setup-uv keeps no floating major tags past v7 — pin the full version (dependabot bumps it).
