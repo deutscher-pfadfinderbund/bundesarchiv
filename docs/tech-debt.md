@@ -217,10 +217,9 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** `BulkField.validate(value, articles) -> str | None`, `.apply(article, value) -> Article`, `.display(raw) -> str`, sharing the per-field rules with the catalog parse; views iterate `FIELDS`. Touches #33/#34 without owning them.
 
 ### 71. The EDTF format is parsed twice — Worth exploring
-- **Indicator:** 5 regexes in `domain/edtf.py:26-48`, 2 more plus hand-written token logic in `app/web/vocab.py:259-327`; the season codes 21–24 declared twice (`vocab.py:293`, `edtf.py:48`); nothing checks the two agree (2026-11-07)
-- **Evidence:** `EdtfDate` offers only `.value`, `.bounds()`, `.decades()`, so vocab re-parses the string to spell it in German and falls back to the raw text at `vocab.py:308`
-- **Deletion test:** concentrates — vocab's parsing goes away
-- **Sketch:** `EdtfDate.parts() -> tuple[EdtfPart, ...]` (kind, year, month, day, season, approximate/uncertain); vocab maps parts to words; one domain table owns the format
+- **Indicator:** 1 module outside `domain/edtf.py` still reads the format itself: `app/legacy.py` `_conflicts_with_columns` slices month and day by position (`value[5:7]`, `value[8:10]`), so a season `1962-22` reads as month 22 (2026-11-07; before: `app/web/vocab.py` too, 2 date regexes, its own season table and hand-written token logic, now 0)
+- **Evidence:** `EdtfDate.parts()` decodes to `Point` (Day, Month, YearSeason, Year, Decade, Century; uncertain/approximate), `OpenEnd` (`..`) or `UnknownEnd` (an empty end) from one Lark grammar; `vocab._spelled` matches the spans, mypy holds the match exhaustive, so no raw-text fallback; `bounds()` derives from the parts
+- **Deletion test:** concentrates — `_conflicts_with_columns` reads the Day/Month span from `parts()`, and the last positional reader goes
 
 ## Implementation patterns
 

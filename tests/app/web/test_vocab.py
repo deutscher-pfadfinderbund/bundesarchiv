@@ -153,9 +153,12 @@ def test_grouped_options_are_per_media_type_once_one_is_narrowed(narrowed_vocabu
             (("26. November 1984", "1984-11-26"), ("14. März 1995", "1995-03-14")),
         ),
         ("197X", (("1970er", ""),)),  # a decade is no HTML date
+        ("197X?", (("1970er?", ""),)),
         ("19XX", (("1900\N{EN DASH}1999", ""),)),
         ("1962-22", (("Sommer 1962", ""),)),  # nor is a season
         ("1965/..", (("1965", "1965"), ("…", ""))),  # an open end has none
+        ("/1965", (("unbekannt", ""), ("1965", "1965"))),  # nor has an unknown end
+        ("1960/", (("1960", "1960"), ("unbekannt", ""))),
     ],
 )
 def test_date_parts_speak_german_and_carry_a_datetime_only_where_html_has_one(
