@@ -12,24 +12,32 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime
 from functools import partial
+from typing import get_args
 
 import pytest
 from tests._queue import queued
 
+from bundesarchiv.app import after_write
+from bundesarchiv.app.after_write import derived_jobs
 from bundesarchiv.app.archive import Archive, IndexOver
 from bundesarchiv.app.articles import (
-    PageText,
-    Thumbnail,
     copy_article,
     create_article,
     delete_article,
-    derived_jobs,
     hard_delete_article,
     restore_article,
     save_article,
     update_article,
 )
 from bundesarchiv.app.collections import create_collection, save_collection
+from bundesarchiv.app.jobs import (
+    MirrorDelete,
+    MirrorPush,
+    PageText,
+    ReindexArticle,
+    ReindexSubtree,
+    Thumbnail,
+)
 from bundesarchiv.app.result import Conflicted, CreateResult, Missing, SaveResult, Updated
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -45,7 +53,7 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index.query import SearchFilters, search
 from bundesarchiv.index.refresh import InMemoryIndex, PostgresIndex, Refresh
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
-from bundesarchiv.persistence.collections import StoredCollection
+from bundesarchiv.persistence.errors import Conflict
 
 ID_01FOTO = ULID("01FOTO")
 ID_FOTOS = ULID("FOTOS")
@@ -526,9 +534,7 @@ def test_save_collection_swallows_enqueue_failure_after_index_failure(
     results: list[SaveResult] = []
     queued(
         lambda: results.append(
-            save_collection(
-                archive, _narrowed(stored.collection), stored.version, changed_by="tester"
-            )
+            save_collection(archive, stored, _narrowed(stored.collection), changed_by="tester")
         ),
         refuse=frozenset({"reindex_subtree"}),
     )
@@ -547,7 +553,7 @@ def test_a_write_refreshes_the_index_once_the_store_holds_it(
     marked = delete_article(archive, stored.article, saved.version, changed_by="t")
     hard_delete_article(archive, ID_01FOTO, marked.version)
     fotos = archive.collections.load(ID_FOTOS)
-    save_collection(archive, _narrowed(fotos.collection), fotos.version, changed_by="t")
+    save_collection(archive, fotos, _narrowed(fotos.collection), changed_by="t")
 
     assert refreshed == [
         ("article", "01FOTO", 2),
@@ -650,13 +656,13 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
     stored = collections.load(ID_FOTOS)
     result = save_collection(
         pg_archive,
+        stored,
         Collection(
             ulid=ID_FOTOS,
             name="Fotos",
             parent_id=ID_ROOT,
             audience=Audience(AudienceTier.MEMBERS),  # narrow PUBLIC -> MEMBERS
         ),
-        stored.version,
         changed_by="tester",
     )
 
@@ -668,6 +674,48 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
 # ---------------------------------------------------------------------------
 # Derived-file jobs — save and create queue a job per file to render and one to read
 # ---------------------------------------------------------------------------
+
+
+_SCANNED = Article(
+    ulid=ID_01FOTO,
+    title="Scan",
+    collection_id=ID_FOTOS,
+    media=(MediaRef("a.jpg", "hash-image", media_type="image/jpeg"),),
+)
+_FOTOS = Collection(ID_FOTOS, "Fotos", parent_id=ID_ROOT)
+
+_ENTAILED: tuple[tuple[after_write.Written, tuple[object, ...]], ...] = (
+    (
+        after_write.SavedArticle(_SCANNED),
+        (ReindexArticle(ID_01FOTO), MirrorPush(ID_01FOTO), Thumbnail(ID_01FOTO, "hash-image")),
+    ),
+    (after_write.TrashedArticle(ID_01FOTO), (ReindexArticle(ID_01FOTO), MirrorPush(ID_01FOTO))),
+    (after_write.RemovedArticle(ID_01FOTO), (ReindexArticle(ID_01FOTO), MirrorDelete(ID_01FOTO))),
+    (after_write.CreatedCollection(_FOTOS), (MirrorPush(ID_FOTOS),)),
+    (
+        after_write.SavedCollection(_FOTOS, replace(_FOTOS, name="Bilder")),
+        (MirrorPush(ID_FOTOS),),
+    ),
+    (
+        after_write.SavedCollection(
+            _FOTOS, replace(_FOTOS, audience=Audience(AudienceTier.MEMBERS))
+        ),
+        (ReindexSubtree(ID_FOTOS), MirrorPush(ID_FOTOS)),
+    ),
+)
+
+
+@pytest.mark.parametrize(("written", "entailed"), _ENTAILED)
+def test_a_write_entails_its_reindex_then_its_mirror_job_then_its_derived_files(
+    written: after_write.Written, entailed: tuple[object, ...]
+) -> None:
+    assert after_write.jobs(written) == entailed
+
+
+def test_every_kind_of_write_names_what_it_entails() -> None:
+    assert {type(written) for written, _ in _ENTAILED} == set(
+        get_args(after_write.Written.__value__)
+    )
 
 
 def test_derived_jobs_render_image_and_pdf_files_and_read_pdfs_once() -> None:
@@ -789,7 +837,7 @@ def test_create_article_enqueues_the_push_of_the_new_article(archive: Archive) -
 def test_save_collection_enqueues_one_push_of_the_collection(archive: Archive) -> None:
     stored = archive.collections.load(ID_FOTOS)
     jobs = queued(
-        lambda: save_collection(archive, stored.collection, stored.version, changed_by="tester"),
+        lambda: save_collection(archive, stored, stored.collection, changed_by="tester"),
         mirror=True,
     )
 
@@ -856,9 +904,7 @@ def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: 
         results: list[SaveResult] = []
         jobs = queued(
             lambda: results.append(
-                save_collection(
-                    archive, _narrowed(stored.collection), stored.version, changed_by="tester"
-                )
+                save_collection(archive, stored, _narrowed(stored.collection), changed_by="tester")
             )
         )
         elapsed = time.monotonic() - started
@@ -885,8 +931,8 @@ def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(pg_archive: Arch
                 (
                     save_collection(
                         archive,
+                        stored,
                         replace(stored.collection, name="Lichtbilder"),
-                        stored.version,
                         changed_by="t",
                     ),
                     create_collection(archive, name="Neu", parent_id=ID_FOTOS, changed_by="t"),
@@ -901,30 +947,24 @@ def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(pg_archive: Arch
 
 
 @pytest.mark.django_db
-def test_gate_a_rename_at_a_version_it_did_not_read_still_reindexes(
-    pg_archive: Archive, monkeypatch: pytest.MonkeyPatch
+def test_gate_a_rename_over_a_copy_a_concurrent_edit_overtook_loses_the_cas(
+    pg_archive: Archive,
 ) -> None:
-    """A rename whose ``expected_version`` is ahead of the version the service read wins the CAS
-    against a concurrent widening edit that lands in between, and writes the older, narrower
-    audience back. Its reindex must run, or the index keeps the widened audience."""
+    """The save decides the reindex from the copy it replaces. Saved over a narrow copy that a
+    widening has overtaken, a rename would write the narrow audience back without a reindex, and
+    the index would keep the widened one."""
     save_article(pg_archive, pg_archive.articles.load(ID_01FOTO).article, 1, changed_by="t")
     fotos = pg_archive.collections.load(ID_FOTOS)
-    save_collection(pg_archive, _narrowed(fotos.collection), fotos.version, changed_by="t")
+    save_collection(pg_archive, fotos, _narrowed(fotos.collection), changed_by="t")
     narrow = pg_archive.collections.load(ID_FOTOS)
-    load = pg_archive.collections.load
-
-    def load_then_widen(ulid: str) -> StoredCollection:
-        stored = load(ULID(ulid))
-        monkeypatch.setattr(pg_archive.collections, "load", load)
-        save_collection(pg_archive, fotos.collection, stored.version, changed_by="concurrent")
-        return stored
-
-    monkeypatch.setattr(pg_archive.collections, "load", load_then_widen)
+    save_collection(pg_archive, narrow, fotos.collection, changed_by="concurrent")
     rename = replace(narrow.collection, name="Lichtbilder")
-    save_collection(pg_archive, rename, narrow.version + 1, changed_by="t")
 
-    assert pg_archive.collections.load(ID_FOTOS).collection == rename
-    assert "Öffentliches Foto" not in _pub_titles(PUBLIC)
+    with pytest.raises(Conflict):
+        save_collection(pg_archive, narrow, rename, changed_by="t")
+
+    assert pg_archive.collections.load(ID_FOTOS).collection == fotos.collection
+    assert "Öffentliches Foto" in _pub_titles(PUBLIC)
 
 
 @pytest.mark.django_db
@@ -948,8 +988,8 @@ def test_gate_moving_a_collection_under_a_narrower_parent_hides_its_articles(
     stored = pg_archive.collections.load(ULID("KIND"))
     save_collection(
         pg_archive,
+        stored,
         replace(stored.collection, parent_id=ID_ROOT),
-        stored.version,
         changed_by="t",
     )
 

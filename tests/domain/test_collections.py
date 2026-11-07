@@ -7,9 +7,9 @@ is its sole sanctioned producer; a hand-built malformed chain fails at construct
 
 import pytest
 
-from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
+from bundesarchiv.domain.collections import ResolvedChain, moves_visibility, resolve_chain
 from bundesarchiv.domain.errors import BrokenCollectionTree, MisresolvedChain
-from bundesarchiv.domain.models import ULID, Collection
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Collection
 
 ID_LEAF = ULID("leaf")
 ID_ROOT = ULID("root")
@@ -74,3 +74,28 @@ def test_resolved_chain_rejects_a_chain_not_terminated_at_a_root() -> None:
     leaf = Collection(ID_LEAF, "Fotos", parent_id=ULID("mid"))
     with pytest.raises(MisresolvedChain):
         ResolvedChain((leaf,))
+
+
+_FOTOS = Collection(ULID("fotos"), "Fotos", parent_id=ID_ROOT)
+
+
+@pytest.mark.parametrize(
+    ("after", "moves"),
+    [
+        pytest.param(_FOTOS, False, id="unchanged"),
+        pytest.param(Collection(ULID("fotos"), "Bilder", parent_id=ID_ROOT), False, id="renamed"),
+        pytest.param(
+            Collection(ULID("fotos"), "Fotos", ID_ROOT, Audience(AudienceTier.PUBLIC)),
+            True,
+            id="audience set",
+        ),
+        pytest.param(Collection(ULID("fotos"), "Fotos", parent_id=ID_LEAF), True, id="moved"),
+        pytest.param(
+            Collection(ULID("fotos"), "Bilder", parent_id=None), True, id="renamed and moved"
+        ),
+    ],
+)
+def test_a_save_moves_visibility_unless_it_changes_only_the_name(
+    after: Collection, moves: bool
+) -> None:
+    assert moves_visibility(_FOTOS, after) is moves

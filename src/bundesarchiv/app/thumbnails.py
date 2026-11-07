@@ -104,7 +104,10 @@ def tile_size(thumbnail_root: Path, content_hash: str) -> tuple[int, int] | None
 def generate_thumbnail(
     store: ObjectStore, ulid: ULID, content_hash: str, thumbnail_root: Path
 ) -> bool:
-    """True iff a tile was written; never raises for the file's content."""
+    """True iff a tile was written; never raises for the file's content. A tile already cached
+    stands: its key is the file's content hash."""
+    if is_cached(thumbnail_root, content_hash):
+        return False
     articles = ArticleRepository(store)
     try:
         media = articles.load(ulid).article.media

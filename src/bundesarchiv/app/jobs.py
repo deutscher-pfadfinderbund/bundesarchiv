@@ -5,7 +5,7 @@ import contextlib
 import logging
 import time
 from collections.abc import Callable, Generator
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 
 from bundesarchiv.app import mirror, stats
 from bundesarchiv.app.archive import Archive
@@ -17,6 +17,48 @@ from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ReindexArticle:
+    ulid: ULID
+
+
+@dataclass(frozen=True, slots=True)
+class ReindexSubtree:
+    collection_ulid: ULID
+
+
+@dataclass(frozen=True, slots=True)
+class Thumbnail:
+    """Render the file ``content_hash`` of Article ``ulid``."""
+
+    ulid: ULID
+    content_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class PageText:
+    """Read the page text of Article ``ulid``'s files (ADR 0023)."""
+
+    ulid: ULID
+
+
+@dataclass(frozen=True, slots=True)
+class MirrorPush:
+    """Push the saved Article or Collection ``ulid`` to the system of record (ADR 0020)."""
+
+    ulid: ULID
+
+
+@dataclass(frozen=True, slots=True)
+class MirrorDelete:
+    """Take the hard-deleted Article ``ulid`` off the system of record (ADR 0020 "Hard delete")."""
+
+    ulid: ULID
+
+
+type Job = ReindexArticle | ReindexSubtree | Thumbnail | PageText | MirrorPush | MirrorDelete
 
 
 def reconcile(archive: Archive, enqueue_missing_text: Callable[[Archive], None]) -> None:

@@ -180,8 +180,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** concentrates
 - **Sketch:** `app/media.py`: `attach(archive, ulid, incoming, *, changed_by) -> UpdateOutcome`, `finish_staged(archive, staging, key) -> UpdateOutcome | Repeated | None`, pure `admit(...) -> Refusal | None`; the routes keep protocol and gate only. Owner-grilled 2026-11-07.
 
-### 65. What runs after a canonical write has no single owner — Strong
-- **Indicator:** 6 `after_write.run` call sites in 2 files; `_enqueue_derived` at 2 more; `import_legacy` writes canonical twice with 0 `after_write` calls (2026-11-07)
+### 65. What runs after a canonical write has no single owner — done
+- **Indicator:** 6 `after_write.run` call sites in 2 files; `_enqueue_derived` at 2 more; `import_legacy` writes canonical twice with 0 `after_write` calls (2026-11-07). Now: every canonical write goes through `after_write` once: `run` at 6 sites in 2 files, `queue` at 2 in `import_legacy`, which skips the reindex and tile jobs it does itself in batch; `after_write.jobs` is the one list of what a write entails; `_enqueue_derived` 0; `domain.collections.moves_visibility` picks the Collection reindex from the copy the save replaces (2026-11-07)
 - **Evidence:** `app/after_write.py:55-73` owns index sync + mirror enqueue, not the derived jobs (`SavedArticle(ulid)` drops the media); `app/articles.py:36,105,139,157,192-203`, `app/collections.py:28-61` (picks the `Written` variant by reading the stored copy itself); `import_legacy.py:88,115` has a third policy (sync thumbnails, full rebuild, no mirror push, no page text)
 - **Deletion test:** concentrates — the ADR 0013/0014 order lives in one module
 - **Sketch:** `after_write.run(archive, written) -> bool` with `SavedArticle` carrying the Article; pure `after_write.jobs(written) -> tuple[Job, ...]`; pure `domain.collections.moves_visibility(before, after)` picks the variant. Pairs with #66.

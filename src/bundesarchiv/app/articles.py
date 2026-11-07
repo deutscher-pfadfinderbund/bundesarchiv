@@ -1,11 +1,9 @@
 """Article write services (ordering law: app/CLAUDE.md; entry-point split: ADR 0013)."""
 
-import contextlib
 from collections.abc import Callable
-from dataclasses import dataclass, replace
-from typing import assert_never
+from dataclasses import replace
 
-from bundesarchiv.app import after_write, media_text, thumbnails
+from bundesarchiv.app import after_write
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import (
     Conflicted,
@@ -15,7 +13,6 @@ from bundesarchiv.app.result import (
     Updated,
     UpdateOutcome,
 )
-from bundesarchiv.app.tasks import enqueue_extract_media_text, enqueue_generate_thumbnail
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -34,8 +31,7 @@ def save_article(
 ) -> SaveResult:
     """The form path (ADR 0013): a stale ``expected_version`` raises ``Conflict``."""
     new_version = archive.articles.save(article, expected_version, changed_by=changed_by)
-    index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
-    _enqueue_derived(article)
+    index_updated = after_write.run(archive, after_write.SavedArticle(article))
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -103,8 +99,7 @@ def create_article(
         custom=custom,
     )
     new_version = archive.articles.save(article, 0, changed_by=changed_by)  # 0 = never saved
-    index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
-    _enqueue_derived(article)
+    index_updated = after_write.run(archive, after_write.SavedArticle(article))
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
@@ -137,7 +132,7 @@ def delete_article(
     change record is the mark, reindexed and pushed like ``save_article``. A stale version raises
     ``Conflict`` before anything is written or indexed."""
     new_version = archive.articles.mark_deleted(article, expected_version, changed_by=changed_by)
-    index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
+    index_updated = after_write.run(archive, after_write.TrashedArticle(article.ulid))
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -157,47 +152,3 @@ def hard_delete_article(archive: Archive, ulid: ULID, expected_version: Version)
     archive.articles.hard_delete(ulid, expected_version)
     index_updated = after_write.run(archive, after_write.RemovedArticle(ulid))
     return SaveResult(version=0, index_updated=index_updated)
-
-
-@dataclass(frozen=True, slots=True)
-class Thumbnail:
-    """Render the file ``content_hash`` of Article ``ulid``."""
-
-    ulid: ULID
-    content_hash: str
-
-
-@dataclass(frozen=True, slots=True)
-class PageText:
-    """Read the page text of Article ``ulid``'s files (ADR 0023)."""
-
-    ulid: ULID
-
-
-type DerivedJob = Thumbnail | PageText
-
-
-def derived_jobs(article: Article) -> tuple[DerivedJob, ...]:
-    """The jobs that derive files from ``article``'s media: a ``Thumbnail`` per file whose kind has
-    a renderer, and one ``PageText`` when any file ``media_text.reads``."""
-    tiles = tuple(
-        Thumbnail(article.ulid, ref.content_hash)
-        for ref in article.media
-        if thumbnails.renders(ref)
-    )
-    text = (PageText(article.ulid),) if any(map(media_text.reads, article.media)) else ()
-    return tiles + text
-
-
-def _enqueue_derived(article: Article) -> None:
-    """Enqueue ``derived_jobs(article)``, each on its own: a failed enqueue never touches the
-    canonical write or skips another job. Every job is idempotent, so re-saving is harmless."""
-    for job in derived_jobs(article):
-        with contextlib.suppress(Exception):
-            match job:
-                case Thumbnail(ulid, content_hash):
-                    enqueue_generate_thumbnail(ulid, content_hash)
-                case PageText(ulid):
-                    enqueue_extract_media_text(ulid)
-                case _:
-                    assert_never(job)

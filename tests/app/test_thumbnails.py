@@ -126,6 +126,21 @@ def test_an_empty_cache_file_is_derived_again(tmp_path: Path) -> None:
         assert display.format == "AVIF"
 
 
+def test_a_cached_tile_is_not_derived_again(tmp_path: Path) -> None:
+    """Every save of an Article queues a tile job per file; the tile of the same bytes stands."""
+    store = LocalFsObjectStore(tmp_path / "canonical")
+    ref = _stored(tmp_path, "scan.png", _png(), "image/png")
+    ArticleRepository(store).save(
+        make_article(_ULID, collection_id="ROOT", media=(ref,)), 0, changed_by="tester"
+    )
+    tile = thumbnail_path(tmp_path / "thumbs", ref.content_hash)
+    tile.parent.mkdir(parents=True)
+    tile.write_bytes(b"the tile an earlier job wrote")
+
+    assert not generate_thumbnail(store, _ULID, ref.content_hash, tmp_path / "thumbs")
+    assert tile.read_bytes() == b"the tile an earlier job wrote"
+
+
 def test_the_kind_is_asked_before_the_cache(tmp_path: Path) -> None:
     """The same bytes stored as an image elsewhere left a display version; as a PDF they have none."""
     ref = _stored(tmp_path, "brief.pdf", _png(), "application/pdf")
