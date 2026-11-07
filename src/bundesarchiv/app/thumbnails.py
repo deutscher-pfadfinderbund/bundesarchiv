@@ -104,7 +104,8 @@ def tile_size(thumbnail_root: Path, content_hash: str) -> tuple[int, int] | None
 def generate_thumbnail(
     store: ObjectStore, ulid: ULID, content_hash: str, thumbnail_root: Path
 ) -> bool:
-    """True iff a tile was written; never raises for the file's content."""
+    """True iff a tile was written; never raises for the file's content. An image's display
+    version is derived beside it, so a page can offer it before a lightbox asks."""
     articles = ArticleRepository(store)
     try:
         media = articles.load(ulid).article.media
@@ -113,7 +114,9 @@ def generate_thumbnail(
     ref = next((entry for entry in media if entry.content_hash == content_hash), None)
     if ref is None:
         return False  # the file left the Article before the job ran
-    return _derive(articles, ulid, ref, thumbnail_root, Size.TILE)
+    tile = _derive(articles, ulid, ref, thumbnail_root, Size.TILE)
+    cached(articles, ulid, ref, thumbnail_root, Size.DISPLAY)
+    return tile
 
 
 def cached(
