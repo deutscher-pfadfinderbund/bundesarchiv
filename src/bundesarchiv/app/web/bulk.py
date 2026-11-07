@@ -1,46 +1,188 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from bundesarchiv.app import articles
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, Updated
-from bundesarchiv.app.web import vocab
+from bundesarchiv.app.web import card, catalog, vocab
+from bundesarchiv.app.web.catalog import none_if_blank
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.models import ULID, Article
 from bundesarchiv.persistence.errors import ArchiveError
 
+#: The POST name of the plain text widget, and the one an unknown field's value is read under.
+TEXT_INPUT = "value_text"
+
+
+def _accept(_value: str, _selected: Sequence[Article], _chooser: CollectionChooser) -> str | None:
+    return None
+
+
+def _verbatim(raw: str, _chooser: CollectionChooser) -> str:
+    return raw
+
+
+def _keeps_document_type(_article: Article, _value: str) -> bool:
+    return False
+
 
 @dataclass(frozen=True, slots=True)
 class BulkField:
-    """``value_input``: the form field the value is posted under; ``is_custom``: ``target`` is a
-    custom-bag key."""
+    """One bulk-editable field and its behaviour. ``value_input``: the POST name its value is sent
+    under. ``current`` reads the field off an Article. ``validate`` refuses a value against the
+    selected Articles (the German refusal) or accepts it (``None``). ``apply`` sets an accepted
+    value on one Article. ``display`` spells a raw value as a person reads it.
+    ``clears_document_type``: applying the value empties the Article's Dokumenttyp (spec §3).
+    ``reads_selection``: ``validate`` or ``clears_document_type`` reads the selected Articles, so a
+    commit loads them first."""
 
     target: str
-    label: str
     plural: str
     value_input: str
-    is_custom: bool
+    current: Callable[[Article], str | None]
+    apply: Callable[[Article, str, CollectionChooser], Article]
+    validate: Callable[[str, Sequence[Article], CollectionChooser], str | None] = _accept
+    display: Callable[[str, CollectionChooser], str] = _verbatim
+    clears_document_type: Callable[[Article, str], bool] = _keeps_document_type
+    reads_selection: bool = False
+
+    @property
+    def label(self) -> str:
+        """A custom-bag key is its own label."""
+        return card.LABELS.get(self.target, self.target)
+
+    def counted(self, n: int) -> str:
+        """``n`` values, spelled out: "1 Standort", "3 Standorte"."""
+        return vocab.numbered(n, self.label, self.plural)
+
+    def shown_new(self, value: str, chooser: CollectionChooser) -> str:
+        return self.display(value, chooser) if value.strip() else "(geleert)"
+
+    def shown_current(self, article: Article, chooser: CollectionChooser) -> str:
+        """Empty when unset."""
+        return self.display(self.current(article) or "", chooser)
+
+
+def _custom(key: str, plural: str) -> BulkField:
+    """A custom-bag key: an empty value removes it. The rebuilt Article runs the domain's
+    sort/dedupe/reserved-key guard (spec §1)."""
+
+    def apply(article: Article, value: str, _chooser: CollectionChooser) -> Article:
+        custom = {k: v for k, v in article.custom if k != key}
+        if cleaned := value.strip():
+            custom[key] = cleaned
+        return replace(article, custom=tuple(custom.items()))
+
+    return BulkField(key, plural, TEXT_INPUT, lambda a: dict(a.custom).get(key), apply)
+
+
+def _validate_media_type(
+    value: str, _selected: Sequence[Article], _chooser: CollectionChooser
+) -> str | None:
+    return catalog.parse_media_type(value)[1]
+
+
+def _media_type_clears(article: Article, value: str) -> bool:
+    return article.document_type is not None and not vocab.is_valid_pair(
+        none_if_blank(value), article.document_type
+    )
+
+
+def _with_media_type(article: Article, value: str) -> Article:
+    """Clears the Dokumenttyp the new Medienart does not admit, never leaving an invalid pair."""
+    return replace(
+        article,
+        media_type=none_if_blank(value),
+        document_type=None if _media_type_clears(article, value) else article.document_type,
+    )
+
+
+def _validate_document_type(
+    value: str, selected: Sequence[Article], _chooser: CollectionChooser
+) -> str | None:
+    """All-or-nothing: one selected Article whose Medienart does not admit it refuses the apply."""
+    document_type = none_if_blank(value)
+    if all(vocab.is_valid_pair(a.media_type, document_type) for a in selected):
+        return None
+    return (
+        f"„{document_type}“ gehört nicht zur Medienart aller ausgewählten Einträge. "
+        "Bitte zuerst die Medienart angleichen oder die Auswahl einschränken."
+    )
+
+
+def _validate_collection(
+    value: str, _selected: Sequence[Article], chooser: CollectionChooser
+) -> str | None:
+    return catalog.parse_collection(value, chooser)[1]
+
+
+def _apply_collection(article: Article, value: str, chooser: CollectionChooser) -> Article:
+    collection_id, refusal = catalog.parse_collection(value, chooser)
+    if collection_id is None:
+        raise ValueError(refusal)
+    return replace(article, collection_id=collection_id)
 
 
 #: In spec §1 order; never ``audience`` or ``lifecycle`` (spec §0.7); a Collection move still changes a published
-#: Article's inherited Sichtbarkeit (GitHub #73).
+#: Article's inherited Sichtbarkeit (GitHub #73). One ``replace`` per field, not a ``**`` splat: a
+#: splat type-checks as Any and would let a wrong field through.
 FIELDS: tuple[BulkField, ...] = (
-    BulkField("physical_location", "Standort", "Standorte", "value_text", False),
-    BulkField("creator", "Autor", "Autoren", "value_text", False),
-    BulkField("subject_place", "Ort", "Orte", "value_text", False),
-    BulkField("media_type", "Medienart", "Medienarten", "value_media_type", False),
-    BulkField("document_type", "Dokumenttyp", "Dokumenttypen", "value_document_type", False),
-    BulkField("Quelle", "Quelle", "Quellen", "value_text", True),
-    BulkField("collection_id", "Sammlungsteil", "Sammlungsteile", "value_collection_id", False),
-    BulkField("Querverweis", "Querverweis", "Querverweise", "value_text", True),
-    BulkField("Besitzer", "Besitzer", "Besitzer", "value_text", True),
+    BulkField(
+        "physical_location",
+        "Standorte",
+        TEXT_INPUT,
+        lambda a: a.physical_location,
+        lambda a, v, _: replace(a, physical_location=none_if_blank(v)),
+    ),
+    BulkField(
+        "creator",
+        "Autoren",
+        TEXT_INPUT,
+        lambda a: a.creator,
+        lambda a, v, _: replace(a, creator=none_if_blank(v)),
+    ),
+    BulkField(
+        "subject_place",
+        "Orte",
+        TEXT_INPUT,
+        lambda a: a.subject_place,
+        lambda a, v, _: replace(a, subject_place=none_if_blank(v)),
+    ),
+    BulkField(
+        "media_type",
+        "Medienarten",
+        "value_media_type",
+        lambda a: a.media_type,
+        lambda a, v, _: _with_media_type(a, v),
+        validate=_validate_media_type,
+        clears_document_type=_media_type_clears,
+        reads_selection=True,
+    ),
+    BulkField(
+        "document_type",
+        "Dokumenttypen",
+        "value_document_type",
+        lambda a: a.document_type,
+        lambda a, v, _: replace(a, document_type=none_if_blank(v)),
+        validate=_validate_document_type,
+        reads_selection=True,
+    ),
+    _custom("Quelle", "Quellen"),
+    BulkField(
+        "collection_id",
+        "Sammlungsteile",
+        "value_collection_id",
+        lambda a: a.collection_id,
+        _apply_collection,
+        validate=_validate_collection,
+        display=lambda raw, chooser: chooser.name_of(raw) or raw,
+    ),
+    _custom("Querverweis", "Querverweise"),
+    _custom("Besitzer", "Besitzer"),
 )
 
-_BY_TARGET: dict[str, BulkField] = {f.target: f for f in FIELDS}
-
-ALLOWED_FIELDS: frozenset[str] = frozenset(_BY_TARGET)
-
-_CUSTOM_FIELDS: frozenset[str] = frozenset(f.target for f in FIELDS if f.is_custom)
+#: An unknown name finds nothing: the view refuses it before anything is read or written.
+BY_TARGET: Mapping[str, BulkField] = {f.target: f for f in FIELDS}
 
 
 #: The Feld ``<select>``'s options: the placeholder first (empty, server-rejected with "Bitte ein
@@ -74,102 +216,6 @@ def field_picker_context(
     }
 
 
-def label_of(field: str) -> str:
-    """The German label for a field target (confirm/result pages show the label, not the key)."""
-    f = _BY_TARGET.get(field)
-    return f.label if f is not None else field
-
-
-def counted(field: str, n: int) -> str:
-    """``n`` values of an allowed ``field``, spelled out: "1 Standort", "3 Standorte"."""
-    f = _BY_TARGET[field]
-    return vocab.numbered(n, f.label, f.plural)
-
-
-def value_input_of(field: str) -> str:
-    """The POST field name the drawer posts this field's value under (spec §2 C). Unknown → the text
-    input (harmless; an unknown field is refused before anything is written)."""
-    f = _BY_TARGET.get(field)
-    return f.value_input if f is not None else "value_text"
-
-
-def is_allowed_field(field: str) -> bool:
-    """The only gate on ``field`` (spec §6.3)."""
-    return field in ALLOWED_FIELDS
-
-
-def apply_field(article: Article, field: str, value: str, *, chooser: CollectionChooser) -> Article:
-    """``field`` must pass ``is_allowed_field``."""
-    if field in _CUSTOM_FIELDS:
-        return _apply_custom(article, field, value)
-    cleaned = value.strip() or None
-    # One replace() per field, not a **splat: a splat type-checks as Any and would let a wrong field
-    # through.
-    match field:
-        case "physical_location":
-            return replace(article, physical_location=cleaned)
-        case "creator":
-            return replace(article, creator=cleaned)
-        case "subject_place":
-            return replace(article, subject_place=cleaned)
-        case "document_type":
-            return replace(article, document_type=cleaned)
-        case "collection_id":
-            # collection_id is required (never None); an unknown value is rejected upstream, but guard.
-            return replace(article, collection_id=chooser.resolve(value) or article.collection_id)
-        case "media_type":
-            return _apply_media_type(article, cleaned)
-        case _:  # unreachable — caller checked is_allowed_field; belt-and-braces no-op
-            return article
-
-
-def _apply_custom(article: Article, key: str, value: str) -> Article:
-    """Upsert (or remove on empty) one custom-bag key, rebuilding through the Article constructor so
-    the domain's sort/dedupe/reserved-key guard is the single rule (spec §1)."""
-    cleaned = value.strip()
-    custom = {k: v for k, v in article.custom if k != key}
-    if cleaned:
-        custom[key] = cleaned
-    return replace(article, custom=tuple(custom.items()))
-
-
-def _apply_media_type(article: Article, media_type: str | None) -> Article:
-    """Set ``media_type``, clearing ``document_type`` IFF the existing pair becomes invalid (spec §3 —
-    never leave an ``is_valid_pair``-invalid state)."""
-    document_type = article.document_type
-    if not vocab.is_valid_pair(media_type, document_type):
-        document_type = None
-    return replace(article, media_type=media_type, document_type=document_type)
-
-
-def document_type_fits_all(document_type: str, articles_: Sequence[Article]) -> bool:
-    """Whether ``document_type`` is valid against EVERY article's CURRENT media_type (spec §3,
-    Dokumenttyp-alone). One mismatch → False (the whole apply is rejected, all-or-nothing)."""
-    return all(vocab.is_valid_pair(a.media_type, document_type) for a in articles_)
-
-
-def field_display(field: str, value: str, chooser: CollectionChooser) -> str:
-    if not value.strip():
-        return "(geleert)"
-    return _display(field, value, chooser)
-
-
-def current_display(article: Article, field: str, chooser: CollectionChooser) -> str:
-    """The value an allowed ``field`` holds on ``article`` now, as the check page shows what a commit
-    replaces: a Collection by its name; empty when unset."""
-    raw = (
-        dict(article.custom).get(field, "") if field in _CUSTOM_FIELDS else getattr(article, field)
-    )
-    return _display(field, raw or "", chooser)
-
-
-def _display(field: str, raw: str, chooser: CollectionChooser) -> str:
-    """A raw value of ``field`` as a person reads it: a Collection by its name, else verbatim."""
-    if field == "collection_id":
-        return chooser.name_of(raw) or raw
-    return raw
-
-
 # --- the CAS loop + buckets (spec §4) ----------------------------------------------
 
 
@@ -193,8 +239,8 @@ class BulkOutcome:
 
 
 class _Unfit(Exception):
-    """The freshly-loaded media_type no longer admits the Dokumenttyp being applied (spec §3) — a
-    concurrent modification since the confirm page validated, so this article is refused unsaved."""
+    """The freshly loaded Article refuses the value, e.g. its Medienart no longer admits the
+    Dokumenttyp (spec §3): it changed since the check page validated, so it is refused unsaved."""
 
 
 @dataclass
@@ -203,23 +249,20 @@ class _FieldApplication:
     built from that pre-image: a ``conflicted`` row shows the record as it stood, and the cleared-
     Dokumenttyp note is a before/after comparison (spec §4)."""
 
-    field: str
+    field: BulkField
     value: str
     chooser: CollectionChooser
     loaded: Article | None = None
 
     def __call__(self, article: Article) -> Article:
         self.loaded = article
-        mutated = apply_field(article, self.field, self.value, chooser=self.chooser)
-        if self.field == "document_type" and not vocab.is_valid_pair(
-            article.media_type, mutated.document_type
-        ):
+        if self.field.validate(self.value, (article,), self.chooser) is not None:
             raise _Unfit
-        return mutated
+        return self.field.apply(article, self.value, self.chooser)
 
 
 def apply_bulk(
-    archive: Archive, ulids: Sequence[ULID], field: str, value: str, *, changed_by: str
+    archive: Archive, ulids: Sequence[ULID], field: BulkField, value: str, *, changed_by: str
 ) -> BulkOutcome:
     """Never retries: a lost race must reach the human, not be re-applied to the winner."""
     saved = 0
@@ -235,7 +278,8 @@ def apply_bulk(
                 archive, ulid, mutation, changed_by=changed_by, retries=0
             )
         except _Unfit, ArchiveError:
-            outcome = Conflicted()  # refused pair, or a save failure the service does not own
+            # a value the fresh Article refuses, or a save failure the service does not own
+            outcome = Conflicted()
         loaded = mutation.loaded
         if isinstance(outcome, Missing) or loaded is None:
             missing.append(ulid)
@@ -244,11 +288,9 @@ def apply_bulk(
         match outcome:
             case Conflicted():
                 conflicted.append(row)
-            case Updated(article=written, index_updated=index_updated):
+            case Updated(index_updated=index_updated):
                 saved += 1
-                if field == "media_type" and (
-                    loaded.document_type is not None and written.document_type is None
-                ):
+                if field.clears_document_type(loaded, value):
                     doctype_cleared.append(row)
                 index_lagged = index_lagged or not index_updated
     return BulkOutcome(
