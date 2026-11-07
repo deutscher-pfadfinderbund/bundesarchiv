@@ -1,7 +1,6 @@
 # Chunked upload: tus pieces staged on local disk, one finish per file
 
-Status: Proposed (2026-10-31). Changes the upload path of ADR 0017 and the request bound of ADR
-0020 ("nginx buffers the whole request body", `client_max_body_size 8g`).
+Status: Accepted (2026-11-07; proposed 2026-10-31). Amends 0017 (the upload path) and 0020 (the request bound: nginx buffers the request body).
 
 ## Context
 

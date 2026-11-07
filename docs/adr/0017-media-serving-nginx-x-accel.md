@@ -1,5 +1,7 @@
 # Media bytes: nginx X-Accel sidecar; thumbnails from Django; the mirror never serves users
 
+Status: Accepted (2026-07-12). Amended by 0026 (2026-10-31): upload routes.
+
 Original media blobs are served through an **nginx sidecar via
 `X-Accel-Redirect`**: Django runs the full authorization gate per request
 (`media_views._authorize` — viewer, tier, chain, hash-on-article, every
@@ -88,7 +90,7 @@ deliberately non-load-bearing component load-bearing.
   carries it, whatever the max-age.
 - **An upload is authorized before nginx reads its body.** nginx buffers request
   bodies to disk (owner, 2026-09-24, ADR 0020), so an ungated upload route would
-  let anyone fill the disk. Only the upload route takes a large body. On it, an
+  let anyone fill the disk. Only the upload routes take a large body (multipart, tus pieces; 0026). On them, an
   `auth_request` asks `GET /upload-gate/<ulid>`, which runs the upload view's own
   gate and answers 204 exactly when the upload would be taken. Everyone else,
   anonymous included, gets the plain empty 404 from nginx, and the body is

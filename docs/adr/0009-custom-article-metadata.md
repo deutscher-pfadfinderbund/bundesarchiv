@@ -1,5 +1,7 @@
 # Article metadata: predefined fields plus an Archivist-only custom escape hatch
 
+Status: Accepted (2026-06-27).
+
 ## Context
 
 A long-lived archive will need fields we did not plan for. Archivists should be able to add

@@ -1,5 +1,7 @@
 # Static assets: WhiteNoise owns CSS/JS
 
+Status: Accepted (2026-07-12).
+
 CSS/JS are served by **`django.contrib.staticfiles` + WhiteNoise** with
 `CompressedManifestStaticFilesStorage`: hashed filenames (`forms.a1b2c3.css`),
 `Cache-Control: immutable` far-future headers, and gzip + brotli variants

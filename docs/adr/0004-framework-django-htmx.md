@@ -1,5 +1,7 @@
 # Framework: Django + HTMX
 
+Status: Accepted (2026-06-26).
+
 The application is built with **Django** (Python) using **HTMX** for interactivity (server-rendered HTML fragment swaps), plus a sprinkle of Alpine.js only for purely-local UI. No SPA, no separate JS frontend, no API layer.
 
 Chosen because the application is **server-render-shaped** (CRUD + faceted search + media display), not SPA-shaped — HTMX covers the needed interactivity (autocomplete, search-as-you-type, inline edit, the publish-time visibility preview) with no build pipeline to maintain over a decade. Django is a mature, stable, batteries-included fit for this shape, existing Django expertise is available, and Python is the strongest ecosystem for the deferred OCR/content-search goal (OCRmyPDF + Tesseract `deu`). Keycloak OIDC integrates via `authlib` (ADR 0018).
@@ -13,7 +15,7 @@ Chosen because the application is **server-render-shaped** (CRUD + faceted searc
 ## Consequences
 
 - **The Django admin is NOT the cataloging UI.** Canonical data is `README.md` files under the sole-writer storage port; the admin edits DB rows and would write the *disposable index*, bypassing the port + lock — a correctness bug. Archivist screens are **custom forms** that go through the storage port.
-- **Background jobs** (thumbnails, reindex, future OCR) run on a single **Postgres-backed worker** (Procrastinate or `django-tasks-db`) — no Redis, no Celery broker.
+- **Background jobs** (thumbnails, reindex, future OCR) run on a single **Postgres-backed worker** (Procrastinate) — no Redis, no Celery broker.
 - The **effective-audience function** is one pure, test-guarded Python function (Django does not enforce purity at the language level — tests do); it is reused by list filters, detail auth, the index filter, and the visibility preview.
 - The Postgres index is treated as **disposable/derived** — resist the ORM's gravity to treat DB rows as canonical; everything rebuilds from `README.md`.
 - Per ADR 0002, framework lock-in is bounded to an app-layer rewrite; the archive (files) is unaffected by this choice.
@@ -39,8 +41,7 @@ already carried `{% csrf_token %}`, and the HTMX layer sends the token via
 `hx-headers`, so enabling it was reversible and required no template changes. A
 tokenless cross-site POST now gets a 403 before the view runs — orthogonal to the
 archivist gate (a valid token still hits the plain deny 404 for a
-non-archivist). **Deferred to Part 6 (TLS deploy):** set `CSRF_COOKIE_SECURE = True`
-and `CSRF_TRUSTED_ORIGINS` once the service is behind HTTPS.
+non-archivist). `CSRF_COOKIE_SECURE` is True in prod.
 
 **Update 2026-09-25 — htmx 4 (owner):** the app moves from htmx 2.0.4 to htmx 4
 (4.0.0 released 2026-08-28), plain `htmx.min.js`, with the `browser-indicator`

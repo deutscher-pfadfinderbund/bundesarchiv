@@ -48,7 +48,8 @@ type Refresh = tuple[Literal["article", "subtree"], ULID, Version | None]
 @dataclass
 class InMemoryIndex:
     """Records each refresh with what ``store`` held then, and computes no rows; with ``failing``
-    every refresh raises after it is recorded."""
+    every refresh raises after it is recorded. It never gets search or facets: the read side runs
+    real SQL so the leak tests prove it (ADR 0024)."""
 
     store: ObjectStore
     failing: bool = False

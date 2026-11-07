@@ -1,11 +1,9 @@
 # Per-Article optimistic concurrency: version CAS, no locks
 
+Status: Accepted (2026-07-04). Amended by 0019 (2026-09-24).
+
 > **Note (proposed 2026-09-24):** stage B of [ADR 0020](0020-storage-topology-system-of-record.md)
 > would move the compare-and-swap to WebDAV `If-Match` and retire `WRITER_LOCK`.
-
-Status: Accepted (2026-07-04) — adopted by Part 4.1. v2 folded the 2026-07-04
-adversarial panel findings (reconciled against the built Part 1 code); Part 4.1
-added the shared writer mutex and Collection versioning, then adopted this ADR.
 
 Multiple archivists edit through the web UI at once. v1 through Part 3 was
 single-writer; Part 4 breaks that assumption. We need a concurrency rule for
@@ -45,14 +43,12 @@ the canonical store (README files through the ObjectStore port).
   Worker jobs write through the same repositories in the same process group's
   discipline; see ADR 0014.
 
-## Collections get the same rule — as sized work, not a footnote
+## Collections get the same rule
 
 `Collection` carries audience; a lost collection edit is an access-control
-change. But Collections have **no version field today**: Part 4.1 adds
-`version` to the collection README front matter, the codec round-trip, a
-versioned load result, and `save(collection, expected_version)` with the same
-`Conflict` semantics. This is a real task with codec + repository + conformance
-tests, mirroring the Article shape.
+change. So collections carry a `version` in the README front matter and
+`save(collection, expected_version)` has the same `Conflict` semantics,
+mirroring the Article shape.
 
 ## Supersession
 

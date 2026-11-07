@@ -1,9 +1,6 @@
 # Incremental reindex: synchronous scope updates, reference jobs, reconcile net
 
-Status: Accepted (2026-07-04) — adopted by Part 4.2. v2 folded the 2026-07-04
-adversarial panel findings; adoption added the worker-library choice below and
-built the `index_article` / `index_subtree` surfaces, the app-service shell, the
-Procrastinate wiring, the advisory lock, and the config_version check.
+Status: Accepted (2026-07-04). Refined by 0024 (2026-10-18).
 
 Worker library: **Procrastinate** (Postgres-table-only queue, no broker, Django
 6.0 compatible, `periodic` scheduler for the reconcile, single-process deploy).
@@ -25,10 +22,8 @@ Three mechanisms, one invariant each:
    subtree reindex. At this archive's scale (~10³ articles) both are
    milliseconds; the over-exposure window is the request itself.
 
-   **The upsert surface does not exist yet — Part 4.2 builds it explicitly:**
-   `index_article(store, ulid)` and `index_subtree(store, collection_ulid)` in
-   `indexer.py`, both routing through the SAME `build_row` + fail-closed
-   branch as `rebuild()` (an article whose chain breaks mid-edit becomes a
+   Both upserts, `index_article` and `index_subtree`, route through the SAME
+   `build_row` + fail-closed branch as `rebuild()` (an article whose chain breaks mid-edit becomes a
    fail-closed row, identical semantics). `rebuild()` remains THE semantics;
    the incremental paths are performance sugar over the same code path, so the
    Task 9 equivalence grid keeps guarding all of them.
@@ -44,8 +39,8 @@ Three mechanisms, one invariant each:
    restores the invariant no matter what was missed. **Default: hourly** (the
    rebuild is seconds at this scale; hourly makes the worst-case staleness
    window below match the archive's own risk language instead of a day).
-   `config_version` mismatch check runs at deploy/startup (Part 4.2 writes the
-   comparison — only the column exists today) and forces a rebuild.
+   `config_version` mismatch check runs at startup (`ensure_index_current`)
+   and forces a rebuild.
 
 ## Writer coordination (rebuild vs sync upsert race)
 
@@ -68,10 +63,7 @@ If the process dies after the canonical write but before BOTH the sync update
 and the enqueue, the index stays stale until the reconcile. With the hourly
 default, a security-narrowing edit can remain over-exposed for up to an hour
 in that crash case. This is the accepted residual risk — stated here so nobody
-discovers it in an incident review. Additionally: when a synchronous index
-update fails in-request, the UI warning must say the *visibility change is not
-yet effective* (not a generic "something went wrong"), because the archivist
-just made an access-control decision that has not propagated.
+discovers it in an incident review.
 
 ## The gate (from the roadmap, now concrete and adversarial)
 
@@ -97,20 +89,17 @@ rebuild proves nothing about the synchronous path.
 
 ## Consequences
 
-- Collection deletion in the UI is blocked while descendants exist (otherwise:
-  fail-closed rows by design — acceptable, ugly, so the UI prevents it).
 - Job-table hygiene is an ops knob: Procrastinate accumulates finished
-  `procrastinate_jobs` rows; prune them periodically (its `DjangoApp` ships a
-  `db_cleanup` periodic task / the `procrastinate` CLI). Stated in the deploy
+  `procrastinate_jobs` rows; prune them periodically. Stated in the deploy
   runbook next to the reconcile interval.
-- Concrete knobs (Part 4.2): the reconcile cadence is `BUNDESARCHIV_RECONCILE_CRON`
+- Concrete knobs: the reconcile cadence is `BUNDESARCHIV_RECONCILE_CRON`
   (default `0 * * * *`, hourly); the canonical store a job re-reads is
   `BUNDESARCHIV_CANONICAL_ROOT`; the one index-writer advisory-lock key is the
   fixed constant `indexer._INDEX_WRITER_LOCK_KEY` (never reuse it for another
   lock). config_version drift is remedied by `manage.py ensure_index_current`,
   run at deploy and worker startup.
-- Part 4 tests: the adversarial staleness gate per edit type; sync-failure →
-  job-enqueued + specific-warning path; reconcile-heals-orphan; advisory-lock
+- Tests: the adversarial staleness gate per edit type; sync-failure →
+  job-enqueued path; reconcile-heals-orphan; advisory-lock
   serialization (upsert during rebuild → final state reflects canonical).
 - Deferred with triggers: job dedup/coalescing (only if queue depth matters);
   sub-second freshness SLAs (only if reconcile + sync prove insufficient).

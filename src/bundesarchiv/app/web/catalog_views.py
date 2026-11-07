@@ -1002,7 +1002,9 @@ def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
     (``deploy/nginx/nginx.conf``): 204 exactly when ``article_media_upload`` would take the
     files from a same-origin page, so nginx refuses everyone else before it reads the body (ADR
     0017). Same-origin is ``Sec-Fetch-Site``, else ``Origin``, else the ``Referer``: the order
-    Django's CSRF check falls back in. Otherwise the plain 404."""
+    Django's CSRF check falls back in. Otherwise the plain 404. The gate's refresh is a subrequest
+    whose cookies nginx drops, so Keycloak's refresh-token rotation stays off; with it on, the gate
+    must not refresh (ADR 0018)."""
     if request.method != "GET" or _load_gated(request, ulid) is None:
         return not_found()
     site = request.headers.get("Sec-Fetch-Site")

@@ -67,6 +67,8 @@ ALLOWED_HOSTS = [
 # (deploy/nginx/nginx.conf). Without this Django reads every request as http and refuses each POST
 # on the CSRF origin check against an https ``Referer``.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# The CSRF cookie keeps Django's name, ``csrftoken``: a ``__Host-`` name breaks Django's cookie parser
+# (ADR 0025).
 CSRF_COOKIE_SECURE = True
 
 INSTALLED_APPS = [
@@ -88,7 +90,8 @@ BUNDESARCHIV_SLOW_REQUEST_MS = int(os.environ.get("BUNDESARCHIV_SLOW_REQUEST_MS"
 
 ROOT_URLCONF = "bundesarchiv.app.web.urls"
 
-# No session or auth middleware (ADR 0018). SecurityMiddleware first, so SECURE_* apply to every
+# The app is synchronous WSGI: no GZipMiddleware, no async views or ASGI; compression belongs at the
+# proxy (ADR 0016). No session or auth middleware (ADR 0018). SecurityMiddleware first, so SECURE_* apply to every
 # answer; the anonymous gate last, so it sees only requests bound for a view.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

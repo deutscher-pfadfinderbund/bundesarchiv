@@ -9,3 +9,6 @@ failure must NOT re-raise, then the mirror enqueue), then the derived-file enque
 ADR 0013's split is which entry point you call: form saves carry the form's expected version straight to `save_article`, never
 through the retrying `update_article` (which owns the load-mutate-save cycle for internal mutations).
 Every write service that writes a version takes `changed_by`, who is acting; the version it writes records it (ADR 0019).
+Background jobs run on the Postgres Procrastinate worker: no Redis, no Celery (ADR 0004). The index is
+the only derived projection that is an `Archive` member; thumbnails and page texts stay reference jobs,
+and the mirror a job argument (ADR 0024).

@@ -1,5 +1,7 @@
 # German full-text search: unaccent + german_stem, no compound splitting in v1
 
+Status: Accepted (2026-07-04).
+
 ## Context
 
 [ADR 0003](0003-search-index.md) commits to German full-text search in Postgres:
@@ -213,7 +215,7 @@ lexeme, cast back to `tsquery`. Proven: `websearch_to_tsquery('Berliner Lieder')
 
 - **No compound decomposition in v1.** A bare-word query like *Lager* does not match
   *Bundeslager* on its own. Mitigated by prefix matching (`:*` on the last token), which the
-  Part 4 search UI applies by default — it lifts the corpus spot-check from 9/12 to 12/12.
+  `index/query.py` applies by default — it lifts the corpus spot-check from 9/12 to 12/12.
 - **Umlaut-insensitive by design.** `unaccent + german_stem` means *Baume* finds *Bäume* and
   *Meissner* finds *Meißner*. Intended: members type on non-German keyboards.
 - **The baked `hunspell-de-de` dictionary is unused by the FTS config.** Task 4's dictionary

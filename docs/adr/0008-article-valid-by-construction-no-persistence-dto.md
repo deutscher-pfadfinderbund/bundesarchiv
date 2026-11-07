@@ -1,5 +1,7 @@
 # Articles are valid-by-construction; no persistence DTO layer
 
+Status: Accepted (2026-06-27).
+
 ## Context
 
 Today there is one path that builds an `Article`: the README codec (`persistence/readme.py`)

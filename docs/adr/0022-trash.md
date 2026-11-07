@@ -1,7 +1,6 @@
 # Papierkorb: a deleted Article is a state, not a missing folder
 
-Status: Accepted (2026-10-01; proposed 2026-09-30). Amends ADR 0020 ("Hard delete is final for the app"): the hard
-delete stays, but only as the Papierkorb's "Endgültig löschen".
+Status: Accepted (2026-10-01). Amends 0020.
 
 ## Context
 

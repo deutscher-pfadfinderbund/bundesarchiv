@@ -1,8 +1,6 @@
 # Canonical layout v1: version history, named media files, a fixity check
 
-Status: Proposed (2026-09-24), not yet accepted by the owner; built as proposed. Amends ADR 0005 (history, `changes/`, `.snapshots/`),
-ADR 0006 (media keys; its ULID-only folders stand), ADR 0013 (media exemption, secondary
-history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archivist's Keycloak username.
+Status: Accepted (2026-11-07; proposed 2026-09-24). Amends 0005, 0006, 0013, 0015. Amended by 0022 (2026-10-01).
 
 > **Amended 2026-09-27:** the README front matter gains an optional `added_at` (ISO 8601, UTC,
 > whole seconds): when the record entered the archive (*Hinzugefügt am*). The legacy import fills
@@ -174,8 +172,8 @@ included.
 - **Prefix delete**: removes everything under a prefix (ADR 0020 hard delete). It refuses a
   prefix of fewer than two segments, so no call can take `articles/` or the whole root.
 - **Streamed read**: a read that hands out the bytes without holding the whole object in
-  memory, on every adapter. The WebDAV adapter materializes today
-  (`open_stream` wraps `read`).
+  memory, on every adapter. The WebDAV adapter streams; its `read` wraps
+  `open_stream`.
 
 History files and media files are written with `create`, so no file is ever
 overwritten. Names stay case-insensitive for portability (owner, 2026-09-24): the name
