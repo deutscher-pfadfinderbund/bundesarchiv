@@ -79,6 +79,9 @@
     color: var(--ink-2);
     font: var(--type-meta);
   }
+  .cover figcaption {
+    max-inline-size: 65ch; /* the reading measure, as .prose: a caption never runs the column */
+  }
 
   /* ---- the lightbox: the article's images one at a time on the band's black. A scroll-snap
      strip, so a swipe or the arrow keys move natively; each slide prints its own counter. The
@@ -211,6 +214,9 @@
       font: var(--type-meta);
       & > * {
         margin: 0;
+      }
+      & > span {
+        max-inline-size: 65ch; /* the reading measure, as .prose */
       }
       & a {
         color: var(--ink-2);
