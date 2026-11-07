@@ -5,6 +5,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      patch:
+        update-types:
+        - "patch"
 
   - package-ecosystem: docker
     directory: /docker/postgres
