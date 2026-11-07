@@ -37,20 +37,6 @@ requires demonstrating the original Expected result.
 - **Evidence:** `design-system/components/media-tile.md`, "The Lightbox hook".
 - **Next step:** after the control primitives, a Lightbox adoption round.
 
-### A large tile shows a soft picture
-
-- **Source:** owner ruling 2026-09-28 (article media): images keep their own shape.
-- **Need:** a thumbnail that fills a wide box (the article page's cover) stays sharp.
-- **Actual result:** the tile's stand-in is the thumbnail (about 480px wide); the tile record
-  carries no width for the display rendition, so the tile cannot offer it to the browser as a
-  larger candidate. Since the cover's migration onto the tile, the cover shows the thumbnail at
-  its own size, so a photo cover is smaller than the full original it showed before, until a
-  display rendition is listed.
-- **Expected result:** the record carries the display rendition's width; the tile offers it in
-  `srcset`; the browser picks it for a wide box.
-- **Evidence:** the writer-ui report of 2026-10-29 (Media tile round).
-- **Next step:** the migration of the cover onto the tile adds the width to the record.
-
 ### Audio and video have no playback
 
 - **Source:** owner ruling 2026-10-28 (MediaTile): a playback control is audio's stand-in once

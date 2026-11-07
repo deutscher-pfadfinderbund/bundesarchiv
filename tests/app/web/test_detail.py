@@ -191,7 +191,8 @@ def test_each_tile_brings_its_ratio_and_an_image_its_display_url_to_the_page(
     make_corpus: Callable[[], Corpus], tmp_path: Path
 ) -> None:
     """The ratio is the image's as shown (its tile's), unknown until the tile exists; only an image
-    has a display version."""
+    has a display version, and its pixels reach the page once the job derived it (a small original
+    is not enlarged)."""
     from PIL import Image
 
     def encoded(size: tuple[int, int], format: str) -> io.BytesIO:
@@ -221,6 +222,7 @@ def test_each_tile_brings_its_ratio_and_an_image_its_display_url_to_the_page(
         "",
         display_url(ulid, untiled.content_hash),
     ]
+    assert [t.display_aspect for t in tiles] == [(960, 640), None, None]
 
 
 def test_every_tile_opens_and_offers_to_save_its_original(corpus: _DetailArchive) -> None:

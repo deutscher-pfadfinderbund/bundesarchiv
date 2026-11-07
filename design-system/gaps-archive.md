@@ -25,3 +25,24 @@ date and basis.
 - **Basis:** the Expected result holds: the owner decided that there is no icon set, and the
   placeholder shows its glyph per kind (`design-system/components/media-tile.md`; register row 9,
   `docs/design/design-system.md` Icons, `components/icon.html` restated).
+
+### A large tile shows a soft picture
+
+- **Source:** owner ruling 2026-09-28 (article media): images keep their own shape.
+- **Need:** a thumbnail that fills a wide box (the article page's cover) stays sharp.
+- **Actual result:** the tile's stand-in is the thumbnail (about 480px wide); the tile record
+  carries no width for the display rendition, so the tile cannot offer it to the browser as a
+  larger candidate. Since the cover's migration onto the tile, the cover shows the thumbnail at
+  its own size, so a photo cover is smaller than the full original it showed before, until a
+  display rendition is listed.
+- **Expected result:** the record carries the display rendition's width; the tile offers it in
+  `srcset`; the browser picks it for a wide box.
+- **Evidence:** the writer-ui report of 2026-10-29 (Media tile round).
+- **Next step:** the migration of the cover onto the tile adds the width to the record.
+- **Disposition:** resolved. The thumbnail job makes an image's 1600px display version beside its
+  thumbnail (owner, 2026-11-08: pre-generate it, async); `MediaTile` carries its pixels; the tile
+  offers both in `srcset` with `sizes="auto"`, and its width comes from the box.
+- **Closed:** 2026-11-08.
+- **Basis:** the Expected result holds: on the legacy archive at 1440px the cover is drawn 1184px
+  wide from the 1600px version, the row tiles keep the thumbnail (owner's look on :8000,
+  2026-11-08); `test_each_tile_brings_its_ratio_and_an_image_its_display_url_to_the_page`.

@@ -1,5 +1,5 @@
 ---
-sourcesHash: 1f1be8e879758221e3f3d9efc716db9af6304b21462a40a900ff75f2d2ebca40
+sourcesHash: 25e24ac11d51cd920348af335077acf897fa5966e24209137e44f02f94e512c9
 id: media-tile
 description: >-
   It shows one file, using the best stand-in the archive has for the file's
@@ -62,18 +62,15 @@ that file.
 The container owns the tile's place, its box and the spacing around it, and sets them on the
 tile's root only (`DESIGN.md`, "Contracts and public use": a composition sets knobs and places the
 component, never selects inside it). The box is a maximum: the stand-in is never drawn larger
-than its own pixels (owner, 2026-10-29: own pixels; today's cover). A placeholder has no pixels of
-its own; it takes those of the square a thumbnail fits in. The box is given in one of three ways:
+than the pixels of its largest version (owner, 2026-10-29: own pixels; today's cover). A
+placeholder has no pixels of its own; it takes those of the square a thumbnail fits in.
 
-- **An inline size only.** The stand-in fills that width in its own shape, up to its own pixels;
-  a placeholder is square.
-- **An inline and a block size.** The stand-in fits inside the box in its own shape, up to its
-  own pixels; a placeholder is the largest square that fits.
-- **A block size only**, as a row of tiles of equal height gives it. The stand-in takes the
-  height, up to its own pixels, and its own width; a placeholder is that square.
-
-With no size set, the stand-in shows at its own pixels, never wider than the tile's container. The
-tile owns what is inside the box: the stand-in, its edge, the label and the link.
+The container gives an inline size; the stand-in fills that width in its own shape, up to those
+pixels, and its height follows. A placeholder is square. With no size set, the stand-in shows at
+those pixels, never wider than the tile's container. The tile takes no block size: the browser
+picks the picture's version by the width it is drawn at, so the width comes from the box (owner,
+2026-11-08: `sizes="auto"`; a row of equal height gives each tile its width from the picture's
+ratio). The tile owns what is inside the box: the stand-in, its edge, the label and the link.
 
 ## Behaviour and states
 
@@ -82,7 +79,9 @@ The file decides the state; a consumer cannot choose one.
 - **A thumbnail exists** (ruled for images, PDFs and videos; a PDF's is its first page): the
   thumbnail shows in its own shape, never cropped and never letterboxed (ruling of 2026-09-28 (article media):
   "Images keep their own shape"; "A PDF shows as a thumbnail of its first page"), and never
-  larger than its own pixels (owner, 2026-10-29: own pixels; today's cover). Its corners are
+  larger than its own pixels (owner, 2026-10-29: own pixels; today's cover). An image whose
+  display version is made (the 1600px one, made with the thumbnail; owner, 2026-11-08) offers both,
+  and the browser picks the one the drawn width needs, so a wide box shows a sharp picture. Its corners are
   square (`DESIGN.md`, Shapes). It carries no visible label (owner, 2026-10-29: the label as
   today).
 - **No thumbnail** (a file whose thumbnail is not made yet, a kind that has none, an unknown
