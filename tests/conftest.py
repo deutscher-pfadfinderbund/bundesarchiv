@@ -15,8 +15,7 @@ _DB_FIXTURES = frozenset({"db", "transactional_db", "django_db_reset_sequences",
 _DEFAULT_PG_DSN = "postgresql://postgres:postgres@localhost:5434/bundesarchiv"
 
 _UNREACHABLE_HINT = (
-    "DB-backed tests require a running Postgres on localhost:5434. Start it with:\n"
-    "  mise run pg\n"
+    "Run DB-backed tests through mise (mise run test), which starts this checkout's Postgres.\n"
     "No container runtime (cloud sandbox)? bash scripts/dev-pg-cloud.sh (idempotent — also\n"
     "the fix when a sandbox reclaimed a previously running server mid-session).\n"
     "To run only the DB-free tests instead: mise run test:nodb"

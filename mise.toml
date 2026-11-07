@@ -1,170 +1,202 @@
-# Task runner (mise). `mise run check` = the fast pre-commit checks,
-# `mise run gate` = the full gate (see CLAUDE.md for when each applies).
-
 [settings]
-# mise daemons are experimental; a project setting is enough for `mise daemons`.
-experimental = true
+experimental = true # daemons, input groups
+task.source_freshness_hash_contents = true
 
 [tools]
 biome = "2.5.15"
 
-# The dev Postgres: a native server, one for all worktrees (each checkout makes its own test
-# database on it, tests/conftest.py). Tasks reach it through `pg`, never `daemons`: see there.
+[env]
+BUNDESARCHIV_PG_DSN = "{{ env.DATABASE_URL }}"
+PYTHONDONTWRITEBYTECODE = false # some agent shells set it
+PYTHONPYCACHEPREFIX = "{{ config_root }}/.var/pycache"
+
 [daemons.postgres]
 preset = "postgres"
 version = "18.6"
-port = 5434
-data_dir = "~/.local/share/bundesarchiv/postgres"
+port = { auto = true, base = 5434 }
+# In the checkout, so removing a worktree removes its data and the server stops on its own.
+data_dir = ".var/postgres"
 options.database = "bundesarchiv"
-# initdb takes encoding and locale from the caller's environment; pinned to the postgres image's
-# (UTF8, en_US) — a SQL_ASCII cluster cannot hold the ICU collation (ADR 0011).
+# initdb takes the locale from the caller; SQL_ASCII cannot hold the ICU collation (ADR 0011).
 env = { LANG = "en_US.UTF-8" }
 
-[tasks.check]
-description = "Fast commit check (no Postgres): ruff, format, import contracts, pyrefly, mypy, biome, pytest"
-run = [
-  "uv run ruff check",
-  "uv run ruff format --check .",
-  "uv run lint-imports",
-  "uv run pyrefly check src tests scripts --output-format=min-text",
-  "uv run mypy",
-  "biome check --error-on-warnings",
-  "uv run pytest -m \"not requires_pg\" -n 4",
+[task_config.input_groups]
+python = [
+  "src/**/*.py",
+  "tests/**/*.py",
+  "scripts/**/*.py",
+  ".claude/skills/**/*.py",
+  "manage.py",
+  "deploy/**/*.py",
+  "pyproject.toml",
+  "uv.lock",
 ]
+web = ["src/bundesarchiv/app/web/static/**", ".claude/settings.json", "biome.jsonc"]
+tests = [
+  "@group:python",
+  "src/**",
+  "tests/**",
+  "design-system/**",
+  "docs/design/design-system.md",
+  "deploy/nginx/**",
+  "!**/__pycache__/**",
+]
+
+[tasks]
+image = "container system start && container build -t bundesarchiv ."
+
+[tasks."lint:ruff"]
+sources = ["@group:python"]
+run = "uv run ruff check"
+
+[tasks."lint:format"]
+sources = ["@group:python"]
+run = "uv run ruff format --check ."
+
+[tasks."lint:imports"]
+sources = ["@group:python"]
+run = "uv run lint-imports"
+
+[tasks."lint:pyrefly"]
+sources = ["@group:python"]
+run = "uv run pyrefly check src tests scripts --output-format=min-text"
+
+[tasks."lint:mypy"]
+sources = ["@group:python"]
+run = "uv run mypy"
+
+[tasks."lint:biome"]
+sources = ["@group:web"]
+run = "biome check --error-on-warnings"
+
+[tasks."check:tests"]
+hide = true
+sources = ["@group:tests"]
+run = [{ task = "test:nodb" }]
+
+[tasks."gate:tests"]
+hide = true
+daemons = "postgres"
+sources = ["@group:tests"]
+run = [{ task = "test" }]
+
+[tasks.check]
+description = "Commit check: static checks and the tests that need no Postgres"
+depends = ["lint:*", "check:tests"]
 
 [tasks.gate]
-description = "Full gate: ruff, format, import contracts, pyrefly, biome, mypy, pytest"
-depends = ["pg"]
-run = [
-  "uv run ruff check",
-  "uv run ruff format --check .",
-  "uv run lint-imports",
-  "uv run pyrefly check src tests scripts --output-format=min-text",
-  "biome check --error-on-warnings",
-  "uv run mypy",
-  "uv run pytest",
-]
+description = "Push check: static checks and all tests outside the browser suites"
+depends = ["lint:*", "gate:tests"]
+
+[tasks.test]
+description = "All tests outside the browser suites"
+raw_args = true
+daemons = "postgres"
+run = "uv run pytest -n auto"
+
+[tasks."test:nodb"]
+description = "The tests that need no Postgres"
+raw_args = true
+run = 'uv run pytest -m "not requires_pg" -n auto'
+
+[tasks."test:db"]
+description = "The Postgres-backed tests"
+raw_args = true
+daemons = "postgres"
+# A command-line -m replaces the addopts deselection of e2e and gallery.
+run = 'uv run pytest -m "requires_pg and not e2e and not gallery" -n auto'
+
+[tasks."test:affected"]
+description = "The suites a diff needs: [BASE] [--dry-run]"
+raw_args = true
+run = "uv run python scripts/affected.py"
+
+[tasks."e2e:browsers"]
+description = "Install the chromium build the locked Playwright wants"
+run = "uv run playwright install chromium"
+
+[tasks."test:e2e"]
+description = "Browser journeys"
+raw_args = true
+daemons = "postgres"
+depends = ["e2e:browsers"]
+run = "uv run pytest -m e2e -p playwright -n auto"
+
+[tasks."test:gallery"]
+description = "State gallery screenshots"
+raw_args = true
+daemons = "postgres"
+depends = ["e2e:browsers"]
+run = "uv run pytest -m gallery -p playwright -s -n auto"
+
+[tasks."test:gallery-diff"]
+description = "Pixel-diff the gallery against a git ref (default main): [REF]"
+raw_args = true
+daemons = "postgres"
+depends = ["e2e:browsers"]
+run = "uv run python scripts/gallery_diff.py"
 
 [tasks.mutate]
-description = "Mutation proof: -- FILE OLD NEW PYTEST_ARGS (always restores FILE)"
+description = "Mutation proof: FILE OLD NEW PYTEST_ARGS"
+raw_args = true
 run = "uv run python scripts/mutate.py"
 
-[tasks.pg]
-description = "Start the dev Postgres (port 5434), the one server for all worktrees"
-# mise ties a running daemon to the checkout that started it and refuses its port to every other
-# checkout, so each worktree starts it from the main checkout. Stop it there too.
-run = 'cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && mise daemons start postgres'
-
-[tasks.image]
-description = "Build the app image locally (Apple container CLI)"
-run = "container system start && container build -t bundesarchiv ."
+[tasks.manage]
+description = "manage.py with dev settings on this checkout's Postgres: mise run manage migrate"
+raw_args = true
+daemons = "postgres"
+env = { DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings_dev" }
+run = "uv run manage.py"
 
 [tasks.dev]
 description = "Dev server on :8000"
-run = "DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver"
+usage = 'arg "[addrport]" default="8000"'
+daemons = "postgres"
+run = [{ task = "manage", args = ["runserver", "{{ usage.addrport }}"] }]
 
 [tasks."dev:legacy"]
-description = "Dev server on :8000 over the imported legacy archive (rebuilds the index first)"
-depends = ["pg"]
-# The search index is one table for every root, so it is rebuilt from the legacy tree on each start.
-# `manage.py rebuild_index` without the env var hands it back to the dev archive (README).
-env = { BUNDESARCHIV_CANONICAL_ROOT = "var/legacy/canonical", DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings_dev" }
+description = "Dev server over the imported legacy archive"
+usage = 'arg "[addrport]" default="8000"'
+daemons = "postgres"
+env = { BUNDESARCHIV_CANONICAL_ROOT = "var/legacy/canonical" }
 run = [
-  "uv run manage.py rebuild_index",
-  "uv run manage.py rebuild_thumbnails",
-  "uv run manage.py runserver",
+  { task = "manage", args = ["rebuild_index"] },
+  { task = "manage", args = ["rebuild_thumbnails"] },
+  { task = "manage", args = ["runserver", "{{ usage.addrport }}"] },
 ]
 
-# Test suites. The DB-backed ones share one test database per checkout (tests/conftest.py) — within
-# a checkout run them sequentially, never in parallel.
-
-[tasks.test]
-description = "Full default pytest run (needs Postgres)"
-depends = ["pg"]
-run = "uv run pytest"
-
-[tasks."test:nodb"]
-description = "Everything that runs without Postgres (derived requires_pg marker)"
-run = "uv run pytest -m \"not requires_pg\" -n 4"
-
-[tasks."test:db"]
-description = "Only the Postgres-backed tests"
-depends = ["pg"]
-# A command-line -m REPLACES the addopts deselection, so e2e/gallery must be re-excluded here.
-run = "uv run pytest -m \"requires_pg and not e2e and not gallery\""
-
-[tasks."test:domain"]
-description = "Visibility policy + value objects (pure Python, no DB)"
-run = "uv run pytest tests/domain"
-
-[tasks."test:persistence"]
-description = "Canonical file store: codecs, CAS, durability (no DB)"
-run = "uv run pytest tests/persistence"
-
-[tasks."test:index"]
-description = "Viewer-scoped search: leaks, equivalence, indexer (needs Postgres)"
-depends = ["pg"]
-run = "uv run pytest tests/index"
-
-[tasks."test:app"]
-description = "Service layer + HTTP surface incl. leak matrix (needs Postgres)"
-depends = ["pg"]
-run = "uv run pytest tests/app"
-
-[tasks."test:affected"]
-description = "Run the suites a diff needs (BASE...HEAD + uncommitted; not check). -- [BASE] [--dry-run]"
-run = "uv run python scripts/affected.py"
-
 [tasks."legacy:import"]
-description = "One-time import of the legacy CSV export (pass -- --dry-run first)"
-depends = ["pg"]
-# Its own canonical root: the import is one-time and refuses a root that already holds Articles, so
-# it must not aim at the dev archive by accident. Both paths stay overridable from the environment.
-# The search INDEX is not isolated with it — one Postgres table per database, rebuilt here from the
-# imported tree; `manage.py rebuild_index` hands it back to another root (README).
+description = "One-time import of the legacy CSV export (pass --dry-run first)"
+daemons = "postgres"
+raw_args = true
+# Its own canonical root: the import refuses a root that already holds Articles.
 run = """
 BUNDESARCHIV_CANONICAL_ROOT=${BUNDESARCHIV_CANONICAL_ROOT:-var/legacy/canonical} \
 uv run manage.py import_legacy --csv-dir var/legacy \
   --media-root ${BUNDESARCHIV_LEGACY_MEDIA:-var/legacy/media}
 """
 
-[tasks."e2e:browsers"]
-description = "Install/refresh the Playwright chromium build (idempotent)"
-run = "uv run playwright install chromium"
-
-[tasks."test:e2e"]
-description = "Real-browser journeys (excluded from default run)"
-depends = ["pg", "e2e:browsers"]
-run = "uv run pytest -m e2e -n 4"
-
-[tasks."test:gallery"]
-description = "State gallery, renders screenshots (excluded from default run)"
-depends = ["pg", "e2e:browsers"]
-run = "uv run pytest -m gallery -s -n 4"
-
-[tasks."test:gallery-diff"]
-description = "Pixel-diff the gallery: a git ref (default main) vs the working tree. -- REF"
-depends = ["pg", "e2e:browsers"]
-run = "uv run python scripts/gallery_diff.py"
-
-# Code-quality clues (scripts/quality/): the reports always exit 0; only comments-only gates.
-
 [tasks."quality:comments-only"]
-description = "Gate: exit 1 unless BASE..HEAD changes only comments and docstrings. -- BASE [HEAD]"
+description = "Exit 1 unless BASE..HEAD changes only comments and docstrings: BASE [HEAD]"
+raw_args = true
 run = "uv run python -m scripts.quality.comments_only"
 
 [tasks."quality:comments"]
-description = "Report: comment blocks and docstrings ranked by smell flags. -- [--top N] [--json]"
+description = "Comments and docstrings ranked by smell flags"
+raw_args = true
 run = "uv run python -m scripts.quality.comments"
 
 [tasks."quality:churn"]
-description = "Report: function churn per session, hotspots, stale-docstring risk, change coupling. -- [--under PREFIX] [--top N] [--json]"
+description = "Function churn, hotspots, change coupling"
+raw_args = true
 run = "uv run python -m scripts.quality.churn"
 
 [tasks."quality:indicators"]
-description = "Report: pass-throughs, data clumps, repeated conditions and literals, argument mutation, module depth. -- [--top N] [--json]"
+description = "Pass-throughs, data clumps, repeated conditions, module depth"
+raw_args = true
 run = "uv run python -m scripts.quality.indicators"
 
 [tasks."quality:trend"]
-description = "Report: per week over main, fix escapes and what they escaped from, debt counters, diff mix. -- [--since DATE] [--per week|merge] [--top N] [--json]"
+description = "Per week over main: fix escapes, debt counters, diff mix"
+raw_args = true
 run = "uv run python -m scripts.quality.trend"

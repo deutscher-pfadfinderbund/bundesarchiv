@@ -45,7 +45,7 @@ _BROWSER = ("test:gallery", "test:e2e")
 _ALL = ("test:db", *_BROWSER)
 
 # One row per condition. `test:db` runs every Postgres-backed test, tests/index and the app leak
-# matrix included, so no row names `test:index` or `test:app` (their other tests run in `check`).
+# matrix included, so no row runs tests/index or tests/app alone (their other tests run in `check`).
 RULES: tuple[Rule, ...] = (
     Rule(("test:db",), "Python source", _pattern(r"^src/bundesarchiv/.*\.py$")),
     Rule(

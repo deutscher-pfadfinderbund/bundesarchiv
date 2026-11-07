@@ -159,9 +159,9 @@ DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings"
 markers = [
     "e2e: browser-driven end-to-end journey (excluded from the default run; -m e2e to run)",
     "gallery: renders the canonical-state screenshot gallery (excluded from the default run; -m gallery to run)",
-    "requires_pg: needs the real Postgres on :5434 (auto-derived from DB fixtures; add explicitly only for out-of-band DB use)",
+    "requires_pg: needs Postgres (auto-derived from DB fixtures; add explicitly only for out-of-band DB use)",
 ]
-addopts = "--strict-markers -m 'not e2e and not gallery'"
+addopts = "--strict-markers -m 'not e2e and not gallery' -p no:playwright"
 
 [tool.importlinter]
 root_package = "bundesarchiv"

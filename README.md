@@ -17,23 +17,19 @@ archivists only).
 uv sync   # install all dependencies
 ```
 
-Start the search database (Postgres 18 on port 5434) and create its tables:
+Start the search database (Postgres 18) and create its tables:
 
 ```sh
-mise run pg                   # first start installs Postgres and creates the database
-uv run manage.py migrate
+mise run manage migrate   # starts this checkout's Postgres first
 ```
 
-Every mise task that needs the database starts it itself; it keeps running until
-`mise daemons stop postgres` in the main checkout. All worktrees of the repository
-share this one server (data in `~/.local/share/bundesarchiv/postgres`); each
-checkout makes its own test database on it. There is no dev compose file —
-`compose.yml` is the VPS stack.
+Each checkout runs its own Postgres, with its data in `.var/postgres`; `mise daemons stop postgres`
+stops it.
 
 ## Start the app
 
 ```sh
-DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver
+mise run dev
 ```
 
 Open <http://localhost:8000>. To try the archive as different people, open
@@ -46,7 +42,7 @@ Optional, in a second terminal — the background worker (generates thumbnails,
 retries failed index updates):
 
 ```sh
-DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py procrastinate worker
+mise run manage procrastinate worker
 ```
 
 ## Legacy import (local)
@@ -56,7 +52,7 @@ its media folder. `var/legacy/export_legacy.sh` is the script that made the
 export; it is gitignored, like the export itself.
 
 ```sh
-mise run legacy:import -- --dry-run   # reads everything, writes nothing, prints the report
+mise run legacy:import --dry-run      # reads everything, writes nothing, prints the report
 mise run legacy:import                # writes the archive, rebuilds the index, runs verify
 ```
 
@@ -70,8 +66,7 @@ exported files. Its canonical root is its own (`var/legacy/canonical`), so the
 dev archive's FILES are never touched. Point the app at the imported tree:
 
 ```sh
-BUNDESARCHIV_CANONICAL_ROOT=var/legacy/canonical \
-DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver
+mise run dev:legacy
 ```
 
 The search index is NOT isolated the same way: it is one Postgres table for
@@ -82,7 +77,7 @@ the index back to the dev archive (or to retry the import's own rebuild, which
 the one-time refusal gives no second chance at):
 
 ```sh
-uv run manage.py rebuild_index     # rebuilds from whatever BUNDESARCHIV_CANONICAL_ROOT points at
+mise run manage rebuild_index     # rebuilds from whatever BUNDESARCHIV_CANONICAL_ROOT points at
 ```
 
 Both paths are overridable: `BUNDESARCHIV_LEGACY_MEDIA` for the media folder,
@@ -99,8 +94,8 @@ The worker runs it monthly, and a finding fails that job. The legacy import
 runs it once at its end, and a finding fails the import.
 
 ```sh
-uv run manage.py verify                                          # the dev archive
-BUNDESARCHIV_CANONICAL_ROOT=var/legacy/canonical uv run manage.py verify
+mise run manage verify                                          # the dev archive
+BUNDESARCHIV_CANONICAL_ROOT=var/legacy/canonical mise run manage verify
 ```
 
 ## Tests

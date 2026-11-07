@@ -15,6 +15,8 @@ htmlcov/
 
 # Local archive data (never commit the archive tree)
 /var/
+# Per-checkout Postgres data and bytecode; hidden, so Spotlight skips it
+/.var/
 *.local
 *.local.*
 tests/test_data/archive_items.txt

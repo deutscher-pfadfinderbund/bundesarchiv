@@ -11,8 +11,7 @@ them here on purpose.
 
 ## Prerequisites
 
-- Postgres up on `:5434` (the same dev DB the other DB suites use — a down
-  Postgres fails, not skips, with a hint).
+- Postgres, which the mise tasks start (a down Postgres fails, not skips).
 - The Playwright chromium build the installed Playwright wants. Both mise tasks
   depend on `e2e:browsers`, which installs it — that is why these suites are run
   through the tasks and not through a raw `pytest`. Point
@@ -23,7 +22,7 @@ them here on purpose.
 
 ```
 mise run test:e2e               # all journeys
-mise run test:e2e -- -q         # quiet
+mise run test:e2e -q            # quiet
 ```
 
 Each journey builds its own corpus into a fresh store and runs against
@@ -37,11 +36,10 @@ login as an Archivist leaves (ADR 0025), so a journey lands authenticated
 without a login hop. `public_page` carries no cookie; `no_js_archivist_page` is
 the archivist with JavaScript disabled (the no-JS baseline).
 
-Both suites run in parallel (`-n 4`, pytest-xdist): each worker has its own test database
+Both suites run in parallel (`-n auto`, pytest-xdist): each worker has its own test database
 (`test_bundesarchiv_<checkout>_gwN`), temp corpus and thumbnail roots, and a live server on a
-random port. Measured on a 12-core Mac (wall time; serial / 2 / 4 / 6 workers): e2e 113 / 58 / 38 /
-37s, gallery 96 / 48 / 27 / 20s. Four is the default: e2e stops gaining past it. The gallery PNGs
-are byte-identical across serial and parallel renders. Run serially with `-- -n 0`.
+random port. The gallery PNGs are byte-identical across serial and parallel renders. Run serially
+with `-n 0`.
 
 ## Render the state gallery
 
@@ -66,13 +64,13 @@ Read-only states only: no gallery render mutates the shared corpus (so every sho
 shows clean canonical data).
 
 Each state is its own test (`test_render_state[<state>]`), so a broken reach fails that
-state alone and `mise run test:gallery -- -k edit-conflict` renders just one.
+state alone and `mise run test:gallery -k edit-conflict` renders just one.
 
 ### Before/after diff
 
 ```
 mise run test:gallery-diff            # main vs the working tree
-mise run test:gallery-diff -- <ref>   # any git ref
+mise run test:gallery-diff <ref>      # any git ref
 ```
 
 Renders the ref (in a throwaway worktree under `var/`, removed afterwards) and the working

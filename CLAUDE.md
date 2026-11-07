@@ -12,35 +12,32 @@ Open architecture and process debt: `docs/tech-debt.md`.
 
 ## Dev environment
 
-- Search database (Postgres 18, host port 5434) is a native mise daemon (`[daemons]` in
-  `mise.toml`), one server for all worktrees, owned by the main checkout: `mise run pg`
-  starts it from any worktree (tasks that need it do so themselves); stop it with
-  `mise daemons stop postgres` in the main checkout. There is no dev compose file;
-  `compose.yml` is the VPS deploy stack.
-- Dev server: `mise run dev`
-  (`DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver`).
-- `mise.toml` is the single source of what each command runs.
+- Postgres 18 runs as a mise daemon, one per checkout; tasks that need it start it. No dev
+  compose file: `compose.yml` is the VPS stack.
+- `mise.toml` is the single source of what each command runs. Arguments pass through:
+  `mise run test tests/index -k leak`, `mise run manage migrate`.
+- `check` and `gate` skip steps whose sources are unchanged since their last green run;
+  `--force` reruns them.
 
 ### When to run what
 
 | Moment | Command |
 | --- | --- |
-| Inner loop | `mise run test:nodb` (~6s under `-n 4`, no Postgres; `-- -n 0` runs it serially, for `--pdb` and debugging), or path-scoped `uv run pytest tests/<suite>/...` |
-| One suite | `mise run test:domain` / `test:persistence` / `test:index` / `test:app` |
-| Suites a diff needs | `mise run test:affected [-- BASE] [--dry-run]` — runs the suites `BASE...HEAD` plus uncommitted changes need, stops at the first red; not `check`. |
-| Change touches index, search or schema (`src/bundesarchiv/index/`, migrations, search-relevant persistence) | `mise run test:index` and `mise run test:db` — the full gate runs once, at the push |
+| Inner loop | `mise run test:nodb` (no Postgres; `-n 0` runs it serially, for `--pdb` and debugging), or path-scoped `uv run pytest tests/<suite>/...` |
+| One suite | `mise run test:nodb tests/<suite>` (`domain`, `persistence`), `mise run test tests/<suite>` (`index`, `app`) |
+| Suites a diff needs | `mise run test:affected [BASE] [--dry-run]` — runs the suites `BASE...HEAD` plus uncommitted changes need, stops at the first red; not `check`. |
+| Change touches index, search or schema (`src/bundesarchiv/index/`, migrations, search-relevant persistence) | `mise run test tests/index` and `mise run test:db` — the full gate runs once, at the push |
 | Before a push | `mise run gate`. The pre-push hook runs it and starts Postgres itself. |
 | Postgres-backed tests only | `mise run test:db` |
 | New test in `tests/app/` or `tests/index/` that uses `django_db` | also `mise run test:db` — `check` deselects it (auto-marked `requires_pg`), so `check` alone never runs it |
 | UI change | `mise run test:gallery` and `mise run test:e2e`, per the `design-gate` agent |
-| A change meant to touch only comments or docstrings (Python, JS) | `mise run quality:comments-only -- BASE` — exit 0 proves no code changed |
+| A change meant to touch only comments or docstrings (Python, JS) | `mise run quality:comments-only BASE` — exit 0 proves no code changed |
 
-Each checkout has its own test database (`test_bundesarchiv_<dir>`), so Postgres-backed
-runs in two worktrees may overlap; within one checkout, run them one at a time.
+Within one checkout, run Postgres-backed suites one at a time.
 
-Browser-suite runtimes (mise buffers pytest's progress line — a silent minute is normal, not a hang): both run under `-n 4` (pytest-xdist: one test database, corpus and live server per worker): gallery ~14s, e2e ~22s (serial: ~31s, ~61s), plus a one-time chromium install. Worker DBs are `test_bundesarchiv_<dir>_gwN`; pass `-n 0` after `--` to run serially.
+Browser-suite runtimes (mise buffers pytest's progress line — a silent minute is normal, not a hang): both run under `-n auto` (pytest-xdist: one test database, corpus and live server per worker): gallery ~14s, e2e ~22s, plus a one-time chromium install. Worker DBs are `test_bundesarchiv_<dir>_gwN`; pass `-n 0` to run serially.
 
-Extra pytest flags go after `--`: `mise run test:nodb -- -k foo -x --lf`.
+Extra pytest flags follow the task: `mise run test:nodb -k foo -x --lf`.
 
 pyrefly is a second opinion on mypy under a zero-error policy; both are part of
 the gate. Every invocation is `uv run pyrefly check src tests scripts` — bare

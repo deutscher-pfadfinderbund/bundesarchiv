@@ -58,7 +58,7 @@
       "Bash(mise run test:e2e)",
       "Bash(mise run test:gallery)",
       "Bash(mise run test:gallery-diff)",
-      "Bash(mise run test:index)",
+      "Bash(mise run test tests/index)",
       "Bash(uv run pyrefly check src tests scripts)",
       "Bash(uv run ruff check)",
       "Bash(uv run ruff format --check .)"

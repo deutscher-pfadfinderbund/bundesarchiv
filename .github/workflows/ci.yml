@@ -60,11 +60,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
 
-      - name: Fast checks (ruff, format, pyrefly, no-Postgres tests)
+      - name: Fast checks (static checks, no-Postgres tests)
         run: mise run check
-
-      - name: mypy
-        run: uv run mypy
 
   db:
     runs-on: ubuntu-latest
