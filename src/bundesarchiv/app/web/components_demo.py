@@ -11,7 +11,7 @@ from django.shortcuts import render
 from django.templatetags.static import static
 
 from bundesarchiv.app.web import browse, ledger, start, vocab
-from bundesarchiv.app.web.browse_views import MediaTile
+from bundesarchiv.app.web.browse_views import MediaTile, kind_glyph
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.start import Tile
 from bundesarchiv.domain.models import ULID
@@ -292,6 +292,7 @@ def _media_tile(
     size; an image has a display version and its ``slot`` in the page's lightbox."""
     return MediaTile(
         kind=vocab.file_word(kind),
+        glyph=kind_glyph(kind),
         name=name,
         caption="",
         file_url=_DEMO_FILE,

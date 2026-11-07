@@ -494,8 +494,17 @@ def test_published_record_offers_no_publish_to_archivist(corpus: _DetailArchive)
     assert "Als Entwurf zurückziehen" not in body
 
 
-def test_the_files_after_the_cover_leave_the_cover_out(corpus: _DetailArchive) -> None:
-    strip = _body(Public(), corpus.pub).split('class="media-rows"', 1)[1].split("</section>", 1)[0]
+def test_the_files_after_the_cover_leave_the_cover_out(
+    corpus: _DetailArchive, tmp_path: Path
+) -> None:
+    thumbs = tmp_path / "thumbs"
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+        # the first file leads as the cover once it has a picture to show
+        assert generate_thumbnail(
+            Archive.canonical().store, ULID(corpus.pub), corpus.cover_hash, thumbs
+        )
+        body = _body(Public(), corpus.pub)
+    strip = body.split('class="media-rows"', 1)[1].split("</section>", 1)[0]
     assert media_url(corpus.pub, corpus.second_hash) in strip
     assert media_url(corpus.pub, corpus.cover_hash) not in strip
 

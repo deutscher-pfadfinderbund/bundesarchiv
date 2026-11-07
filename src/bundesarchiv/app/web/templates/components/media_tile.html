@@ -27,9 +27,12 @@ its name). Contract: design-system/components/media-tile.md.{% endcomment %}
     {% comment %}draws nothing: its size is the pixels the placeholder may take, as a thumbnail's
     are{% endcomment %}
     <svg width="{{ file.pixels.0 }}" height="{{ file.pixels.1 }}" aria-hidden="true"></svg>
-    {% if label is not False %}
-    <span class="media-tile-label">{{ file.kind }} · {{ file.name }}</span>
-    {% endif %}
+    <span class="media-tile-face">
+      {% include "components/icon.html" with name=file.glyph only %}
+      {% if label is not False %}
+      <span class="media-tile-label">{{ file.kind }} · {{ file.breakable_name }}</span>
+      {% endif %}
+    </span>
   </span>
   {% endif %}
 </a>

@@ -156,6 +156,11 @@ _DRAWN = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
 _GLYPHS = {FileKind.VIDEO: "video-file", FileKind.AUDIO: "audio-file"}
 
 
+def kind_glyph(kind: FileKind) -> str:
+    """The icon a tile without a thumbnail shows for ``kind``."""
+    return _GLYPHS.get(kind, "file-present")
+
+
 @dataclass(frozen=True, slots=True)
 class MediaTile:
     """Every URL is gated and re-authorizes per request (a page never inlines bytes); an empty URL
@@ -205,7 +210,7 @@ def _tile(ulid: ULID, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTil
     kind = file_kind(ref)
     return MediaTile(
         kind=vocab.file_word(kind),
-        glyph=_GLYPHS.get(kind, "file-present"),
+        glyph=kind_glyph(kind),
         name=ref.filename,
         size=vocab.human_size(ref.byte_size),
         caption=caption,

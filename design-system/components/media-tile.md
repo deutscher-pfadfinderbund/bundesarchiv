@@ -1,5 +1,5 @@
 ---
-sourcesHash: e505bcc77ead67bc7e0c5b08786ee3e6225ddb867e49ea60a876795949a2a60d
+sourcesHash: 1f1be8e879758221e3f3d9efc716db9af6304b21462a40a900ff75f2d2ebca40
 id: media-tile
 description: >-
   It shows one file, using the best stand-in the archive has for the file's
@@ -86,12 +86,11 @@ The file decides the state; a consumer cannot choose one.
   square (`DESIGN.md`, Shapes). It carries no visible label (owner, 2026-10-29: the label as
   today).
 - **No thumbnail** (a file whose thumbnail is not made yet, a kind that has none, an unknown
-  kind): the placeholder cross in Faint inside a thin frame, with the kind and name as text
-  (ruling of 2026-10-01 (media tiles): "A missing thumbnail never looks broken"; `DESIGN.md`,
-  Shapes: "An item without an image draws a thin cross in Faint"). The kind and name sit at the
-  placeholder's foot; with `label=False` the placeholder shows the cross alone. The ruled glyph
-  per known kind is not built yet (open decision below), so every kind without a thumbnail shows
-  the cross for now.
+  kind): the glyph of the file's kind, centred inside a thin frame in Faint, with the kind and
+  name as text (ruling of 2026-10-01 (media tiles): "A missing thumbnail never looks broken"; the
+  glyphs are the owner's pick of 2026-10-31: one for video, one for audio, one for every other
+  kind). The kind and name sit at the placeholder's foot; with `label=False` the placeholder
+  shows the glyph alone.
 - **Access**: the whole tile is one link to the original, opened in a new tab, in every state
   (ruling of 2026-10-01 (media tiles): "The original file is always one click away").
 - **The Lightbox hook**: an image tile with a place in the page's Lightbox carries the hook the
@@ -111,7 +110,7 @@ The tile provides:
   name in every state, whether or not the label shows.
 - The thumbnail keeps the record's alt text (ADR 0015: description, else caption, else file name);
   it does not take part in the link's name.
-- The placeholder's kind and name are real text when the label shows; the cross is decoration
+- The placeholder's kind and name are real text when the label shows; the glyph is decoration
   and has no name of its own.
 
 The consumer provides:
@@ -134,7 +133,3 @@ The consumer provides:
   settles square corners and the line width, but not whether a thumbnail has an edge or in which line
   role. As built it has a thin edge in the Edge role, so a white page does not dissolve into the
   ground.
-- **The glyph per kind** (at Behaviour and states, "No thumbnail"): the ruling of 2026-10-28
-  (MediaTile) gives a known kind without a stand-in "a placeholder glyph matching the kind", but
-  the glyph per kind and its source are undecided: the project has no decided icon set. Until then
-  every file without a stand-in shows the cross.

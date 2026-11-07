@@ -502,8 +502,9 @@
   /* ---- media tile — one file as one link to its original, shown by its best stand-in
      (contract: design-system/components/media-tile.md). The container sets the box on the root (an
      inline size, a block size or both); the stand-in fills it in its own shape up to its own pixels
-     (the placeholder's are a thumbnail's square). Parts: -thumb, -placeholder (the cross, where no
-     thumbnail exists), -label (the kind and name at the placeholder's foot). ---- */
+     (the placeholder's are a thumbnail's square). Parts: -thumb, -placeholder (where no thumbnail
+     exists), -face (over the placeholder: the glyph of the file's kind, then -label, its kind and
+     name at the foot). ---- */
   .media-tile {
     display: flex;
     flex-direction: column;
@@ -531,18 +532,29 @@
     min-block-size: 0;
     overflow: hidden;
     border: var(--line-width) solid var(--faint);
-    background: var(--placeholder);
+  }
+  .media-tile-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    place-items: center;
+    padding: var(--space-2);
+    container-type: size; /* the glyph scales with the placeholder's short side */
+    color: var(--ink-3); /* the glyph: a default, not the owner's pick */
+  }
+  .media-tile-face > .icon {
+    inline-size: clamp(24px, 30cqmin, 48px); /* a default, not the owner's pick */
+    block-size: auto;
   }
   .media-tile-label {
-    position: absolute;
-    inset-block-end: var(--space-2);
-    inset-inline-start: var(--space-2);
-    max-inline-size: calc(100% - 2 * var(--space-2));
+    justify-self: start;
+    max-inline-size: 100%;
     padding: var(--space-1);
-    background: var(--ground);
     font: var(--type-meta);
     color: var(--ink-2);
-    overflow-wrap: anywhere;
+    /* a name wraps at the <wbr> after its separators; only a segment wider than the tile breaks */
+    overflow-wrap: break-word;
   }
 
   /* ---- file-row — one medium in a register: its media tile, then one column of the name (size

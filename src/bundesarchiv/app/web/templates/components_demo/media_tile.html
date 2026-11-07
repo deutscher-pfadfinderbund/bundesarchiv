@@ -19,7 +19,7 @@ kind without one), few (a photo, a PDF, the small photo, a placeholder), long.{%
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/media_tile.html · file=MediaTile [label=False] — the file decides the state: a thumbnail in its own shape, with no label (a photo, a PDF's first page, a small photo's thumbnail); without one (Foto, PDF, Video, Audio, the unknown Datei) the placeholder cross with the kind and name at its foot, as long as the glyph per kind is undecided; a long name wraps anywhere. Box: an inline size only, so a placeholder is square</code>
+<code class="doc">components/media_tile.html · file=MediaTile [label=False] — the file decides the state: a thumbnail in its own shape, with no label (a photo, a PDF's first page, a small photo's thumbnail); without one (Foto, PDF, Video, Audio, the unknown Datei) the glyph of its kind with the kind and name at its foot; a long name wraps after its separators. Box: an inline size only, so a placeholder is square</code>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
