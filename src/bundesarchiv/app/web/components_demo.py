@@ -11,10 +11,10 @@ from django.shortcuts import render
 from django.templatetags.static import static
 
 from bundesarchiv.app.web import browse, ledger, start, vocab
-from bundesarchiv.app.web.browse_views import MediaTile, kind_glyph
+from bundesarchiv.app.web.browse_views import MediaTile, kind_glyph, locked_tiles
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.start import Tile
-from bundesarchiv.domain.models import ULID
+from bundesarchiv.domain.models import ULID, MediaRef
 from bundesarchiv.index.query import FileKind, SearchHit, TextPage
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -331,6 +331,15 @@ _LONG_NAME = _media_tile(
     FileKind.OTHER, "Protokoll_der_Mitgliederversammlung_vom_12._März_1962_Abschrift.docx"
 )
 
+#: Files a viewer may not open (ADR 0027), as ``browse_views`` builds their tiles.
+_LOCKED_TILES = locked_tiles(
+    (
+        MediaRef("sommerfahrt-1962-07.jpg", "0" * 64, media_type="image/jpeg"),
+        MediaRef("gaubrief-herbst-1971.pdf", "1" * 64, media_type="application/pdf"),
+        MediaRef("festumzug-1975.mp4", "2" * 64, media_type="video/mp4"),
+    )
+)
+
 #: Token swatches: (background role, text role) pairs, then the line roles.
 _SWATCH_PAIRS = (
     ("ground", "ink"),
@@ -361,6 +370,7 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "media_tiles": _MEDIA_TILES,
             "media_tiles_few": _MEDIA_TILES_FEW,
             "media_tile_long": _LONG_NAME,
+            "media_tiles_locked": _LOCKED_TILES,
             "status": library_status(),
         },
     )

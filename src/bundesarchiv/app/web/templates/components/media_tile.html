@@ -1,6 +1,10 @@
 {% comment %}One file as one link to its original, shown by the best stand-in the archive has for its
-kind. Params: file (a MediaTile); label (False hides the placeholder's kind and name; the link keeps
-its name). Contract: design-system/components/media-tile.md.{% endcomment %}
+kind. Params: file (a MediaTile, or a LockedTile: a file the viewer may not open, its placeholder and
+no link); label (False hides the placeholder's kind and name; the link keeps its name). Contract:
+design-system/components/media-tile.md.{% endcomment %}
+{% if file.locked %}
+<span class="media-tile">
+{% else %}
 <a
   class="media-tile"
   href="{{ file.file_url }}"
@@ -9,7 +13,8 @@ its name). Contract: design-system/components/media-tile.md.{% endcomment %}
   aria-label="{{ file.kind }} · {{ file.name }}"
   {% if file.slot >= 0 %}data-lightbox="{{ file.slot }}"{% endif %}
 >
-  {% if file.thumb_url %}
+{% endif %}
+  {% if not file.locked and file.thumb_url %}
   {% comment %}sizes stops at the largest candidate's width: the image is never drawn larger than
   its own pixels.{% endcomment %}
   <img
@@ -35,4 +40,8 @@ its name). Contract: design-system/components/media-tile.md.{% endcomment %}
     </span>
   </span>
   {% endif %}
+{% if file.locked %}
+</span>
+{% else %}
 </a>
+{% endif %}

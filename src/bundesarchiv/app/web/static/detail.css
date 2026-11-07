@@ -278,6 +278,13 @@
     margin: 0 0 var(--space-3);
     font: var(--type-subhead);
   }
+  /* a locked set's one hint line (ADR 0027) sits close under the heading it belongs to */
+  .media-rows h2:has(+ .hint) {
+    margin-block-end: var(--space-1);
+  }
+  .media-rows > .hint {
+    margin: 0 0 var(--space-3);
+  }
   .media-rows > div {
     --_row-height: 13.5rem; /* the mocks' row: no token names a picture height */
     display: flex;

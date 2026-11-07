@@ -23,11 +23,16 @@ The layout demo includes this file too.
     </p>
     {% endif %}
     {% if pane.media %}
+    {% if pane.media.0.locked %}
+    {% include "workbench/_locked_hint.html" with count=pane.media|length only %}
+    {% endif %}
     <ul>
       {% for m in pane.media %}
       <li>
         {% include "components/media_tile.html" with file=m only %}
-        <p>{% if m.caption %}<span>{{ m.caption }}</span>{% endif %}<a href="{{ m.file_url }}" download>Herunterladen</a></p>
+        {% if m.caption or not m.locked %}
+        <p>{% if m.caption %}<span>{{ m.caption }}</span>{% endif %}{% if not m.locked %}<a href="{{ m.file_url }}" download>Herunterladen</a>{% endif %}</p>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>
