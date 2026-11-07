@@ -37,7 +37,7 @@ from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import can_view
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Article, MediaRef
+from bundesarchiv.domain.models import Article, Aspect, MediaRef
 from bundesarchiv.persistence.errors import ArchiveError
 
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def _authorize(
     chain = CollectionChooser.of(archive).chain_of(article.collection_id)
     if chain is None:
         return None
-    if not can_view(viewer, article, chain):
+    if not can_view(viewer, article, chain, Aspect.FILES):
         return None
     media_ref = _media_ref_for(article, content_hash)
     if media_ref is None:
