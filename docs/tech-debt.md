@@ -230,14 +230,6 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Tests
 
-### 29. The gallery has no media tile without a picture — Worth exploring
-- **Indicator:** 0 gallery states render `.media-tile-placeholder` (2026-10-01, stable; reworded
-  2026-10-29 when Blank retired into the media tile)
-- **Evidence:** every e2e corpus file now has a thumbnail (PDFTHUMBS); the placeholder shows only
-  in the component library (`/_dev/components/`)
-- **Deletion test:** a non-renderable corpus file (audio/video) brings the state back
-- **Sketch:** one audio file on a corpus article + a `detail-audio` gallery state
-
 ### 55. Tests monkeypatch our own code — Strong
 - **Indicator:** `monkeypatch.setattr` on a `bundesarchiv` name: `tests/app` 56, `tests/app/web` 48, `tests/persistence` 2, `tests/e2e` 0 (2026-10-11, AST count); `tests/app` 48 once the page-text shells moved, then `tests/app` 47 and `tests/app/web` 47 once the page-text tests dropped theirs (2026-10-11); `tests/app` 25, `tests/app/web` 53, `tests/persistence` 2 once the jobs received their dependencies, 0 `_DEBT` patches on `app.tasks` left (2026-10-18); `tests/app` 11, `tests/app/web` 48, `tests/persistence` 2 once the tests read the in-memory queue, 0 patches of an `enqueue_*` name left (2026-10-18); `tests/app` 5, `tests/app/web` 43, `tests/persistence` 2 once the index sits behind a port, 0 patches on `after_write` left (2026-10-18); `tests/app/web` 30 once the login realm sits behind a port, 0 patches on `keycloak`, `auth_views` or the `viewers` realm calls left (2026-10-18); `tests/app/web` 29 once dev and the tests log in through the dev realm, 0 patches on `viewers` left (2026-10-18); `tests/app` 4, `tests/app/web` 22, `tests/persistence` 0 once the pager, media, pixel-cap, retry and fsync tests dropped theirs: `_DEBT` sites 16 → 6, all sites 36 → 26 (2026-10-21)
 - **Evidence:** `writer-discipline` skill, "Functional core, imperative shell"; what is left (2026-10-21): the leak matrix's 4 (`browse_views.search`, `start`), `vocab.MEDIA_TYPE_DOCUMENT_TYPES` (GitHub #72), `Archive.canonical` in `recording_store`
