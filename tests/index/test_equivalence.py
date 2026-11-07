@@ -1,5 +1,5 @@
-"""SQL ≡ ``can_view`` (ADR 0012, 0027) per aspect over the article audience x files audience x
-parent audience x lifecycle grid.
+"""SQL ≡ ``can_view`` (ADR 0012, 0027) per aspect over the article audience x parent audience x
+(files audience x lifecycle) grid: the scope predicate itself, and every search path over it.
 
 The one allowed gap: a fail-closed row is index-visible to the Archivist but ``can_view``-denied.
 """
@@ -26,7 +26,9 @@ from bundesarchiv.domain.models import (
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
+from bundesarchiv.index.models import ArticleIndex
 from bundesarchiv.index.query import SearchFilters, search
+from bundesarchiv.index.scope import _viewer_scope
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -71,9 +73,11 @@ _PARENT_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
     ("pinh", None),
 )
 
-_LIFECYCLES: tuple[tuple[str, Lifecycle], ...] = (
-    ("draft", Lifecycle.DRAFT),
-    ("pub", Lifecycle.PUBLISHED),
+# Every files rung on a published article; a draft gets one, since the lifecycle gate makes its
+# files rung inert.
+_FILES_X_LIFECYCLE: tuple[tuple[str, Audience | None, str, Lifecycle], ...] = (
+    *((tag, audience, "pub", Lifecycle.PUBLISHED) for tag, audience in _FILES_AUDIENCES),
+    ("fpub", Audience(AudienceTier.PUBLIC), "draft", Lifecycle.DRAFT),
 )
 
 _ROOT_ULID = ULID("GRID_ROOT")
@@ -137,18 +141,17 @@ def _grid_articles() -> Iterator[Article]:
     """Ulids encode the grid coordinates, so a mismatch names the exact cell."""
     for parent_tag, _parent_audience in _PARENT_AUDIENCES:
         for art_tag, art_audience in _ARTICLE_AUDIENCES:
-            for files_tag, files_audience in _FILES_AUDIENCES:
-                for life_tag, lifecycle in _LIFECYCLES:
-                    ulid = ULID(f"GRID_{parent_tag}_{art_tag}_{files_tag}_{life_tag}")
-                    yield Article(
-                        ulid=ulid,
-                        title=f"{_RECORD_WORD} {ulid}",
-                        collection_id=_leaf_ulid(parent_tag),
-                        lifecycle=lifecycle,
-                        audience=art_audience,
-                        files_audience=files_audience,
-                        media_type=_GRID_MEDIA_TYPE,
-                    )
+            for files_tag, files_audience, life_tag, lifecycle in _FILES_X_LIFECYCLE:
+                ulid = ULID(f"GRID_{parent_tag}_{art_tag}_{files_tag}_{life_tag}")
+                yield Article(
+                    ulid=ulid,
+                    title=f"{_RECORD_WORD} {ulid}",
+                    collection_id=_leaf_ulid(parent_tag),
+                    lifecycle=lifecycle,
+                    audience=art_audience,
+                    files_audience=files_audience,
+                    media_type=_GRID_MEDIA_TYPE,
+                )
 
 
 def _collection_lookup(store: InMemoryObjectStore) -> Mapping[ULID, Collection]:
@@ -210,10 +213,28 @@ def _search_ulids(viewer: Viewer) -> set[str]:
 @pytest.mark.django_db
 def test_grid_has_expected_shape(corpus: _Grid) -> None:
     """A shrunk grid or a fail-closed row would silently weaken every equivalence test below."""
-    assert len(corpus.articles) == 160
-    assert corpus.report.indexed == 160
+    assert len(corpus.articles) == 100
+    assert corpus.report.indexed == 100
     assert corpus.report.failed_closed == ()
     assert _search_ulids(Archivist()) == {a.ulid for a in corpus.articles}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("aspect", list(Aspect))
+def test_the_scope_predicate_equals_can_view_per_viewer(corpus: _Grid, aspect: Aspect) -> None:
+    failed_closed = set(corpus.report.failed_closed)
+    mismatches: list[str] = []
+    for label, viewer in _VIEWERS:
+        rows = ArticleIndex.objects.filter(_viewer_scope(viewer, aspect))
+        got = set(rows.values_list("ulid", flat=True))
+        expected = corpus.can_view_ulids(viewer, aspect)
+        if isinstance(viewer, Archivist):
+            expected = expected | failed_closed
+        if got != expected:
+            mismatches.append(
+                f"[{label}] leaked={sorted(got - expected)} missing={sorted(expected - got)}"
+            )
+    assert not mismatches, f"_viewer_scope({aspect.name}) ≢ can_view:\n" + "\n".join(mismatches)
 
 
 @pytest.mark.django_db
@@ -239,9 +260,6 @@ def test_search_equals_can_view_per_viewer(corpus: _Grid) -> None:
 
 @pytest.mark.django_db
 def test_files_scope_equals_can_view_files_per_viewer(corpus: _Grid) -> None:
-    """A page-only word matches exactly the articles whose files ``can_view`` opens, total and
-    facet included; a record word matches the record set and lists pages only where the files
-    open."""
     (file_hash,) = {a.media[0].content_hash for a in corpus.articles}
     indexer.store_media_text(file_hash, (f"{_PAGE_ONLY_WORD} {_RECORD_WORD}",))
     mismatches: list[str] = []
