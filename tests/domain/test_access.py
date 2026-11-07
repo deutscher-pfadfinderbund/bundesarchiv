@@ -402,7 +402,7 @@ def test_visible_floors_exactly_the_archivist_only_fields_for_a_member() -> None
 _MEMBER_VISIBLE_FIELDS = frozenset(
     {
         "added_at", "audience", "body", "collection_id", "creator", "date", "deleted",
-        "document_type",
+        "document_type", "files_audience",
         "lifecycle", "media", "media_type", "ref_code", "subject_place", "tags", "template", "title",
         "ulid",
     }

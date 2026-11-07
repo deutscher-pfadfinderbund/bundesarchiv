@@ -25,6 +25,14 @@ class AudienceTier(enum.Enum):
     GROUPS = "groups"
 
 
+class Aspect(enum.Enum):
+    """What of an Article an Audience rung governs (ADR 0027): the record (metadata) or its files
+    (the bytes and everything derived from them)."""
+
+    RECORD = "record"
+    FILES = "files"
+
+
 @dataclass(frozen=True, slots=True)
 class Audience:
     """Who may see an Article (*Sichtbarkeit*). When `tier` is GROUPS, `groups`
@@ -107,6 +115,7 @@ class Article:
     body: str = ""
     lifecycle: Lifecycle = Lifecycle.DRAFT
     audience: Audience | None = None  # None = inherit from the Collection chain (ADR 0001)
+    files_audience: Audience | None = None  # None = the effective `audience` (ADR 0027)
     ref_code: str | None = None  # Signatur — human-facing, not identity
     media_type: str | None = None  # Medienart
     document_type: str | None = None  # Dokumenttyp
