@@ -4,6 +4,7 @@ from dataclasses import fields, replace
 from datetime import UTC, datetime
 
 import pytest
+from tests._articles import make_article
 
 from bundesarchiv.domain.access import (
     ARCHIVIST_ONLY_FIELDS,
@@ -144,11 +145,15 @@ def test_preview_surfaces_inherited_group_names() -> None:
     assert p.groups == ("vorstand", "stamm-koeln")
 
 
-def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article() -> None:
-    article = _article(collection_id="c-leaf", audience=Audience(AudienceTier.PUBLIC))
+@pytest.mark.parametrize("aspect", list(Aspect))
+def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article(
+    aspect: Aspect,
+) -> None:
+    public = Audience(AudienceTier.PUBLIC)
+    article = make_article("01J0", collection_id="c-leaf", audience=public, files_audience=public)
     wrong_chain = ResolvedChain((Collection(ulid=ULID("c-other"), name="c-other"),))
-    assert can_view(Public(), article, wrong_chain) is False
-    assert can_view(Archivist(), article, wrong_chain) is False
+    assert can_view(Public(), article, wrong_chain, aspect) is False
+    assert can_view(Archivist(), article, wrong_chain, aspect) is False
 
 
 def _physical_article() -> Article:
@@ -418,15 +423,6 @@ def test_every_article_field_is_classified_member_visible_or_archivist_only() ->
 
 _PUBLIC = Audience(AudienceTier.PUBLIC)
 _MEMBERS = Audience(AudienceTier.MEMBERS)
-_VIEWERS: tuple[Viewer, ...] = (Public(), Member(), Member(("vorstand",)), Archivist())
-
-
-def _with_files(
-    record: Audience | None,
-    files: Audience | None,
-    lifecycle: Lifecycle = Lifecycle.PUBLISHED,
-) -> Article:
-    return replace(_article(audience=record, lifecycle=lifecycle), files_audience=files)
 
 
 @pytest.mark.parametrize(
@@ -459,12 +455,15 @@ def _with_files(
 def test_can_view_files_matrix(
     viewer: Viewer, record: Audience, files: Audience | None, expected: bool
 ) -> None:
-    assert can_view(viewer, _with_files(record, files), _chain(), Aspect.FILES) is expected
+    article = make_article("01J0", collection_id="c-leaf", audience=record, files_audience=files)
+    assert can_view(viewer, article, _chain(), Aspect.FILES) is expected
 
 
 def test_a_files_rung_never_changes_who_sees_the_record() -> None:
     for files in (_PUBLIC, _BOARD):
-        article = _with_files(_MEMBERS, files)
+        article = make_article(
+            "01J0", collection_id="c-leaf", audience=_MEMBERS, files_audience=files
+        )
         assert can_view(Public(), article, _chain()) is False
         assert can_view(Member(), article, _chain()) is True
 
@@ -478,44 +477,12 @@ def test_the_files_follow_an_inherited_groups_rung() -> None:
 
 @pytest.mark.parametrize("viewer", [Public(), Member(), Member(("vorstand",))])
 def test_the_lifecycle_gate_denies_the_files_to_every_non_archivist(viewer: Viewer) -> None:
-    draft = _with_files(_PUBLIC, _PUBLIC, Lifecycle.DRAFT)
+    draft = make_article(
+        "01J0",
+        collection_id="c-leaf",
+        lifecycle=Lifecycle.DRAFT,
+        audience=_PUBLIC,
+        files_audience=_PUBLIC,
+    )
     assert can_view(viewer, draft, _chain(), Aspect.FILES) is False
     assert can_view(Archivist(), draft, _chain(), Aspect.FILES) is True
-
-
-@pytest.mark.parametrize("viewer", _VIEWERS)
-def test_a_misresolved_chain_denies_every_aspect_to_everyone(viewer: Viewer) -> None:
-    article = _with_files(_PUBLIC, _PUBLIC)
-    assert not any(can_view(viewer, article, _chain("c-other"), aspect) for aspect in Aspect)
-
-
-_RUNGS = (_PUBLIC, _MEMBERS, _BOARD, None)
-
-
-@pytest.mark.parametrize("lifecycle", [Lifecycle.PUBLISHED, Lifecycle.DRAFT])
-@pytest.mark.parametrize("files", _RUNGS)
-@pytest.mark.parametrize("record", _RUNGS)
-@pytest.mark.parametrize("aspect", list(Aspect))
-def test_preview_per_aspect_is_defined_by_can_view(
-    aspect: Aspect, record: Audience | None, files: Audience | None, lifecycle: Lifecycle
-) -> None:
-    published = _with_files(record, files)
-    p = preview(_with_files(record, files, lifecycle), _chain(), aspect)
-    assert p.public == can_view(Public(), published, _chain(), aspect)
-    assert p.members == can_view(Member(), published, _chain(), aspect)
-
-
-@pytest.mark.parametrize(
-    ("record", "files", "groups"),
-    [
-        (_MEMBERS, _BOARD, ("vorstand",)),
-        (_BOARD, None, ("vorstand",)),
-        # The wider FILES rung is inert: the record's groups still decide.
-        (_BOARD, _MEMBERS, ("vorstand",)),
-        (_PUBLIC, None, ()),
-    ],
-)
-def test_preview_of_the_files_names_the_groups_that_would_open_them(
-    record: Audience, files: Audience | None, groups: tuple[str, ...]
-) -> None:
-    assert preview(_with_files(record, files), _chain(), Aspect.FILES).groups == groups

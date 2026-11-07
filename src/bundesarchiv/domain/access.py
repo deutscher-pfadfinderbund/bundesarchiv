@@ -38,11 +38,12 @@ def can_view(
     against.
     """
     try:
-        record = effective_audience(article, chain)
-        rung = effective_audience(article, chain, aspect)
+        rungs = [
+            effective_audience(article, chain, a) for a in dict.fromkeys((Aspect.RECORD, aspect))
+        ]
     except DomainError:
         return False
-    return _viewer_clears(viewer, record) and _viewer_clears(viewer, rung)
+    return all(_viewer_clears(viewer, rung) for rung in rungs)
 
 
 def _viewer_clears(viewer: Viewer, effective: EffectiveAudience) -> bool:
@@ -129,28 +130,20 @@ class VisibilityPreview:
     groups: tuple[str, ...]
 
 
-def preview(
-    article: Article, chain: ResolvedChain, aspect: Aspect = Aspect.RECORD
-) -> VisibilityPreview:
+def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
     published = replace(article, lifecycle=Lifecycle.PUBLISHED, template=False)
-    public = can_view(Public(), published, chain, aspect)
-    members = can_view(Member(), published, chain, aspect)
+    public = can_view(Public(), published, chain)
+    members = can_view(Member(), published, chain)
     return VisibilityPreview(
-        public=public, members=members, groups=_would_be_groups(published, chain, aspect)
+        public=public, members=members, groups=_would_be_groups(published, chain)
     )
 
 
-def _would_be_groups(article: Article, chain: ResolvedChain, aspect: Aspect) -> tuple[str, ...]:
-    """The aspect's groups, else the record's: a wider rung for the aspect is inert."""
+def _would_be_groups(article: Article, chain: ResolvedChain) -> tuple[str, ...]:
     try:
-        rungs = (effective_audience(article, chain, aspect), effective_audience(article, chain))
+        effective = effective_audience(article, chain)
     except DomainError:
         return ()
-    return next(
-        (
-            rung.groups
-            for rung in rungs
-            if isinstance(rung, Audience) and rung.tier is AudienceTier.GROUPS
-        ),
-        (),
-    )
+    if isinstance(effective, Audience) and effective.tier is AudienceTier.GROUPS:
+        return effective.groups
+    return ()

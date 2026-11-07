@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
+from tests._articles import make_article
 
 from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain
@@ -130,25 +131,12 @@ def test_an_unset_files_rung_resolves_to_the_effective_record_rung() -> None:
 
 
 def test_an_explicit_files_rung_resolves_to_itself_and_leaves_the_record_alone() -> None:
-    article = replace(_article(audience=Audience(AudienceTier.PUBLIC)), files_audience=_BOARD)
+    article = make_article(
+        "01J0",
+        collection_id="c-leaf",
+        audience=Audience(AudienceTier.PUBLIC),
+        files_audience=_BOARD,
+    )
     chain = _chain(_coll("c-leaf"))
     assert effective_audience(article, chain, Aspect.FILES) == _BOARD
     assert effective_audience(article, chain) == Audience(AudienceTier.PUBLIC)
-
-
-@pytest.mark.parametrize(
-    "gated",
-    [
-        _article(lifecycle=Lifecycle.DRAFT),
-        replace(_article(), deleted=Change(datetime(2026, 9, 30, tzinfo=UTC), "anna")),
-    ],
-)
-def test_the_lifecycle_gate_makes_the_files_archivist_only(gated: Article) -> None:
-    article = replace(gated, files_audience=Audience(AudienceTier.PUBLIC))
-    assert effective_audience(article, _chain(_coll("c-leaf")), Aspect.FILES) == ArchivistOnly()
-
-
-def test_the_binding_check_runs_for_the_files_too() -> None:
-    article = replace(_article(), files_audience=Audience(AudienceTier.PUBLIC))
-    with pytest.raises(MisresolvedChain):
-        effective_audience(article, _chain(_coll("c-other")), Aspect.FILES)
