@@ -199,26 +199,12 @@ def media_tiles(ulid: ULID, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...
     """``media`` as tiles, in its order (cover first, ADR 0015). One header read per cached version
     (the tile; an image's display version too): the thumbnail cache is local (ADR 0017)."""
     root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
-    return tuple(
-        _tile(
-            ulid,
-            ref,
-            thumbnails.version_size(root, ref.content_hash),
-            thumbnails.version_size(root, ref.content_hash, Size.DISPLAY)
-            if thumbnails.renders(ref, Size.DISPLAY)
-            else None,
-        )
-        for ref in media
-    )
+    return tuple(_tile(ulid, ref, root) for ref in media)
 
 
-def _tile(
-    ulid: ULID,
-    ref: MediaRef,
-    aspect: tuple[int, int] | None,
-    display_aspect: tuple[int, int] | None,
-) -> MediaTile:
+def _tile(ulid: ULID, ref: MediaRef, root: Path) -> MediaTile:
     image = thumbnails.renders(ref, Size.DISPLAY)
+    aspect = thumbnails.version_size(root, ref.content_hash)
     caption = trim_or_none(ref.caption) or ""
     kind = file_kind(ref)
     return MediaTile(
@@ -232,7 +218,9 @@ def _tile(
         display_url=(display_url(ulid, ref.content_hash) if image else ""),
         thumb_url=thumbnail_url(ulid, ref.content_hash) if aspect else "",
         aspect=aspect,
-        display_aspect=display_aspect,
+        display_aspect=thumbnails.version_size(root, ref.content_hash, Size.DISPLAY)
+        if image
+        else None,
     )
 
 

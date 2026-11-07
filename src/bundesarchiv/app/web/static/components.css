@@ -501,7 +501,7 @@
 
   /* ---- media tile — one file as one link to its original, shown by its best stand-in
      (contract: design-system/components/media-tile.md). The container sets the box on the root (an
-     inline size, a block size or both); the stand-in fills it in its own shape up to its own pixels
+     inline size); the stand-in fills it in its own shape up to its own pixels
      (the placeholder's are a thumbnail's square). Parts: -thumb, -placeholder (where no thumbnail
      exists), -face (over the placeholder: the glyph of the file's kind, then -label, its kind and
      name at the foot). ---- */
@@ -525,15 +525,11 @@
     inline-size: auto;
     block-size: auto;
     max-inline-size: 100%;
-    max-block-size: 100%;
-    min-block-size: 0;
   }
   .media-tile-placeholder {
     position: relative;
     display: flex;
-    block-size: 100%; /* a definite height for the svg's cap where the box gives one */
     max-inline-size: 100%;
-    min-block-size: 0;
     overflow: hidden;
     border: var(--line-width) solid var(--faint);
   }

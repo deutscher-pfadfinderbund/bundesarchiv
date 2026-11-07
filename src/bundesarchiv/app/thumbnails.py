@@ -117,7 +117,8 @@ def generate_thumbnail(
     if ref is None:
         return False  # the file left the Article before the job ran
     tile = _derive(articles, ulid, ref, thumbnail_root, Size.TILE)
-    cached(articles, ulid, ref, thumbnail_root, Size.DISPLAY)
+    if tile:  # bytes that yield no tile yield no display version either
+        cached(articles, ulid, ref, thumbnail_root, Size.DISPLAY)
     return tile
 
 

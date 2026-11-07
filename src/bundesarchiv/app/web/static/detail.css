@@ -64,7 +64,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-    max-width: 65ch; /* the reading measure (the mock's --measure-prose) */
+    max-width: var(--measure-prose);
   }
   .prose > p {
     margin: 0;
@@ -80,7 +80,7 @@
     font: var(--type-meta);
   }
   .cover figcaption {
-    max-inline-size: 65ch; /* the reading measure, as .prose: a caption never runs the column */
+    max-inline-size: var(--measure-prose); /* a caption never runs the column */
   }
 
   /* ---- the lightbox: the article's images one at a time on the band's black. A scroll-snap
@@ -216,7 +216,7 @@
         margin: 0;
       }
       & > span {
-        max-inline-size: 65ch; /* the reading measure, as .prose */
+        max-inline-size: var(--measure-prose);
       }
       & a {
         color: var(--ink-2);
@@ -329,6 +329,5 @@
   }
   .media-rows > [data-justified] figure > .media-tile {
     inline-size: 100%;
-    block-size: auto;
   }
 }
