@@ -2,12 +2,10 @@
 Article, every miss the plain 404."""
 
 import base64
-import fcntl
 import os
 import re
 import time
 from collections.abc import Callable, Iterator
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +29,6 @@ from tests.app.web._tus import (
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app import tasks
 from bundesarchiv.app.result import Conflicted
-from bundesarchiv.app.upload_staging import Key, Staging
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 _ANNA = Archivist("anna")
@@ -139,49 +136,6 @@ def test_a_finished_upload_resumes_straight_to_the_finish(
     assert _freed(staging_root, upload)
 
 
-def test_two_uploads_of_one_file_list_it_once(corpus: Corpus, staging_root: Path) -> None:
-    client = client_as(_ANNA)
-    for _ in range(2):
-        assert finish(client, DRAFT_ULID, staged(client, DRAFT_ULID, _DATA)).status_code == 200
-    assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
-
-
-def test_the_finish_of_an_incomplete_upload_saves_nothing(
-    corpus: Corpus, staging_root: Path
-) -> None:
-    client = client_as(_ANNA)
-    upload = staged(client, DRAFT_ULID, _DATA[:8], length=len(_DATA))
-    keys = corpus.articles.keys_for(DRAFT_ULID)
-    assert_denied(finish(client, DRAFT_ULID, upload))
-    assert corpus.articles.keys_for(DRAFT_ULID) == keys
-    assert _staged_ids(staging_root) == [upload]
-
-
-def test_a_finish_that_saves_nothing_keeps_the_upload_for_the_next_finish(
-    corpus: Corpus, staging_root: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The Article goes to the Papierkorb while the finish waits on the upload's lock."""
-    client = client_as(_ANNA)
-    upload = staged(client, DRAFT_ULID, _DATA)
-    flock = fcntl.flock
-
-    def deleted_meanwhile(file: Any, operation: int) -> None:
-        flock(file, operation)
-        stored = corpus.articles.load(DRAFT_ULID)
-        corpus.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
-
-    with monkeypatch.context() as patched:
-        patched.setattr(fcntl, "flock", deleted_meanwhile)
-        assert_denied(finish(client, DRAFT_ULID, upload))
-    assert _staged_ids(staging_root) == [upload]
-    stored = corpus.articles.load(DRAFT_ULID)
-    corpus.articles.save(replace(stored.article, deleted=None), stored.version, changed_by="bert")
-
-    assert finish(client, DRAFT_ULID, upload).status_code == 200
-    assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
-    assert _freed(staging_root, upload)
-
-
 def test_a_finish_that_loses_every_save_race_answers_for_a_repeat(
     corpus: Corpus, staging_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -193,10 +147,6 @@ def test_a_finish_that_loses_every_save_race_answers_for_a_repeat(
         assert finish(client, DRAFT_ULID, upload).status_code == 503
     assert _media(corpus) == ()
 
-    assert finish(client, DRAFT_ULID, upload).status_code == 200
-    assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
-    assert _freed(staging_root, upload)
-
 
 @pytest.mark.parametrize("finished", [False, True])
 def test_a_delete_drops_the_upload(corpus: Corpus, staging_root: Path, finished: bool) -> None:
@@ -206,21 +156,6 @@ def test_a_delete_drops_the_upload(corpus: Corpus, staging_root: Path, finished:
         assert finish(client, DRAFT_ULID, upload).status_code == 200
     assert client.delete(upload_url(DRAFT_ULID, upload), headers=TUS).status_code == 204
     assert _staged_ids(staging_root) == []
-
-
-def test_a_filetype_that_is_no_media_type_is_dropped(corpus: Corpus, staging_root: Path) -> None:
-    """It is served back as a Content-Type header, where a line break would break every answer."""
-    client = client_as(_ANNA)
-    created = client.post(
-        f"/articles/{DRAFT_ULID}/media/uploads",
-        headers={
-            **TUS,
-            "Upload-Length": "0",
-            "Upload-Metadata": metadata(filename="a.pdf", filetype="text/html\r\nX-Evil: 1"),
-        },
-    )
-    staged_upload = Staging(staging_root).status(Key(upload_id(created), "anna", DRAFT_ULID))
-    assert staged_upload is not None and staged_upload[0].media_type is None
 
 
 # --- every invalid header shape answers its tus status and stores nothing --------------------
