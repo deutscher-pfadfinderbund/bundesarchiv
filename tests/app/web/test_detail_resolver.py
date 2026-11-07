@@ -72,3 +72,35 @@ def test_public_projection_floors_too(archive: Corpus) -> None:
 @pytest.mark.parametrize("ulid", ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"])
 def test_malformed_or_absent_is_none(archive: Corpus, ulid: str) -> None:
     assert _resolve(Archivist(), ulid) is None
+
+
+LOCKED_ULID = new_ulid()
+
+
+@pytest.mark.parametrize(
+    ("viewer", "sees"),
+    [
+        (Member(groups=()), False),
+        (Member(groups=("vorstand",)), True),
+        (Archivist(), True),
+    ],
+)
+def test_the_resolution_says_whether_the_viewer_may_open_the_files(
+    archive: Corpus, viewer: Viewer, sees: bool
+) -> None:
+    archive.add_article(
+        make_article(
+            LOCKED_ULID,
+            audience=Audience(AudienceTier.MEMBERS),
+            files_audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
+        )
+    )
+    res = _resolve(viewer, LOCKED_ULID)
+    assert res is not None
+    assert res.sees_files is sees
+
+
+def test_without_a_files_rung_whoever_sees_the_record_opens_the_files(archive: Corpus) -> None:
+    res = _resolve(Member(groups=()), PUB_ULID)
+    assert res is not None
+    assert res.sees_files is True
