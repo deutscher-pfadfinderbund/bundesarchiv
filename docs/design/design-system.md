@@ -227,8 +227,8 @@ page. Values: `DESIGN.md` frontmatter (light) and `.impeccable/design.json` (the
 - **Lines and sizes:** `--line-width` 1px, `--focus-width` 3px, measures (`--measure`,
   `--measure-prose` 65ch, `--measure-title` 30ch, field and column measures).
 - **Shape:** square corners everywhere; no radius, no bevel, no shadow.
-- **Icons:** one stroke set (24px grid, stroke 2, `currentColor`): `components/icon.html` in the
-  app, `system/icons.svg` in the mock, name for name.
+- **Icons:** each picked on its own, no single set (owner, 2026-11-08): 24px grid, `currentColor`;
+  `components/icon.html` in the app, `system/icons.svg` in the mock, name for name.
 
 ## Component mapping
 
