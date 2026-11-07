@@ -257,5 +257,24 @@ def test_exposure_label_names_the_widest_rung(
 def test_publish_statement_says_who_will_see_the_record(
     public: bool, members: bool, groups: tuple[str, ...], expected: str
 ) -> None:
+    # a files preview equal to the record's adds nothing: an Article without a files rung
     result = VisibilityPreview(public, members, groups)
-    assert vocab.publish_statement(result) == expected
+    assert vocab.publish_statement(result, result) == expected
+
+
+@pytest.mark.parametrize(
+    ("record", "files"),
+    [
+        (VisibilityPreview(False, True, ()), VisibilityPreview(False, False, ("vorstand",))),
+        (VisibilityPreview(False, True, ()), VisibilityPreview(False, False, ("a", "b"))),
+        (VisibilityPreview(True, True, ()), VisibilityPreview(False, True, ())),
+    ],
+    ids=["groups", "two-groups", "members"],
+)
+def test_publish_statement_adds_who_opens_narrower_files(
+    record: VisibilityPreview, files: VisibilityPreview
+) -> None:
+    alone = vocab.publish_statement(record, record)
+    clause = vocab.publish_statement(record, files).removeprefix(alone)
+    assert clause.strip()
+    assert all(group in clause for group in files.groups)

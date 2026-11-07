@@ -527,6 +527,12 @@ def test_the_files_preview_names_the_files_groups_else_the_records(
     assert preview(article, _chain(), Aspect.FILES).groups == expected
 
 
+@pytest.mark.parametrize(("record", "files"), [(_MEMBERS, _PUBLIC), (_BOARD, _MEMBERS)])
+def test_a_wider_files_rung_previews_like_the_record(record: Audience, files: Audience) -> None:
+    article = make_article("01J0", collection_id="c-leaf", audience=record, files_audience=files)
+    assert preview(article, _chain(), Aspect.FILES) == preview(article, _chain())
+
+
 def test_the_record_preview_ignores_the_files_rung() -> None:
     article = make_article("01J0", collection_id="c-leaf", audience=_MEMBERS, files_audience=_BOARD)
     assert preview(article, _chain()) == preview(replace(article, files_audience=None), _chain())

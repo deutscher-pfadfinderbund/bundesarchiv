@@ -20,6 +20,8 @@ from tests.app.web._fixtures import (
     with_two_media,
 )
 
+from bundesarchiv.app.web import vocab
+from bundesarchiv.domain.access import VisibilityPreview
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Change, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -584,6 +586,22 @@ def test_the_confirmation_says_who_will_see_the_record(corpus: Corpus) -> None:
     articles.save(members, stored.version, changed_by="tester")
     body = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}").content.decode()
     assert "Nach dem Veröffentlichen sehen alle Mitglieder diesen Eintrag." in body
+
+
+def test_the_confirmation_says_who_will_open_narrower_files(corpus: Corpus) -> None:
+    stored = corpus.articles.load(ULID(DRAFT_ULID))
+    narrowed = replace(
+        stored.article,
+        audience=Audience(AudienceTier.MEMBERS),
+        files_audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
+    )
+    corpus.articles.save(narrowed, stored.version, changed_by="tester")
+    body = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}").content.decode()
+    expected = vocab.publish_statement(
+        VisibilityPreview(public=False, members=True, groups=()),
+        VisibilityPreview(public=False, members=False, groups=("vorstand",)),
+    )
+    assert expected in body
 
 
 def test_a_published_record_has_no_confirmation(corpus: Corpus) -> None:

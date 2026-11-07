@@ -29,7 +29,7 @@ from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
-from bundesarchiv.domain.models import ULID, Change, Lifecycle, MediaRef, Version
+from bundesarchiv.domain.models import ULID, Aspect, Change, Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.indexer import file_kind, mime_type
 from bundesarchiv.index.query import (
@@ -740,7 +740,10 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "version": resolution.version,
         # preview() names groups and ignores the lifecycle: archivists only (part-4-web.md)
         "publish_statement": (
-            vocab.publish_statement(preview(article, resolution.chain))
+            vocab.publish_statement(
+                preview(article, resolution.chain),
+                preview(article, resolution.chain, Aspect.FILES),
+            )
             if resolution.is_archivist and is_draft
             else ""
         ),

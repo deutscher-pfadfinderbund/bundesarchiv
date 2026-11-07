@@ -168,20 +168,30 @@ def exposure_label(result: VisibilityPreview) -> str:
     return "Niemand (kein Sammlungsteil-Zugriff)"
 
 
-def publish_statement(result: VisibilityPreview) -> str:
+def publish_statement(record: VisibilityPreview, files: VisibilityPreview) -> str:
     """The Veröffentlichen confirmation (a3 round 7): who sees the record once published, from the
-    same ``preview()`` as ``exposure_label``."""
+    same ``preview()`` as ``exposure_label``, then who opens the files where their preview differs
+    (ADR 0027). A differing files preview is narrower: a wider files rung is inert."""
+    statement = _record_statement(record)
+    if files == record:
+        return statement
+    who = _group_members(files.groups) if files.groups else "Mitglieder"
+    return f"{statement} Die Dateien öffnen nur {who}."
+
+
+def _record_statement(result: VisibilityPreview) -> str:
     if result.public:
         return "Nach dem Veröffentlichen ist dieser Eintrag öffentlich."
     if result.groups:
-        group_word = "Gruppe" if len(result.groups) == 1 else "Gruppen"
-        return (
-            f"Nach dem Veröffentlichen sehen nur Mitglieder der {group_word} "
-            f"{', '.join(result.groups)} diesen Eintrag."
-        )
+        return f"Nach dem Veröffentlichen sehen nur {_group_members(result.groups)} diesen Eintrag."
     if result.members:
         return "Nach dem Veröffentlichen sehen alle Mitglieder diesen Eintrag."
     return "Nach dem Veröffentlichen sieht niemand außer dem Archiv diesen Eintrag."
+
+
+def _group_members(groups: tuple[str, ...]) -> str:
+    group_word = "Gruppe" if len(groups) == 1 else "Gruppen"
+    return f"Mitglieder der {group_word} {', '.join(groups)}"
 
 
 @dataclass(frozen=True, slots=True)
