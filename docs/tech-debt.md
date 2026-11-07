@@ -204,9 +204,9 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** concentrates
 - **Sketch:** `DIMENSIONS: tuple[Dimension(name, filter_field, column, shape, nested)]`; pure `where(filters) -> Q` and `facet_plan(filters, wanted) -> Mapping[str, Q]`; `search()` stays the only executor, the leak suites stay on Postgres (ADR 0024 kept)
 
-### 69. The tus protocol adapter is private code inside `catalog_views` — Worth exploring
-- **Indicator:** 143 lines (`catalog_views.py:842-984`); ~35 header-shape cases in `test_chunked_upload.py:236-330`, each through `client_as` + corpus + HTTP; 0 direct tests of `_count`/`_tus_metadata` (2026-11-07)
-- **Evidence:** `:905` a header refusal is revealed only after a `staging.status` lookup; `:897,993` each piece runs `_load_gated` twice (nginx `upload_gate` + the view). Protocol decisions and staging effects interleave in each view.
+### 69. The tus protocol adapter is private code inside `catalog_views` — done
+- **Indicator:** 2026-11-07, done: `web/tus.py` owns the grammar and the answers (171 lines); the tus routes in `catalog_views.py:815-860` are 46 lines of gate, read, staging, answer; 92 pure cases in `test_tus.py`, no client or corpus; the HTTP suite keeps one status per refusal a client sees and the deny-before-refusal rule. The double `_load_gated` was nginx's subrequest and the view: two requests, one call each. Before: 143 lines (`catalog_views.py:842-984`); ~35 header-shape cases in `test_chunked_upload.py:236-330`, each through `client_as` + corpus + HTTP; 0 direct tests of `_count`/`_tus_metadata` (2026-11-07)
+- **Evidence (pre-#69 lines):** `:905` a header refusal is revealed only after a `staging.status` lookup; `:897,993` each piece runs `_load_gated` twice (nginx `upload_gate` + the view). Protocol decisions and staging effects interleave in each view.
 - **Deletion test:** moves (own module) and concentrates (one pure decision)
 - **Sketch:** `web/tus.py`: `read(method, headers) -> Create | Append | Head | Delete | Refusal(status)`, `answer(response)` stamps `Tus-Resumable`; header tables run with no client or corpus. Second step after #64.
 
@@ -231,7 +231,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** `thumbnails.root() -> Path`; callers pass nothing
 
 ### 14. `catalog_views.py` is the wave's dumping ground — Strong (pointer entry)
-- **Indicator:** 1129 lines, 15 routes (2026-11-07, worse; the tus code alone is 143 lines, #69); 1009 lines, 12 routes (2026-10-01; 1380 on 2026-09-02, ~970 before the
+- **Indicator:** 1013 lines, 15 routes (2026-11-07, after #69 moved the tus grammar out); 1129 lines (2026-11-07, before #69); 1009 lines, 12 routes (2026-10-01; 1380 on 2026-09-02, ~970 before the
   registry landed)
 - **Evidence:** routes, the field registry, the structural-save retry, the media drawer and the
   Bestand chooser all live here. Accreted.
