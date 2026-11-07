@@ -22,7 +22,7 @@ from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import browse, bulk, landing, ledger, reading, vocab
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
 from bundesarchiv.app.web.byline import BylineLink
-from bundesarchiv.app.web.catalog import none_if_blank
+from bundesarchiv.app.web.catalog import trim_or_none
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_urls import display_url, media_url, thumbnail_url
 from bundesarchiv.app.web.media_views import not_found
@@ -206,7 +206,7 @@ def media_tiles(ulid: ULID, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...
 
 def _tile(ulid: ULID, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile:
     image = thumbnails.renders(ref, Size.DISPLAY)
-    caption = none_if_blank(ref.caption or "") or ""
+    caption = trim_or_none(ref.caption) or ""
     kind = file_kind(ref)
     return MediaTile(
         kind=vocab.file_word(kind),
@@ -214,7 +214,7 @@ def _tile(ulid: ULID, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTil
         name=ref.filename,
         size=vocab.human_size(ref.byte_size),
         caption=caption,
-        alt=(image and none_if_blank(ref.alt or "")) or caption or ref.filename,
+        alt=(image and trim_or_none(ref.alt)) or caption or ref.filename,
         file_url=media_url(ulid, ref.content_hash),
         full_url=media_url(ulid, ref.content_hash) if mime_type(ref) in _DRAWN else "",
         display_url=(display_url(ulid, ref.content_hash) if image else ""),

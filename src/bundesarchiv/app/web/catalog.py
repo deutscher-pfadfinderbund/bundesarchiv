@@ -85,9 +85,8 @@ def one_line(raw: str) -> str:
     return re.sub(r"\s*[\r\n\x85\u2028\u2029]+\s*", " ", raw).strip()
 
 
-def none_if_blank(raw: str) -> str | None:
-    stripped = raw.strip()
-    return stripped or None
+def trim_or_none(raw: str | None) -> str | None:
+    return (raw and raw.strip()) or None
 
 
 def parse_edit_form(
@@ -127,12 +126,12 @@ def parse_edit_form(
     if collection_id is None:
         errors["collection_id"] = chooser.error()
 
-    media_type = none_if_blank(_get(post, "media_type"))
+    media_type = trim_or_none(_get(post, "media_type"))
     if media_type is None or media_type not in vocab.media_types():
         errors["media_type"] = "Medienart ist erforderlich."
         media_type = None
 
-    document_type = none_if_blank(_get(post, "document_type"))
+    document_type = trim_or_none(_get(post, "document_type"))
     if document_type is not None and not vocab.is_valid_pair(media_type, document_type):
         errors["document_type"] = (
             "Bitte zuerst eine Medienart wählen."
@@ -169,15 +168,15 @@ def parse_edit_form(
         body=_get(post, "body").replace("\r\n", "\n"),
         lifecycle=lifecycle,
         audience=audience,
-        ref_code=none_if_blank(_get(post, "ref_code")),
+        ref_code=trim_or_none(_get(post, "ref_code")),
         media_type=media_type,
         document_type=document_type,
         tags=parse_lines(_get(post, "tags")),
-        physical_location=none_if_blank(_get(post, "physical_location")),
+        physical_location=trim_or_none(_get(post, "physical_location")),
         media=apply_media_fields(post, current_media),
         date=date,
-        creator=none_if_blank(_get(post, "creator")),
-        subject_place=none_if_blank(_get(post, "subject_place")),
+        creator=trim_or_none(_get(post, "creator")),
+        subject_place=trim_or_none(_get(post, "subject_place")),
         custom=custom,
         added_at=added_at,
         deleted=deleted,
@@ -204,13 +203,9 @@ def apply_media_fields(
         raw, base = field(name, key), field(f"{name}_base", key)
         if raw is None:
             return current
-        edited = none_if_blank(clean(raw))
+        edited = trim_or_none(clean(raw))
         seen = current if base is None else clean(base)
-        return (
-            current
-            if edited in (none_if_blank(seen or ""), none_if_blank(current or ""))
-            else edited
-        )
+        return current if edited in (trim_or_none(seen), trim_or_none(current)) else edited
 
     return tuple(
         replace(

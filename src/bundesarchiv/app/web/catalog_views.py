@@ -446,7 +446,7 @@ def _media_rows(
     base ``catalog.apply_media_fields`` tells the archivist's edits by."""
 
     def shown(value: str | None) -> str:
-        return catalog.none_if_blank(value or "") or ""
+        return catalog.trim_or_none(value) or ""
 
     last = len(media) - 1
     tiles = media_tiles(ulid, media)
