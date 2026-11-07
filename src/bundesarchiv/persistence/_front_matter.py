@@ -116,8 +116,8 @@ def version_of(fm: dict[str, Any], *, absent: Version | None = None) -> Version:
     return value
 
 
-def audience_to_front_matter(audience: Audience | None) -> dict[str, Any]:
+def audience_to_front_matter(audience: Audience | None, key: str = "audience") -> dict[str, Any]:
     """No key for inherit (ADR 0001): absence reads as inherit."""
     if audience is None:
         return {}
-    return {"audience": {"tier": audience.tier.value, "groups": list(audience.groups)}}
+    return {key: {"tier": audience.tier.value, "groups": list(audience.groups)}}

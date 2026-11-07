@@ -674,3 +674,54 @@ def test_non_scalar_media_alt_rejected_as_archive_error() -> None:
     )
     with pytest.raises(ArchiveError):
         readme.decode(ID_X, text)
+
+
+# --- the FILES rung (ADR 0027): an additive key beside the audience ----------------------------
+
+
+@pytest.mark.parametrize(
+    "rung",
+    [
+        Audience(AudienceTier.PUBLIC),
+        Audience(AudienceTier.MEMBERS),
+        Audience(AudienceTier.GROUPS, ("bundesfuehrung",)),
+        Audience(
+            AudienceTier.GROUPS,
+            ("a: b", "- x", "# kein Kommentar", "null", "50%", " führend", "Köln, Bonn", "'"),
+        ),
+    ],
+)
+def test_the_files_rung_round_trips_any_rung(rung: Audience) -> None:
+    article = _article(files_audience=rung)
+    assert readme.decode(ID_01J0, readme.encode(article, 1, _CHANGE))[0] == article
+
+
+def test_an_unset_files_rung_omits_the_key_and_is_byte_identical_to_before() -> None:
+    plain = readme.encode(_article(), 1, _CHANGE)
+    assert "files_audience" not in plain
+    article = readme.decode(ID_01J0, plain)[0]
+    assert article.files_audience is None
+    assert readme.encode(article, 1, _CHANGE) == plain
+
+
+def test_a_readme_without_the_key_or_with_an_empty_one_inherits_the_files_rung() -> None:
+    head = f"{_HEAD}lifecycle: published\n"
+    assert readme.decode(ID_X, f"{head}---\nbody")[0].files_audience is None
+    assert readme.decode(ID_X, f"{head}files_audience: {{}}\n---\nbody")[0].files_audience is None
+
+
+def test_writing_the_files_rung_leaves_the_other_keys_alone() -> None:
+    without = readme.encode(_article(), 1, _CHANGE).splitlines()
+    with_rung = readme.encode(
+        _article(files_audience=Audience(AudienceTier.MEMBERS)), 1, _CHANGE
+    ).splitlines()
+    rung = ["files_audience:", "  tier: members", "  groups: []"]
+    at = with_rung.index(rung[0])
+    assert with_rung[at : at + len(rung)] == rung
+    assert with_rung[:at] + with_rung[at + len(rung) :] == without
+
+
+@pytest.mark.parametrize("value", ["members", "[members]", "1"])
+def test_a_non_mapping_files_rung_is_corrupt(value: str) -> None:
+    with pytest.raises(ArchiveError):
+        readme.decode(ID_X, f"{_HEAD}lifecycle: published\nfiles_audience: {value}\n---\nbody")
