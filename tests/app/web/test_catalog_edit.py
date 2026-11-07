@@ -207,7 +207,8 @@ def test_an_edit_keeps_the_date_added(corpus: _EditCorpus) -> None:
 
 
 def test_an_edit_keeps_the_files_rung(corpus: _EditCorpus) -> None:
-    # the form has no control for it; dropping it would widen the files to the record (ADR 0027)
+    # a form without the files pair (one from before it existed); dropping the rung would widen
+    # the files to the record (ADR 0027)
     files = Audience(AudienceTier.GROUPS, groups=("vorstand",))
     ulid = "01KX7YT9E3VX0CP3A5Q49RZMWJ"
     version = corpus.add_article(make_article(ulid, collection_id="PUB", files_audience=files))
@@ -226,6 +227,7 @@ def test_the_form_as_rendered_saves_every_other_value_unchanged(
         stored.article,
         tags=("Dritte, umgearbeitete Auflage, 1924", "Motiv: 100 % Wolle", "\u00c4rmelwappen"),
         audience=Audience(AudienceTier.GROUPS, ("Gau Wartburg, Nord", "vorstand")),
+        files_audience=Audience(AudienceTier.GROUPS, ("Gau Wartburg, Nord", "kasse")),
         media_type="Foto(s)",
         document_type="Zeitschrift",
         date=EdtfDate("1962-07"),
@@ -311,6 +313,43 @@ def test_raced_save_shows_conflict_panel_with_preserved_input(corpus: _EditCorpu
     stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Gewinner"
     assert stored.version == corpus.version + 1
+
+
+def test_a_lost_save_re_renders_the_losers_files_choice_over_the_winners_rung(
+    corpus: _EditCorpus,
+) -> None:
+    archivist = client_as(Archivist())
+    winner = _valid_post(corpus, files_audience="groups", files_groups="vorstand")
+    assert archivist.post(f"/articles/{_ULID}/edit", winner).status_code == 302
+    loser = archivist.post(f"/articles/{_ULID}/edit", _valid_post(corpus, files_audience="members"))
+    body = loser.content.decode()
+    main = body[body.index("<main") :]
+    assert _status(main, "files_audience").selected == ["members"]
+    stored = corpus.articles.load(_ULID).article
+    assert stored.files_audience == Audience(AudienceTier.GROUPS, ("vorstand",))
+    assert (
+        _conflict(main)
+        .stored_value("field-files_audience")
+        .endswith(vocab.files_audience_label(stored.files_audience))
+    )
+
+
+def test_a_lost_save_from_a_form_without_the_files_pair_re_renders_the_winners_rung(
+    corpus: _EditCorpus,
+) -> None:
+    # the re-render shows the stored rung, so the next Speichern of the form as shown keeps it
+    archivist = client_as(Archivist())
+    winner = _valid_post(corpus, files_audience="groups", files_groups="vorstand")
+    assert archivist.post(f"/articles/{_ULID}/edit", winner).status_code == 302
+    loser = archivist.post(f"/articles/{_ULID}/edit", _valid_post(corpus, title="Verlierer"))
+    rendered = edit_form(loser.content.decode())
+    assert (rendered["files_audience"], rendered["files_groups"]) == ("groups", "vorstand")
+    assert archivist.post(f"/articles/{_ULID}/edit", rendered).status_code == 302
+    saved = corpus.articles.load(_ULID).article
+    assert (saved.title, saved.files_audience) == (
+        "Verlierer",
+        Audience(AudienceTier.GROUPS, ("vorstand",)),
+    )
 
 
 def test_conflict_refreshes_expected_version_so_next_save_wins(corpus: _EditCorpus) -> None:
@@ -596,6 +635,7 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
         physical_location="Regal 3",
         body="Ein Text.",
         audience=Audience(tier=AudienceTier.GROUPS, groups=("vorstand", "archiv")),
+        files_audience=Audience(tier=AudienceTier.GROUPS, groups=("kasse",)),
         custom=(("Fotograf", "Meyer"),),
     )
     assert _article_to_form_values(article) == {
@@ -614,6 +654,8 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
         "body": "Ein Text.",
         "audience": "groups",
         "groups": "vorstand\narchiv",
+        "files_audience": "groups",
+        "files_groups": "kasse",
         "template": "",
         "custom_rows": [("Fotograf", "Meyer")],
     }
@@ -630,6 +672,7 @@ def test_every_card_field_echoes_the_post_verbatim() -> None:
     typed = {f.name: f"getippt {f.name}" for f in FIELDS if f.control} | {
         "lifecycle": "published",
         "audience": "groups",
+        "files_audience": "groups",
     }
     stored = make_article(_ULID, lifecycle=Lifecycle.DRAFT)
     values = _post_to_form_values(QueryDict(urlencode(typed)), stored)
@@ -659,7 +702,7 @@ def test_the_cas_diff_spells_the_rung_and_the_state_in_german() -> None:
 def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> None:
     # `scanned` is the GET autofocus spine: the fields walked for the first EMPTY one. It is the
     # focusable set minus the declared exceptions, the fields empty on almost every record by design:
-    # Gruppen (it means something only at the GROUPS rung) and Vorlage (few records are templates).
+    # the two Gruppen fields (they mean something only at the GROUPS rung) and Vorlage (few records are templates).
     # Scanning either would park the caret there on every fully catalogued record. Pinning the
     # relation rather than the membership means a dropped `scanned=True` fails here, and a further
     # exception has to be argued for rather than typed.
@@ -667,7 +710,7 @@ def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> No
 
     scanned = {f.name for f in FIELDS if f.scanned}
     focusable = {f.name for f in FIELDS if f.focusable}
-    assert scanned == focusable - {"groups", "template"}, (
+    assert scanned == focusable - {"groups", "files_groups", "template"}, (
         f"spine {sorted(scanned)} vs {sorted(focusable)}"
     )
 
@@ -720,6 +763,7 @@ _CAS_DIFF_ROWS = (
     "Titel",
     "Status",
     "Sichtbarkeit",
+    "Sichtbarkeit der Dateien",
     "Signatur",
     "Standort",
     "Beschreibung",
@@ -747,6 +791,7 @@ def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpu
         "physical_location": "Anderes Regal",
         "body": "Andere Beschreibung",
         "audience": "members",
+        "files_audience": "members",
     }
     winner = archivist.post(f"/articles/{_ULID}/edit", _valid_post(corpus, **changed))
     assert winner.status_code == 302
@@ -755,7 +800,7 @@ def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpu
     # is otherwise read from the article on disk, i.e. the winner's).
     loser = archivist.post(
         f"/articles/{_ULID}/edit",
-        _valid_post(corpus, lifecycle="published"),
+        _valid_post(corpus, lifecycle="published", files_audience=""),
     )
     assert loser.status_code == 200
     conflict = _conflict(loser.content.decode())
@@ -834,6 +879,14 @@ def test_a_groups_error_renders_its_message(corpus: _EditCorpus) -> None:
     )
     assert response.status_code == 200
     assert "Bitte mindestens eine Gruppe angeben." in response.content.decode()
+
+
+def test_a_files_groups_error_takes_the_caret(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/articles/{_ULID}/edit", _valid_post(corpus, files_audience="groups", files_groups="")
+    )
+    assert response.status_code == 200
+    assert _autofocused(response.content.decode()) == "files_groups"
 
 
 def test_a_custom_bag_error_renders_its_message(corpus: _EditCorpus) -> None:

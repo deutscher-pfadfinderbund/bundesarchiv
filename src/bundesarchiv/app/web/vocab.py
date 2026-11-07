@@ -134,6 +134,14 @@ AUDIENCE_OPTIONS: tuple[tuple[str, str], ...] = (
 )
 
 
+#: The files rung's options (ADR 0027): inherit means the files follow the record.
+FILES_AUDIENCE_INHERIT = "Wie der Eintrag"
+FILES_AUDIENCE_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("", FILES_AUDIENCE_INHERIT),
+    *AUDIENCE_OPTIONS[1:],
+)
+
+
 def audience_value(audience: Audience | None) -> str:
     """The Sichtbarkeit select value for a stored audience: empty (inherit) for ``None``, else the
     rung's value."""
@@ -232,6 +240,10 @@ _BERLIN = ZoneInfo("Europe/Berlin")
 
 def groups_label(groups: tuple[str, ...]) -> str:
     return "Gruppe: " + ", ".join(groups)
+
+
+def files_audience_label(audience: Audience | None) -> str:
+    return FILES_AUDIENCE_INHERIT if audience is None else audience_label(audience)
 
 
 def audience_label(audience: Audience | None) -> str:

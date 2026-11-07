@@ -14,7 +14,7 @@ from django.urls import reverse
 
 from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.domain.models import Article, Lifecycle
+from bundesarchiv.domain.models import Article, Audience, Lifecycle
 
 
 def _audience_label(article: Article) -> str:
@@ -29,8 +29,8 @@ def _seed_date(article: Article) -> str:
     return vocab.date_mono(article.date)
 
 
-def _seed_groups(article: Article) -> str:
-    return "\n".join(article.audience.groups) if article.audience is not None else ""
+def _groups_lines(audience: Audience | None) -> str:
+    return "\n".join(audience.groups) if audience is not None else ""
 
 
 def _lifecycle_label(article: Article) -> str:
@@ -69,8 +69,8 @@ class _Field:
 
     ``span`` gives the field the whole row of its section's grid.
 
-    ``shows_with`` names the option value of a sibling select that makes the field meaningful
-    (Gruppen: ``groups``); the stylesheet hides the field otherwise.
+    ``shows_with`` names the option value of the select in the field just before it that makes the
+    field meaningful (Gruppen: ``groups``); the stylesheet hides the field otherwise.
 
     ``required`` marks a field the save refuses blank; ``archivist_only`` one no viewer outside the
     archivists ever sees. Both put a marker after the label (the minority is marked). ``help`` is the
@@ -178,7 +178,27 @@ FIELDS: tuple[_Field, ...] = (
         hint="Eine Gruppe pro Zeile",
         shows_with="groups",
         focusable=True,
-        seed=_seed_groups,
+        seed=lambda article: _groups_lines(article.audience),
+    ),
+    _Field(
+        "files_audience",
+        label="Dateien sichtbar für",
+        control="select",
+        section="margin",
+        options="files_audience_options",
+        diff="Sichtbarkeit der Dateien",
+        seed=lambda article: vocab.audience_value(article.files_audience),
+        shown=lambda article: vocab.files_audience_label(article.files_audience),
+    ),
+    _Field(
+        "files_groups",
+        label="Dateigruppen",
+        control="textarea",
+        section="margin",
+        hint="Eine Gruppe pro Zeile",
+        shows_with="groups",
+        focusable=True,
+        seed=lambda article: _groups_lines(article.files_audience),
     ),
     # Collection has no diff row: a bulk/CAS diff of collection MOVES is its own surface, not this one.
     _Field(
@@ -382,6 +402,7 @@ def card_fields(
         "media_type_options": vocab.media_type_options,
         "document_type_groups": vocab.grouped_document_type_options,
         "audience_options": lambda: audience_options,
+        "files_audience_options": lambda: vocab.FILES_AUDIENCE_OPTIONS,
         "lifecycle_options": lambda: lifecycle_options,
     }
     ulid = str(values.get("ulid") or "")

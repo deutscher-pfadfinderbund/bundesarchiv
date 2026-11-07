@@ -772,8 +772,10 @@
   .record-meta > p {
     margin: 0;
   }
-  /* Gruppen means something only at the GROUPS rung */
-  .record-meta:not(:has(option[value="groups"]:checked)) > .field[data-shows-with="groups"] {
+  /* Gruppen means something only while the select just before it is at the GROUPS rung */
+  .record-meta
+    > .field:not(:has(option[value="groups"]:checked))
+    + .field[data-shows-with="groups"] {
     --field-display: none;
   }
   .record-meta-line {

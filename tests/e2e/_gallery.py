@@ -292,6 +292,11 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.wait_for_selector(".record-meta .error")
 
 
+def _reach_edit_files_groups(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit")
+    page.select_option('main select[name="files_audience"]', "groups")
+
+
 def _reach_edit_more_details(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the published record holds no custom row
     page.goto(f"{base}/articles/{corpus.published_ulid}/edit")
@@ -553,6 +558,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface rejected: a Gruppen error in the margin",
         True,
         _reach_edit_rejected,
+    ),
+    GalleryState(
+        "edit-files-groups",
+        "the edit surface, the files at Gruppe(n): Dateigruppen shows, the record's Gruppen does not",
+        True,
+        _reach_edit_files_groups,
     ),
     GalleryState(
         "edit-template",
