@@ -4,7 +4,7 @@
 
 import datetime
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import urlencode
@@ -38,7 +38,6 @@ from bundesarchiv.index.query import (
     FileKind,
     SearchFilters,
     SearchPage,
-    search,
 )
 from bundesarchiv.persistence.errors import ArchiveError
 
@@ -49,30 +48,20 @@ _PANE_PARAM = "article"
 
 def workbench(request: HttpRequest) -> HttpResponse:
     """``GET /articles`` — the workbench."""
-    parsed = browse.parse_query(request.GET)
+    state = browse.SearchState.parse(request.GET)
     viewer = viewer_of(request)
     # chrome only, not scoping (§11): search() decides visibility, archivist routes gate themselves
     is_archivist = isinstance(viewer, Archivist)
-    page = search(
-        viewer,
-        text=parsed.text,
-        filters=parsed.filters,
-        sort=parsed.sort,
-        descending=parsed.descending,
-        page=parsed.page,
-        page_size=parsed.page_size,
-        facets=_sentence_facets(parsed.filters),
-        headlines=parsed.reading,
-    )
+    page = state.search(viewer, facets=_sentence_facets(state.filters))
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
     pane = _resolve_pane(request, archive, chooser, is_archivist=is_archivist)
     # a bare ?selection= is selection mode with nothing ticked (spec §2)
-    selecting = is_archivist and not parsed.reading and browse.PARAM_SELECTION in request.GET
+    selecting = is_archivist and not state.reading and browse.PARAM_SELECTION in request.GET
     selection = [u for u in request.GET.getlist(browse.PARAM_SELECTION) if u] if selecting else []
     context = _results_context(
         request,
-        parsed,
+        state,
         page,
         is_archivist=is_archivist,
         selected_ulid=pane.ulid if pane is not None else None,
@@ -82,7 +71,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
     )
     context["is_archivist"] = is_archivist
     context["pane"] = pane
-    context["active_collection"] = parsed.filters.collection if is_archivist else None
+    context["active_collection"] = state.filters.collection if is_archivist else None
     # body.preview adds the pane column (the pane switch, layouts.css); the ledger re-densifies by
     # itself, it is a size container (law C11).
     context["preview"] = pane is not None
@@ -255,23 +244,15 @@ def _resolve_pane(
     )
 
 
-#: ``q`` is the form's own input, and a new search resets ``page``.
-_FORM_FILTER_PARAMS: tuple[str, ...] = (
-    *browse.FILTER_PARAMS,
-    browse.PARAM_SORT,
-    browse.PARAM_VIEW,
-    browse.PARAM_PAGE_SIZE,
-)
-
-
-def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
-    """The set filters as hidden inputs, so typing a new ``q`` refines within them."""
-    return tuple((key, params[key]) for key in _FORM_FILTER_PARAMS if params.get(key))
+def _form_filters(state: browse.SearchState) -> tuple[tuple[str, str], ...]:
+    """The set filters, sort, view and page size as hidden inputs, so typing a new ``q`` refines
+    within them; ``q`` is the form's own input, and a new search starts on page 1."""
+    return tuple(replace(state, text=None, page=1).params().items())
 
 
 def _results_context(
     request: HttpRequest,
-    parsed: browse.ParsedQuery,
+    state: browse.SearchState,
     page: SearchPage,
     *,
     is_archivist: bool,
@@ -280,62 +261,44 @@ def _results_context(
     selection: list[str],
     chooser: CollectionChooser,
 ) -> dict[str, object]:
-    """Links are prebuilt from ``params``, which drops the pane, the selection and the landing
-    flags: none is search state."""
-    params = {
-        k: v
-        for k, v in request.GET.dict().items()
-        if k not in (_PANE_PARAM, browse.PARAM_SELECTION) and k not in landing.FLAG_KEYS
-    }
     here = request.GET.copy()
     for key in landing.FLAG_KEYS:
         here.pop(key, None)
     total = page.total
     context: dict[str, object] = {
-        "text": parsed.text or "",
-        "filter_params": _form_filters(params),
+        "text": state.text or "",
+        "filter_params": _form_filters(state),
         "page": page,
-        "reading": parsed.reading,
+        "reading": state.reading,
         "reading_rows": reading.rows(
-            page.hits,
-            filters=parsed.filters,
-            params=params,
-            is_archivist=is_archivist,
-            chooser=chooser,
+            page.hits, state=state, is_archivist=is_archivist, chooser=chooser
         )
-        if parsed.reading
+        if state.reading
         else (),
         "ledger": None
-        if parsed.reading
+        if state.reading
         else ledger.build(
             page.hits,
             columns=ledger.chosen(request.COOKIES.get(ledger.COOKIE)),
-            parsed=parsed,
-            params=params,
+            state=state,
             selection=selection,
             is_archivist=is_archivist,
             selected_ulid=selected_ulid,
             chooser=chooser,
         ),
         # the view switch, with a query only: without one the list is the table
-        "views": _views(params, reading=parsed.reading) if parsed.text else (),
-        "pager": _pager(
-            parsed,
-            page,
-            params,
-            ["", *selection] if selecting else [],
-            page_size=parsed.page_size,
-        )
+        "views": _views(state) if state.text else (),
+        "pager": _pager(state, page, ["", *selection] if selecting else [], sizes=True)
         if total
         else None,
         # "Spalten …" returns to this very list, pane and selection included
         "columns_back": here.urlencode(),
         "total": vocab.count(total),
-        "empty_collection": _only_collection_filter(parsed) if total == 0 else None,
+        "empty_collection": _only_collection_filter(state) if total == 0 else None,
     }
-    context.update(_sentence(params, parsed, page, chooser, is_archivist=is_archivist))
-    if is_archivist and not parsed.reading:
-        context.update(_bulk_bar_context(params, page, selecting, selection, chooser))
+    context.update(sentence(state, page, chooser, is_archivist=is_archivist))
+    if is_archivist and not state.reading:
+        context.update(_bulk_bar_context(state, page, selecting, selection, chooser))
     return context
 
 
@@ -349,10 +312,10 @@ class _View:
     current: bool
 
 
-def _views(params: Mapping[str, str], *, reading: bool) -> tuple[_View, ...]:
+def _views(state: browse.SearchState) -> tuple[_View, ...]:
     return (
-        _View("Lesesaal", browse.view_query(params, table=False), reading),
-        _View("Tabelle", browse.view_query(params, table=True), not reading),
+        _View("Lesesaal", replace(state, table=False).query(), state.reading),
+        _View("Tabelle", replace(state, table=True).query(), not state.reading),
     )
 
 
@@ -379,28 +342,24 @@ class _Pager:
 
 
 def _pager(
-    parsed: browse.ParsedQuery,
-    page: SearchPage,
-    params: Mapping[str, str],
-    selection: list[str],
-    *,
-    page_size: int | None = None,
+    state: browse.SearchState, page: SearchPage, selection: list[str], *, sizes: bool = False
 ) -> _Pager:
-    """The pager's links carry the selection (``selection``), so paging never drops it. A
-    ``page_size`` brings the page-size chooser; without one the list pages by ``PAGE_SIZE``."""
-    sizes = (
+    """The pager's links carry the selection (``selection``), so paging never drops it; ``sizes``
+    brings the page-size chooser."""
+    choices = (
         tuple(
             _PageSize(
                 str(size),
-                None if size == page_size else browse.page_size_query(params, selection, size),
+                None
+                if size == state.page_size
+                else replace(state, page_size=size, page=1).query(selection),
             )
             for size in browse.PAGE_SIZES
         )
-        if page_size is not None
+        if sizes
         else ()
     )
-    page_size = page_size or browse.PAGE_SIZE
-    n, hits = parsed.page, len(page.hits)
+    n, hits, page_size = state.page, len(page.hits), state.page_size
     first = (n - 1) * page_size + 1
     has_prev = n > 1
     has_next = browse.has_next_page(
@@ -409,24 +368,24 @@ def _pager(
     shown = f"{vocab.count(first)}\N{EN DASH}{vocab.count(first + hits - 1)}" if hits else ""
     return _Pager(
         stepped=has_prev or has_next,
-        prev_query=browse.page_query_with_selection(params, selection, n - 1) if has_prev else None,
-        next_query=browse.page_query_with_selection(params, selection, n + 1) if has_next else None,
+        prev_query=replace(state, page=n - 1).query(selection) if has_prev else None,
+        next_query=replace(state, page=n + 1).query(selection) if has_next else None,
         first=first,
         shown=shown,
         total=page.total,
         total_label=vocab.count(page.total),
-        sizes=sizes,
+        sizes=choices,
     )
 
 
-def _only_collection_filter(parsed: browse.ParsedQuery) -> str | None:
-    f = parsed.filters
-    others_empty = not parsed.text and replace(f, collection=None) == SearchFilters()
+def _only_collection_filter(state: browse.SearchState) -> str | None:
+    f = state.filters
+    others_empty = not state.text and replace(f, collection=None) == SearchFilters()
     return f.collection if f.collection is not None and others_empty else None
 
 
 def _bulk_bar_context(
-    params: dict[str, str],
+    state: browse.SearchState,
     page: SearchPage,
     selecting: bool,
     selection: list[str],
@@ -437,25 +396,20 @@ def _bulk_bar_context(
     hits = page.hits
     if not hits:
         return {}
-    search = [(k, v) for k, v in params.items() if v]
     if not selecting:
-        return {
-            "selecting": False,
-            "select_query": urlencode([*search, (browse.PARAM_SELECTION, "")]),
-        }
+        return {"selecting": False, "select_query": state.query([""])}
     on_page = {h.ulid for h in hits}
     return {
         "selecting": True,
         "selection_count": len(selection),
         "selection_offpage_count": sum(1 for u in selection if u not in on_page),
-        "cancel_query": urlencode(search),
+        "cancel_query": state.query(),
         **bulk.field_picker_context(chooser),
     }
 
 
-def _sentence(
-    params: dict[str, str],
-    parsed: browse.ParsedQuery,
+def sentence(
+    state: browse.SearchState,
     page: SearchPage,
     chooser: CollectionChooser,
     *,
@@ -465,11 +419,11 @@ def _sentence(
     Schrifttum the Dokumenttyp), every set filter no slot shows, the "+ Filter" checks (Entwürfe
     for archivists only), and the query that clears every filter once two or more are set (else
     ``None``)."""
-    f = parsed.filters
+    f = state.filters
     facets = page.facets
     names = chooser.names()
     decade_menu = _facet_items(
-        params,
+        state,
         browse.PARAM_DECADE,
         # in time order, as the start page's Zeitleiste reads (the index counts most first)
         tuple(sorted(facets.get("decades", ()), key=lambda fc: int(fc.value))),
@@ -477,19 +431,19 @@ def _sentence(
     )
     if page.dateless_count or f.dateless:
         decade_menu += (
-            _toggle(params, browse.PARAM_DATELESS, vocab.UNDATED, f.dateless, page.dateless_count),
+            _toggle(state, browse.PARAM_DATELESS, vocab.UNDATED, f.dateless, page.dateless_count),
         )
     undated_slot = f.dateless and f.decade is None  # set beside a decade, it stays a set filter
     any_medienart = "jede Medienart"
     typed = _typed(f)
     slots = (
         _slot(
-            params,
+            state,
             browse.PARAM_COLLECTION,
             f.collection and names.get(f.collection, f.collection),
             "allen Sammlungsteilen",
             _facet_items(
-                params,
+                state,
                 browse.PARAM_COLLECTION,
                 facets.get("collection", ()),
                 label=lambda u: names.get(u, u),
@@ -497,28 +451,28 @@ def _sentence(
         ),
         # the undated are the decade slot's own value, as the start page's Zeitleiste names them
         _slot(
-            params,
+            state,
             browse.PARAM_DATELESS if undated_slot else browse.PARAM_DECADE,
             vocab.UNDATED if undated_slot else (None if f.decade is None else f"{f.decade}er"),
             "alle Jahrzehnte",
             decade_menu,
         ),
         _slot(
-            params,
+            state,
             browse.PARAM_MEDIA_TYPE,
             f.media_type,
             any_medienart,
-            _facet_items(params, browse.PARAM_MEDIA_TYPE, facets.get("media_type", ())),
+            _facet_items(state, browse.PARAM_MEDIA_TYPE, facets.get("media_type", ())),
         ),
         *(
             (
                 _slot(
-                    params,
+                    state,
                     browse.PARAM_DOCUMENT_TYPE,
                     f.document_type,
                     "jeder Dokumenttyp",
                     _facet_items(
-                        params, browse.PARAM_DOCUMENT_TYPE, facets.get("document_type", ())
+                        state, browse.PARAM_DOCUMENT_TYPE, facets.get("document_type", ())
                     ),
                     under=((browse.PARAM_MEDIA_TYPE, any_medienart),),
                 ),
@@ -545,44 +499,42 @@ def _sentence(
         (browse.PARAM_DRAFTS, "Entwürfe" if f.drafts_only else None),
         (browse.PARAM_TEMPLATES, "Vorlagen" if f.templates_only else None),
     )
-    checks = [_toggle(params, browse.PARAM_DIGITAL, "mit Dateien", f.has_files)]
+    checks = [_toggle(state, browse.PARAM_DIGITAL, "mit Dateien", f.has_files)]
     checks += _facet_items(
-        {**params, browse.PARAM_FILE: f.file_kind.value if f.file_kind else ""},
+        state,
         browse.PARAM_FILE,
         facets.get("file_kind", ()),
         label=lambda kind: vocab.FILE_FILTER_LABELS[FileKind(kind)],
     )
     if is_archivist:
-        checks.append(_toggle(params, browse.PARAM_DRAFTS, "Entwürfe", f.drafts_only))
-        checks.append(_toggle(params, browse.PARAM_TEMPLATES, "Vorlagen", f.templates_only))
+        checks.append(_toggle(state, browse.PARAM_DRAFTS, "Entwürfe", f.drafts_only))
+        checks.append(_toggle(state, browse.PARAM_TEMPLATES, "Vorlagen", f.templates_only))
     set_filters = tuple(
-        _SetFilter(label, browse.without_param(params, param))
-        for param, label in unslotted
-        if label
+        _SetFilter(label, state.without(param).query()) for param, label in unslotted if label
     )
     set_count = len(set_filters) + sum(bool(slot.clears) for slot in slots)
-    order = _order(params, parsed)
+    order = _order(state)
     return {
         "slots": slots,
         "set_filters": (*set_filters, order) if order else set_filters,
         "filter_checks": tuple(checks),
         # two or more set filters clear together (owner 2026-09-30); q and the sort stay
-        "clear_all_query": browse.clear_filters_query(params) if set_count >= 2 else None,
+        "clear_all_query": state.without_filters().query() if set_count >= 2 else None,
         "any_filter_set": set_count > 0,
     }
 
 
-def _order(params: dict[str, str], parsed: browse.ParsedQuery) -> _SetFilter | None:
+def _order(state: browse.SearchState) -> _SetFilter | None:
     """The sort as a set filter where no column head shows it, its link back to relevance: the
     start page's "Alle ansehen" order, and in the Lesesaal any sort (owner, 2026-10-18). It is no filter: "alle entfernen" keeps it."""
-    if parsed.sort == "added":
+    if state.sort == "added":
         label = "neueste zuerst"
-    elif parsed.reading and parsed.sort != "relevance":
-        label = f"sortiert nach {ledger.SORT_LABELS[parsed.sort]}"
-        label += ", absteigend" if parsed.descending else ""
+    elif state.reading and state.sort != "relevance":
+        label = f"sortiert nach {ledger.SORT_LABELS[state.sort]}"
+        label += ", absteigend" if state.descending else ""
     else:
         return None
-    return _SetFilter(label, browse.without_param(params, browse.PARAM_SORT))
+    return _SetFilter(label, state.without(browse.PARAM_SORT).query())
 
 
 def _bound(day: datetime.date, year_edge: tuple[int, int]) -> str:
@@ -591,7 +543,7 @@ def _bound(day: datetime.date, year_edge: tuple[int, int]) -> str:
 
 
 def _sentence_facets(filters: SearchFilters) -> tuple[Facet, ...]:
-    """The facets ``_sentence`` reads: its slots' and the file types of "+ Filter"."""
+    """The facets ``sentence`` reads: its slots' and the file types of "+ Filter"."""
     return (
         "collection",
         "decades",
@@ -607,7 +559,7 @@ def _typed(filters: SearchFilters) -> bool:
 
 
 def _slot(
-    params: dict[str, str],
+    state: browse.SearchState,
     param: str,
     value_label: str | None,
     unset_label: str,
@@ -622,7 +574,7 @@ def _slot(
         label=value_label or unset_label,
         unset_label=unset_label,
         clears=tuple(
-            _FacetItem(label=label, count="", active=False, query=browse.without_param(params, p))
+            _FacetItem(label=label, count="", active=False, query=state.without(p).query())
             for p, label in clears
         ),
         items=items,
@@ -630,15 +582,15 @@ def _slot(
 
 
 def _toggle(
-    params: dict[str, str], param: str, label: str, active: bool, count: int | None = None
+    state: browse.SearchState, param: str, label: str, active: bool, count: int | None = None
 ) -> _FacetItem:
     """A boolean filter's entry: set, it removes the filter; unset, it adds ``param=1``."""
-    query = browse.without_param(params, param) if active else browse.with_param(params, param, "1")
+    query = (state.without(param) if active else state.with_(param, "1")).query()
     return _FacetItem(label, "" if count is None else vocab.count(count), active, query)
 
 
 def _facet_items(
-    params: dict[str, str],
+    state: browse.SearchState,
     param: str,
     counts: tuple[FacetCount, ...],
     *,
@@ -646,15 +598,15 @@ def _facet_items(
 ) -> tuple[_FacetItem, ...]:
     """A facet's values as menu entries, named by ``label``. The value that is set removes its
     filter when clicked; every other one sets it."""
-    active_value = params.get(param, "")
+    active_value = state.value(param)
     return tuple(
         _FacetItem(
             label=label(fc.value),
             count=vocab.count(fc.count),
             active=fc.value == active_value,
-            query=browse.without_param(params, param)
-            if fc.value == active_value
-            else browse.with_param(params, param, fc.value),
+            query=(
+                state.without(param) if fc.value == active_value else state.with_(param, fc.value)
+            ).query(),
         )
         for fc in counts
     )
@@ -673,11 +625,16 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     )
 
 
-def preset_url(param: str, value: str, within: Mapping[str, str] | None = None) -> str:
-    """The list with ``param`` set to ``value``: where a crumb, a Schlagwort or a start-page area
-    leads. ``within`` (a list's params) keeps what its search form carries besides ``q``."""
-    kept = dict(_form_filters(within or {}))
-    return f"{reverse('workbench')}?{browse.with_param(kept, param, value)}"
+def list_url(state: browse.SearchState) -> str:
+    """The list showing ``state``: where a start-page area or a suggestion leads."""
+    return f"{reverse('workbench')}?{state.query()}"
+
+
+def preset_url(param: str, value: str, within: browse.SearchState | None = None) -> str:
+    """The list with ``param`` set to ``value``. ``within`` (a list's state) keeps what its search
+    form carries besides ``q``."""
+    kept = replace(within, text=None) if within else browse.SearchState()
+    return list_url(kept.with_(param, value))
 
 
 @dataclass(frozen=True, slots=True)
@@ -786,27 +743,25 @@ def _versions(versions: tuple[tuple[Version, Change | None], ...]) -> tuple[dict
     )
 
 
+#: The Papierkorb's one search: the marked Articles by title. ``deleted`` prints no param, so its
+#: pager prints a state that holds the page alone.
+_PAPIERKORB = browse.SearchState(filters=SearchFilters(deleted=True), sort="title")
+
+
 def trash(request: HttpRequest) -> HttpResponseBase:
     """``GET /trash`` — the Papierkorb (ADR 0022): the marked Articles by title, each with
     Wiederherstellen and "Endgültig löschen …". Archivist-only, GET-only; else the plain 404."""
     viewer = viewer_of(request)
     if not isinstance(viewer, Archivist) or request.method != "GET":
         return not_found()
-    parsed = browse.parse_query(request.GET)
-    page = search(
-        viewer,
-        filters=SearchFilters(deleted=True),
-        sort="title",
-        page=parsed.page,
-        page_size=browse.PAGE_SIZE,
-        facets=(),
-    )
+    paging = browse.SearchState(page=browse.SearchState.parse(request.GET).page)
+    page = replace(_PAPIERKORB, page=paging.page).search(viewer, facets=())
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
     rows = tuple(row for hit in page.hits if (row := _trash_row(archive, hit.ulid, chooser)))
     context: dict[str, object] = {
         "rows": rows,
-        "pager": _pager(parsed, page, {}, []) if page.total else None,
+        "pager": _pager(paging, page, []) if page.total else None,
     }
     return render_screen(request, "workbench/trash.html", context, chooser=chooser)
 

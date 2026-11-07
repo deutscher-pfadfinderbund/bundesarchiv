@@ -47,11 +47,8 @@ _FOCUS = {"signatur": landing._REF_CODE}
 def _value(key: str, value: str) -> str:
     """``value`` in English where it is an old fixed value of ``key``, else verbatim."""
     if key == browse.PARAM_SORT:
-        # read as browse._parse_sort reads it, so a padded or upper-case old label maps too
-        name = value.strip().lower()
-        minus = "-" if name.startswith("-") else ""
-        old = name.removeprefix("-")
-        return minus + _SORTS[old] if old in _SORTS else value
+        name, descending = browse.sort_parts(value)
+        return ("-" if descending else "") + _SORTS[name] if name in _SORTS else value
     if key == landing._FOCUS:
         return _FOCUS.get(value, value)
     return value

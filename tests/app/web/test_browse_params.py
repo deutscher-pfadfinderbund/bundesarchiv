@@ -1,4 +1,4 @@
-"""``browse.parse_query``, the one strict-but-total parser of the workbench's GET params: garbage in any field falls to that field's default, never a 500."""
+"""``SearchState.parse``, the one strict-but-total parser of the workbench's GET params: garbage in any field falls to that field's default, never a 500."""
 
 import datetime
 from typing import get_args
@@ -6,12 +6,12 @@ from typing import get_args
 import pytest
 from django.http import QueryDict
 
-from bundesarchiv.app.web.browse import PAGE_SIZE, PAGE_SIZES, ParsedQuery, parse_query
+from bundesarchiv.app.web.browse import PAGE_SIZE, PAGE_SIZES, SearchState
 from bundesarchiv.index.query import FileKind, SearchFilters, SortOrder
 
 
-def _parse(**params: str) -> ParsedQuery:
-    return parse_query(params)
+def _parse(**params: str) -> SearchState:
+    return SearchState.parse(params)
 
 
 def test_empty_params_yield_all_defaults() -> None:
@@ -147,8 +147,8 @@ def test_a_missing_page_size_is_the_default() -> None:
 
 
 def test_a_repeated_page_size_reads_its_last_value() -> None:
-    assert parse_query(QueryDict("page_size=25&page_size=100")).page_size == 100
-    assert parse_query(QueryDict("page_size=25&page_size=junk")).page_size == PAGE_SIZE
+    assert SearchState.parse(QueryDict("page_size=25&page_size=100")).page_size == 100
+    assert SearchState.parse(QueryDict("page_size=25&page_size=junk")).page_size == PAGE_SIZE
 
 
 def test_the_file_kind_parses_and_an_unknown_one_is_ignored() -> None:

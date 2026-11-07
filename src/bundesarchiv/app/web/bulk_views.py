@@ -118,7 +118,7 @@ def _confirm(
                 }
                 for a in articles
             ],
-            "cancel_query": browse.select_page_query({}, [a.ulid for a in articles], []),
+            "cancel_query": browse.select_page_query([a.ulid for a in articles], []),
         },
         chooser=chooser,
     )
@@ -154,7 +154,7 @@ def _commit(
             "missing_count": len(outcome.missing),
             "doctype_cleared_count": len(outcome.doctype_cleared),
             "bulk_index_lag": vocab.BULK_INDEX_LAG if outcome.index_lagged else "",
-            "retry_query": browse.select_page_query({}, [], [r.ulid for r in outcome.conflicted]),
+            "retry_query": browse.select_page_query([], [r.ulid for r in outcome.conflicted]),
         },
         chooser=chooser,
     )
@@ -177,7 +177,7 @@ def _reject(
             "selection": selection,
             "error": error,
             "count": len(selection),
-            "cancel_query": browse.select_page_query({}, selection, []),
+            "cancel_query": browse.select_page_query(selection, []),
             **bulk.field_picker_context(chooser, field=field, value=value),
         },
         chooser=chooser,

@@ -230,7 +230,7 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         1,
         _CRASH,
     ),
-    "app/web/test_leak_matrix.py:test_route_tier_matrix:bundesarchiv.app.web.browse_views.search": (
+    "app/web/test_leak_matrix.py:test_route_tier_matrix:bundesarchiv.index.query.search": (
         1,
         _DEBT,
     ),
@@ -239,10 +239,6 @@ TEST_PATCHES: dict[str, tuple[int, str]] = {
         _DEBT,
     ),
     "app/web/test_leak_matrix.py:test_route_tier_matrix:bundesarchiv.app.web.start.dateless_count": (
-        1,
-        _DEBT,
-    ),
-    "app/web/test_leak_matrix.py:test_route_tier_matrix:bundesarchiv.app.web.start.search": (
         1,
         _DEBT,
     ),

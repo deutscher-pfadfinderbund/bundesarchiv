@@ -6,14 +6,14 @@ a page of ``SearchHit`` s into rows the template only prints. No visibility logi
 hits are viewer-scoped by ``search``, and their headlines read only member-searchable fields.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from django.urls import reverse
 
-from bundesarchiv.app.web import card, ledger
+from bundesarchiv.app.web import browse, card, ledger
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.index.query import Headline, HeadlineField, SearchFilters, SearchHit
+from bundesarchiv.index.query import Headline, HeadlineField, SearchHit
 
 #: The fields a why line may name, heaviest first (the ADR 0011 weights: Schlagworte B, Autor and
 #: Ort C, Beschreibung D). The title never: a title holding the word needs no why line.
@@ -65,20 +65,19 @@ def why(headlines: Sequence[Headline]) -> Why | None:
 def rows(
     hits: Sequence[SearchHit],
     *,
-    filters: SearchFilters,
-    params: Mapping[str, str],
+    state: browse.SearchState,
     is_archivist: bool,
     chooser: CollectionChooser,
 ) -> tuple[Row, ...]:
-    """The rows for one page of hits; ``params`` is the search state, which leaves out the facts
-    its filters already say (as the ledger leaves out their columns)."""
-    facts = ledger.unfiltered(_FACTS, params)
+    """The rows for one page of hits, without the facts ``state``'s filters already say (as the
+    ledger leaves out their columns)."""
+    facts = ledger.unfiltered(_FACTS, state)
     return tuple(
         Row(
             title=hit.title,
             href=reverse("article-detail", args=[hit.ulid]),
-            draft=ledger.draft_mark(hit, filters, is_archivist=is_archivist),
-            template=ledger.template_mark(hit, filters, is_archivist=is_archivist),
+            draft=ledger.draft_mark(hit, state.filters, is_archivist=is_archivist),
+            template=ledger.template_mark(hit, state.filters, is_archivist=is_archivist),
             why=why(hit.headlines),
             text_hits=ledger.text_hits(hit),
             facts=tuple(text for c in facts if (text := c.value(hit, chooser))),

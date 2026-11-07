@@ -181,15 +181,14 @@ _TEXT_HIT = SearchHit(
 )
 
 #: The demo ledger is sorted by Signatur, ascending, so one head shows its direction.
-_LEDGER_QUERY = {"sort": "ref_code"}
+_LEDGER_STATE = browse.SearchState(sort="ref_code")
 
 
 def _demo_ledger() -> ledger.Ledger:
     return ledger.build(
         (_TEXT_HIT, *_LEDGER_HITS),
         columns=ledger.DEFAULT_COLUMNS,
-        parsed=browse.parse_query(_LEDGER_QUERY),
-        params=_LEDGER_QUERY,
+        state=_LEDGER_STATE,
         selection=(),
         is_archivist=True,
         selected_ulid=None,

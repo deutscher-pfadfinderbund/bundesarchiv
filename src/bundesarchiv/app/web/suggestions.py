@@ -70,7 +70,7 @@ def _kept(field: Suggested, counts: Sequence[FacetCount]) -> Sequence[FacetCount
 
 
 def _values(
-    text: str, within: Mapping[str, str], counts: Sequence[FacetCount], param: str
+    text: str, within: browse.SearchState, counts: Sequence[FacetCount], param: str
 ) -> tuple[Entry, ...]:
     return tuple(
         _entry(text, fc.value, preset_url(param, fc.value, within), count=vocab.count(fc.count))
@@ -80,12 +80,12 @@ def _values(
 
 def build(
     text: str,
-    within: Mapping[str, str],
+    within: browse.SearchState,
     page: SearchPage,
     values: Mapping[Suggested, Sequence[FacetCount]],
 ) -> tuple[Group, ...]:
     """The groups in their fixed order, each capped, the empty ones left out. A value's pick is the
-    list ``within`` (the form's params) leads to, with that value set and without the text
+    list ``within`` (the form's state) leads to, with that value set and without the text
     (ruling 2)."""
     articles = tuple(
         _entry(text, h.title, reverse("article-detail", args=[h.ulid]), date=h.date_edtf or "")
@@ -110,8 +110,8 @@ def suggestions(request: HttpRequest, *, all_option: bool = True) -> HttpRespons
     viewer = viewer_of(request)
     if isinstance(viewer, Public) or request.method != "GET":
         return not_found()
-    parsed = browse.parse_query(request.GET)
-    text, filters = parsed.text, parsed.filters
+    state = browse.SearchState.parse(request.GET)
+    text, filters = state.text, state.filters
     groups: tuple[Group, ...] = ()
     total = 0
     all_href = None
@@ -120,11 +120,11 @@ def suggestions(request: HttpRequest, *, all_option: bool = True) -> HttpRespons
         total = page.total
         groups = build(
             text,
-            request.GET,
+            state,
             page,
             {f: values_containing(viewer, f, text, filters) for f, _, _ in _VALUE_GROUPS},
         )
-        all_href = preset_url(browse.PARAM_Q, text, request.GET)
+        all_href = preset_url(browse.PARAM_Q, text, state)
     response = render_screen(
         request,
         "workbench/_suggestions.html",

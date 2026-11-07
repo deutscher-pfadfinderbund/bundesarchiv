@@ -153,20 +153,16 @@ def build(
     hits: Sequence[SearchHit],
     *,
     columns: Sequence[Column],
-    parsed: browse.ParsedQuery,
-    params: Mapping[str, str],
+    state: browse.SearchState,
     selection: Sequence[str],
     is_archivist: bool,
     selected_ulid: str | None,
     chooser: CollectionChooser,
 ) -> Ledger:
-    """``params`` is the search state the links build from, without the pane, ``selection`` and
-    landing-flag params."""
-    shown = unfiltered((c for c in COLUMNS if c in columns), params)
-    active = parsed.sort
+    shown = unfiltered((c for c in COLUMNS if c in columns), state)
     heads = (
-        _head("title", SORT_LABELS["title"], "title", active, parsed.descending, params),
-        *(_head(c.key, c.label, c.sort, active, parsed.descending, params) for c in shown),
+        _head("title", SORT_LABELS["title"], "title", state),
+        *(_head(c.key, c.label, c.sort, state) for c in shown),
     )
     selected_ulids = frozenset(selection) if is_archivist else frozenset()
     rows = tuple(
@@ -174,11 +170,11 @@ def build(
             ulid=hit.ulid,
             title=hit.title,
             href=reverse("article-detail", args=[hit.ulid]),
-            draft=draft_mark(hit, parsed.filters, is_archivist=is_archivist),
-            template=template_mark(hit, parsed.filters, is_archivist=is_archivist),
+            draft=draft_mark(hit, state.filters, is_archivist=is_archivist),
+            template=template_mark(hit, state.filters, is_archivist=is_archivist),
             selected=hit.ulid == selected_ulid,
             in_selection=hit.ulid in selected_ulids,
-            cells=tuple(_cell(c, hit, chooser, params) for c in shown),
+            cells=tuple(_cell(c, hit, chooser, state) for c in shown),
             text_hits=text_hits(hit),
         )
         for hit in hits
@@ -187,9 +183,9 @@ def build(
     return Ledger(heads=heads, rows=rows, choices=choices)
 
 
-def unfiltered(columns: Iterable[Column], params: Mapping[str, str]) -> tuple[Column, ...]:
+def unfiltered(columns: Iterable[Column], state: browse.SearchState) -> tuple[Column, ...]:
     """``columns`` less those whose filter is set: every hit would repeat its one value."""
-    return tuple(c for c in columns if not _filtered(c, params))
+    return tuple(c for c in columns if c.filter is None or state.value(c.filter) is None)
 
 
 def draft_mark(hit: SearchHit, filters: SearchFilters, *, is_archivist: bool) -> bool:
@@ -222,35 +218,22 @@ def text_hits(hit: SearchHit) -> TextHits | None:
     )
 
 
-def _filtered(column: Column, params: Mapping[str, str]) -> bool:
-    return column.filter is not None and bool(params.get(column.filter, "").strip())
-
-
 def _cell(
-    column: Column, hit: SearchHit, chooser: CollectionChooser, params: Mapping[str, str]
+    column: Column, hit: SearchHit, chooser: CollectionChooser, state: browse.SearchState
 ) -> Cell:
     text = column.value(hit, chooser)
     if column.filter is None or not text:
         return Cell(column.key, text)
     value = column.filter_value(hit) if column.filter_value else text
-    return Cell(column.key, text, browse.with_param(params, column.filter, value))
+    return Cell(column.key, text, state.with_(column.filter, value).query())
 
 
-def _head(
-    key: str,
-    label: str,
-    sort: str | None,
-    active: str,
-    descending: bool,
-    params: Mapping[str, str],
-) -> Head:
+def _head(key: str, label: str, sort: str | None, state: browse.SearchState) -> Head:
     """A head's link cycles its sort: ascending, then descending, then back to the default."""
     if sort is None:
         return Head(key, label)
-    if active != sort:
-        return Head(key, label, browse.with_param(params, browse.PARAM_SORT, sort))
-    if not descending:
-        return Head(
-            key, label, browse.with_param(params, browse.PARAM_SORT, f"-{sort}"), "ascending"
-        )
-    return Head(key, label, browse.without_param(params, browse.PARAM_SORT), "descending")
+    if state.sort != sort:
+        return Head(key, label, state.with_(browse.PARAM_SORT, sort).query())
+    if not state.descending:
+        return Head(key, label, state.with_(browse.PARAM_SORT, f"-{sort}").query(), "ascending")
+    return Head(key, label, state.without(browse.PARAM_SORT).query(), "descending")
