@@ -1,5 +1,7 @@
 # Audience model: cascading inheritance from a single owning Sammlung
 
+Status: Accepted. Amended by ADR 0027 (2026-11-07): one rung per aspect of an Article, not one per Article.
+
 An Article's **Audience** is a rung on the ladder Public ⊃ Members ⊃ named Keycloak Group(s) (groups are OR-combined and always a subset of Members). Each Article belongs to **exactly one owning Sammlung**, and Sammlungen form a single-parent tree; the **effective Audience is the nearest explicit `audience` walking Article → Sammlung → parent Sammlung → … → root**, where the root defaults to `Members`. An explicit Article-level Audience **wins and may widen, not only narrow** — silent over-exposure is prevented by a **publish-time visibility preview**, not by a tighten-only rule. The **Lifecycle gate overrides everything**: a non-Published Article is Archivist-only.
 
 ## Considered options

@@ -4,7 +4,7 @@
 > hash — [ADR 0019](0019-canonical-layout-v1.md). The reference shape gains an optional
 > stored name.
 
-Status: Accepted (owner, 2026-07-10)
+Status: Accepted (owner, 2026-07-10). Amended by ADR 0019 (2026-09-24) and ADR 0027 (2026-11-07): visibility is decided per aspect of the Article, never per media entry.
 
 ## Context
 
