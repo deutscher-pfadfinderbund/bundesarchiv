@@ -206,6 +206,16 @@ def test_an_edit_keeps_the_date_added(corpus: _EditCorpus) -> None:
     assert corpus.articles.load(ULID(ulid)).article.added_at == added_at
 
 
+def test_an_edit_keeps_the_files_rung(corpus: _EditCorpus) -> None:
+    # the form has no control for it; dropping it would widen the files to the record (ADR 0027)
+    files = Audience(AudienceTier.GROUPS, groups=("vorstand",))
+    ulid = "01KX7YT9E3VX0CP3A5Q49RZMWJ"
+    version = corpus.add_article(make_article(ulid, collection_id="PUB", files_audience=files))
+    post = _valid_post(corpus, expected_version=str(version))
+    assert client_as(Archivist()).post(f"/articles/{ulid}/edit", post).status_code == 302
+    assert corpus.articles.load(ULID(ulid)).article.files_audience == files
+
+
 @pytest.mark.parametrize("title", ["", "Neuer Titel"], ids=["unchanged", "title"])
 def test_the_form_as_rendered_saves_every_other_value_unchanged(
     corpus: _EditCorpus, title: str
@@ -696,6 +706,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
             ulid=_ULID,
             chooser=chooser,
             current_audience=None,
+            current_files_audience=None,
             added_at=None,
             deleted=None,
         ).errors

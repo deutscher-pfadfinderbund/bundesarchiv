@@ -49,6 +49,7 @@ def _parse(post: dict[str, list[str]], *, stored: Audience | None = None) -> cat
         ulid=ULID("01ARTICLEULID0000000000000"),
         chooser=_COLLECTION,
         current_audience=stored,
+        current_files_audience=None,
         added_at=None,
         deleted=None,
     )
@@ -73,6 +74,7 @@ def test_an_edit_keeps_the_trash_mark() -> None:
         ulid=ULID("01ARTICLEULID0000000000000"),
         chooser=_COLLECTION,
         current_audience=None,
+        current_files_audience=None,
         added_at=None,
         deleted=mark,
     )

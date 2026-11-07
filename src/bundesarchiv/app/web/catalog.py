@@ -96,6 +96,7 @@ def parse_edit_form(
     chooser: CollectionChooser,
     current_media: tuple[MediaRef, ...] = (),
     current_audience: Audience | None,
+    current_files_audience: Audience | None,
     lifecycle: Lifecycle = Lifecycle.DRAFT,
     added_at: datetime | None,
     deleted: Change | None,
@@ -113,8 +114,9 @@ def parse_edit_form(
     lifecycle when the submit carried no Status — or the Status the archivist chose, so publishing
     from the edit screen saves the form and transitions in ONE CAS write (owner decision 2026-08-08).
     This layer stays pure either way: it never decides the transition, it only records the state it
-    was handed. ``added_at`` (the stored date added) and ``deleted`` (the Papierkorb mark, ADR 0022)
-    are carried through like the ulid: no edit changes them."""
+    was handed. ``added_at`` (the stored date added), ``deleted`` (the Papierkorb mark, ADR 0022)
+    and ``current_files_audience`` (the files rung, ADR 0027) are carried through like the ulid: no
+    edit changes them."""
     errors: FormErrors = {}
     expected_version = parse_version(_get(post, "expected_version"))
 
@@ -168,6 +170,7 @@ def parse_edit_form(
         body=_get(post, "body").replace("\r\n", "\n"),
         lifecycle=lifecycle,
         audience=audience,
+        files_audience=current_files_audience,
         ref_code=trim_or_none(_get(post, "ref_code")),
         media_type=media_type,
         document_type=document_type,

@@ -206,6 +206,7 @@ def _handle_edit_post(
         chooser=chooser,
         current_media=current.media,
         current_audience=current.audience,
+        current_files_audience=current.files_audience,
         lifecycle=lifecycle,
         added_at=current.added_at,
         deleted=current.deleted,
