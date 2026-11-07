@@ -16,6 +16,7 @@ from tests.e2e._pages import (
     LIST,
     SCREENS,
     Screen,
+    add_member_cookies,
     reach_door,
     reach_tag_suggestions,
     screens_for,
@@ -383,7 +384,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     page = archivist_page
     page.goto(live_workbench + LIST)
     # the canonical corpus, one page
-    expect(page.locator(".pager")).to_contain_text("1\N{EN DASH}7 von 7")
+    expect(page.locator(".pager")).to_contain_text("1\N{EN DASH}8 von 8")
     count = page.locator("#hit-count")
     expect(count).to_have_text("")
     # The live region's NODE must survive the swap or the polite announcement dies silently. Stamp
@@ -972,6 +973,29 @@ def test_a_tile_is_a_plain_link_to_its_file_without_script(
     assert (tile.get_attribute("href") or "").startswith("/media/")
     assert tile.get_attribute("target") == "_blank"
     expect(page.locator(".lightbox-strip")).to_be_hidden()
+
+
+def test_a_locked_tile_opens_nothing(
+    live_workbench: str, browser: Browser, e2e_corpus: CorpusHandles
+) -> None:
+    """ADR 0027: a Member outside the files' group sees the hint and tiles that neither open the
+    lightbox nor navigate."""
+    context = browser.new_context()
+    try:
+        add_member_cookies(context, live_workbench)
+        page = context.new_page()
+        address = live_workbench + f"/articles/{e2e_corpus.locked_ulid}"
+        page.goto(address)
+        expect(page.locator("main .hint")).to_be_visible()
+        tiles = page.locator("main .media-tile")
+        expect(tiles).to_have_count(3)
+        for n in range(3):
+            tiles.nth(n).click()
+        expect(page.locator(".lightbox")).to_have_count(0)
+        assert page.url == address
+        assert context.pages == [page]
+    finally:
+        context.close()
 
 
 def test_download_saves_the_original_under_its_own_name(

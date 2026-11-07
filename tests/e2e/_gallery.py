@@ -17,6 +17,7 @@ from tests.e2e._pages import (
     READING_QUERY,
     SCREENS,
     Screen,
+    as_member,
     reach_at,
     reach_search_suggestions,
     reach_tag_suggestions,
@@ -393,6 +394,34 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         True,
         _reach_sound,
         widths=PHONE,
+    ),
+    GalleryState(
+        "detail-member-locked",
+        "the article page as a Member outside the files' group: three locked tiles in the rows, two"
+        " with a caption, and the plural hint under the heading",
+        False,
+        as_member(lambda c: f"/articles/{c.locked_ulid}"),
+    ),
+    GalleryState(
+        "detail-member-locked-one",
+        "the article page as a Member outside the files' group: one locked PDF, no caption, the"
+        " singular hint",
+        False,
+        as_member(lambda c: f"/articles/{c.ceiling_ulid}"),
+    ),
+    GalleryState(
+        "pane-member-locked",
+        "the preview pane as a Member outside the files' group: the hint over three locked tiles",
+        False,
+        as_member(lambda c: f"{LIST}?article={c.locked_ulid}"),
+        widths=WIDTHS[:1],
+    ),
+    GalleryState(
+        "pane-member-locked-one",
+        "the preview pane as a Member outside the files' group: one locked PDF, the singular hint",
+        False,
+        as_member(lambda c: f"{LIST}?article={c.ceiling_ulid}"),
+        widths=WIDTHS[:1],
     ),
     GalleryState(
         "workbench-reading-sorted",

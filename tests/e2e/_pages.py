@@ -7,10 +7,14 @@ overlay walks and the gallery all derive from (tests/CLAUDE.md).
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 from django.test import override_settings
-from playwright.sync_api import Page, expect
+from playwright.sync_api import BrowserContext, Page, expect
+from tests._login import viewer_cookies
 from tests.e2e._corpus import PAGE_ONLY_WORD, CorpusHandles
+
+from bundesarchiv.domain.viewer import Member
 
 #: The list's path, once for every browser file (the start page is "/").
 LIST = "/articles"
@@ -70,6 +74,28 @@ def _goto(build: Callable[[CorpusHandles], str]) -> Reach:
     """A reach that navigates to a URL built from the corpus handles."""
 
     def reach(page: Page, base: str, corpus: CorpusHandles) -> None:
+        page.goto(base + build(corpus))
+
+    return reach
+
+
+def add_member_cookies(context: BrowserContext, base_url: str) -> None:
+    """Log ``context`` in as a Member of no group, as ``add_archivist_cookies`` an Archivist."""
+    host = urlparse(base_url).hostname or "localhost"
+    context.add_cookies(
+        [
+            {"name": name, "value": value, "domain": host, "path": "/"}
+            for name, value in viewer_cookies(Member(groups=())).items()
+        ]
+    )
+
+
+def as_member(build: Callable[[CorpusHandles], str]) -> Reach:
+    """A reach that logs the page in as a Member of no group, then navigates to ``build``'s URL.
+    The inventory's non-archivist screens are seen by Public; a Member's states use this."""
+
+    def reach(page: Page, base: str, corpus: CorpusHandles) -> None:
+        add_member_cookies(page.context, base)
         page.goto(base + build(corpus))
 
     return reach
