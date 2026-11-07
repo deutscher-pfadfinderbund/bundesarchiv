@@ -597,7 +597,5 @@ def test_an_images_alt_is_its_description_else_its_caption_else_its_file_name(
 def test_a_tile_breaks_a_file_name_only_after_its_separators_and_escapes_the_rest(
     name: str, breakable: str
 ) -> None:
-    tile = MediaTile(
-        kind="Datei", glyph="", name=name, caption="", file_url="", full_url="", thumb_url=""
-    )
+    tile = MediaTile(kind="Datei", glyph="", name=name, caption="", file_url="", thumb_url="")
     assert tile.breakable_name == breakable
