@@ -3,9 +3,7 @@ scope columns (write side) and the ``Q`` over them (read side), one set per aspe
 read side must stay row-equivalent to ``domain.access.can_view``.
 """
 
-import operator
 from collections.abc import Mapping
-from functools import reduce
 from typing import TypedDict, assert_never, cast
 
 from django.db.models import Q
@@ -57,8 +55,7 @@ def _columns(effective: EffectiveAudience) -> dict[str, bool | str | list[str] |
 def _viewer_scope(viewer: Viewer, aspect: Aspect) -> Q:
     """The rows whose ``aspect`` rung ``viewer`` clears, only together with the record, as
     ``can_view`` (ADR 0027)."""
-    aspects = dict.fromkeys((Aspect.RECORD, aspect))
-    return reduce(operator.and_, (_rung_scope(viewer, _COLUMN_PREFIX[a]) for a in aspects))
+    return _rung_scope(viewer, "") & _rung_scope(viewer, _COLUMN_PREFIX[aspect])
 
 
 def _rung_scope(viewer: Viewer, p: str) -> Q:

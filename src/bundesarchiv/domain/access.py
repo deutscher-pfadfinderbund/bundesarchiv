@@ -38,12 +38,12 @@ def can_view(
     against.
     """
     try:
-        rungs = [
-            effective_audience(article, chain, a) for a in dict.fromkeys((Aspect.RECORD, aspect))
-        ]
+        return all(
+            _viewer_clears(viewer, effective_audience(article, chain, a))
+            for a in (Aspect.RECORD, aspect)
+        )
     except DomainError:
         return False
-    return all(_viewer_clears(viewer, rung) for rung in rungs)
 
 
 def _viewer_clears(viewer: Viewer, effective: EffectiveAudience) -> bool:
