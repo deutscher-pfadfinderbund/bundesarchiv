@@ -9,8 +9,9 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
+from functools import reduce
 from itertools import groupby
-from operator import itemgetter
+from operator import and_, itemgetter
 from typing import Any, Literal, TypedDict, assert_never, cast
 
 from django.contrib.postgres.expressions import ArraySubquery
@@ -85,7 +86,7 @@ class SearchFilters:
     document_type: str | None = None
     tag: str | None = None
     creator: str | None = None
-    place: str | None = None  # the ``subject_place`` column
+    place: str | None = None
     decade: int | None = None
     date_from: datetime.date | None = None
     date_to: datetime.date | None = None
@@ -212,7 +213,7 @@ def search(
     if ref_code_match is not None:
         base = base.annotate(_ref_code_key=_REF_CODE_KEY)
     matched = _apply_text(base, query, viewer, ref_code_match)
-    filtered = _apply_filters(matched, filters)
+    filtered = matched.filter(where(filters))
 
     total = filtered.count()
     hits = _page_of_hits(
@@ -266,12 +267,6 @@ def suggest_tags(viewer: Viewer, text: str, *, exclude: Iterable[str] = ()) -> t
 
 type Suggested = Literal["creator", "place", "tags"]
 
-_SUGGESTED_COLUMNS: Mapping[Suggested, str] = {
-    "creator": "creator",
-    "place": "subject_place",
-    "tags": "tags",
-}
-
 
 def values_containing(
     viewer: Viewer, field: Suggested, text: str, filters: SearchFilters | None = None
@@ -284,13 +279,11 @@ def values_containing(
     needle = text.strip().casefold()
     if not needle:
         return ()
-    column = _SUGGESTED_COLUMNS[field]
-    value = Func(F(column), function="unnest") if field == "tags" else F(column)
-    narrowed = _apply_filters(
-        _scoped(viewer, deleted=False), _without(filters or SearchFilters(), field)
+    narrowed = _scoped(viewer, deleted=False).filter(
+        where(_without(filters or SearchFilters(), field))
     )
     rows = (
-        narrowed.annotate(_elem=value)
+        narrowed.annotate(_elem=_values_of(_DIMENSIONS[field]))
         .values("_elem")
         .annotate(_n=Count("ulid"))
         .order_by("-_n", Collate("_elem", _DE_NUMERIC))
@@ -416,51 +409,115 @@ def _ref_code_hit(text: str | None) -> Q | None:
     return Q(_ref_code_key=key) if key else None
 
 
-def _apply_filters(qs: QuerySet[ArticleIndex], f: SearchFilters) -> QuerySet[ArticleIndex]:
-    if f.collection is not None:
-        qs = qs.filter(collection_ancestors__contains=[f.collection])
-    if f.media_type is not None:
-        qs = qs.filter(media_type=f.media_type)
-    if f.document_type is not None:
-        qs = qs.filter(document_type=f.document_type)
-    if f.tag is not None:
-        qs = qs.filter(tags__contains=[f.tag])
-    if f.creator is not None:
-        qs = qs.filter(creator=f.creator)
-    if f.place is not None:
-        qs = qs.filter(subject_place=f.place)
-    if f.decade is not None:
-        qs = qs.filter(decades__contains=[f.decade])
-    if f.dateless:
-        qs = qs.filter(date_earliest__isnull=True)
-    if f.has_files:
-        qs = qs.exclude(file_counts={})
-    if f.file_kind is not None:
-        qs = qs.filter(file_counts__has_key=f.file_kind.value)
-    if f.drafts_only:
-        qs = qs.filter(is_draft=True)
-    if f.templates_only:
-        qs = qs.filter(is_template=True)
-    return _apply_date_range(qs, f.date_from, f.date_to)
+type _Shape = Literal["scalar", "array", "kinds"]
 
 
-def _apply_date_range(
-    qs: QuerySet[ArticleIndex],
-    date_from: datetime.date | None,
-    date_to: datetime.date | None,
-) -> QuerySet[ArticleIndex]:
+@dataclass(frozen=True, slots=True)
+class _Dimension:
+    """What a facet counts by: the ``SearchFilters`` field that narrows by it, the index column it
+    reads, how its values sit there (one value, an array, or ``FileKind`` keys), and the facets whose
+    filters its counts leave out besides its own."""
+
+    filter_field: str
+    column: str
+    shape: _Shape
+    nested: tuple[Facet, ...] = ()
+
+
+_DIMENSIONS: Mapping[Facet, _Dimension] = {
+    # The whole subtree, for the filter and the facet alike (owner 2026-07-10).
+    "collection": _Dimension("collection", "collection_ancestors", "array"),
+    # The Dokumenttyp sits under the Medienart: picking a Medienart leaves the Dokumenttyp behind.
+    "media_type": _Dimension("media_type", "media_type", "scalar", nested=("document_type",)),
+    "document_type": _Dimension("document_type", "document_type", "scalar"),
+    "tags": _Dimension("tag", "tags", "array"),
+    "creator": _Dimension("creator", "creator", "scalar"),
+    "place": _Dimension("place", "subject_place", "scalar"),
+    "decades": _Dimension("decade", "decades", "array"),
+    "file_kind": _Dimension("file_kind", "file_counts", "kinds"),
+}
+
+
+def where(filters: SearchFilters) -> Q:
+    """The predicate a row passes ``filters`` by; ``Q()`` for none. ``deleted`` is not in it:
+    ``_scoped`` picks the side of the Papierkorb."""
+    narrowed = (
+        _narrowed_by(dimension, value)
+        for dimension in _DIMENSIONS.values()
+        if (value := getattr(filters, dimension.filter_field)) is not None
+    )
+    flags = (
+        predicate
+        for on, predicate in (
+            (filters.dateless, Q(date_earliest__isnull=True)),
+            (filters.has_files, ~Q(file_counts={})),
+            (filters.drafts_only, Q(is_draft=True)),
+            (filters.templates_only, Q(is_template=True)),
+        )
+        if on
+    )
+    window = _overlapping(filters.date_from, filters.date_to)
+    return reduce(and_, (*narrowed, *flags, window), Q())
+
+
+def facet_plan(filters: SearchFilters, wanted: Iterable[Facet]) -> Mapping[Facet, Q]:
+    """Per ``wanted`` facet, the predicate its counts take: ``filters`` less the facet's own
+    dimension and the ones nested under it."""
+    return {facet: where(_without(filters, facet)) for facet in wanted}
+
+
+def dateless_plan(filters: SearchFilters) -> Q:
+    """The predicate the "Unbekannt" bucket counts under: the dateless rows that pass ``filters``
+    less the date window, which would zero the count by construction."""
+    return where(replace(filters, dateless=True, date_from=None, date_to=None))
+
+
+def _without(filters: SearchFilters, facet: Facet) -> SearchFilters:
+    dimension = _DIMENSIONS[facet]
+    cleared = (dimension.filter_field, *(_DIMENSIONS[n].filter_field for n in dimension.nested))
+    # Every dimension's field is nullable; ``Any`` keeps ``replace`` from checking None against
+    # the union of all field types.
+    kwargs: dict[str, Any] = dict.fromkeys(cleared)
+    return replace(filters, **kwargs)
+
+
+def _narrowed_by(dimension: _Dimension, value: object) -> Q:
+    match dimension.shape:
+        case "scalar":
+            return Q(**{dimension.column: value})
+        case "array":
+            return Q(**{f"{dimension.column}__contains": [value]})
+        case "kinds":
+            return Q(**{f"{dimension.column}__has_key": str(value)})
+        case _ as unreachable:
+            assert_never(unreachable)
+
+
+def _values_of(dimension: _Dimension) -> F | Func:
+    """The expression giving each value a row carries in ``dimension``, one output row per value."""
+    column = F(dimension.column)
+    match dimension.shape:
+        case "scalar":
+            return column
+        case "array":
+            return Func(column, function="unnest")
+        case "kinds":
+            return Func(column, function="jsonb_object_keys")
+        case _ as unreachable:
+            assert_never(unreachable)
+
+
+def _overlapping(date_from: datetime.date | None, date_to: datetime.date | None) -> Q:
+    """Rows whose date range overlaps the window; ``Q()`` without a bound. A null ``date_latest``
+    is an open upper end."""
     if date_from is None and date_to is None:
-        return qs
-    # A dateless row (date_earliest IS NULL) can never overlap a date window — drop it whenever any
-    # bound is given. (Its date_latest is NULL too, so it would otherwise sneak through the
-    # open-upper-end branch below.)
-    qs = qs.filter(date_earliest__isnull=False)
-    if date_to is not None:
-        qs = qs.filter(date_earliest__lte=date_to)
-    if date_from is not None:
-        # date_latest >= date_from, OR date_latest IS NULL = an open upper end (+infinity).
-        qs = qs.filter(Q(date_latest__gte=date_from) | Q(date_latest__isnull=True))
-    return qs
+        return Q()
+    upper = Q() if date_to is None else Q(date_earliest__lte=date_to)
+    lower = (
+        Q() if date_from is None else Q(date_latest__gte=date_from) | Q(date_latest__isnull=True)
+    )
+    # A dateless row has a null date_latest too: without this it would pass as an open upper end.
+    return Q(date_earliest__isnull=False) & upper & lower
 
 
 def _page_of_hits(
@@ -659,93 +716,38 @@ def _clamp_page_size(page_size: int) -> int:
     return max(1, min(page_size, _MAX_PAGE_SIZE))
 
 
-_SCALAR_FACETS: tuple[tuple[str, str], ...] = (
-    ("media_type", "media_type"),
-    ("document_type", "document_type"),
-    ("creator", "creator"),
-    ("place", "subject_place"),
-)
-
-# ``collection`` counts the whole subtree, matching the subtree filter (owner 2026-07-10).
-_ARRAY_FACETS: tuple[tuple[str, str], ...] = (
-    ("collection", "collection_ancestors"),
-    ("tags", "tags"),
-    ("decades", "decades"),
-)
-
-
 def _facets(
-    matched: QuerySet[ArticleIndex], filters: SearchFilters, wanted: tuple[str, ...]
+    matched: QuerySet[ArticleIndex], filters: SearchFilters, wanted: Iterable[Facet]
 ) -> Mapping[str, tuple[FacetCount, ...]]:
-    """The ``wanted`` facets. ``matched`` is the scoped + text-matched queryset (facets DO reflect the
-    text search and every filter EXCEPT the facet's own dimension and those nested under it). Each
-    facet re-applies the other filters via ``_apply_filters`` over a per-facet copy of ``filters``
-    with those dimensions cleared, so the scope predicate rides along on every aggregate query."""
-    scalar = {
-        key: _scalar_facet(matched, column=column, filters=_without(filters, key))
-        for key, column in _SCALAR_FACETS
-        if key in wanted
+    """The ``wanted`` facets over ``matched``, the scoped and text-matched rows, each counted under
+    its predicate from ``facet_plan``; the scope rides along on every count."""
+    return {
+        facet: _counted(matched.filter(predicate), _DIMENSIONS[facet])
+        for facet, predicate in facet_plan(filters, wanted).items()
     }
-    if "file_kind" in wanted:
-        scalar["file_kind"] = _file_kind_facet(matched, _without(filters, "file_kind"))
-    array = {
-        key: _array_facet(matched, column=column, filters=_without(filters, key))
-        for key, column in _ARRAY_FACETS
-        if key in wanted
-    }
-    return scalar | array
 
 
 def _dateless_count(matched: QuerySet[ArticleIndex], filters: SearchFilters) -> int:
-    """Clears the date range too: a range would zero the count by construction."""
-    other = replace(filters, dateless=False, date_from=None, date_to=None)
-    return _apply_filters(matched, other).filter(date_earliest__isnull=True).count()
+    return matched.filter(dateless_plan(filters)).count()
 
 
-def _file_kind_facet(
-    matched: QuerySet[ArticleIndex], filters: SearchFilters
-) -> tuple[FacetCount, ...]:
-    """How many rows carry a file of each kind, in ``FileKind`` order, zero kinds left out: one
-    aggregate over ``matched`` re-filtered by the other dimensions."""
-    counts = _apply_filters(matched, filters).aggregate(
-        **{k.value: Count("ulid", filter=Q(file_counts__has_key=k.value)) for k in FileKind}
-    )
-    return tuple(FacetCount(k.value, counts[k.value]) for k in FileKind if counts[k.value])
-
-
-#: The Dokumenttyp sits under the Medienart: picking a Medienart leaves the Dokumenttyp behind.
-_NESTED: Mapping[str, tuple[str, ...]] = {"media_type": ("document_type",)}
-
-
-def _without(filters: SearchFilters, key: str) -> SearchFilters:
-    field = {"tags": "tag", "decades": "decade"}.get(key, key)
-    # ``field`` is always a nullable dimension, never a bool, so None is well-typed; ``Any`` keeps
-    # ``replace`` from narrowing the value against the union of field types.
-    kwargs: dict[str, Any] = dict.fromkeys((field, *_NESTED.get(field, ())))
-    return replace(filters, **kwargs)
-
-
-def _scalar_facet(
-    matched: QuerySet[ArticleIndex], *, column: str, filters: SearchFilters
-) -> tuple[FacetCount, ...]:
-    rows = (
-        _apply_filters(matched, filters)
-        .exclude(**{f"{column}__isnull": True})
-        .values(column)
-        .annotate(_n=Count("ulid"))
-        .order_by("-_n", column)
-    )
-    return tuple(FacetCount(value=str(row[column]), count=row["_n"]) for row in rows)
-
-
-def _array_facet(
-    matched: QuerySet[ArticleIndex], *, column: str, filters: SearchFilters
-) -> tuple[FacetCount, ...]:
-    rows = (
-        _apply_filters(matched, filters)
-        .annotate(_elem=Func(F(column), function="unnest"))
-        .values("_elem")
-        .annotate(_n=Count("ulid"))
-        .order_by("-_n", "_elem")
-    )
-    return tuple(FacetCount(value=str(row["_elem"]), count=row["_n"]) for row in rows)
+def _counted(rows: QuerySet[ArticleIndex], dimension: _Dimension) -> tuple[FacetCount, ...]:
+    """How many of ``rows`` carry each value of ``dimension``, most first; ``FileKind`` keys in
+    ``FileKind`` order, zero kinds left out."""
+    match dimension.shape:
+        case "scalar" | "array":
+            groups = (
+                rows.exclude(**{f"{dimension.column}__isnull": True})
+                .annotate(_elem=_values_of(dimension))
+                .values("_elem")
+                .annotate(_n=Count("ulid"))
+                .order_by("-_n", "_elem")
+            )
+            return tuple(FacetCount(value=str(row["_elem"]), count=row["_n"]) for row in groups)
+        case "kinds":
+            counts = rows.aggregate(
+                **{k.value: Count("ulid", filter=_narrowed_by(dimension, k)) for k in FileKind}
+            )
+            return tuple(FacetCount(k.value, counts[k.value]) for k in FileKind if counts[k.value])
+        case _ as unreachable:
+            assert_never(unreachable)
