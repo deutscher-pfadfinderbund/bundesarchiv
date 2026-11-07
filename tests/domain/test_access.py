@@ -486,3 +486,47 @@ def test_the_lifecycle_gate_denies_the_files_to_every_non_archivist(viewer: View
     )
     assert can_view(viewer, draft, _chain(), Aspect.FILES) is False
     assert can_view(Archivist(), draft, _chain(), Aspect.FILES) is True
+
+
+_RUNGS = (_PUBLIC, _MEMBERS, _BOARD, None)
+
+
+@pytest.mark.parametrize("lifecycle", [Lifecycle.PUBLISHED, Lifecycle.DRAFT])
+@pytest.mark.parametrize("files", _RUNGS)
+@pytest.mark.parametrize("record", _RUNGS)
+@pytest.mark.parametrize("aspect", list(Aspect))
+def test_preview_per_aspect_is_defined_by_can_view(
+    aspect: Aspect, record: Audience | None, files: Audience | None, lifecycle: Lifecycle
+) -> None:
+    article = make_article(
+        "01J0", collection_id="c-leaf", lifecycle=lifecycle, audience=record, files_audience=files
+    )
+    published = replace(article, lifecycle=Lifecycle.PUBLISHED)
+    p = preview(article, _chain(), aspect)
+    assert p.public == can_view(Public(), published, _chain(), aspect)
+    assert p.members == can_view(Member(), published, _chain(), aspect)
+
+
+_KASSE = Audience(AudienceTier.GROUPS, ("kasse",))
+
+
+@pytest.mark.parametrize(
+    ("record", "files", "expected"),
+    [
+        (_MEMBERS, _BOARD, ("vorstand",)),
+        (_KASSE, _BOARD, ("vorstand",)),
+        (_BOARD, _MEMBERS, ("vorstand",)),  # a wider files rung is inert: the record's groups
+        (_BOARD, None, ("vorstand",)),
+        (_MEMBERS, _PUBLIC, ()),
+    ],
+)
+def test_the_files_preview_names_the_files_groups_else_the_records(
+    record: Audience, files: Audience | None, expected: tuple[str, ...]
+) -> None:
+    article = make_article("01J0", collection_id="c-leaf", audience=record, files_audience=files)
+    assert preview(article, _chain(), Aspect.FILES).groups == expected
+
+
+def test_the_record_preview_ignores_the_files_rung() -> None:
+    article = make_article("01J0", collection_id="c-leaf", audience=_MEMBERS, files_audience=_BOARD)
+    assert preview(article, _chain()) == preview(replace(article, files_audience=None), _chain())

@@ -130,20 +130,23 @@ class VisibilityPreview:
     groups: tuple[str, ...]
 
 
-def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
+def preview(
+    article: Article, chain: ResolvedChain, aspect: Aspect = Aspect.RECORD
+) -> VisibilityPreview:
     published = replace(article, lifecycle=Lifecycle.PUBLISHED, template=False)
-    public = can_view(Public(), published, chain)
-    members = can_view(Member(), published, chain)
     return VisibilityPreview(
-        public=public, members=members, groups=_would_be_groups(published, chain)
+        public=can_view(Public(), published, chain, aspect),
+        members=can_view(Member(), published, chain, aspect),
+        groups=_would_be_groups(published, chain, aspect),
     )
 
 
-def _would_be_groups(article: Article, chain: ResolvedChain) -> tuple[str, ...]:
+def _would_be_groups(article: Article, chain: ResolvedChain, aspect: Aspect) -> tuple[str, ...]:
+    """The groups of the aspect's rung, else the record's: a viewer clears both (ADR 0027)."""
     try:
-        effective = effective_audience(article, chain)
+        rungs = [effective_audience(article, chain, a) for a in (aspect, Aspect.RECORD)]
     except DomainError:
         return ()
-    if isinstance(effective, Audience) and effective.tier is AudienceTier.GROUPS:
-        return effective.groups
-    return ()
+    return next(
+        (r.groups for r in rungs if isinstance(r, Audience) and r.tier is AudienceTier.GROUPS), ()
+    )
