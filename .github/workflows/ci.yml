@@ -1,23 +1,24 @@
-# Two jobs, split by what they cost.
-#
-# `fast` runs on every event and takes its checks from mise.toml's `check` task
-# — the same command a developer runs before every commit — plus mypy, which is
-# deliberately push-time-only locally and so stays its own step here.
-#
-# `db` runs the Postgres-backed tests and does NOT go through mise: mise's `pg`
-# task runs a native Postgres for local dev, while this job tests against the
-# image the VPS runs. The Postgres image (docker/postgres/Dockerfile, plain
-# Postgres 18) is built and published to GHCR by
-# postgres-image.yml and only pulled here, so CI runs the same bytes as the VPS.
-# The pytest marker expressions are the shared source of truth, so this job and
-# mise's `test:db` select the same tests. The job is skipped when no DB-relevant
-# path changed, and always runs on a push to main.
+# Two jobs, split by what they cost: `fast` runs the checks a developer runs
+# before every commit; `db` runs the Postgres-backed tests against the Postgres
+# image the VPS runs, so CI tests the same bytes production runs.
 name: CI
 
 on:
   push:
     branches: [main]
+    paths: &relevant
+      - '**'
+      - '!.github/dependabot.yml'
+      - '!**.md'
+      - '!docs/**'
+      - '!.impeccable/**'
+      - '!.git-blame-ignore-revs'
+      - '!.pre-commit-config.yaml'
+      - '!.worktreeinclude'
+      - 'docs/design/design-system.md'
+      - 'design-system/**'
   pull_request:
+    paths: *relevant
 
 permissions:
   contents: read

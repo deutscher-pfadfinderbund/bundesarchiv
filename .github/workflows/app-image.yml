@@ -6,7 +6,16 @@
 name: App image
 
 on:
+  # Only for changes that can reach the image (see .dockerignore).
   pull_request:
+    paths:
+      - '**'
+      - '!.github/dependabot.yml'
+      - '!**.md'
+      - '!docs/**'
+      - '!tests/**'
+      - '!.claude/**'
+      - '!.impeccable/**'
   workflow_run:
     workflows: [CI]
     types: [completed]
