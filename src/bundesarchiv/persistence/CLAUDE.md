@@ -11,8 +11,7 @@ adapter-specific files cover only what the port cannot state. A README that does
 UTF-8, not YAML, wrong shape) raises `UnreadableReadme`; each repository's `scan` sorts such records
 out, and `load_all` leaves such a Collection out (owner 2026-10-01). A validation rule added for new
 writes never runs on the decode of stored READMEs, or older files stop loading.
-An Article's `files_audience` key sits beside `audience` and is decoded the same way: absent or `{}` inherits
-the record's rung (ADR 0027).
+An Article's `files_audience` uses the `audience` codec; absent means inherit (ADR 0027).
 
 Only the archive files (the canonical store and its mirror) must survive the loss of the server;
 Postgres may hold admin data (sessions, audit) beside the disposable index (owner, 2026-08-30).
