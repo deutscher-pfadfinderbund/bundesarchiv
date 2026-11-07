@@ -153,19 +153,13 @@ the full rework of this flow is parked until after the UI wave (#25).
 
 ## 6. Arrival and access
 
-How each viewer tier reaches the workbench, per ADR 0018 as amended by the
-2026-08 rulings (owner). The Keycloak
-branch and the login redirect are built (2026-08-30); the capability link is
-still designed only. Dev keeps the viewer-switcher instead — the gate is off
-there.
+A Keycloak login is the one way in for members and archivists, per ADR 0018.
 
 ```mermaid
 flowchart TD
-    START{"How did they arrive?"} -->|"Keycloak login\n(members + archivists)"| OIDC["OIDC flow → Viewer cookie\nwith Keycloak groups"]
-    START -->|"capability link\n(token mints Viewer cookie)"| CAP["Link-tier Viewer\n(possibly group-carrying)"]
+    START{"How did they arrive?"} -->|"Keycloak login\n(members + archivists)"| OIDC["OIDC flow → Keycloak token cookies"]
     START -->|"no credential"| DENY["Login redirect —\nno public browsing exists"]
     OIDC --> WB["Workbench"]
-    CAP --> WB
 ```
 
 No browser journey: the flow leaves the app for Keycloak. It is covered by
