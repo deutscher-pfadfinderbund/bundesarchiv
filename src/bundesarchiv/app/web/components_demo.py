@@ -296,7 +296,6 @@ def _media_tile(
         name=name,
         caption="",
         file_url=_DEMO_FILE,
-        full_url="",
         thumb_url=thumb[0] if thumb else "",
         display_url=_DEMO_FILE if kind is FileKind.IMAGE else "",
         aspect=thumb[1] if thumb else None,

@@ -10,13 +10,9 @@ its name). Contract: design-system/components/media-tile.md.{% endcomment %}
   {% if file.slot >= 0 %}data-lightbox="{{ file.slot }}"{% endif %}
 >
   {% if file.thumb_url %}
-  {% comment %}sizes stops at the largest candidate's width: the image is never drawn larger than
-  its own pixels.{% endcomment %}
   <img
     class="media-tile-thumb"
     src="{{ file.thumb_url }}"
-    srcset="{{ file.thumb_url }} {{ file.pixels.0 }}w"
-    sizes="min(100vw, {{ file.pixels.0 }}px)"
     width="{{ file.pixels.0 }}"
     height="{{ file.pixels.1 }}"
     alt="{{ file.alt }}"

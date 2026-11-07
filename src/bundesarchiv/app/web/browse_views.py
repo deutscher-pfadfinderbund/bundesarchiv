@@ -31,7 +31,7 @@ from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import ULID, Change, Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
-from bundesarchiv.index.indexer import file_kind, mime_type
+from bundesarchiv.index.indexer import file_kind
 from bundesarchiv.index.query import (
     Facet,
     FacetCount,
@@ -148,10 +148,6 @@ class _SetFilter:
     query: str
 
 
-#: The image types every browser draws: the article page leads with such an original, sharp at
-#: any width, where the 480px thumbnail would be stretched. A TIFF is not among them.
-_DRAWN = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
-
 #: The icon a file without a thumbnail shows in its tile.
 _GLYPHS = {FileKind.VIDEO: "video-file", FileKind.AUDIO: "audio-file"}
 
@@ -171,7 +167,6 @@ class MediaTile:
     name: str
     caption: str
     file_url: str
-    full_url: str
     thumb_url: str
     display_url: str = ""
     aspect: tuple[int, int] | None = None
@@ -216,7 +211,6 @@ def _tile(ulid: ULID, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTil
         caption=caption,
         alt=(image and trim_or_none(ref.alt)) or caption or ref.filename,
         file_url=media_url(ulid, ref.content_hash),
-        full_url=media_url(ulid, ref.content_hash) if mime_type(ref) in _DRAWN else "",
         display_url=(display_url(ulid, ref.content_hash) if image else ""),
         thumb_url=thumbnail_url(ulid, ref.content_hash) if aspect else "",
         aspect=aspect,
