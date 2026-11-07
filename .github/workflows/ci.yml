@@ -1,6 +1,5 @@
-# Two jobs, split by what they cost: `fast` runs the checks a developer runs
-# before every commit; `db` runs the Postgres-backed tests against the Postgres
-# image the VPS runs, so CI tests the same bytes production runs.
+# One job: the checks a developer runs before every commit, then the Postgres-backed tests
+# against the Postgres image the VPS runs, so CI tests the same bytes production runs.
 name: CI
 
 on:
@@ -20,16 +19,19 @@ on:
   pull_request:
     paths: *relevant
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   packages: read
   pull-requests: read
 
 jobs:
-  fast:
+  ci:
     runs-on: ubuntu-latest
-    outputs:
-      db: ${{ steps.changes.outputs.db }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
@@ -47,11 +49,36 @@ jobs:
               - 'uv.lock'
               - '.github/workflows/ci.yml'
 
+      - name: Log in to GHCR
+        if: &db github.event_name == 'push' || steps.changes.outputs.db == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # In the background, so the pull overlaps the setup and the fast checks. Retries because a
+      # docker/postgres change triggers postgres-image.yml in parallel: the new :latest may still be
+      # publishing. Trust auth: mise exports a DSN without a password.
+      - name: Start Postgres
+        if: *db
+        run: |
+          (
+            for i in $(seq 1 30); do
+              docker pull ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest && break
+              sleep 10
+            done
+            docker run -d --name pg -p 5434:5432 \
+              -e POSTGRES_DB=bundesarchiv \
+              -e POSTGRES_HOST_AUTH_METHOD=trust \
+              ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest
+          ) >"$RUNNER_TEMP/postgres.log" 2>&1 &
+
       - name: Install uv
         # setup-uv keeps no floating major tags past v7 — pin the full version (dependabot bumps it).
         uses: astral-sh/setup-uv@v10.3.3
         with:
-          enable-cache: true
+          enable-cache: false # a cold sync is faster than saving and restoring the cache
 
       - name: Install mise
         uses: jdx/mise-action@v5
@@ -63,64 +90,21 @@ jobs:
       - name: Fast checks (static checks, no-Postgres tests)
         run: mise run check
 
-  db:
-    runs-on: ubuntu-latest
-    needs: fast
-    if: github.event_name == 'push' || needs.fast.outputs.db == 'true'
-    permissions:
-      contents: read
-      packages: read
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install uv
-        # setup-uv keeps no floating major tags past v7 — pin the full version (dependabot bumps it).
-        uses: astral-sh/setup-uv@v10.3.3
-        with:
-          enable-cache: true
-
-      - name: Install dependencies
-        run: uv sync --locked
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Retries because a docker/postgres change triggers postgres-image.yml in
-      # parallel: the new :latest may still be publishing when this job starts.
-      - name: Pull Postgres image
-        run: |
-          for i in $(seq 1 30); do
-            if docker pull ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest; then
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "Could not pull the Postgres image" >&2
-          exit 1
-
-      - name: Start Postgres
-        run: |
-          docker run -d --name pg -p 5434:5432 \
-            -e POSTGRES_DB=bundesarchiv \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD=postgres \
-            ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest
-
       - name: Wait for Postgres
+        if: *db
         run: |
-          for i in $(seq 1 30); do
-            if docker exec pg pg_isready -U postgres -d bundesarchiv; then
+          for i in $(seq 1 330); do
+            if docker exec pg pg_isready -U postgres -d bundesarchiv >/dev/null 2>&1; then
               exit 0
             fi
             sleep 1
           done
           echo "Postgres did not become ready in time" >&2
-          docker logs pg >&2
+          cat "$RUNNER_TEMP/postgres.log" >&2
+          docker logs pg >&2 || true
           exit 1
 
-      - name: pytest (Postgres-backed)
-        run: uv run pytest -m "requires_pg and not e2e and not gallery"
+      # --skip-deps: the container above, not mise's own Postgres daemon.
+      - name: Postgres-backed tests
+        if: *db
+        run: mise run --skip-deps test:db
