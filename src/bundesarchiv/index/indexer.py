@@ -6,7 +6,6 @@ never a guessed visibility.
 
 import datetime
 import logging
-import mimetypes
 import re
 from collections import Counter
 from collections.abc import Iterable, Sequence
@@ -20,9 +19,9 @@ from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
 from bundesarchiv.domain.audience import ARCHIVIST_ONLY, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import ULID, Article, Collection, Lifecycle, MediaRef
+from bundesarchiv.domain.files import file_kind
+from bundesarchiv.domain.models import ULID, Article, Collection, Lifecycle
 from bundesarchiv.index.models import ArticleIndex, MediaText
-from bundesarchiv.index.query import FileKind
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import NotFound, UnreadableReadme
@@ -136,26 +135,6 @@ def _body_text(article: Article) -> str:
     captions = [m.caption for m in article.media if m.caption]
     filenames = [_FILENAME_SEPARATORS.sub(" ", m.filename).strip() for m in article.media]
     return " ".join([article.body, *captions, *filenames]).strip()
-
-
-# The stdlib's built-in table only, never the host's mime.types: a rebuild on any machine yields the
-# same kinds.
-_MIME_TABLE = mimetypes.MimeTypes()
-_KIND_BY_MAJOR = {"image": FileKind.IMAGE, "video": FileKind.VIDEO, "audio": FileKind.AUDIO}
-
-
-def mime_type(ref: MediaRef) -> str:
-    """One file's MIME type: as recorded, else the one its name's extension implies; ``""`` when
-    neither says."""
-    return (ref.media_type or _MIME_TABLE.guess_file_type(ref.filename)[0] or "").lower()
-
-
-def file_kind(ref: MediaRef) -> FileKind:
-    """The kind of one file by its ``mime_type``; anything unrecognised is ``OTHER``."""
-    mime = mime_type(ref)
-    if mime == "application/pdf":
-        return FileKind.PDF
-    return _KIND_BY_MAJOR.get(mime.partition("/")[0], FileKind.OTHER)
 
 
 def _file_counts(article: Article) -> dict[str, int]:

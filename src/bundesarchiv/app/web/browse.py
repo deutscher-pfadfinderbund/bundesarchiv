@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from typing import cast
 from urllib.parse import urlencode
 
-from bundesarchiv.index.query import FileKind, SearchFilters, SortOrder
+from bundesarchiv.domain.files import FileKind
+from bundesarchiv.index.query import SearchFilters, SortOrder
 
 # Query-string keys. The template, the parser and the chip builder
 # all read this ONE vocabulary so a rename can't drift between them.

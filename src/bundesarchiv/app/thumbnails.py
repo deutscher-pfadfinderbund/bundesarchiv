@@ -13,9 +13,8 @@ from typing import BinaryIO
 from PIL import Image, ImageOps  # noqa: TID251
 
 from bundesarchiv.app import pdf
+from bundesarchiv.domain.files import Derived, FileKind, derivations, file_kind
 from bundesarchiv.domain.models import ULID, MediaRef
-from bundesarchiv.index.indexer import file_kind
-from bundesarchiv.index.query import FileKind
 from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -59,22 +58,18 @@ def _picture(source: BinaryIO, longest_side: int) -> Image.Image | None:
         return ImageOps.exif_transpose(picture)
 
 
-#: The one place a file kind picks its renderer; a kind without one gets no thumbnail.
+#: The one place a file kind picks its renderer: every kind ``derivations`` gives a version.
 _RENDERERS: dict[FileKind, Renderer] = {
     FileKind.IMAGE: _picture,
     FileKind.PDF: pdf.first_page,
 }
 
-#: A PDF opens in a new tab, so only an image has a display version.
-_KINDS: dict[Size, frozenset[FileKind]] = {
-    Size.TILE: frozenset(_RENDERERS),
-    Size.DISPLAY: frozenset({FileKind.IMAGE}),
-}
+_VERSION_OF_SIZE: dict[Size, Derived] = {Size.TILE: Derived.TILE, Size.DISPLAY: Derived.DISPLAY}
 
 
 def renders(ref: MediaRef, size: Size = Size.TILE) -> bool:
     """Whether ``ref``'s kind has a version of ``size``, so a job or request for it can make one."""
-    return file_kind(ref) in _KINDS[size]
+    return _VERSION_OF_SIZE[size] in derivations(ref)
 
 
 def thumbnail_path(thumbnail_root: Path, content_hash: str, size: Size = Size.TILE) -> Path:

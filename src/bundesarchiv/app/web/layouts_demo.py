@@ -7,8 +7,9 @@ from django.shortcuts import render
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.panels import new_article_panel
+from bundesarchiv.domain.files import FileKind
 from bundesarchiv.domain.models import ULID
-from bundesarchiv.index.query import FileKind, SearchHit
+from bundesarchiv.index.query import SearchHit
 
 #: Enough rows to scroll: two drafts (with and without a Signatur), one Signatur at the owner's
 #: 8-character ceiling.

@@ -29,13 +29,12 @@ from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
+from bundesarchiv.domain.files import FileKind, file_kind, mime_type
 from bundesarchiv.domain.models import ULID, Change, Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
-from bundesarchiv.index.indexer import file_kind, mime_type
 from bundesarchiv.index.query import (
     Facet,
     FacetCount,
-    FileKind,
     SearchFilters,
     SearchPage,
     search,

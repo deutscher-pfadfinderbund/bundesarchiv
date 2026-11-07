@@ -8,7 +8,6 @@ import datetime
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
-from enum import StrEnum
 from itertools import groupby
 from operator import itemgetter
 from typing import Any, Literal, TypedDict, assert_never, cast
@@ -35,6 +34,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce, Collate, Lower
 from django.db.models.lookups import Exact
 
+from bundesarchiv.domain.files import FileKind
 from bundesarchiv.domain.models import ULID
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index.models import ArticleIndex, MediaText
@@ -62,16 +62,6 @@ _DEFAULT_FACETS: tuple[Facet, ...] = (
     "document_type",
     "file_kind",
 )
-
-
-class FileKind(StrEnum):
-    """The closed set of kinds a record's files are counted by, in the order a summary lists them."""
-
-    IMAGE = "image"
-    PDF = "pdf"
-    VIDEO = "video"
-    AUDIO = "audio"
-    OTHER = "other"
 
 
 @dataclass(frozen=True, slots=True)

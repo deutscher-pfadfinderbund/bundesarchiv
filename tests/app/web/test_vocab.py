@@ -7,7 +7,7 @@ import pytest
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.access import VisibilityPreview
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.index.query import FileKind
+from bundesarchiv.domain.files import FileKind
 
 #: The Medienart ``narrowed_vocabulary`` narrows, and the single Dokumenttyp it leaves it.
 _NARROWED_MEDIA_TYPE = "Foto(s)"
