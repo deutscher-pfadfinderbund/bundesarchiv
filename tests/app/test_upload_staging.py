@@ -1,5 +1,6 @@
 """The staging store of chunked uploads (ADR 0026): what lands, what is refused, who sees it."""
 
+import fcntl
 import io
 import json
 import os
@@ -8,6 +9,7 @@ import time
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 import pytest
 from django.test import override_settings
@@ -97,24 +99,33 @@ class _Held:
         return self._data.read(size)
 
 
-def test_two_appends_racing_at_one_offset_land_once(tmp_path: Path) -> None:
+def test_two_appends_racing_at_one_offset_land_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     staging, key = _staged(tmp_path)
     first = _Held(b"aaa")
     results: dict[str, int | Refused] = {}
-    second_done = threading.Event()
 
     def run_first() -> None:
         results["first"] = staging.append(key, 0, first, 3)
 
     def run_second() -> None:
         results["second"] = Staging(tmp_path).append(key, 0, io.BytesIO(b"bbb"), 3)
-        second_done.set()
 
     threads = [threading.Thread(target=run_first), threading.Thread(target=run_second)]
+    second_locks = threading.Event()
+    flock = fcntl.flock
+
+    def observed_flock(fd: Any, operation: int) -> None:
+        if threading.current_thread() is threads[1]:
+            second_locks.set()
+        flock(fd, operation)
+
+    monkeypatch.setattr(fcntl, "flock", observed_flock)
     threads[0].start()
     assert first.inside.wait(5)
     threads[1].start()
-    assert not second_done.wait(0.2), "the second append ran while the first held the upload"
+    assert second_locks.wait(5), "the second append never asks for the upload's lock"
     first.release.set()
     for thread in threads:
         thread.join(5)

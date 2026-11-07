@@ -5,7 +5,6 @@
 import io
 import os
 import threading
-import time
 import tracemalloc
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -101,16 +100,16 @@ def test_of_concurrent_creates_of_one_key_exactly_one_wins(
     assert [data for data, _ in winners] == [stored], f"winners (bytes, version): {winners}"
 
 
-class _Trickle(io.BytesIO):
-    """Hands its bytes out 64 KiB at a time with a pause, so a write stays open a while."""
+class _Probing(io.BytesIO):
+    """Hands out 64 KiB per read and records ``probe()`` before each."""
 
-    def __init__(self, data: bytes) -> None:
+    def __init__(self, data: bytes, probe: Callable[[], bool]) -> None:
         super().__init__(data)
-        self.started = threading.Event()
+        self.probe = probe
+        self.seen: list[bool] = []
 
     def read(self, size: int | None = -1) -> bytes:
-        self.started.set()
-        time.sleep(0.005)
+        self.seen.append(self.probe())
         return super().read(-1 if size is None or size < 0 else min(size, 64 * 1024))
 
 
@@ -128,24 +127,18 @@ class _BreaksMidway(io.BytesIO):
 
 
 def test_a_reader_never_sees_a_create_in_progress(store: ObjectStore) -> None:
+    def readable() -> bool:
+        try:
+            store.read("history/1.md")
+        except NotFound:
+            return False
+        return True
+
     data = bytes(range(256)) * 2 * 1024
-    source = _Trickle(data)
-    partial: list[int] = []
-    absent_mid_write = 0
-    with ThreadPoolExecutor(1) as pool:
-        creating = pool.submit(store.create_large, "history/1.md", source, len(data))
-        while not creating.done():
-            writing = source.started.is_set()
-            try:
-                read = store.read("history/1.md")
-            except NotFound:
-                absent_mid_write += writing
-                continue
-            if read != data:
-                partial.append(len(read))
-        creating.result()
-    assert partial == [], "sizes of the partial reads"
-    assert absent_mid_write, "no read landed while the create was in progress"
+    with ThreadPoolExecutor(1) as reader:  # another request's thread, not the writer's
+        source = _Probing(data, lambda: reader.submit(readable).result(timeout=5))
+        store.create_large("history/1.md", source, len(data))
+    assert not any(source.seen), f"readable mid-create: {source.seen}"
     assert store.read("history/1.md") == data
 
 

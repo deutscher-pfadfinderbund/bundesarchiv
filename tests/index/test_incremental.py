@@ -1,8 +1,9 @@
 """The incremental indexer, ``index_article`` and ``index_subtree`` (ADR 0014)."""
 
 import threading
+import time
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from typing import Any
 
@@ -333,6 +334,27 @@ def test_a_busy_store_is_no_unreadable_readme(
 # ---------------------------------------------------------------------------
 
 
+def _until_writer_waits_or(done: Callable[[], bool]) -> None:
+    """Return once a session waits on the index-writer lock in this database, or ``done()`` holds.
+    pg_locks spans the server, which xdist workers share. A bigint key shows as its high half in
+    ``classid`` and its low half in ``objid``."""
+    from django.db import connection
+
+    deadline = time.monotonic() + 5
+    with connection.cursor() as cursor:
+        while time.monotonic() < deadline:
+            cursor.execute(
+                "SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND NOT granted"
+                " AND database = (SELECT oid FROM pg_database WHERE datname = current_database())"
+                " AND objsubid = 1 AND ((classid::bigint << 32) | objid::bigint) = %s",
+                [indexer._INDEX_WRITER_LOCK_KEY],
+            )
+            if cursor.fetchone() or done():
+                return
+            time.sleep(0.005)
+    pytest.fail("no writer blocked on the lock and none finished within 5s")
+
+
 @pytest.mark.django_db(transaction=True)
 def test_advisory_lock_serializes_concurrent_index_writers(
     store: InMemoryObjectStore,
@@ -353,7 +375,8 @@ def test_advisory_lock_serializes_concurrent_index_writers(
         _take_writer_lock()  # hold the xact-scoped lock for the whole block
         worker = threading.Thread(target=background_index)
         worker.start()
-        assert not finished.wait(timeout=1.0), "index writer did not serialize behind the lock"
+        _until_writer_waits_or(finished.is_set)
+        assert not finished.is_set(), "index writer did not serialize behind the lock"
     # Our transaction committed here -> the xact lock released -> the background write can proceed.
     assert finished.wait(timeout=5.0), "index writer did not proceed after the lock released"
     worker.join()
@@ -424,7 +447,7 @@ def test_a_writer_mid_read_cannot_overwrite_a_later_narrowing(
         assert store.paused.wait(timeout=5)
         articles.save(narrowed, articles.load(ID_01FOTO).version, changed_by="tester")
         narrow = pool.submit(_in_thread, indexer.index_article, store, "01FOTO")
-        wait([narrow], timeout=1.0)  # with the lock taken first, this waits on the paused writer
+        _until_writer_waits_or(narrow.done)  # lock taken first: it waits on the paused writer
         store.release.set()
         wide.result()
         narrow.result()
