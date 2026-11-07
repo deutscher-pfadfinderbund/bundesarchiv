@@ -17,7 +17,7 @@ def test_the_index_row_names_every_column_the_database_does_not_fill() -> None:
 
 
 def test_a_hit_row_reads_only_columns_the_index_has() -> None:
-    """``search`` reads ``.values()`` by these names; a misspelt one would fail only against
-    Postgres."""
+    """``search`` reads ``.values()`` by these names, one of them its own annotation; a misspelt
+    one would fail only against Postgres."""
     columns = {field.name for field in ArticleIndex._meta.concrete_fields}
-    assert set(query._HitRow.__annotations__) <= columns
+    assert set(query._HitRow.__annotations__) <= columns | {"open_hashes"}
