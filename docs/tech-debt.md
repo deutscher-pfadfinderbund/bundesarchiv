@@ -46,6 +46,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `catalog.py:149-160`, `bulk_views.py`, `bulk.py`, `catalog_views.py:995-1009`; `vocab.py` in `app/web` is imported by a command and injected into `legacy.py`. Every pair is valid today, so the refusal branches never run.
 - **Deletion test:** free text deletes all 8 pair rules and both routes; `vocab` lists become suggestions. `media_type` still names Medienart and MIME type: rename one.
 - **2026-10-21:** Art becomes several independent questions (#72 folds in). The design waits on the archivists.
+- **2026-11-07 (#70):** `vocab.is_valid_pair` called at 3 sites in 2 modules (`catalog.py`, `bulk.py`; 6 before #70)
 
 ## Packages
 
@@ -65,6 +66,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Indicator:** 6 labels in both `card.FIELDS` and `bulk.FIELDS`, a third time in `bulk.apply_field` (2026-10-01, W6)
 - **Evidence:** `card.py:138-293`, `bulk.py:61-71,153-168`, `ledger.py:39`, `browse_views.py:264,650`. Bite: `5c902a2`.
 - **Indicator 2026-10-21, partly better:** `card.LABELS` is one lookup (`reading.py`, `suggestions.py`); `bulk.FIELDS` and `ledger.COLUMNS` still restate labels.
+- **2026-11-07 (#70):** `bulk.FIELDS` reads `card.LABELS`; `ledger.COLUMNS` still restates labels.
 - **Sketch:** one label source both registries read; one rule for "Typ".
 
 ### 36. Group strings have no owner — Strong
@@ -210,7 +212,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** moves (own module) and concentrates (one pure decision)
 - **Sketch:** `web/tus.py`: `read(method, headers) -> Create | Append | Head | Delete | Refusal(status)`, `answer(response)` stamps `Tus-Resumable`; header tables run with no client or corpus. Second step after #64.
 
-### 70. `BulkField` registers labels; the behaviour is a string switch — Worth exploring
+### 70. `BulkField` registers labels; the behaviour is a string switch — done
+- **Indicator 2026-11-07, done:** 0 per-field string branches in `bulk.py`/`bulk_views.py`; each `bulk.FIELDS` entry carries `current`/`apply`/`validate`/`display`/`clears_document_type`, `BY_TARGET` is the one lookup; "Medienart ist erforderlich." once (`catalog.parse_media_type`); the bulk Collection check goes through `catalog.parse_collection` (`catalog_views._create_errors` still calls `chooser.accepts`/`error()` itself); validation and application are table tests in `tests/app/web/test_bulk.py`
 - **Indicator:** 10 per-field `field == "…"`/`case "…"` branches in 2 modules; "Medienart ist erforderlich." twice (`catalog.py:132`, `bulk_views.py:74`); `chooser.accepts`/`error()` at 3 sites; `apply_field`'s `case _:` does nothing (2026-11-07)
 - **Evidence:** `bulk.py:27-37` (`FIELDS`: labels and widgets only), `bulk.py:109-121,168,214,249`, `bulk_views.py:73-77,139,192-195`; the edit form's copy at `catalog.py:128-136`, `catalog_views.py:138-141`. 25 HTTP tests are the only way to reach `_validate`.
 - **Deletion test:** concentrates

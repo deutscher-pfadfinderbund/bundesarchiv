@@ -123,14 +123,13 @@ def parse_edit_form(
     if not title:
         errors["title"] = "Titel ist erforderlich."
 
-    collection_id = chooser.resolve(_get(post, "collection_id"))
-    if collection_id is None:
-        errors["collection_id"] = chooser.error()
+    collection_id, collection_error = parse_collection(_get(post, "collection_id"), chooser)
+    if collection_error is not None:
+        errors["collection_id"] = collection_error
 
-    media_type = none_if_blank(_get(post, "media_type"))
-    if media_type is None or media_type not in vocab.media_types():
-        errors["media_type"] = "Medienart ist erforderlich."
-        media_type = None
+    media_type, media_type_error = parse_media_type(_get(post, "media_type"))
+    if media_type_error is not None:
+        errors["media_type"] = media_type_error
 
     document_type = none_if_blank(_get(post, "document_type"))
     if document_type is not None and not vocab.is_valid_pair(media_type, document_type):
@@ -215,6 +214,20 @@ def apply_media_fields(
         replace(ref, caption=_edited(field("caption", ref.content_hash), ref.caption), alt=alt(ref))
         for ref in current_media
     )
+
+
+def parse_collection(raw: str, chooser: CollectionChooser) -> tuple[ULID | None, str | None]:
+    """A submitted Collection: its ulid when ``chooser`` accepts it, else the chooser's refusal."""
+    collection_id = chooser.resolve(raw)
+    return (collection_id, None) if collection_id is not None else (None, chooser.error())
+
+
+def parse_media_type(raw: str) -> tuple[str | None, str | None]:
+    """A submitted Medienart: a vocabulary value, else the refusal (it is required)."""
+    media_type = none_if_blank(raw)
+    if media_type is None or media_type not in vocab.media_types():
+        return None, "Medienart ist erforderlich."
+    return media_type, None
 
 
 def parse_version(raw: str) -> Version:

@@ -3,6 +3,7 @@ result."""
 
 import re
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -106,7 +107,7 @@ def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, field: str) -
     # Values-preserved-verbatim (spec §2 C) for EVERY bulk field: the rejected submit comes back with
     # the field pre-selected and the value in that field's own widget. The empty selection is what
     # rejects, so the field/value pair itself is always well-formed and reaches the re-render.
-    widget = bulk.value_input_of(field)
+    widget = bulk.BY_TARGET[field].value_input
     value = _ECHOED_VALUE[widget]
     response = client_as(Archivist()).post(
         "/articles/bulk-edit", {"field": field, widget: value, "confirmed": "1"}
@@ -146,20 +147,6 @@ def test_placeholder_field_re_render_preserves_the_typed_value(two_drafts: Corpu
     assert 'name="value_text" value="Quisenberry-Zephyroth"' in body
 
 
-def test_collection_value_outside_set_same_as_empty(two_drafts: Corpus) -> None:
-    response = client_as(Archivist()).post(
-        "/articles/bulk-edit",
-        {
-            "selection": [_A],
-            "field": "collection_id",
-            "value_collection_id": "NOPE",
-            "confirmed": "1",
-        },
-    )
-    assert "Bitte einen Sammlungsteil wählen." in response.content.decode()
-    assert _stored(two_drafts, _A).collection_id == "PUB"  # unchanged
-
-
 # --- confirm phase (no confirmed) -------------------------------------------------
 
 
@@ -187,36 +174,17 @@ def test_the_check_page_shows_the_new_value_and_writes_nothing(two_drafts: Corpu
     assert _stored(two_drafts, _A).creator is None
 
 
-@pytest.mark.parametrize(
-    ("field", "widget", "value", "previous", "saved_as"),
-    [
-        ("creator", "value_text", "Neu", "Alt-Autor", {"creator": "Alt-Autor"}),
-        ("Quelle", "value_text", "Neu", "Alt-Quelle", {"custom": (("Quelle", "Alt-Quelle"),)}),
-        ("collection_id", "value_collection_id", "ARCH", "Öffentlich", {}),
-    ],
-)
-def test_the_check_page_shows_each_value_it_replaces(
-    two_drafts: Corpus,
-    field: str,
-    widget: str,
-    value: str,
-    previous: str,
-    saved_as: dict[str, object],
-) -> None:
+def test_the_check_page_shows_the_value_it_replaces(two_drafts: Corpus) -> None:
     # the value a record loses reaches the page before the commit; a Collection by its name
-    two_drafts.articles.save(
-        make_article(
-            _A, collection_id="PUB", lifecycle=Lifecycle.DRAFT, title="Foto A", **saved_as
-        ),
-        two_drafts.articles.load(_A).version,
-        changed_by="tester",
-    )
     body = (
         client_as(Archivist())
-        .post("/articles/bulk-edit", {"selection": [_A], "field": field, widget: value})
+        .post(
+            "/articles/bulk-edit",
+            {"selection": [_A], "field": "collection_id", "value_collection_id": "ARCH"},
+        )
         .content.decode()
     )
-    assert previous in body.split("<main", 1)[1]  # the header's panels list every Collection
+    assert "Öffentlich" in body.split("<main", 1)[1]  # the header's panels list every Collection
 
 
 # --- commit phase (confirmed=1) ---------------------------------------------------
@@ -283,14 +251,6 @@ def test_commit_cas_race_loser_value_not_on_disk(
     assert _stored(two_drafts, _B).creator == "Bulk"  # winner stands
 
 
-def test_commit_custom_bag_upsert(two_drafts: Corpus) -> None:
-    client_as(Archivist()).post(
-        "/articles/bulk-edit",
-        {"selection": [_A], "field": "Quelle", "value_text": "Nachlass", "confirmed": "1"},
-    )
-    assert dict(_stored(two_drafts, _A).custom)["Quelle"] == "Nachlass"
-
-
 def test_commit_missing_ulid_bucketed(two_drafts: Corpus) -> None:
     gone = "01KX7YT9E3VX0CP3A5Q49RZMZZ"
     response = client_as(Archivist()).post(
@@ -309,21 +269,24 @@ def test_commit_missing_ulid_bucketed(two_drafts: Corpus) -> None:
 # --- dependent pair (spec §3) ------------------------------------------------------
 
 
-def test_document_type_mismatch_rejects_whole_apply(two_drafts: Corpus) -> None:
-    # _A has no media_type, and no Dokumenttyp belongs to a missing Medienart → the whole apply
-    # is rejected, zero writes (all-or-nothing, fail-closed).
+def test_document_type_misfit_in_the_selection_refuses_the_whole_apply(two_drafts: Corpus) -> None:
+    # _B is a photo and admits "Zeitschrift"; _A has no Medienart and admits no Dokumenttyp.
+    two_drafts.articles.save(
+        replace(_stored(two_drafts, _B), media_type="Foto(s)"),
+        two_drafts.articles.load(ULID(_B)).version,
+        changed_by="tester",
+    )
     response = client_as(Archivist()).post(
         "/articles/bulk-edit",
         {
-            "selection": [_A],
+            "selection": [_A, _B],
             "field": "document_type",
             "value_document_type": "Zeitschrift",
             "confirmed": "1",
         },
     )
-    body = response.content.decode()
-    assert "gehört nicht zur Medienart aller ausgewählten Einträge" in body
-    assert _stored(two_drafts, _A).document_type is None  # unchanged
+    assert response.context["error"]
+    assert [_stored(two_drafts, u).document_type for u in (_A, _B)] == [None, None]
 
 
 def _give_a_schriftgut_brief_pair(corpus: Corpus) -> None:

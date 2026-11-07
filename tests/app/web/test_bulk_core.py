@@ -36,7 +36,11 @@ def test_apply_bulk_document_type_rechecks_pair_against_fresh_media_type() -> No
         _article(ulid="01B", media_type="Schrifttum"),
     )
     outcome = bulk.apply_bulk(
-        archive, [ID_01A, ID_01B], "document_type", "Schriftwechsel", changed_by="tester"
+        archive,
+        [ID_01A, ID_01B],
+        bulk.BY_TARGET["document_type"],
+        "Schriftwechsel",
+        changed_by="tester",
     )
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.saved == 1
@@ -59,7 +63,9 @@ def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
         return real_save(archive_, article, version, changed_by=changed_by)
 
     monkeypatch.setattr(articles, "save_article", _save_error_first)
-    outcome = bulk.apply_bulk(archive, [ID_01A, ID_01B], "creator", "Y", changed_by="tester")
+    outcome = bulk.apply_bulk(
+        archive, [ID_01A, ID_01B], bulk.BY_TARGET["creator"], "Y", changed_by="tester"
+    )
     assert outcome.saved == 1  # 01B saved
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.conflicted[0].ref_code == "F1"
@@ -90,7 +96,7 @@ def test_apply_bulk_property_holds_across_pair_mismatch_and_archive_error(
     outcome = bulk.apply_bulk(
         archive,
         [ID_01A, ID_01B, ULID("01C"), ULID("01GONE")],
-        "document_type",
+        bulk.BY_TARGET["document_type"],
         "Schriftwechsel",
         changed_by="tester",
     )

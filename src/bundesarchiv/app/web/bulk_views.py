@@ -29,16 +29,24 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     # the ledger's ticked head box ("all") carries the rows of the page it was rendered on
     all_ulids = request.POST.get("all", "").split()
     selection = _distinct_valid_ulids([*request.POST.getlist("selection"), *all_ulids])
-    field = request.POST.get("field", "")
-    value = request.POST.get(bulk.value_input_of(field), "")
+    name = request.POST.get("field", "")
+    field = bulk.BY_TARGET.get(name)
+    value = request.POST.get(field.value_input if field is not None else bulk.TEXT_INPUT, "")
 
-    error = _validate(selection, field, archive, chooser, value)
+    def reject(error: str) -> HttpResponseBase:
+        return _reject(request, chooser, selection, name, value, error)
+
+    if not selection or field is None:
+        return reject("Keine Einträge ausgewählt." if not selection else "Bitte ein Feld wählen.")
+    confirmed = request.POST.get("confirmed") == "1"
+    selected = _load_all(archive, selection) if field.reads_selection or not confirmed else []
+    error = field.validate(value, selected, chooser)
     if error is not None:
-        return _reject(request, chooser, selection, field, value, error)
-
-    if request.POST.get("confirmed") == "1":
-        return _commit(request, archive, chooser, selection, field, value, archivist.username)
-    return _confirm(request, archive, chooser, selection, field, value)
+        return reject(error)
+    orphans = {a.ulid for a in selected if field.clears_document_type(a, value)}
+    if not confirmed or (orphans and request.POST.get("clear_document_type") != "1"):
+        return _confirm(request, chooser, selected, field, value, orphans)
+    return _commit(request, archive, chooser, selection, field, value, archivist.username)
 
 
 def bulk_document_types(request: HttpRequest) -> HttpResponseBase:
@@ -62,58 +70,35 @@ def _distinct_valid_ulids(raw: list[str]) -> list[ULID]:
     return list(dict.fromkeys(u for u in raw if is_valid_ulid(u)))
 
 
-def _validate(
-    selection: list[ULID], field: str, archive: Archive, chooser: CollectionChooser, value: str
-) -> str | None:
-    """The verbatim German refusal of an apply, or ``None`` when it may proceed."""
-    if not selection:
-        return "Keine Einträge ausgewählt."
-    if not field or not bulk.is_allowed_field(field):
-        return "Bitte ein Feld wählen."
-    if field == "media_type" and (value.strip() not in vocab.media_types()):
-        return "Medienart ist erforderlich."
-    if field == "collection_id" and not chooser.accepts(value):
-        return chooser.error()
-    if field == "document_type" and value.strip():
-        loaded = _load_all(archive, selection)
-        if not bulk.document_type_fits_all(value.strip(), loaded):
-            return (
-                f"„{value.strip()}“ gehört nicht zur Medienart aller ausgewählten Einträge. "
-                "Bitte zuerst die Medienart angleichen oder die Auswahl einschränken."
-            )
-    return None
-
-
 def _confirm(
     request: HttpRequest,
-    archive: Archive,
     chooser: CollectionChooser,
-    selection: list[ULID],
-    field: str,
+    articles: list[Article],
+    field: bulk.BulkField,
     value: str,
+    orphans: set[ULID],
 ) -> HttpResponseBase:
-    """The check page (state D). An absent article is left out; the commit buckets it ``missing``, so
-    the page reveals nothing about why it is gone."""
-    articles = _load_all(archive, selection)
-    orphans = {a.ulid for a in _orphans(articles, field, value)}
+    """The check page (state D), also shown again for a Medienart commit that would clear a
+    Dokumenttyp (``orphans``) without ``clear_document_type=1``. An absent article is left out; the
+    commit buckets it ``missing``, so the page reveals nothing about why it is gone."""
     return render_screen(
         request,
         "workbench/bulk_edit_review.html",
         {
             "selection": [a.ulid for a in articles],
-            "field": field,
+            "field": field.target,
             "value": value,
-            "value_field": bulk.value_input_of(field),
-            "field_label": bulk.label_of(field),
-            "value_display": bulk.field_display(field, value, chooser),
+            "value_field": field.value_input,
+            "field_label": field.label,
+            "value_display": field.shown_new(value, chooser),
             "count": len(articles),
-            "affected": bulk.counted(field, len(articles)),
-            "cleared": bulk.counted("document_type", len(orphans)) if orphans else "",
+            "affected": field.counted(len(articles)),
+            "cleared": bulk.BY_TARGET["document_type"].counted(len(orphans)) if orphans else "",
             "rows": [
                 {
                     "ref_code": a.ref_code or "",
                     "title": a.title,
-                    "previous": bulk.current_display(a, field, chooser),
+                    "previous": field.shown_current(a, chooser),
                     "document_type": (a.document_type or "") if a.ulid in orphans else "",
                 }
                 for a in articles
@@ -129,25 +114,18 @@ def _commit(
     archive: Archive,
     chooser: CollectionChooser,
     selection: list[ULID],
-    field: str,
+    field: bulk.BulkField,
     value: str,
     changed_by: str,
 ) -> HttpResponseBase:
-    """The commit and its result page (state R). A Medienart change that clears a Dokumenttyp needs
-    ``clear_document_type=1``; without it the check page comes back and nothing is written."""
-    if (
-        field == "media_type"
-        and request.POST.get("clear_document_type") != "1"
-        and _orphans(_load_all(archive, selection), field, value)
-    ):
-        return _confirm(request, archive, chooser, selection, field, value)
+    """The commit and its result page (state R)."""
     outcome = bulk.apply_bulk(archive, selection, field, value, changed_by=changed_by)
     return render_screen(
         request,
         "workbench/bulk_edit_result.html",
         {
-            "field_label": bulk.label_of(field),
-            "value_display": bulk.field_display(field, value, chooser),
+            "field_label": field.label,
+            "value_display": field.shown_new(value, chooser),
             "saved": outcome.saved,
             "total": outcome.saved + len(outcome.conflicted) + len(outcome.missing),
             "conflicted": outcome.conflicted,
@@ -182,18 +160,6 @@ def _reject(
         },
         chooser=chooser,
     )
-
-
-def _orphans(articles: list[Article], field: str, value: str) -> list[Article]:
-    """The articles whose Dokumenttyp would be cleared by a Medienart change (spec §3) — a non-empty
-    current document_type that does not fit the new media_type. Empty for any non-media_type field."""
-    if field != "media_type":
-        return []
-    return [
-        a
-        for a in articles
-        if a.document_type is not None and not vocab.is_valid_pair(value.strip(), a.document_type)
-    ]
 
 
 def _load_all(archive: Archive, ulids: list[ULID]) -> list[Article]:
