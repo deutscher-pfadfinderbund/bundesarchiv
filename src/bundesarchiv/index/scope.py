@@ -1,6 +1,6 @@
 """The scope seam (ADR 0012): the only translation of Audience and Viewer into ``ArticleIndex``
-scope columns (write side) and the ``Q`` over them (read side). The read side must stay
-row-equivalent to ``domain.access.can_view``.
+scope columns (write side) and the ``Q`` over them (read side), one set per aspect (ADR 0027). The
+read side must stay row-equivalent to ``domain.access.can_view``.
 """
 
 from dataclasses import dataclass
@@ -9,7 +9,7 @@ from typing import assert_never
 from django.db.models import Q
 
 from bundesarchiv.domain.audience import ArchivistOnly, EffectiveAudience
-from bundesarchiv.domain.models import Audience
+from bundesarchiv.domain.models import Aspect, Audience
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 
@@ -35,16 +35,23 @@ def _scope_columns(effective: EffectiveAudience) -> ScopeColumns:
             assert_never(unreachable)
 
 
-def _viewer_scope(viewer: Viewer) -> Q:
+# The prefix of each aspect's scope columns on ``ArticleIndex``.
+_COLUMN_PREFIX = {Aspect.RECORD: "", Aspect.FILES: "files_"}
+
+
+def _viewer_scope(viewer: Viewer, aspect: Aspect) -> Q:
+    """The rows whose ``aspect`` rung ``viewer`` clears; for ``FILES`` it holds only beside the
+    ``RECORD`` scope (ADR 0027)."""
+    p = _COLUMN_PREFIX[aspect]
     match viewer:
         case Archivist():
             return Q()
         case Member(groups=groups):
-            return Q(archivist_only=False) & (
-                Q(tier__in=("PUBLIC", "MEMBERS"))
-                | (Q(tier="GROUPS") & Q(groups__overlap=list(groups)))
+            return Q(**{f"{p}archivist_only": False}) & (
+                Q(**{f"{p}tier__in": ("PUBLIC", "MEMBERS")})
+                | Q(**{f"{p}tier": "GROUPS", f"{p}groups__overlap": list(groups)})
             )
         case Public():
-            return Q(archivist_only=False, tier="PUBLIC")
+            return Q(**{f"{p}archivist_only": False, f"{p}tier": "PUBLIC"})
         case _ as unreachable:
             assert_never(unreachable)

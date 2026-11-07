@@ -1,7 +1,8 @@
 """Viewer-scoped search over the derived index (ADR 0003, ADR 0004).
 
-Every ``ArticleIndex`` query starts from ``_scoped``; the only other viewer branch is the tsvector
-choice in ``_matched_vector``. No QuerySet or model instance crosses the interface.
+Every ``ArticleIndex`` query starts from ``_scoped``; page text also passes the ``FILES`` scope
+(ADR 0027); the only other viewer branch is the tsvector choice in ``_matched_vector``. No QuerySet
+or model instance crosses the interface.
 """
 
 import datetime
@@ -21,8 +22,10 @@ from django.contrib.postgres.search import (
     SearchVectorField,
 )
 from django.db.models import (
+    BooleanField,
     Case,
     Count,
+    ExpressionWrapper,
     F,
     Func,
     IntegerField,
@@ -35,7 +38,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce, Collate, Lower
 from django.db.models.lookups import Exact
 
-from bundesarchiv.domain.models import ULID
+from bundesarchiv.domain.models import ULID, Aspect
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.index.scope import _viewer_scope
@@ -191,6 +194,12 @@ class _HitRow(TypedDict):
 _HIT_COLUMNS = tuple(_HitRow.__annotations__)
 
 
+class _ListedRow(_HitRow):
+    """A ``_HitRow`` with whether the viewer may open the row's files (ADR 0027)."""
+
+    files_open: bool
+
+
 def search(
     viewer: Viewer,
     *,
@@ -249,7 +258,9 @@ def dateless_count(viewer: Viewer) -> int:
 
 def _scoped(viewer: Viewer, *, deleted: bool) -> QuerySet[ArticleIndex]:
     """The rows ``viewer`` may see on one side of the Papierkorb: every query starts here."""
-    return ArticleIndex.objects.filter(_viewer_scope(viewer), deleted_at__isnull=not deleted)
+    return ArticleIndex.objects.filter(
+        _viewer_scope(viewer, Aspect.RECORD), deleted_at__isnull=not deleted
+    )
 
 
 #: How many Schlagworte one suggestion list offers.
@@ -372,12 +383,12 @@ def _matched_vector(viewer: Viewer) -> F | Func:
 def _apply_text(
     qs: QuerySet[ArticleIndex], query: SearchQuery | None, viewer: Viewer, ref_code_match: Q | None
 ) -> QuerySet[ArticleIndex]:
-    """Restrict ``qs`` to rows whose matched vector matches ``query``, or one of whose files has a
-    page that matches it, or whose Signatur equals the text (``ref_code_match``). A ``None`` query
-    is a browse — the queryset is returned unchanged."""
+    """Restrict ``qs`` to rows whose matched vector matches ``query``, or one of whose files the
+    viewer may open has a page that matches it, or whose Signatur equals the text
+    (``ref_code_match``). A ``None`` query is a browse — the queryset is returned unchanged."""
     if query is None:
         return qs
-    own_page = Q(
+    own_page = _viewer_scope(viewer, Aspect.FILES) & Q(
         media_hashes__overlap=ArraySubquery(
             _matching_pages(query).values("content_hash").distinct()
         )
@@ -484,9 +495,11 @@ def _page_of_hits(
     )
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
-    # Our own index rows: the columns are the ones ``_HitRow`` names.
-    rows = cast(list[_HitRow], list(ordered.values(*_HIT_COLUMNS)[start : start + size]))
-    pages = _text_pages(query, [row["media_hashes"] for row in rows])
+    files_open = ExpressionWrapper(_viewer_scope(viewer, Aspect.FILES), BooleanField())
+    # Our own index rows: the columns are the ones ``_ListedRow`` names.
+    listed = ordered.annotate(files_open=files_open).values(*_HIT_COLUMNS, "files_open")
+    rows = cast(list[_ListedRow], list(listed[start : start + size]))
+    pages = _text_pages(query, [row["media_hashes"] if row["files_open"] else [] for row in rows])
     return tuple(_hit(row, tp) for row, tp in zip(rows, pages, strict=True))
 
 
