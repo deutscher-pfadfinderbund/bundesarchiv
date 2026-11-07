@@ -1,6 +1,6 @@
-# The Postgres image (docker/postgres/Dockerfile) is built here and only here. CI's `db` job and the
-# VPS both pull it, so tests and production run the same bytes. It rebuilds when
-# docker/postgres/** changes, or on manual dispatch.
+# The Postgres image (docker/postgres/Dockerfile) is built here and only here. CI and the VPS both
+# pull it, so tests and production run the same bytes. It rebuilds when docker/postgres/** changes,
+# or on manual dispatch.
 name: Postgres image
 
 on:
