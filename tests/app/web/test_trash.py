@@ -2,6 +2,7 @@
 through ``search``); its archivist-only gate is the leak matrix's, its scoping
 ``test_leaks_trash.py``'s."""
 
+import re
 from collections.abc import Callable
 from dataclasses import replace
 
@@ -16,6 +17,7 @@ from tests.app.web._fixtures import (
     page_hrefs,
 )
 
+from bundesarchiv.app.web import browse
 from bundesarchiv.domain.models import ULID, Audience, AudienceTier
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import indexer
@@ -24,13 +26,18 @@ _MARKED = ULID("01KX7YT9E3VX0CP3A5Q49RZMTA")
 _LIVE = "01KX7YT9E3VX0CP3A5Q49RZMTB"
 
 
-@pytest.fixture
-def trash(db: None, make_corpus: Callable[[], Corpus]) -> Corpus:
-    """One Article in the Papierkorb and one live, both indexed."""
+def _corpus(make_corpus: Callable[[], Corpus]) -> Corpus:
     corpus = make_corpus()
     corpus.add_collection(
         make_collection(PUB, "Öffentlich", audience=Audience(AudienceTier.PUBLIC))
     )
+    return corpus
+
+
+@pytest.fixture
+def trash(db: None, make_corpus: Callable[[], Corpus]) -> Corpus:
+    """One Article in the Papierkorb and one live, both indexed."""
+    corpus = _corpus(make_corpus)
     marked = make_article(_MARKED, title="Winterlager 1961")
     corpus.articles.mark_deleted(marked, corpus.add_article(marked), changed_by="bert")
     corpus.add_article(make_article(_LIVE, title="Sommerlager 1962"))
@@ -58,3 +65,12 @@ def test_a_record_restored_since_the_index_was_written_is_not_offered(trash: Cor
     stored = trash.articles.load(_MARKED)
     trash.articles.save(replace(stored.article, deleted=None), stored.version, changed_by="bert")
     assert _MARKED not in _main()
+
+
+def test_the_pager_carries_the_page_alone(db: None, make_corpus: Callable[[], Corpus]) -> None:
+    corpus = _corpus(make_corpus)
+    for n in range(browse.PAGE_SIZE + 1):
+        marked = make_article(f"PAPIER{n:03}")
+        corpus.articles.mark_deleted(marked, corpus.add_article(marked), changed_by="bert")
+    indexer.rebuild(corpus.store)
+    assert re.findall(r'href="\?([^"]*)" rel="next"', _main()) == ["page=2"]

@@ -41,10 +41,10 @@ _HITS = tuple(
 )
 
 #: The demo ledger is sorted by Signatur, ascending, so one head shows its direction.
-_LEDGER_QUERY = {"sort": "ref_code"}
+_LEDGER_STATE = browse.SearchState(sort="ref_code")
 
 
-#: The search sentence's parts -- the demo mirror of browse_views._sentence: a set Collection, two
+#: The search sentence's parts -- the demo mirror of browse_views.sentence: a set Collection, two
 #: open slots, one set filter no slot shows, and "+ Filter" (the archivist's two checks).
 _SLOTS: tuple[dict[str, object], ...] = (
     {
@@ -107,8 +107,7 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
             "ledger": ledger.build(
                 _HITS,
                 columns=ledger.DEFAULT_COLUMNS,
-                parsed=browse.parse_query(_LEDGER_QUERY),
-                params=_LEDGER_QUERY,
+                state=_LEDGER_STATE,
                 selection=(),
                 is_archivist=True,
                 selected_ulid=None,

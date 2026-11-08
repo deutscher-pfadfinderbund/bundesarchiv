@@ -40,13 +40,11 @@ def _build(
     is_archivist: bool = False,
     drafts_only: bool = False,
 ) -> ledger.Ledger:
-    query = dict(params or {})
-    parsed = browse.parse_query(query)
+    state = browse.SearchState.parse(params or {})
     return ledger.build(
         hits or (_hit(),),
         columns=columns,
-        parsed=replace(parsed, filters=replace(parsed.filters, drafts_only=drafts_only)),
-        params=query,
+        state=replace(state, filters=replace(state.filters, drafts_only=drafts_only)),
         selection=(),
         is_archivist=is_archivist,
         selected_ulid=None,

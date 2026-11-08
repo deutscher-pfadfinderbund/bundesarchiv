@@ -1,12 +1,13 @@
 """The workbench list (``/articles``): results are viewer-scoped by ``search``."""
 
+import datetime
 import io
 import re
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import fields, replace
 from html import unescape
 from html.parser import HTMLParser
-from typing import Any, cast
+from typing import Any, cast, get_args, get_type_hints
 from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
@@ -24,12 +25,14 @@ from tests.app.web._fixtures import (
 )
 
 from bundesarchiv.app.web import browse, ledger, vocab
-from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
+from bundesarchiv.app.web.browse_views import sentence
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_urls import media_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
+from bundesarchiv.index.query import FileKind, SearchFilters, SearchPage
 
 # Valid ULIDs for the preview-pane articles (the pane resolves via is_valid_ulid, which the corpus's
 # mnemonic ids like "PUBFOTO" fail). PANE_PUB is public; PANE_MEM is members-only + floored fields.
@@ -486,29 +489,29 @@ def test_zero_hits_without_a_filter_point_only_at_the_search_text(indexed_corpus
     assert not re.search(r'popovertarget="slot-\d"', _search_form_html(body))
 
 
-def test_every_set_filter_stays_removable_from_the_sentence(indexed_corpus: Corpus) -> None:
+#: One value of each filter field's type.
+_SET_VALUE: dict[object, Any] = {
+    str: "Burg Waldeck",
+    int: 1960,
+    datetime.date: datetime.date(1960, 1, 1),
+    bool: True,
+    FileKind: FileKind.PDF,
+}
+
+
+@pytest.mark.parametrize("name", [f.name for f in fields(SearchFilters) if f.name != "deleted"])
+def test_every_set_filter_stays_removable_from_the_sentence(name: str) -> None:
     # Nothing the URL filters by may be invisible on the page: each set filter, a slot's or not,
     # links to the same search without it, also on a page with no hits (no facet counts it).
-    samples = {
-        "collection": "FOTOS",
-        "media_type": "Mikrofilm",
-        "document_type": "Lagerheft",
-        "tag": "fahrten",
-        "creator": "Hans Müller",
-        "place": "Burg Waldeck",
-        "decade": "1960",
-        "dateless": "1",
-        "date_from": "1960-01-01",
-        "date_to": "1969-12-31",
-        "digital": "1",
-        "file": "pdf",
-        "drafts": "1",
-        "templates": "1",
-    }
-    assert set(samples) == set(browse.FILTER_PARAMS)
-    for param, value in samples.items():
-        queries = _sentence_queries(Public(), f"q=Nirgendwo&{param}={quote(value)}")
-        assert {"q": ["Nirgendwo"]} in queries, param
+    field_type = get_type_hints(SearchFilters)[name]
+    (value,) = (_SET_VALUE[t] for t in (*get_args(field_type), field_type) if t in _SET_VALUE)
+    searched = browse.SearchState(text="Nirgendwo")
+    state = replace(searched, filters=replace(SearchFilters(), **{name: value}))
+    nothing = SearchPage(hits=(), total=0, facets={}, dateless_count=0)
+    parts: Any = sentence(state, nothing, CollectionChooser(lambda: ()), is_archivist=False)
+    slot_items = (i for slot in parts["slots"] for i in (*slot.clears, *slot.items))
+    queries = {i.query for i in (*slot_items, *parts["set_filters"], *parts["filter_checks"])}
+    assert searched.query() in queries
 
 
 def test_the_sentence_names_the_start_pages_undated_and_newest_presets(
@@ -647,10 +650,6 @@ def test_search_form_echoes_every_active_filter_as_hidden_input(indexed_corpus: 
     assert 'name="page"' not in form_html
 
 
-def test_form_filter_params_have_no_duplicates() -> None:
-    assert len(_FORM_FILTER_PARAMS) == len(set(_FORM_FILTER_PARAMS))  # no duplicate hidden inputs
-
-
 def test_search_form_has_no_hidden_inputs_when_no_filter_is_active(indexed_corpus: Corpus) -> None:
     form_html = _search_form_html(_get(Public(), "q=Fahrt").content.decode())
     assert 'type="hidden"' not in form_html
@@ -776,7 +775,7 @@ def test_the_pager_counts_and_steps_in_the_chosen_page_size(two_pages: Corpus) -
     pager = _pager(_get(Archivist(), "page_size=25&page=2").content.decode())
     assert '<data value="26">26\N{EN DASH}50</data>' in pager
     steps = [parse_qs(unescape(q)) for q in re.findall(r'href="\?([^"]*)" rel=', pager)]
-    assert steps == [{"page_size": ["25"], "page": ["1"]}, {"page_size": ["25"], "page": ["3"]}]
+    assert steps == [{"page_size": ["25"]}, {"page_size": ["25"], "page": ["3"]}]
 
 
 def test_a_page_size_link_goes_to_page_one_and_keeps_the_rest(two_pages: Corpus) -> None:
@@ -786,7 +785,7 @@ def test_a_page_size_link_goes_to_page_one_and_keeps_the_rest(two_pages: Corpus)
     kept = ["selection=", f"selection={PANE_PUB_ULID}"]  # selection mode and its tick
     assert _sizes(body) == {
         "25": ["collection=FOTOS", "page_size=25", *kept],
-        "50": ["collection=FOTOS", "page_size=50", *kept],
+        "50": ["collection=FOTOS", *kept],
         "100": None,
         "200": ["collection=FOTOS", "page_size=200", *kept],
     }
@@ -994,7 +993,7 @@ def test_a_query_reads_in_the_lesesaal_without_sort_or_selection(indexed_corpus:
 def test_the_view_switch_shows_the_same_search_in_the_other_view(indexed_corpus: Corpus) -> None:
     reading = _queries(_main(_get(Public(), "q=fahrt&sort=title&page=1").content.decode()))
     table = _queries(_main(_get(Public(), "q=fahrt&sort=title&view=table").content.decode()))
-    assert {"q": ["fahrt"], "sort": ["title"], "page": ["1"], "view": ["table"]} in reading
+    assert {"q": ["fahrt"], "sort": ["title"], "view": ["table"]} in reading
     assert {"q": ["fahrt"], "sort": ["title"]} in table
     # without a query the list is the table and offers no Lesesaal
     assert not [q for q in _queries(_main(_get(Public()).content.decode())) if "view" in q]
@@ -1089,7 +1088,7 @@ def _steps(query: str) -> list[dict[str, list[str]]]:
 def test_selection_survives_pagination_links(two_pages: Corpus) -> None:
     # the next/prev pagination links carry the ?selection= selection (no-JS persistence)
     steps = _steps(f"selection={PANE_PUB_ULID}")
-    assert [q.get("page") for q in steps] == [["2"], ["1"]]
+    assert [q.get("page") for q in steps] == [["2"], None]  # page 1 is the default
     assert [[u for u in q["selection"] if u] for q in steps] == [[PANE_PUB_ULID]] * 2
 
 

@@ -171,7 +171,7 @@ def test_the_check_page_leads_back_to_the_selection(two_drafts: Corpus, field: s
         .post("/articles/bulk-edit", {"selection": [_A, _B], "field": field, "value_text": "X"})
         .content.decode()
     )
-    back = f"{reverse('workbench')}?{browse.select_page_query({}, [_A, _B], [])}"
+    back = f"{reverse('workbench')}?{browse.select_page_query([_A, _B], [])}"
     assert back in page_hrefs(body)
 
 
@@ -277,7 +277,7 @@ def test_commit_cas_race_loser_value_not_on_disk(
     # the loser is listed, leading to its edit form, and all losers can be picked again at once
     hrefs = page_hrefs(response.content.decode())
     assert reverse("article-edit", args=[_A]) in hrefs
-    assert f"{reverse('workbench')}?{browse.select_page_query({}, [], [_A])}" in hrefs
+    assert f"{reverse('workbench')}?{browse.select_page_query([], [_A])}" in hrefs
     assert reverse("article-edit", args=[_B]) not in hrefs
     assert _stored(two_drafts, _A).creator is None  # loser value NOT on disk
     assert _stored(two_drafts, _B).creator == "Bulk"  # winner stands

@@ -192,8 +192,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** moves for the mirror pass-throughs, concentrates for the enqueue wrappers
 - **Sketch:** `type Job = Reindex | ReindexSubtree | Thumbnail | PageText | MirrorPush | MirrorDelete`; `enqueue(job)` the one Procrastinate adapter call; `run(job, deps)` the one dispatch; tests assert `Job` values (ADR 0014's reference-job rule kept)
 
-### 67. Search state is passed in two forms; only one decodes — Worth exploring
-- **Indicator:** 26 signatures take `params: Mapping[str, str]` (browse 11, browse_views 9, ledger 5, reading 1); all 4 results builders take both the raw params and `ParsedQuery` (2026-11-07). Drift: `start.py:74` counts drafts sorted by `added`, its link at `:83` sets only `drafts=1`, so the list opens in ulid order.
+### 67. Search state is passed in two forms; only one decodes — done
+- **Indicator:** 26 signatures take `params: Mapping[str, str]` (browse 11, browse_views 9, ledger 5, reading 1); all 4 results builders take both the raw params and `ParsedQuery` (2026-11-07). Drift: `start.py:74` counts drafts sorted by `added`, its link at `:83` sets only `drafts=1`, so the list opens in ulid order. Done 2026-11-07: 1 signature takes raw params, `SearchState.parse` (the one decoder); 0 builders take raw params; the drafts and newest presets take count and link from one `SearchState`.
 - **Evidence:** `browse.py:52-103` (`ParsedQuery`, one-way), `:154-248` (11 link helpers over raw params), `browse_views.py:285-289`, `ledger.py:152-157,195-202,225-226`, `reading.py:65-75`, `legacy_params.py:50-56` (copies `_parse_sort`). #8 is the output model; this is the input model.
 - **Deletion test:** concentrates — the `params` argument leaves 4 builders, presets become states
 - **Sketch:** `SearchState.parse(params)`, `.query()`, `.with_(p, v)`, `.without(p)`, `.search(viewer, facets) -> SearchPage`; law `parse(s.query()) == s`. `test_workbench.py:489` (14 Postgres round trips) becomes a pure round-trip property.

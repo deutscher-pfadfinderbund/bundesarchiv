@@ -632,16 +632,11 @@ def test_route_tier_matrix(
         data = _POST_DATA_BUILDERS[name](matrix_corpus)
     if route.stub_search:
         # the index is these routes' only DB dependency
-        monkeypatch.setattr(
-            "bundesarchiv.app.web.browse_views.search", lambda *a, **k: _empty_search_page()
-        )
+        monkeypatch.setattr("bundesarchiv.index.query.search", lambda *a, **k: _empty_search_page())
         monkeypatch.setattr(
             "bundesarchiv.app.web.start.facet_counts", lambda *a, **k: defaultdict(tuple)
         )
         monkeypatch.setattr("bundesarchiv.app.web.start.dateless_count", lambda *a, **k: 0)
-        monkeypatch.setattr(
-            "bundesarchiv.app.web.start.search", lambda *a, **k: _empty_search_page()
-        )
     response = _probe(client_as(_TIERS[tier]), method, path, data, tus=route.tus)
     if expected == FOUR_OH_FOUR:
         _assert_denied(response, method, f"{method} {name} as {tier}")

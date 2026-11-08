@@ -5,8 +5,9 @@ Collection's count is what this viewer may see; one with nothing visible to them
 import datetime
 import re
 from collections.abc import Callable
+from html import unescape
 from typing import Any, cast
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote
 
 import pytest
 from django.template.loader import render_to_string
@@ -187,7 +188,9 @@ def test_continue_editing_folds_more_than_three_drafts_into_a_link_to_the_drafts
     indexer.rebuild(indexed_corpus.store)
     main = _get(Archivist(), "/").content.decode().split("<main", 1)[1]
     assert len(re.findall(r'href="/articles/\w+/edit"', main)) == 2
-    assert 'href="/articles?drafts=1">und 3 weitere Entwürfe<' in main
+    (more,) = re.findall(r'href="/articles\?([^"]*)">und 3 weitere Entwürfe<', main)
+    # the list opens in the order the count used (#100)
+    assert parse_qs(unescape(more)) == {"drafts": ["1"], "sort": ["added"]}
 
 
 @pytest.mark.parametrize(

@@ -1777,7 +1777,7 @@ def test_bulk_fresh_ticks_survive_paging(
     page2_box.check()
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # off-page 1 + this page's fresh tick
     page.click('a[rel="prev"]')
-    page.wait_for_url("**page=1**")
+    page.wait_for_url(lambda url: "page=" not in url)  # page 1 is the default, not printed
     # page 1 re-renders the selection from the URL alone: tick survived, untick survived
     expect(
         page.locator(f'input[name="selection"][value="{e2e_corpus.second_ulid}"]')

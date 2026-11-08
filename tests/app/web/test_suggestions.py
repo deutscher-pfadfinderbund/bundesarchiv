@@ -12,6 +12,7 @@ from django.urls import reverse
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
+from bundesarchiv.app.web.browse import SearchState
 from bundesarchiv.app.web.suggestions import Entry, Group, build
 from bundesarchiv.domain.models import ULID, Audience, AudienceTier
 from bundesarchiv.domain.viewer import Member, Public
@@ -46,7 +47,7 @@ def _counts(*pairs: tuple[str, int]) -> tuple[FacetCount, ...]:
 def test_each_group_is_capped_and_an_empty_one_left_out() -> None:
     groups = build(
         "könig",
-        {},
+        SearchState(),
         _page(5),
         {
             "creator": _counts(("Königs Erben", 4), ("Hans König", 2), ("Königin", 1)),
@@ -61,12 +62,14 @@ def test_each_group_is_capped_and_an_empty_one_left_out() -> None:
 
 
 def test_a_tag_used_once_is_dropped() -> None:
-    groups = build("könig", {}, _page(0), {"tags": _counts(("Königsheft 3", 1))})
+    groups = build("könig", SearchState(), _page(0), {"tags": _counts(("Königsheft 3", 1))})
     assert groups == ()
 
 
 def test_an_entry_marks_the_first_match_and_leads_to_its_pick() -> None:
-    article, creator = build("KÖNIG", {}, _page(1), {"creator": _counts(("Hans König", 1_234))})
+    article, creator = build(
+        "KÖNIG", SearchState(), _page(1), {"creator": _counts(("Hans König", 1_234))}
+    )
     assert article == Group(
         "Einträge",
         (Entry("", "König", "stein 0", reverse("article-detail", args=["U0"]), date="1960"),),
@@ -76,7 +79,9 @@ def test_an_entry_marks_the_first_match_and_leads_to_its_pick() -> None:
 
 
 def test_a_value_pick_keeps_the_filters_and_drops_the_text() -> None:
-    within = {"q": "König", "media_type": "Foto(s)", "creator": "Anna", "sort": "date", "page": "2"}
+    within = SearchState.parse(
+        {"q": "König", "media_type": "Foto(s)", "creator": "Anna", "sort": "date", "page": "2"}
+    )
     (creator,) = build("König", within, _page(0), {"creator": _counts(("Hans König", 2))})
     href = urlparse(creator.entries[0].href)
     assert href.path == reverse("workbench")
@@ -88,7 +93,7 @@ def test_a_value_pick_keeps_the_filters_and_drops_the_text() -> None:
 
 
 def test_a_value_the_text_does_not_spell_is_left_unmarked() -> None:
-    (place,) = build("strasse", {}, _page(0), {"place": _counts(("Große Straße", 2))})
+    (place,) = build("strasse", SearchState(), _page(0), {"place": _counts(("Große Straße", 2))})
     entry = place.entries[0]
     assert (entry.before, entry.match, entry.after) == ("Große Straße", "", "")
 

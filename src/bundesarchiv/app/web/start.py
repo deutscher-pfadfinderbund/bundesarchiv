@@ -2,7 +2,8 @@
 
 An area is a function ``(viewer, request, counts, chooser) -> context`` plus one template partial
 (``start/_<area>.html``). It builds its data from ``counts``, the page's ONE viewer-scoped
-``facet_counts`` call, and its links are list presets (``preset_url``). The grid places what an area's
+``facet_counts`` call, and its links are list presets (``preset_url``); an area that counts a
+preset itself takes its count and its link from one ``SearchState``. The grid places what an area's
 root declares (``data-span``, ``data-absent``) and knows nothing else about it. Which areas a role
 gets, in which order, is the role's tuple below and nowhere else.
 """
@@ -16,18 +17,11 @@ from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import browse, vocab
-from bundesarchiv.app.web.browse_views import preset_url
+from bundesarchiv.app.web.browse_views import list_url, preset_url
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.viewer import Archivist, Viewer
-from bundesarchiv.index.query import (
-    Facet,
-    FacetCount,
-    SearchFilters,
-    dateless_count,
-    facet_counts,
-    search,
-)
+from bundesarchiv.index.query import Facet, FacetCount, SearchFilters, dateless_count, facet_counts
 
 type Counts = Mapping[str, tuple[FacetCount, ...]]
 type Build = Callable[[Viewer, HttpRequest, Counts, CollectionChooser], Mapping[str, object]]
@@ -61,6 +55,11 @@ _MEDIA_TYPES = 7
 #: How many Articles "Zuletzt hinzugefügt" lists.
 _RECENT_COUNT = 5
 
+#: The open drafts, newest first: "Weiter bearbeiten" counts them and links to them.
+_DRAFTS = browse.SearchState(filters=SearchFilters(drafts_only=True), sort="added")
+#: Everything, newest first: "Zuletzt hinzugefügt" lists the first and links to all.
+_NEWEST = browse.SearchState(sort="added")
+
 
 def search_area(
     viewer: Viewer, _request: HttpRequest, _counts: Counts, _chooser: CollectionChooser
@@ -69,18 +68,12 @@ def search_area(
     "changed at")."""
     if not isinstance(viewer, Archivist):
         return {}
-    page = search(
-        viewer,
-        filters=SearchFilters(drafts_only=True),
-        sort="added",
-        page_size=_RESUME_TITLES + 1,
-        facets=(),
-    )
+    page = _DRAFTS.search(viewer, facets=(), page_size=_RESUME_TITLES + 1)
     shown = page.hits if page.total <= _RESUME_TITLES else page.hits[: _RESUME_TITLES - 1]
     return {
         "drafts": tuple((h.title, reverse("article-edit", args=[h.ulid])) for h in shown),
         "more": page.total - len(shown),
-        "more_href": preset_url(browse.PARAM_DRAFTS, "1"),
+        "more_href": list_url(_DRAFTS),
     }
 
 
@@ -192,7 +185,7 @@ def recent_area(
     viewer: Viewer, _request: HttpRequest, _counts: Counts, chooser: CollectionChooser
 ) -> Mapping[str, object]:
     """The newest Articles by ``added_at`` the viewer may see: the day added, title, Collection."""
-    hits = search(viewer, sort="added", page_size=_RECENT_COUNT, facets=()).hits
+    hits = _NEWEST.search(viewer, facets=(), page_size=_RECENT_COUNT).hits
     known = chooser.by_ulid()
     days = [vocab.day(h.added_at) if h.added_at else "" for h in hits]
     # a repeated day is printed once, as a ditto
@@ -207,7 +200,7 @@ def recent_area(
             )
             for h, day in zip(hits, shown, strict=True)
         ),
-        "all_href": preset_url(browse.PARAM_SORT, "added"),
+        "all_href": list_url(_NEWEST),
     }
 
 
