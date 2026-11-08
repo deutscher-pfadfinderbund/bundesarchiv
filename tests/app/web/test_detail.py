@@ -3,8 +3,8 @@ public body."""
 
 import io
 import re
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, replace
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -555,8 +555,6 @@ def test_an_images_alt_is_its_description_else_its_caption_else_its_file_name(
     make_corpus: Callable[[], Corpus],
 ) -> None:
     """One rule for the cover, the row tiles and the lightbox; a blank stored alt counts as none."""
-    from dataclasses import replace
-
     from PIL import Image
 
     archive = make_corpus()
@@ -601,3 +599,92 @@ def test_a_tile_breaks_a_file_name_only_after_its_separators_and_escapes_the_res
         kind="Datei", glyph="", name=name, caption="", file_url="", full_url="", thumb_url=""
     )
     assert tile.breakable_name == breakable
+
+
+# --- files locked to a group (ADR 0027): the record shows, the bytes do not -------------------
+
+_GROUP = "vorstand"
+
+
+@pytest.fixture
+def make_locked(
+    make_corpus: Callable[[], Corpus], tmp_path: Path
+) -> Iterator[Callable[[tuple[str | None, ...]], tuple[str, tuple[MediaRef, ...]]]]:
+    """An Article every Member reads whose files only ``vorstand`` opens, one image per caption,
+    each with its thumbnail cached."""
+    thumbs = tmp_path / "thumbs"
+
+    def build(captions: tuple[str | None, ...]) -> tuple[str, tuple[MediaRef, ...]]:
+        archive = make_corpus()
+        archive.add_collection(
+            make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+        )
+        ulid = new_ulid()
+        refs = tuple(
+            replace(
+                archive.articles.add_media(
+                    ulid, f"{n}.png", io.BytesIO(_png((n, 0, 0))), media_type="image/png"
+                ),
+                caption=caption,
+            )
+            for n, caption in enumerate(captions)
+        )
+        archive.add_article(
+            make_article(
+                ulid,
+                collection_id=FOTOS,
+                audience=Audience(AudienceTier.MEMBERS),
+                files_audience=Audience(AudienceTier.GROUPS, (_GROUP,)),
+                media=refs,
+            )
+        )
+        for ref in refs:
+            assert generate_thumbnail(
+                Archive.canonical().store, ULID(ulid), ref.content_hash, thumbs
+            )
+        return ulid, refs
+
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+        yield build
+
+
+def _bytes_traces(body: str, ulid: str, refs: tuple[MediaRef, ...]) -> list[str]:
+    """What of the files, their bytes or their audience reaches ``body``."""
+    marks = (
+        *(ref.content_hash for ref in refs),
+        *(thumbnail_url(ulid, ref.content_hash) for ref in refs),
+        "/media/",
+        "data-lightbox",
+        _GROUP,
+    )
+    return [mark for mark in marks if mark in body] + download_hrefs(body)
+
+
+@pytest.mark.parametrize("captions", [("Am Lagerfeuer",), ("Am Lagerfeuer", None, "Abfahrt")])
+def test_a_member_outside_the_files_group_sees_the_captions_and_nothing_of_the_bytes(
+    make_locked: Callable[[tuple[str | None, ...]], tuple[str, tuple[MediaRef, ...]]],
+    captions: tuple[str | None, ...],
+) -> None:
+    ulid, refs = make_locked(captions)
+    response = client_as(Member(groups=())).get(f"/articles/{ulid}")
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert _bytes_traces(body, ulid, refs) == []
+    assert all(c in body for c in captions if c)
+    rows = response.context["more_media"]
+    assert [(tile.name, tile.locked) for tile in rows] == [(r.filename, True) for r in refs]
+
+
+@pytest.mark.parametrize("viewer", [Member(groups=(_GROUP,)), Archivist()])
+def test_whoever_clears_the_files_rung_gets_the_files(
+    make_locked: Callable[[tuple[str | None, ...]], tuple[str, tuple[MediaRef, ...]]],
+    viewer: Viewer,
+) -> None:
+    ulid, refs = make_locked(("Am Lagerfeuer", None))
+    response = client_as(viewer).get(f"/articles/{ulid}")
+    body = response.content.decode()
+    assert response.context["lightbox"]
+    assert {thumbnail_url(ulid, r.content_hash) for r in refs} <= set(
+        re.findall(r'<img\s[^>]*src="([^"]*)"', body)
+    )
+    assert set(download_hrefs(body)) == {media_url(ulid, r.content_hash) for r in refs}

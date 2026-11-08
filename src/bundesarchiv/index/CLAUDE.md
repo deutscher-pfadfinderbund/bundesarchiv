@@ -5,4 +5,6 @@ the index is derived and disposable — the README is canonical, `rebuild()` rec
 rebuild to the hashes some row names, and refilled by `app.media_text` (ADR 0023). Audience scope
 is materialized into columns at build time (ADR 0012); the scope seam's row/predicate equivalence
 against `can_view` is pinned by `tests/index/test_equivalence.py` — never add a visibility decision
-that bypasses it. German FTS config per ADR 0011.
+that bypasses it. The `FILES` scope columns gate a hit's page matches and listed pages only;
+captions, filenames and file counts stay on the record scope (ADR 0027). German FTS config per
+ADR 0011.

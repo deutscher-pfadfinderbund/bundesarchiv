@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 
 from bundesarchiv.domain.identity import create_article, is_valid_ulid
-from bundesarchiv.domain.models import ULID, Lifecycle
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle
 
 _CANONICAL = "01KW2SAZ9BAFT2PABHSGPR2KJM"
 
@@ -45,6 +45,7 @@ def test_create_article_mints_a_valid_unique_ulid() -> None:
     assert article.collection_id == "coll-fotos"
     assert article.lifecycle is Lifecycle.DRAFT  # a new Article starts as a Draft
     assert article.audience is None  # inherit by default
+    assert article.files_audience is None
     assert create_article(title="x", collection_id=ULID("c")).ulid != article.ulid  # minted fresh
 
 
@@ -53,3 +54,11 @@ def test_a_new_article_is_added_now() -> None:
     added_at = create_article(title="x", collection_id=ULID("c")).added_at
     assert added_at is not None
     assert before <= added_at <= datetime.now(UTC)
+
+
+def test_create_article_carries_a_files_rung() -> None:
+    rung = Audience(AudienceTier.MEMBERS)
+    assert (
+        create_article(title="x", collection_id=ULID("c"), files_audience=rung).files_audience
+        == rung
+    )

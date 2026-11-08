@@ -1,14 +1,22 @@
-"""Viewer-facing access over `effective_audience` (ADR 0001); pure. `index.scope` must stay
-row-equivalent to `can_view`."""
+"""Viewer-facing access over `effective_audience` (ADR 0001, per aspect ADR 0027); pure.
+`index.scope` must stay row-equivalent to `can_view`."""
 
 from collections.abc import Callable
 from dataclasses import dataclass, fields, replace
 from typing import assert_never
 
-from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
+from bundesarchiv.domain.audience import ArchivistOnly, EffectiveAudience, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle, Version
+from bundesarchiv.domain.models import (
+    Article,
+    Aspect,
+    Audience,
+    AudienceTier,
+    Change,
+    Lifecycle,
+    Version,
+)
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 # `project` must floor exactly these.
@@ -19,17 +27,26 @@ if _unknown := ARCHIVIST_ONLY_FIELDS - {f.name for f in fields(Article)}:
     raise RuntimeError(f"ARCHIVIST_ONLY_FIELDS names unknown Article fields: {_unknown}")
 
 
-def can_view(viewer: Viewer, article: Article, chain: ResolvedChain) -> bool:
-    """Fail-closed yes/no: may `viewer` see `article` given its resolved Collection `chain`?
+def can_view(
+    viewer: Viewer, article: Article, chain: ResolvedChain, aspect: Aspect = Aspect.RECORD
+) -> bool:
+    """Fail-closed yes/no: may `viewer` see `aspect` of `article` given its resolved Collection
+    `chain`? Only together with the record (ADR 0027).
 
     Any `DomainError` from resolution (e.g. a chain resolved for a different Article) denies
     *everyone*, including an Archivist — an unresolvable chain yields no Audience to authorize
     against.
     """
     try:
-        effective = effective_audience(article, chain)
+        return all(
+            _viewer_clears(viewer, effective_audience(article, chain, a))
+            for a in (Aspect.RECORD, aspect)
+        )
     except DomainError:
         return False
+
+
+def _viewer_clears(viewer: Viewer, effective: EffectiveAudience) -> bool:
     match effective:
         case ArchivistOnly():
             return isinstance(viewer, Archivist)
@@ -113,20 +130,23 @@ class VisibilityPreview:
     groups: tuple[str, ...]
 
 
-def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
+def preview(
+    article: Article, chain: ResolvedChain, aspect: Aspect = Aspect.RECORD
+) -> VisibilityPreview:
     published = replace(article, lifecycle=Lifecycle.PUBLISHED, template=False)
-    public = can_view(Public(), published, chain)
-    members = can_view(Member(), published, chain)
     return VisibilityPreview(
-        public=public, members=members, groups=_would_be_groups(published, chain)
+        public=can_view(Public(), published, chain, aspect),
+        members=can_view(Member(), published, chain, aspect),
+        groups=_would_be_groups(published, chain, aspect),
     )
 
 
-def _would_be_groups(article: Article, chain: ResolvedChain) -> tuple[str, ...]:
+def _would_be_groups(article: Article, chain: ResolvedChain, aspect: Aspect) -> tuple[str, ...]:
+    """The groups of the aspect's rung, else the record's: a viewer clears both (ADR 0027)."""
     try:
-        effective = effective_audience(article, chain)
+        rungs = [effective_audience(article, chain, a) for a in (aspect, Aspect.RECORD)]
     except DomainError:
         return ()
-    if isinstance(effective, Audience) and effective.tier is AudienceTier.GROUPS:
-        return effective.groups
-    return ()
+    return next(
+        (r.groups for r in rungs if isinstance(r, Audience) and r.tier is AudienceTier.GROUPS), ()
+    )

@@ -1,7 +1,9 @@
 """Viewer-scoped search over the derived index (ADR 0003, ADR 0004).
 
-Every ``ArticleIndex`` query starts from ``_scoped``; the only other viewer branch is the tsvector
-choice in ``_matched_vector``. No QuerySet or model instance crosses the interface.
+Every ``ArticleIndex`` query starts from ``_scoped``. A search reads a hit's pages only through
+``_open_hashes``, the hashes of the files the ``FILES`` scope opens to the viewer (ADR 0027). The one
+viewer branch outside the scope seam is the tsvector choice in ``_matched_vector``. No QuerySet or
+model instance crosses the interface.
 """
 
 import datetime
@@ -14,6 +16,7 @@ from operator import itemgetter
 from typing import Any, Literal, TypedDict, assert_never, cast
 
 from django.contrib.postgres.expressions import ArraySubquery
+from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.search import (
     SearchHeadline,
     SearchQuery,
@@ -21,8 +24,10 @@ from django.contrib.postgres.search import (
     SearchVectorField,
 )
 from django.db.models import (
+    BooleanField,
     Case,
     Count,
+    ExpressionWrapper,
     F,
     Func,
     IntegerField,
@@ -35,7 +40,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce, Collate, Lower
 from django.db.models.lookups import Exact
 
-from bundesarchiv.domain.models import ULID
+from bundesarchiv.domain.models import ULID, Aspect
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.index.scope import _viewer_scope
@@ -170,7 +175,8 @@ class SearchPage:
 
 
 class _HitRow(TypedDict):
-    """One ``.values(*_HIT_COLUMNS)`` row: the columns of a ``SearchHit``, plus the files' hashes."""
+    """One ``.values(*_HIT_COLUMNS)`` row: the columns of a ``SearchHit``, plus the hashes of the
+    files the viewer may open (``_open_hashes``)."""
 
     ulid: ULID
     title: str
@@ -185,7 +191,7 @@ class _HitRow(TypedDict):
     deleted_by: str | None
     added_at: datetime.datetime | None
     is_template: bool
-    media_hashes: list[str]
+    open_hashes: list[str]
 
 
 _HIT_COLUMNS = tuple(_HitRow.__annotations__)
@@ -207,7 +213,7 @@ def search(
     filters = filters or SearchFilters()
     query = _search_query(text)
 
-    base = _scoped(viewer, deleted=filters.deleted)
+    base = _scoped(viewer, deleted=filters.deleted).annotate(open_hashes=_open_hashes(viewer))
     ref_code_match = _ref_code_hit(text)
     if ref_code_match is not None:
         base = base.annotate(_ref_code_key=_REF_CODE_KEY)
@@ -247,9 +253,22 @@ def dateless_count(viewer: Viewer) -> int:
     return _dateless_count(_scoped(viewer, deleted=False), SearchFilters())
 
 
+def _open_hashes(viewer: Viewer) -> Case:
+    """A row's file hashes where ``viewer`` may open its files, else none."""
+    # Wrapped: the Archivist's scope is an empty ``Q()``, which a bare ``When`` refuses.
+    opens = ExpressionWrapper(_viewer_scope(viewer, Aspect.FILES), BooleanField())
+    return Case(
+        When(opens, then=F("media_hashes")),
+        default=Value([]),
+        output_field=ArrayField(TextField()),
+    )
+
+
 def _scoped(viewer: Viewer, *, deleted: bool) -> QuerySet[ArticleIndex]:
     """The rows ``viewer`` may see on one side of the Papierkorb: every query starts here."""
-    return ArticleIndex.objects.filter(_viewer_scope(viewer), deleted_at__isnull=not deleted)
+    return ArticleIndex.objects.filter(
+        _viewer_scope(viewer, Aspect.RECORD), deleted_at__isnull=not deleted
+    )
 
 
 #: How many Schlagworte one suggestion list offers.
@@ -372,15 +391,14 @@ def _matched_vector(viewer: Viewer) -> F | Func:
 def _apply_text(
     qs: QuerySet[ArticleIndex], query: SearchQuery | None, viewer: Viewer, ref_code_match: Q | None
 ) -> QuerySet[ArticleIndex]:
-    """Restrict ``qs`` to rows whose matched vector matches ``query``, or one of whose files has a
-    page that matches it, or whose Signatur equals the text (``ref_code_match``). A ``None`` query
-    is a browse — the queryset is returned unchanged."""
+    """Restrict ``qs`` (annotated with ``open_hashes``) to rows whose matched vector matches
+    ``query``, or one of whose files the viewer may open has a page that matches it, or whose
+    Signatur equals the text (``ref_code_match``). A ``None`` query is a browse — the queryset is
+    returned unchanged."""
     if query is None:
         return qs
     own_page = Q(
-        media_hashes__overlap=ArraySubquery(
-            _matching_pages(query).values("content_hash").distinct()
-        )
+        open_hashes__overlap=ArraySubquery(_matching_pages(query).values("content_hash").distinct())
     )
     hit = Q(_vector=query) | own_page
     if ref_code_match:
@@ -484,9 +502,9 @@ def _page_of_hits(
     )
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
-    # Our own index rows: the columns are the ones ``_HitRow`` names.
+    # Our own index rows, annotated in ``search``: the columns are the ones ``_HitRow`` names.
     rows = cast(list[_HitRow], list(ordered.values(*_HIT_COLUMNS)[start : start + size]))
-    pages = _text_pages(query, [row["media_hashes"] for row in rows])
+    pages = _text_pages(query, [row["open_hashes"] for row in rows])
     return tuple(_hit(row, tp) for row, tp in zip(rows, pages, strict=True))
 
 

@@ -1,6 +1,7 @@
 """The route x tier leak matrix, gated exhaustive against the prod urlconf. ``/static/*`` is
 WhiteNoise's (ADR 0016), outside the urlconf."""
 
+import copy
 import io
 from collections import defaultdict
 from collections.abc import Callable, Iterator
@@ -8,16 +9,29 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from django.conf import settings
 from django.test import Client, override_settings
 from django.urls import Resolver404, URLPattern, get_resolver, resolve
 from PIL import Image
+from tests._pdfs import text_pdf
 from tests.app.web._asserts import assert_denied, assert_door
-from tests.app.web._fixtures import ROOT, Corpus, client_as, make_article, make_collection
+from tests.app.web._fixtures import (
+    ROOT,
+    Corpus,
+    client_as,
+    list_url,
+    make_article,
+    make_collection,
+    page_hrefs,
+)
 from tests.app.web._tus import PIECE, TUS, metadata
 
+from bundesarchiv.app.thumbnails import generate_thumbnail
 from bundesarchiv.app.upload_staging import Staging, Upload
+from bundesarchiv.app.web.media_urls import media_url, thumbnail_url
 from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
+from bundesarchiv.index import indexer
 
 _PROD_URLCONF = "bundesarchiv.app.web.urls"
 _DEV_URLCONF = "bundesarchiv.app.web.dev_urls"
@@ -37,6 +51,10 @@ def _png_bytes(color: tuple[int, int, int]) -> bytes:
 _COLLECTION = "01M553AGABD8F8ZVQV43GRE7TN"
 _ARTICLE = ULID("01M553AGABD8F8ZVQV43GRE7TP")
 _MARKED = ULID("01M553AGABD8F8ZVQV43GRE7TQ")
+_FILES_LOCKED = ULID("01M553AGABD8F8ZVQV43GRE7TR")
+#: The files-locked Article's words: one in its record, one on its PDF's page and nowhere else.
+_RECORD_WORD, _PAGE_WORD = "Lagerordnung", "Kassenbericht"
+_PDF_PAGES = (f"{_PAGE_WORD} zur {_RECORD_WORD}",)
 #: The one piece a PATCH probe sends, completing the upload the matrix stages.
 _PIECE = b"ab"
 
@@ -69,6 +87,25 @@ def _fill(base: Corpus) -> None:
         media=(marked_ref,),
     )
     base.articles.mark_deleted(marked, base.add_article(marked), changed_by="tester")
+    # Every Member reads the record; only the board opens the files (ADR 0027).
+    locked_refs = (
+        base.articles.add_media(
+            _FILES_LOCKED, "protokoll.pdf", io.BytesIO(text_pdf(_PDF_PAGES)), "application/pdf"
+        ),
+        base.articles.add_media(
+            _FILES_LOCKED, "foto.png", io.BytesIO(_png_bytes((60, 90, 30))), "image/png"
+        ),
+    )
+    base.add_article(
+        make_article(
+            _FILES_LOCKED,
+            collection_id=_COLLECTION,
+            title=_RECORD_WORD,
+            audience=Audience(AudienceTier.MEMBERS),
+            files_audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
+            media=locked_refs,
+        )
+    )
 
 
 class _MatrixCorpus:
@@ -90,6 +127,24 @@ class _MatrixCorpus:
         marked = base.articles.load(_MARKED)
         self.marked_hash = marked.article.media[0].content_hash
         self.marked_version = marked.version
+        self.locked_hashes = tuple(
+            ref.content_hash for ref in base.articles.load(_FILES_LOCKED).article.media
+        )
+
+    def on(self, ulid: ULID, file: int) -> _MatrixCorpus:
+        """This corpus with ``ulid`` and its ``file``-th file as the Article a route probes."""
+        probed = copy.copy(self)
+        probed.article_ulid = ulid
+        probed.content_hash = self.base.articles.load(ulid).article.media[file].content_hash
+        return probed
+
+    def locked_traces(self, body: str) -> list[str]:
+        """What of the files-locked Article's files ``body`` carries: hashes and media URLs."""
+        marks = (
+            *self.locked_hashes,
+            *(media_url(_FILES_LOCKED, content_hash) for content_hash in self.locked_hashes),
+        )
+        return [mark for mark in marks if mark in body]
 
 
 @pytest.fixture
@@ -157,6 +212,8 @@ class Route:
         stub_search: bool = False,
         other_methods: dict[str, tuple[int, int]] | None = None,
         tus: bool = False,
+        article: ULID = _ARTICLE,
+        file: int = 0,
     ) -> None:
         self.build_path = build_path
         self.get_nonarch = get_nonarch
@@ -174,6 +231,9 @@ class Route:
         self.other_methods = other_methods or {}
         # tus: probed as the chunked upload's client asks (_TUS_PROBE).
         self.tus = tus
+        # article, file: the corpus Article the route probes, and which of its files.
+        self.article = article
+        self.file = file
 
 
 def _p_root(_c: _MatrixCorpus) -> str:
@@ -550,6 +610,45 @@ _CONTRACT: dict[str, Route] = {
 }
 
 
+def _files_route(build_path: Callable[[_MatrixCorpus], str], file: int) -> Route:
+    """A media route on the files-locked Article: the board's and the Archivist's alone."""
+    return Route(
+        build_path=build_path,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=OK,
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=OK,
+        tier_sensitive=True,
+        article=_FILES_LOCKED,
+        file=file,
+    )
+
+
+_PDF, _IMAGE = 0, 1
+
+#: The routes the files rung (ADR 0027) changes, on the files-locked Article. A PDF has no display
+#: version, so its display route would 404 for everyone and bite nothing.
+_FILES_LOCKED_CONTRACT: dict[str, Route] = {
+    "article-detail": Route(
+        build_path=_p_detail,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=OK,
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=OK,
+        member_route=True,
+        article=_FILES_LOCKED,
+    ),
+    "media pdf": _files_route(_p_media, _PDF),
+    "media image": _files_route(_p_media, _IMAGE),
+    "media-thumb pdf": _files_route(_p_media_thumb, _PDF),
+    "media-thumb image": _files_route(_p_media_thumb, _IMAGE),
+    "media-display image": _files_route(_p_media_display, _IMAGE),
+}
+
+#: The tiers that open the files-locked Article's files.
+_OPENS_LOCKED = ("member_matching", "archivist")
+
+
 def _bulk_post_data(c: _MatrixCorpus) -> dict[str, object]:
     """A valid confirm-phase bulk POST: one real ulid selected + a field + its value → the confirm
     page (200) for an archivist. Non-archivists never reach validation (gate denies first)."""
@@ -625,11 +724,6 @@ def test_route_tier_matrix(
     matrix_corpus: _MatrixCorpus, monkeypatch: pytest.MonkeyPatch, name: str, tier: str, method: str
 ) -> None:
     route = _CONTRACT[name]
-    expected = _expected_for(route, tier, method)
-    path = route.build_path(matrix_corpus)
-    data: dict[str, object] = route.post_data
-    if name in _POST_DATA_BUILDERS:
-        data = _POST_DATA_BUILDERS[name](matrix_corpus)
     if route.stub_search:
         # the index is these routes' only DB dependency
         monkeypatch.setattr(
@@ -642,6 +736,26 @@ def test_route_tier_matrix(
         monkeypatch.setattr(
             "bundesarchiv.app.web.start.search", lambda *a, **k: _empty_search_page()
         )
+    _check(matrix_corpus, name, route, tier, method)
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+@pytest.mark.parametrize("tier", _TIERS)
+@pytest.mark.parametrize("name", _FILES_LOCKED_CONTRACT)
+def test_files_locked_matrix(
+    matrix_corpus: _MatrixCorpus, name: str, tier: str, method: str
+) -> None:
+    _check(matrix_corpus, name, _FILES_LOCKED_CONTRACT[name], tier, method)
+
+
+def _check(matrix_corpus: _MatrixCorpus, name: str, route: Route, tier: str, method: str) -> None:
+    """``route`` answers ``tier`` as its contract says, and a tier that may not open the
+    files-locked Article's files gets nothing of them."""
+    expected = _expected_for(route, tier, method)
+    path = route.build_path(matrix_corpus.on(route.article, route.file))
+    data: dict[str, object] = route.post_data
+    if name in _POST_DATA_BUILDERS:
+        data = _POST_DATA_BUILDERS[name](matrix_corpus)
     response = _probe(client_as(_TIERS[tier]), method, path, data, tus=route.tus)
     if expected == FOUR_OH_FOUR:
         _assert_denied(response, method, f"{method} {name} as {tier}")
@@ -649,6 +763,9 @@ def test_route_tier_matrix(
         assert response.status_code == expected, (
             f"{method} {name} as {tier}: expected {expected}, got {response.status_code}"
         )
+    if tier not in _OPENS_LOCKED:
+        body = response.getvalue().decode(errors="replace")
+        assert matrix_corpus.locked_traces(body) == [], f"{method} {name} as {tier}"
 
 
 #: What the chunked upload's client sends: every header any of its routes reads, with a body (for
@@ -675,6 +792,95 @@ def _assert_denied(response: Any, method: str, ctx: str) -> None:
         assert (response.status_code, response.content) == (FOUR_OH_FOUR, b""), ctx
     else:
         assert_denied(response, ctx)
+
+
+# --- the files-locked Article's pages: its files reach whom they open to (ADR 0027) ---------------
+
+#: The tiers that read the files-locked Article's record.
+_READS_LOCKED = ("member", "member_matching", "archivist")
+
+
+def _files_reach_only_openers(c: _MatrixCorpus, response: Any, tier: str) -> None:
+    """With every thumbnail cached, ``response`` links each file and its thumbnail for a tier that
+    opens the files, and carries nothing of them for any other."""
+    body = response.content.decode()
+    if tier in _OPENS_LOCKED:
+        hrefs = set(page_hrefs(body))
+        missing = [
+            url
+            for content_hash in c.locked_hashes
+            for url, found_in in (
+                (media_url(_FILES_LOCKED, content_hash), hrefs),
+                (thumbnail_url(_FILES_LOCKED, content_hash), body),
+            )
+            if url not in found_in
+        ]
+        assert missing == [], tier
+    else:
+        assert c.locked_traces(body) == [], tier
+
+
+def _cache_thumbnails(c: _MatrixCorpus) -> None:
+    root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
+    for content_hash in c.locked_hashes:
+        assert generate_thumbnail(c.base.store, _FILES_LOCKED, content_hash, root)
+
+
+@pytest.mark.parametrize("tier", _READS_LOCKED)
+def test_the_detail_page_carries_the_files_only_to_whom_they_open(
+    matrix_corpus: _MatrixCorpus, tier: str
+) -> None:
+    _cache_thumbnails(matrix_corpus)
+    response = client_as(_TIERS[tier]).get(f"/articles/{_FILES_LOCKED}")
+    assert response.status_code == OK
+    _files_reach_only_openers(matrix_corpus, response, tier)
+
+
+@pytest.fixture
+def indexed_matrix(db: None, matrix_corpus: _MatrixCorpus) -> _MatrixCorpus:
+    """The matrix corpus indexed, with the files-locked PDF's page text stored. ``db`` first, so
+    the rebuild runs inside the test transaction and rolls back with it."""
+    indexer.rebuild(matrix_corpus.base.store)
+    indexer.store_media_text(matrix_corpus.locked_hashes[_PDF], _PDF_PAGES)
+    return matrix_corpus
+
+
+def _main(response: Any) -> str:
+    body: str = response.content.decode()
+    return body[body.index("<main") : body.index("</main>")]
+
+
+@pytest.mark.parametrize("tier", _TIERS)
+def test_the_pane_carries_the_files_only_to_whom_they_open(
+    indexed_matrix: _MatrixCorpus, tier: str
+) -> None:
+    _cache_thumbnails(indexed_matrix)
+    response = client_as(_TIERS[tier]).get(list_url(article=_FILES_LOCKED))
+    assert (response.context["pane"] is not None) == (tier in _READS_LOCKED), tier
+    _files_reach_only_openers(indexed_matrix, response, tier)
+
+
+@pytest.mark.parametrize("tier", _TIERS)
+def test_a_page_word_finds_the_files_locked_article_only_for_whom_its_files_open(
+    indexed_matrix: _MatrixCorpus, tier: str
+) -> None:
+    response = client_as(_TIERS[tier]).get(list_url(q=_PAGE_WORD))
+    assert (_FILES_LOCKED in _main(response)) == (tier in _OPENS_LOCKED), tier
+
+
+@pytest.mark.parametrize("tier", _TIERS)
+def test_a_record_word_finds_it_for_every_member_with_page_links_only_for_whom_its_files_open(
+    indexed_matrix: _MatrixCorpus, tier: str
+) -> None:
+    response = client_as(_TIERS[tier]).get(list_url(q=_RECORD_WORD))
+    main = _main(response)
+    page_link = f"{media_url(_FILES_LOCKED, indexed_matrix.locked_hashes[_PDF])}#page=1"
+    assert (_FILES_LOCKED in main, page_link in page_hrefs(main)) == (
+        tier in _READS_LOCKED,
+        tier in _OPENS_LOCKED,
+    ), tier
+    if tier not in _OPENS_LOCKED:
+        assert indexed_matrix.locked_traces(response.content.decode()) == [], tier
 
 
 # --- a marked Article: the read routes answer the Archivist alone (ADR 0022) ----------------------

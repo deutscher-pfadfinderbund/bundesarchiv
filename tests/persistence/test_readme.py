@@ -92,23 +92,59 @@ def test_empty_custom_is_omitted_from_the_wire() -> None:
     assert readme.decode(ID_01J0, text)[0].custom == ()
 
 
-def test_inherit_audience_omits_the_key_and_round_trips_as_none() -> None:
-    article = _article(audience=None)
+_RUNG_KEYS = ("audience", "files_audience")
+
+
+@pytest.mark.parametrize("key", _RUNG_KEYS)
+def test_inherit_omits_the_key_and_round_trips_as_none(key: str) -> None:
+    article = _article(**{key: None})
     text = readme.encode(article, 1, _CHANGE)
-    assert "audience:" not in text
+    assert f"\n{key}:" not in text
     decoded, _, _ = readme.decode(ID_01J0, text)
-    assert decoded.audience is None
+    assert getattr(decoded, key) is None
     assert decoded == article
 
 
-def test_empty_audience_mapping_decodes_to_inherit() -> None:
-    # A content-less `audience: {}` names no rung, so it is inherit (None) — same as an
-    # absent key — not a surprising explicit Members rung that would block a wider ancestor.
-    decoded, _, _ = readme.decode(
-        ID_X,
-        "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience: {}\n---\nbody",
-    )
-    assert decoded.audience is None
+@pytest.mark.parametrize("key", _RUNG_KEYS)
+def test_an_empty_rung_mapping_decodes_to_inherit(key: str) -> None:
+    # A content-less `{}` names no rung, so it is inherit (None) — same as an absent key — not a
+    # surprising explicit Members rung that would block a wider ancestor.
+    decoded, _, _ = readme.decode(ID_X, f"{_HEAD}lifecycle: draft\n{key}: {{}}\n---\nbody")
+    assert getattr(decoded, key) is None
+
+
+@pytest.mark.parametrize("key", _RUNG_KEYS)
+@pytest.mark.parametrize(
+    "rung",
+    [
+        Audience(AudienceTier.PUBLIC),
+        Audience(AudienceTier.MEMBERS),
+        Audience(AudienceTier.GROUPS, ("bundesfuehrung",)),
+        Audience(
+            AudienceTier.GROUPS,
+            ("a: b", "- x", "# kein Kommentar", "null", "50%", " führend", "Köln, Bonn", "'"),
+        ),
+    ],
+)
+def test_a_rung_round_trips_under_either_key(key: str, rung: Audience) -> None:
+    article = _article(**{key: rung})
+    assert readme.decode(ID_01J0, readme.encode(article, 1, _CHANGE))[0] == article
+
+
+@pytest.mark.parametrize("key", _RUNG_KEYS)
+@pytest.mark.parametrize(
+    ("rung", "why"),
+    [
+        (" notadict", "a scalar"),
+        (" [members]", "a list"),
+        (" 1", "a number"),
+        ("\n  tier: groups\n  groups: []", "GROUPS tier with no groups (Audience invariant)"),
+        ("\n  tier: public\n  groups:\n  - geheim", "PUBLIC tier with a named group (invariant)"),
+    ],
+)
+def test_decode_rejects_a_corrupt_rung_as_archive_error(key: str, rung: str, why: str) -> None:
+    with pytest.raises(ArchiveError):
+        readme.decode(ID_X, f"{_HEAD}lifecycle: draft\n{key}:{rung}\n---\nbody")
 
 
 @pytest.mark.parametrize(
@@ -168,18 +204,6 @@ def test_the_title_lives_only_in_the_heading_and_round_trips(title: str, body: s
         (
             "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\ntags: scalar\n---\n",
             "scalar tags",
-        ),
-        (
-            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience: notadict\n---\n",
-            "non-mapping audience",
-        ),
-        (
-            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience:\n  tier: groups\n  groups: []\n---\n",
-            "GROUPS tier with no groups (Audience invariant -> ArchiveError at the seam)",
-        ),
-        (
-            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience:\n  tier: public\n  groups:\n  - geheim\n---\n",
-            "PUBLIC tier with a named group (Audience invariant -> ArchiveError at the seam)",
         ),
         (
             "---\nulid: x\nversion: 1.5\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\n",
@@ -674,3 +698,14 @@ def test_non_scalar_media_alt_rejected_as_archive_error() -> None:
     )
     with pytest.raises(ArchiveError):
         readme.decode(ID_X, text)
+
+
+def test_writing_the_files_rung_leaves_the_other_keys_alone() -> None:
+    without = readme.encode(_article(), 1, _CHANGE).splitlines()
+    with_rung = readme.encode(
+        _article(files_audience=Audience(AudienceTier.MEMBERS)), 1, _CHANGE
+    ).splitlines()
+    rung = ["files_audience:", "  tier: members", "  groups: []"]
+    at = with_rung.index(rung[0])
+    assert with_rung[at : at + len(rung)] == rung
+    assert with_rung[:at] + with_rung[at + len(rung) :] == without

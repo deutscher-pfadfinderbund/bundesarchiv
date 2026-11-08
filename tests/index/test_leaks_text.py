@@ -1,5 +1,5 @@
 """Page text (ADR 0023) and filenames: a word on a page or in a filename reaches an Article only
-through the viewer's scope.
+through the viewer's scope, a page word only through its ``FILES`` scope too (ADR 0027).
 
 Every restricted Article below carries a word that exists nowhere but on a page of its own file,
 and one that exists nowhere but in that file's name, so each absence is the scope's.
@@ -18,7 +18,7 @@ from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Co
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.models import MediaText
-from bundesarchiv.index.query import SearchPage, TextPage, search
+from bundesarchiv.index.query import FileKind, SearchPage, TextPage, search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -30,11 +30,13 @@ _RECORD = "TX_RECORD"  # "Kochtopf" in its record; a scanned file and an unreada
 _SHARED = "TX_SHARED"  # public; its file is also on _SHARED_HIDDEN
 _SHARED_HIDDEN = "TX_SHARED_HIDDEN"
 _MEMBER_ONLY = "TX_MEMBER_ONLY"
-_GROUP = "TX_GROUP"
+_GROUP = "TX_GROUP"  # its files rung is public: wider, so inert
 _DRAFT = "TX_DRAFT"
 _TEMPLATE = "TX_TEMPLATE"
 _TRASH = ULID("TX_TRASH")
 _ORPHAN = "TX_ORPHAN"
+_FILES_LOCKED = "TX_FILES_LOCKED"  # a public record whose files only the board may open
+_SHARED_LOCKED = "TX_SHARED_LOCKED"  # the same, on the file of _SHARED
 
 _SHARED_BYTES = b"one file on two Articles"
 
@@ -58,7 +60,12 @@ _PAGE_WORDS: Mapping[str, Mapping[str, frozenset[str]]] = {
     "Vorlagenseite": {_TEMPLATE: _ARCHIVIST},
     "Waisenseite": {_ORPHAN: _ARCHIVIST},
     "Papierkorbseite": {_TRASH: frozenset()},
-    "Gemeinschaftsseite": {_SHARED: _EVERYONE, _SHARED_HIDDEN: _BOARD_UP},
+    "Gemeinschaftsseite": {
+        _SHARED: _EVERYONE,
+        _SHARED_HIDDEN: _BOARD_UP,
+        _SHARED_LOCKED: _BOARD_UP,
+    },
+    "Sperrseite": {_FILES_LOCKED: _BOARD_UP},
 }
 
 # A word only in a filename -> the Articles it must reach, and the viewers they reach.
@@ -70,7 +77,12 @@ _FILE_WORDS: Mapping[str, Mapping[str, frozenset[str]]] = {
     "Vorlagendatei": {_TEMPLATE: _ARCHIVIST},
     "Waisendatei": {_ORPHAN: _ARCHIVIST},
     "Papierkorbdatei": {_TRASH: frozenset()},
-    "Gemeinschaftsdatei": {_SHARED: _EVERYONE, _SHARED_HIDDEN: _BOARD_UP},
+    "Gemeinschaftsdatei": {
+        _SHARED: _EVERYONE,
+        _SHARED_HIDDEN: _BOARD_UP,
+        _SHARED_LOCKED: _EVERYONE,
+    },
+    "Sperrdatei": {_FILES_LOCKED: _EVERYONE},
 }
 
 # (ulid, index of the file in its media) -> the file's page texts; () is the unreadable-file marker.
@@ -86,6 +98,7 @@ _PAGES: Mapping[tuple[str, int], tuple[str, ...]] = {
     (_TEMPLATE, 0): ("Lagerfeuer Vorlagenseite",),
     (_TRASH, 0): ("Lagerfeuer Papierkorbseite",),
     (_ORPHAN, 0): ("Lagerfeuer Waisenseite",),
+    (_FILES_LOCKED, 0): ("Sperrseite Liederbuch",),
 }
 
 
@@ -98,17 +111,20 @@ class _Corpus:
 def _articles() -> tuple[tuple[Article, tuple[tuple[str, bytes], ...]], ...]:
     """Each Article with its files as (name, bytes); none carries a page word in its record."""
     hidden = ("verborgen",)
+    board = Audience(AudienceTier.GROUPS, ("vorstand",))
     return (
         (make_article(_PUBLIC, collection_id=_OPEN, title="Abendbericht"), (("Abenddatei_1998.pdf", b"a"), ("b.pdf", b"b"))),
         (make_article(_RECORD, collection_id=_OPEN, title="Kochtopf und Rezept"), (("scan.pdf", b"s"), ("lock.pdf", b"l"))),
         (make_article(_SHARED, collection_id=_OPEN, title="Geteilt"), (("Gemeinschaftsdatei_1998.pdf", _SHARED_BYTES),)),
         (make_article(_SHARED_HIDDEN, collection_id=_BOARD, title="Auch geteilt", tags=hidden), (("Gemeinschaftsdatei_1998.pdf", _SHARED_BYTES),)),
         (make_article(_MEMBER_ONLY, collection_id=_MEMBERS, title="Akte", tags=hidden), (("Mitgliederdatei_1998.pdf", b"m"),)),
-        (make_article(_GROUP, collection_id=_BOARD, title="Protokoll", tags=hidden), (("Vorstandsdatei_1998.pdf", b"g"),)),
+        (make_article(_GROUP, collection_id=_BOARD, title="Protokoll", tags=hidden, files_audience=Audience(AudienceTier.PUBLIC)), (("Vorstandsdatei_1998.pdf", b"g"),)),
         (make_article(_DRAFT, collection_id=_OPEN, title="Entwurf", lifecycle=Lifecycle.DRAFT, tags=hidden), (("Entwurfsdatei-1998.pdf", b"d"),)),
         (make_article(_TEMPLATE, collection_id=_OPEN, title="Vorlage", lifecycle=Lifecycle.DRAFT, template=True, tags=hidden), (("Vorlagendatei-1998.pdf", b"t"),)),
         (make_article(_TRASH, collection_id=_OPEN, title="Weggeworfen", tags=hidden), (("Papierkorbdatei.1998.pdf", b"p"),)),
         (make_article(_ORPHAN, collection_id="TX_GHOST", title="Verwaist", tags=hidden), (("Waisendatei 1998.pdf", b"o"),)),
+        (make_article(_FILES_LOCKED, collection_id=_OPEN, title="Liederbuch", files_audience=board), (("Sperrdatei_1998.pdf", b"f"),)),
+        (make_article(_SHARED_LOCKED, collection_id=_OPEN, title="Noch geteilt", files_audience=board), (("Gemeinschaftsdatei_1998.pdf", _SHARED_BYTES),)),
     )  # fmt: skip
 
 
@@ -232,6 +248,20 @@ def test_a_shared_file_shows_through_the_visible_article_only(corpus: _Corpus) -
     assert [(hit.ulid, hit.text_pages) for hit in page.hits] == [
         (_SHARED, (TextPage(corpus.media[_SHARED][0], 1),))
     ]
+
+
+def test_a_record_hit_lists_pages_only_to_whom_its_files_open(corpus: _Corpus) -> None:
+    """The record, file counts included, stays on the record's scope."""
+    _store_pages(corpus)
+
+    for label, viewer in _VIEWERS:
+        (hit,) = _search(viewer, "Liederbuch").hits
+        pages = (TextPage(corpus.media[_FILES_LOCKED][0], 1),) if label in _BOARD_UP else ()
+        assert (hit.ulid, hit.file_counts, hit.text_pages) == (
+            _FILES_LOCKED,
+            ((FileKind.PDF, 1),),
+            pages,
+        ), f"[{label}]"
 
 
 # --- what page text does not change -------------------------------------------------------------

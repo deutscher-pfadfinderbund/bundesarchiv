@@ -7,6 +7,7 @@ import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import ClassVar
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -29,7 +30,7 @@ from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
-from bundesarchiv.domain.models import ULID, Change, Lifecycle, MediaRef, Version
+from bundesarchiv.domain.models import ULID, Aspect, Change, Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.indexer import file_kind, mime_type
 from bundesarchiv.index.query import (
@@ -161,11 +162,18 @@ def kind_glyph(kind: FileKind) -> str:
     return _GLYPHS.get(kind, "file-present")
 
 
+def _breakable(name: str) -> SafeString:
+    """The escaped file name with a ``<wbr>`` after each ".", "_" and "-": a tile too narrow for it
+    wraps it there, not mid-word."""
+    return mark_safe(re.sub(r"([._-])", r"\1<wbr>", escape(name)))  # noqa: S308
+
+
 @dataclass(frozen=True, slots=True)
 class MediaTile:
     """Every URL is gated and re-authorizes per request (a page never inlines bytes); an empty URL
     means that version is not offered."""
 
+    locked: ClassVar[bool] = False
     kind: str
     glyph: str  # a components/icon.html name
     name: str
@@ -186,15 +194,44 @@ class MediaTile:
 
     @property
     def breakable_name(self) -> SafeString:
-        """The escaped file name with a ``<wbr>`` after each ".", "_" and "-": a tile too narrow
-        for it wraps it there, not mid-word."""
-        return mark_safe(re.sub(r"([._-])", r"\1<wbr>", escape(self.name)))  # noqa: S308
+        return _breakable(self.name)
 
     @property
     def pixels(self) -> tuple[int, int]:
         """The stand-in's own width and height, the largest a tile draws it: the thumbnail's, else
         the square a thumbnail fits in (a placeholder has no pixels of its own)."""
         return self.aspect or (Size.TILE, Size.TILE)
+
+
+@dataclass(frozen=True, slots=True)
+class LockedTile:
+    """A file the viewer may not open (ADR 0027): what the record says of it, nothing of its bytes.
+    Its stand-in is the placeholder at a thumbnail's square."""
+
+    locked: ClassVar[bool] = True
+    pixels: ClassVar[tuple[int, int]] = (Size.TILE, Size.TILE)
+    kind: str
+    glyph: str  # a components/icon.html name
+    name: str
+    caption: str
+
+    @property
+    def breakable_name(self) -> SafeString:
+        return _breakable(self.name)
+
+
+def locked_tiles(media: tuple[MediaRef, ...]) -> tuple[LockedTile, ...]:
+    """``media`` as tiles for a viewer refused the files, in its order."""
+    return tuple(_locked_tile(ref, file_kind(ref)) for ref in media)
+
+
+def _locked_tile(ref: MediaRef, kind: FileKind) -> LockedTile:
+    return LockedTile(
+        kind=vocab.file_word(kind),
+        glyph=kind_glyph(kind),
+        name=ref.filename,
+        caption=trim_or_none(ref.caption) or "",
+    )
 
 
 def media_tiles(ulid: ULID, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
@@ -232,7 +269,7 @@ class _Pane:
     ref_code: str
     date: str
     doc_type: str
-    media: tuple[MediaTile, ...]
+    media: tuple[MediaTile, ...] | tuple[LockedTile, ...]
     open_href: str
     edit_href: str
     close_href: str
@@ -247,9 +284,9 @@ def _resolve_pane(
     if not ulid:
         return None
     resolution = resolve_visible_detail(request, ulid, archive, chooser)
-    article = resolution.article if resolution is not None else None
-    if article is None or article.deleted is not None:
+    if resolution is None or resolution.article.deleted is not None:
         return None
+    article = resolution.article
     # closing keeps the search: only the pane param goes (a bare "?" would drop it)
     close_params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
     close_query = urlencode(close_params)
@@ -259,7 +296,11 @@ def _resolve_pane(
         ref_code=article.ref_code or "",
         date=vocab.date_mono(article.date),
         doc_type=article.document_type or "",
-        media=media_tiles(article.ulid, article.media),
+        media=(
+            media_tiles(article.ulid, article.media)
+            if resolution.sees_files
+            else locked_tiles(article.media)
+        ),
         open_href=reverse("article-detail", args=[article.ulid]),
         edit_href=reverse("article-edit", args=[article.ulid]) if is_archivist else "",
         close_href="?" + close_query if close_query else "?",
@@ -719,14 +760,8 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     """Built only from the projected Article and the member-safe chain."""
     article = resolution.article
     is_draft = article.lifecycle is Lifecycle.DRAFT
-    slots = iter(range(len(article.media)))
-    media = tuple(
-        replace(tile, slot=next(slots)) if tile.is_image else tile
-        for tile in media_tiles(article.ulid, article.media)
-    )
+    cover, rows, lightbox = _detail_media(resolution)
     tags = tuple(BylineLink(label=t, href=preset_url(browse.PARAM_TAG, t)) for t in article.tags)
-    # the first file leads as the cover only with a picture to show; otherwise it joins the rows
-    cover = media[0] if media and media[0].thumb_url else None
     mark = article.deleted
     return {
         "ulid": article.ulid,
@@ -740,7 +775,10 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "version": resolution.version,
         # preview() names groups and ignores the lifecycle: archivists only (part-4-web.md)
         "publish_statement": (
-            vocab.publish_statement(preview(article, resolution.chain))
+            vocab.publish_statement(
+                record := preview(article, resolution.chain),
+                preview(article, resolution.chain, Aspect.FILES) if article.media else record,
+            )
             if resolution.is_archivist and is_draft
             else ""
         ),
@@ -760,10 +798,10 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "tags": tags,
         "delete_confirm": vocab.TRASH_CONFIRM
         if mark is None
-        else vocab.delete_permanently_confirm(len(media)),
+        else vocab.delete_permanently_confirm(len(article.media)),
         "cover": cover,
-        "more_media": media[1:] if cover else media,
-        "lightbox": tuple(tile for tile in media if tile.is_image),
+        "more_media": rows,
+        "lightbox": lightbox,
         "plates_heading": (
             vocab.FILES
             if cover is None
@@ -774,6 +812,23 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "location": article.physical_location or "",
         "custom": article.custom,
     }
+
+
+def _detail_media(
+    resolution: DetailResolution,
+) -> tuple[MediaTile | None, tuple[MediaTile, ...] | tuple[LockedTile, ...], tuple[MediaTile, ...]]:
+    """The cover, the rows after it and the lightbox's images. Locked tiles all go in the rows."""
+    article = resolution.article
+    if not resolution.sees_files:
+        return None, locked_tiles(article.media), ()
+    slots = iter(range(len(article.media)))
+    media = tuple(
+        replace(tile, slot=next(slots)) if tile.is_image else tile
+        for tile in media_tiles(article.ulid, article.media)
+    )
+    # the first file leads as the cover only with a picture to show; otherwise it joins the rows
+    cover = media[0] if media and media[0].thumb_url else None
+    return cover, media[1:] if cover else media, tuple(tile for tile in media if tile.is_image)
 
 
 def _change(change: Change | None) -> dict[str, object] | None:

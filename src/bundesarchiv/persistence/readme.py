@@ -37,6 +37,7 @@ def encode(article: Article, version: Version, change: Change) -> str:
         "collection_id": article.collection_id,
         "lifecycle": article.lifecycle.value,
         **_front_matter.audience_to_front_matter(article.audience),
+        **_front_matter.audience_to_front_matter(article.files_audience, "files_audience"),
         **({"template": True} if article.template else {}),
         **({"media": [_media_entry(m) for m in article.media]} if article.media else {}),
         "ulid": article.ulid,
@@ -157,17 +158,17 @@ def _as_str_map(value: object) -> tuple[tuple[str, str], ...]:
     return tuple((str(key), str(val)) for key, val in value.items())
 
 
-def audience_from_front_matter(fm: dict[str, Any]) -> Audience | None:
-    """Decode the optional audience of an Article or a Collection front matter. An absent or null
-    key is inherit (None, ADR 0001); a present mapping is an explicit rung; anything else present
-    is corrupt (`ValueError`)."""
-    raw = fm.get("audience")
+def audience_from_front_matter(fm: dict[str, Any], key: str = "audience") -> Audience | None:
+    """Decode an optional audience rung of an Article or a Collection front matter. An absent or
+    null key is inherit (None, ADR 0001); a present mapping is an explicit rung; anything else
+    present is corrupt (`ValueError`)."""
+    raw = fm.get(key)
     if raw is None:
         return None
     if not isinstance(raw, dict):
-        raise ValueError(f"audience: expected a mapping, got {type(raw).__name__}")
+        raise ValueError(f"{key}: expected a mapping, got {type(raw).__name__}")
     if not raw:
-        return None  # a content-less `audience: {}` names no rung -> inherit, like an absent key
+        return None  # a content-less `{}` names no rung -> inherit, like an absent key
     return Audience(
         tier=AudienceTier(raw.get("tier", AudienceTier.MEMBERS.value)),
         groups=_as_str_tuple(raw.get("groups")),
@@ -185,6 +186,7 @@ def _article_from_front_matter(fm: dict[str, Any], title: str | None, body: str)
         body=body,
         lifecycle=Lifecycle(fm["lifecycle"]),
         audience=audience_from_front_matter(fm),
+        files_audience=audience_from_front_matter(fm, "files_audience"),
         ref_code=_as_opt_str(fm.get("ref_code")),
         media_type=_as_opt_str(fm.get("media_type")),
         document_type=_as_opt_str(fm.get("document_type")),

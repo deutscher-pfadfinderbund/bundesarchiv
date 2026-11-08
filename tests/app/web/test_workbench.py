@@ -2,15 +2,17 @@
 
 import io
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import replace
 from html import unescape
 from html.parser import HTMLParser
+from pathlib import Path
 from typing import Any, cast
 from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
 from django.http import HttpResponse
+from django.test import override_settings
 from django.urls import reverse
 from tests.app.web._fixtures import (
     Corpus,
@@ -23,11 +25,12 @@ from tests.app.web._fixtures import (
     page_hrefs,
 )
 
+from bundesarchiv.app.thumbnails import generate_thumbnail
 from bundesarchiv.app.web import browse, ledger, vocab
 from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
-from bundesarchiv.app.web.media_urls import media_url
+from bundesarchiv.app.web.media_urls import media_url, thumbnail_url
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle
+from bundesarchiv.domain.models import ULID, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
 
@@ -915,6 +918,68 @@ def test_pane_close_link_preserves_query_drops_only_article(indexed_corpus: Corp
     close_href = body.split(' aria-label="Vorschau schließen"', 1)[0].rsplit('href="', 1)[1]
     assert "artikel" not in close_href, f"close href must drop artikel: {close_href}"
     assert "q=Vorschau" in close_href and "media_type=Foto" in close_href
+
+
+def _png() -> bytes:
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (40, 30), (200, 40, 60)).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@pytest.fixture
+def locked_pane(
+    db: None, make_corpus: Callable[[], Corpus], tmp_path: Path
+) -> Iterator[tuple[ULID, MediaRef]]:
+    """An Article every Member reads whose one file only ``vorstand`` opens, its thumbnail cached.
+    The pane resolves without the index, so none is built."""
+    corpus = make_corpus()
+    corpus.add_collection(
+        make_collection("FOTOS", "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    ulid = PANE_PUB_ULID
+    ref = replace(
+        corpus.articles.add_media(ulid, "titel.png", io.BytesIO(_png()), "image/png"),
+        caption="Titelaufnahme der Fahrt",
+    )
+    corpus.add_article(
+        make_article(
+            ulid,
+            collection_id="FOTOS",
+            audience=Audience(AudienceTier.MEMBERS),
+            files_audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
+            media=(ref,),
+        )
+    )
+    thumbs = tmp_path / "thumbs"
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+        assert generate_thumbnail(corpus.store, ulid, ref.content_hash, thumbs)
+        yield ulid, ref
+
+
+def test_the_pane_shows_a_member_outside_the_files_group_the_caption_and_nothing_of_the_bytes(
+    locked_pane: tuple[ULID, MediaRef],
+) -> None:
+    ulid, ref = locked_pane
+    response = client_as(Member(groups=())).get(list_url(article=ulid))
+    body = response.content.decode()
+    pane = body[body.index('class="pane"') :]
+    assert [tile.locked for tile in response.context["pane"].media] == [True]
+    assert "Titelaufnahme der Fahrt" in pane
+    marks = (ref.content_hash, "/media/", "data-lightbox", "vorstand")
+    assert [mark for mark in marks if mark in body] + download_hrefs(body) == []
+
+
+@pytest.mark.parametrize("viewer", [Member(groups=("vorstand",)), Archivist()])
+def test_the_pane_gives_the_files_to_whoever_clears_their_rung(
+    locked_pane: tuple[ULID, MediaRef], viewer: Viewer
+) -> None:
+    ulid, ref = locked_pane
+    response = client_as(viewer).get(list_url(article=ulid))
+    pane = response.content.decode().split('class="pane"', 1)[1]
+    assert thumbnail_url(ulid, ref.content_hash) in pane
+    assert download_hrefs(pane) == [media_url(ulid, ref.content_hash)]
 
 
 # --- bulk edit: the selection and the tool row (Sammelbearbeitung, spec §2) ----------------

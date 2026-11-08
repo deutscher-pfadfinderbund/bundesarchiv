@@ -1,0 +1,9 @@
+{% comment %}The one line over a set of locked tiles (ADR 0027); it never says whom to ask. Param:
+count, the number of files.{% endcomment %}
+<p class="hint">
+  {% if count == 1 %}
+  Die Datei ist für dich nicht freigegeben.
+  {% else %}
+  Die Dateien sind für dich nicht freigegeben.
+  {% endif %}
+</p>

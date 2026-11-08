@@ -62,6 +62,14 @@ _TIERS = {
         Lifecycle.PUBLISHED,
         (40, 200, 200),
     ),  # no such Collection
+    "public_files_board": ("01M553AGABD8F8ZVQV43GRE7TY", "PUB", Lifecycle.PUBLISHED, (90, 30, 30)),
+    "members_files_board": ("01M553AGABD8F8ZVQV43GRE7TZ", "MEM", Lifecycle.PUBLISHED, (30, 90, 30)),
+}
+
+#: The tiers whose files carry a rung of their own (ADR 0027); every other tier's files inherit.
+_FILES_AUDIENCE = {
+    "public_files_board": Audience(AudienceTier.GROUPS, ("vorstand",)),
+    "members_files_board": Audience(AudienceTier.GROUPS, ("vorstand",)),
 }
 
 
@@ -79,7 +87,12 @@ def _fill(base: Corpus) -> None:
         )
         base.add_article(
             make_article(
-                ulid, collection_id=coll, lifecycle=lifecycle, title=f"{tier} article", media=(ref,)
+                ulid,
+                collection_id=coll,
+                lifecycle=lifecycle,
+                title=f"{tier} article",
+                media=(ref,),
+                files_audience=_FILES_AUDIENCE.get(tier),
             )
         )
 
@@ -172,11 +185,23 @@ _ALLOWED: set[tuple[str, str]] = {
     ("groups", "archivist"),
     ("draft", "archivist"),  # non-published → archivist-only
     ("archivist", "archivist"),
+    ("public_files_board", "member_right"),
+    ("public_files_board", "archivist"),
+    ("members_files_board", "member_right"),
+    ("members_files_board", "archivist"),
 }
 
 
 def _grid() -> Iterator[tuple[str, str, bool]]:
-    for tier in ("public", "members", "groups", "draft", "archivist"):
+    for tier in (
+        "public",
+        "members",
+        "groups",
+        "draft",
+        "archivist",
+        "public_files_board",
+        "members_files_board",
+    ):
         for viewer_name in _VIEWERS:
             yield tier, viewer_name, (tier, viewer_name) in _ALLOWED
 

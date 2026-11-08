@@ -104,12 +104,15 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
     {% if more_media %}
     <section class="media-rows">
       <h2>{{ plates_heading }}</h2>
+      {% if more_media.0.locked %}
+      {% include "workbench/_locked_hint.html" with count=more_media|length only %}
+      {% endif %}
       <div>
         {% for plate in more_media %}
         <figure>
           {% include "components/media_tile.html" with file=plate only %}
-          {% if plate.is_image %}{% if plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}{% elif plate.thumb_url %}<figcaption>{% firstof plate.caption plate.name %} <span class="kind">· {{ plate.kind }}</span></figcaption>{% elif plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}
-          {% if not plate.is_image %}{% include "workbench/_download.html" with tile=plate only %}{% endif %}
+          {% if plate.locked or plate.is_image %}{% if plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}{% elif plate.thumb_url %}<figcaption>{% firstof plate.caption plate.name %} <span class="kind">· {{ plate.kind }}</span></figcaption>{% elif plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}
+          {% if not plate.locked and not plate.is_image %}{% include "workbench/_download.html" with tile=plate only %}{% endif %}
         </figure>
         {% endfor %}
       </div>

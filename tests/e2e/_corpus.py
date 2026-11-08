@@ -68,11 +68,21 @@ MARKED_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZB")  # in the Papierkorb
 MANY_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZC")
 TEMPLATE_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZD")
 SOUND_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZE")  # a film and a recording: tiles with no thumbnail
+LOCKED_ULID = ULID("01KX8N6P2PBDPMNJE58ZVQKVZF")  # every Member reads it; its files are vorstand's
 
 #: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Collection ·
 #: subdivision · volume, the longest code the archive is expected to carry.
 CEILING_REF_CODE = "F12/3-b2"
 KARTEN_ULID = ULID("01KX939S67DNGH0AB53HNXGB9B")
+
+_VORSTAND = Audience(AudienceTier.GROUPS, ("vorstand",))
+
+#: The photos of LOCKED_ULID: (filename, caption).
+LOCKED_PHOTOS = (
+    ("Satzungsberatung.png", "Beratung der neuen Satzung"),
+    ("Kassenbuch.png", None),
+    ("Wahl.png", "Wahl des Gauführers"),
+)
 
 #: The photos of MANY_ULID: (filename, caption, pixel size) — landscape, portrait, square, wide.
 MANY_PHOTOS = (
@@ -109,6 +119,7 @@ class CorpusHandles:
     many_ulid: str
     template_ulid: str
     sound_ulid: str
+    locked_ulid: str
 
 
 def write_corpus(root: Path, thumbnail_root: Path | None = None) -> None:
@@ -227,6 +238,8 @@ def write_corpus(root: Path, thumbnail_root: Path | None = None) -> None:
             document_type="Protokoll",
             date=EdtfDate("1958-05"),
             media=(minutes,),
+            # one file a Member outside the group sees locked (ADR 0027); others see it as before
+            files_audience=_VORSTAND,
         ),
         0,
         changed_by="tester",
@@ -294,6 +307,33 @@ def write_corpus(root: Path, thumbnail_root: Path | None = None) -> None:
         changed_by="tester",
     )
 
+    locked = tuple(
+        articles.add_media(
+            LOCKED_ULID,
+            name,
+            BytesIO(_png(_PHOTO_COLORS[n], size=(640, 480))),
+            media_type="image/png",
+        )
+        for n, (name, _) in enumerate(LOCKED_PHOTOS)
+    )
+    articles.save(
+        Article(
+            ulid=LOCKED_ULID,
+            title="Gautag 1966",
+            collection_id=ULID("AKTEN"),
+            lifecycle=Lifecycle.PUBLISHED,
+            ref_code="A8",
+            date=EdtfDate("1966"),
+            files_audience=_VORSTAND,
+            media=tuple(
+                MediaRef(ref.filename, ref.content_hash, caption=caption)
+                for ref, (_, caption) in zip(locked, LOCKED_PHOTOS, strict=True)
+            ),
+        ),
+        0,
+        changed_by="tester",
+    )
+
     winterlager = Article(
         ulid=MARKED_ULID,
         title="Winterlager 1961",
@@ -313,6 +353,7 @@ def write_corpus(root: Path, thumbnail_root: Path | None = None) -> None:
             (PUBLISHED_ULID, report),
             (CEILING_ULID, minutes),
             *((MANY_ULID, ref) for ref in many),
+            *((LOCKED_ULID, ref) for ref in locked),
         ):
             thumbnails.generate_thumbnail(store, ULID(ulid), ref.content_hash, thumbnail_root)
 
@@ -326,6 +367,7 @@ HANDLES = CorpusHandles(
     many_ulid=MANY_ULID,
     template_ulid=TEMPLATE_ULID,
     sound_ulid=SOUND_ULID,
+    locked_ulid=LOCKED_ULID,
 )
 
 

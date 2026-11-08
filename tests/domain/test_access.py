@@ -4,6 +4,7 @@ from dataclasses import fields, replace
 from datetime import UTC, datetime
 
 import pytest
+from tests._articles import make_article
 
 from bundesarchiv.domain.access import (
     ARCHIVIST_ONLY_FIELDS,
@@ -18,6 +19,7 @@ from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import (
     ULID,
     Article,
+    Aspect,
     Audience,
     AudienceTier,
     Change,
@@ -143,11 +145,15 @@ def test_preview_surfaces_inherited_group_names() -> None:
     assert p.groups == ("vorstand", "stamm-koeln")
 
 
-def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article() -> None:
-    article = _article(collection_id="c-leaf", audience=Audience(AudienceTier.PUBLIC))
+@pytest.mark.parametrize("aspect", list(Aspect))
+def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article(
+    aspect: Aspect,
+) -> None:
+    public = Audience(AudienceTier.PUBLIC)
+    article = make_article("01J0", collection_id="c-leaf", audience=public, files_audience=public)
     wrong_chain = ResolvedChain((Collection(ulid=ULID("c-other"), name="c-other"),))
-    assert can_view(Public(), article, wrong_chain) is False
-    assert can_view(Archivist(), article, wrong_chain) is False
+    assert can_view(Public(), article, wrong_chain, aspect) is False
+    assert can_view(Archivist(), article, wrong_chain, aspect) is False
 
 
 def _physical_article() -> Article:
@@ -402,7 +408,7 @@ def test_visible_floors_exactly_the_archivist_only_fields_for_a_member() -> None
 _MEMBER_VISIBLE_FIELDS = frozenset(
     {
         "added_at", "audience", "body", "collection_id", "creator", "date", "deleted",
-        "document_type",
+        "document_type", "files_audience",
         "lifecycle", "media", "media_type", "ref_code", "subject_place", "tags", "template", "title",
         "ulid",
     }
@@ -411,3 +417,122 @@ _MEMBER_VISIBLE_FIELDS = frozenset(
 
 def test_every_article_field_is_classified_member_visible_or_archivist_only() -> None:
     assert {f.name for f in fields(Article)} - ARCHIVIST_ONLY_FIELDS == _MEMBER_VISIBLE_FIELDS
+
+
+# --- The FILES aspect (ADR 0027) ----------------------------------------------------------------
+
+_PUBLIC = Audience(AudienceTier.PUBLIC)
+_MEMBERS = Audience(AudienceTier.MEMBERS)
+
+
+@pytest.mark.parametrize(
+    ("viewer", "record", "files", "expected"),
+    [
+        # A wider FILES rung is inert: it shows Public nothing the record hides.
+        (Public(), _MEMBERS, _PUBLIC, False),
+        (Member(), _MEMBERS, _PUBLIC, True),
+        (Member(), _BOARD, _MEMBERS, False),
+        (Member(("vorstand",)), _BOARD, _MEMBERS, True),
+        # A narrower FILES rung denies the viewers who clear only the record.
+        (Public(), _PUBLIC, _BOARD, False),
+        (Member(), _PUBLIC, _BOARD, False),
+        (Member(), _MEMBERS, _BOARD, False),
+        (Member(("stamm-bonn",)), _MEMBERS, _BOARD, False),
+        (Public(), _PUBLIC, _MEMBERS, False),
+        (Member(), _PUBLIC, _MEMBERS, True),
+        # A Member in the named group clears both; the Archivist clears everything.
+        (Member(("vorstand",)), _MEMBERS, _BOARD, True),
+        (Member(("vorstand",)), _PUBLIC, _BOARD, True),
+        (Archivist(), _MEMBERS, _BOARD, True),
+        (Archivist(), _BOARD, _PUBLIC, True),
+        # An unset FILES rung is the record's.
+        (Public(), _PUBLIC, None, True),
+        (Public(), _MEMBERS, None, False),
+        (Member(), _BOARD, None, False),
+        (Member(("vorstand",)), _BOARD, None, True),
+    ],
+)
+def test_can_view_files_matrix(
+    viewer: Viewer, record: Audience, files: Audience | None, expected: bool
+) -> None:
+    article = make_article("01J0", collection_id="c-leaf", audience=record, files_audience=files)
+    assert can_view(viewer, article, _chain(), Aspect.FILES) is expected
+
+
+def test_a_files_rung_never_changes_who_sees_the_record() -> None:
+    for files in (_PUBLIC, _BOARD):
+        article = make_article(
+            "01J0", collection_id="c-leaf", audience=_MEMBERS, files_audience=files
+        )
+        assert can_view(Public(), article, _chain()) is False
+        assert can_view(Member(), article, _chain()) is True
+
+
+def test_the_files_follow_an_inherited_groups_rung() -> None:
+    article = _article(audience=None, collection_id="c-leaf")
+    chain = _inherited_groups_chain()
+    assert can_view(Member(("vorstand",)), article, chain, Aspect.FILES) is True
+    assert can_view(Member(), article, chain, Aspect.FILES) is False
+
+
+@pytest.mark.parametrize("viewer", [Public(), Member(), Member(("vorstand",))])
+def test_the_lifecycle_gate_denies_the_files_to_every_non_archivist(viewer: Viewer) -> None:
+    draft = make_article(
+        "01J0",
+        collection_id="c-leaf",
+        lifecycle=Lifecycle.DRAFT,
+        audience=_PUBLIC,
+        files_audience=_PUBLIC,
+    )
+    assert can_view(viewer, draft, _chain(), Aspect.FILES) is False
+    assert can_view(Archivist(), draft, _chain(), Aspect.FILES) is True
+
+
+_RUNGS = (_PUBLIC, _MEMBERS, _BOARD, None)
+
+
+@pytest.mark.parametrize("lifecycle", [Lifecycle.PUBLISHED, Lifecycle.DRAFT])
+@pytest.mark.parametrize("files", _RUNGS)
+@pytest.mark.parametrize("record", _RUNGS)
+@pytest.mark.parametrize("aspect", list(Aspect))
+def test_preview_per_aspect_is_defined_by_can_view(
+    aspect: Aspect, record: Audience | None, files: Audience | None, lifecycle: Lifecycle
+) -> None:
+    article = make_article(
+        "01J0", collection_id="c-leaf", lifecycle=lifecycle, audience=record, files_audience=files
+    )
+    published = replace(article, lifecycle=Lifecycle.PUBLISHED)
+    p = preview(article, _chain(), aspect)
+    assert p.public == can_view(Public(), published, _chain(), aspect)
+    assert p.members == can_view(Member(), published, _chain(), aspect)
+
+
+_KASSE = Audience(AudienceTier.GROUPS, ("kasse",))
+
+
+@pytest.mark.parametrize(
+    ("record", "files", "expected"),
+    [
+        (_MEMBERS, _BOARD, ("vorstand",)),
+        (_KASSE, _BOARD, ("vorstand",)),
+        (_BOARD, _MEMBERS, ("vorstand",)),  # a wider files rung is inert: the record's groups
+        (_BOARD, None, ("vorstand",)),
+        (_MEMBERS, _PUBLIC, ()),
+    ],
+)
+def test_the_files_preview_names_the_files_groups_else_the_records(
+    record: Audience, files: Audience | None, expected: tuple[str, ...]
+) -> None:
+    article = make_article("01J0", collection_id="c-leaf", audience=record, files_audience=files)
+    assert preview(article, _chain(), Aspect.FILES).groups == expected
+
+
+@pytest.mark.parametrize(("record", "files"), [(_MEMBERS, _PUBLIC), (_BOARD, _MEMBERS)])
+def test_a_wider_files_rung_previews_like_the_record(record: Audience, files: Audience) -> None:
+    article = make_article("01J0", collection_id="c-leaf", audience=record, files_audience=files)
+    assert preview(article, _chain(), Aspect.FILES) == preview(article, _chain())
+
+
+def test_the_record_preview_ignores_the_files_rung() -> None:
+    article = make_article("01J0", collection_id="c-leaf", audience=_MEMBERS, files_audience=_BOARD)
+    assert preview(article, _chain()) == preview(replace(article, files_audience=None), _chain())

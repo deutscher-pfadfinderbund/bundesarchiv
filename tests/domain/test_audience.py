@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
+from tests._articles import make_article
 
 from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain
@@ -11,6 +12,7 @@ from bundesarchiv.domain.errors import MisresolvedChain
 from bundesarchiv.domain.models import (
     ULID,
     Article,
+    Aspect,
     Audience,
     AudienceTier,
     Change,
@@ -115,3 +117,26 @@ def test_explicit_article_audience_may_widen_a_narrower_collection() -> None:
     public = Audience(AudienceTier.PUBLIC)
     chain = _chain(_coll("c-leaf", audience=Audience(AudienceTier.MEMBERS)))
     assert effective_audience(_article(audience=public), chain) == public
+
+
+# --- The FILES aspect (ADR 0027) ----------------------------------------------------------------
+
+_BOARD = Audience(AudienceTier.GROUPS, ("vorstand",))
+
+
+def test_an_unset_files_rung_resolves_to_the_effective_record_rung() -> None:
+    # Through a Collection's explicit record rung, not only the Article's own.
+    chain = _chain(_coll("c-leaf", parent_id="c-root"), _coll("c-root", audience=_BOARD))
+    assert effective_audience(_article(), chain, Aspect.FILES) == _BOARD
+
+
+def test_an_explicit_files_rung_resolves_to_itself_and_leaves_the_record_alone() -> None:
+    article = make_article(
+        "01J0",
+        collection_id="c-leaf",
+        audience=Audience(AudienceTier.PUBLIC),
+        files_audience=_BOARD,
+    )
+    chain = _chain(_coll("c-leaf"))
+    assert effective_audience(article, chain, Aspect.FILES) == _BOARD
+    assert effective_audience(article, chain) == Audience(AudienceTier.PUBLIC)

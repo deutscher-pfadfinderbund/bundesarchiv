@@ -85,6 +85,14 @@ not a rule. The agent-written records of owner conversations were deleted on 202
 (`git log --all -- docs/requirements/` finds them); nothing is appended to a record any more. A
 decision is recorded where it binds, or not at all.
 
+Nothing current is read from an ADR (owner, 2026-11-07). An ADR records what was decided and
+why; the binding rule lives in the package `CLAUDE.md`, a docstring or a test, citing the ADR.
+An ADR that no longer holds is dropped, or corrected when the error is minor; its status line
+names what superseded it. An ADR never blocks a change. An ADR keeps its context, the decision,
+the rejected options with their reasons, and the consequences; mechanics that code, a `CLAUDE.md`
+or a test hold (op lists, keys, settings, "not yet" notes) are cut, not rewritten (owner,
+2026-11-07).
+
 ### Testing razor
 
 Test depth is proportional to risk: extensive coverage only where a defect is domain-relevant, loses data, or leaks data. The do-not-write list, the deny contract (`assert_denied`), and the per-suite ownership map: `tests/CLAUDE.md`.

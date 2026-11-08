@@ -1,7 +1,8 @@
 {% comment %}The media tile in every state its file decides, and in each box a container gives it. A
 .demo-box stands in for the container: it sets the tile's box on the root (its rules: the library
 page's style). Params: modes, status, tiles (photo, PDF and small photo with a thumbnail, then each
-kind without one), few (a photo, a PDF, the small photo, a placeholder), long.{% endcomment %}
+kind without one), few (a photo, a PDF, the small photo, a placeholder), long, locked (a photo, a
+PDF and a video the viewer may not open).{% endcomment %}
 <h2 id="demo-media-tile">Media tile — one file, its best stand-in, a link to it <span class="status">{{ status }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
@@ -88,3 +89,17 @@ kind without one), few (a photo, a PDF, the small photo, a placeholder), long.{%
   {% endfor %}
 </div>
 <code class="doc">open decision, the label's form — as built (above): a thumbnail shows no label, a placeholder shows the kind and name at its foot, label=False hides them. The candidates, drawn by this page around a tile with label=False (a mock, not a tile option): below every stand-in; over every stand-in's foot; off, with the name beside (label=False, above)</code>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="demo-tiles">
+      {% for file in locked %}
+      <div class="demo-box demo-inline">
+        {% include "components/media_tile.html" with file=file only %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">a LockedTile — a file the viewer may not open (ADR 0027): the placeholder of its kind at a thumbnail's square, the kind and name at its foot, and no link: not focusable, no Lightbox hook. Nothing from the bytes reaches it, so a photo shows the placeholder even where others see its thumbnail</code>

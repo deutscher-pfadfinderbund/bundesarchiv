@@ -1,10 +1,11 @@
 """The effective-Audience resolver, the single source of every visibility decision (ADR 0001)."""
 
 from dataclasses import dataclass
+from typing import assert_never
 
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.errors import MisresolvedChain
-from bundesarchiv.domain.models import Article, Audience, Lifecycle
+from bundesarchiv.domain.models import Article, Aspect, Audience, Lifecycle
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,8 +20,11 @@ type EffectiveAudience = Audience | ArchivistOnly
 ARCHIVIST_ONLY = ArchivistOnly()
 
 
-def effective_audience(article: Article, chain: ResolvedChain) -> EffectiveAudience:
-    """The nearest explicit Audience wins, even where it widens an ancestor's."""
+def effective_audience(
+    article: Article, chain: ResolvedChain, aspect: Aspect = Aspect.RECORD
+) -> EffectiveAudience:
+    """The nearest explicit Audience for `aspect` wins, even where it widens an ancestor's; an
+    aspect with none takes the record's (ADR 0027)."""
     if chain.leaf.ulid != article.collection_id:
         raise MisresolvedChain(
             f"chain is not rooted at Article {article.ulid!r}'s Collection "
@@ -28,6 +32,18 @@ def effective_audience(article: Article, chain: ResolvedChain) -> EffectiveAudie
         )
     if article.lifecycle is not Lifecycle.PUBLISHED or article.deleted is not None:
         return ARCHIVIST_ONLY
+    match aspect:
+        case Aspect.RECORD:
+            return _record_audience(article, chain)
+        case Aspect.FILES:
+            if article.files_audience is not None:
+                return article.files_audience
+            return _record_audience(article, chain)
+        case _ as unreachable:
+            assert_never(unreachable)
+
+
+def _record_audience(article: Article, chain: ResolvedChain) -> Audience:
     if article.audience is not None:
         return article.audience
     for collection in chain.collections:

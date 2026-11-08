@@ -203,6 +203,7 @@ def _handle_edit_post(
         chooser=chooser,
         current_media=current.media,
         current_audience=current.audience,
+        current_files_audience=current.files_audience,
         lifecycle=lifecycle,
         added_at=current.added_at,
         deleted=current.deleted,
@@ -499,10 +500,14 @@ def _post_to_form_values(
     if values["lifecycle"] not in LIFECYCLE_VALUES:
         # Veröffentlicht is the first option, so a value matching none would show a draft as published
         values["lifecycle"] = stored.lifecycle.value
-    if catalog.audience_choice(post) is None:
-        # "" would re-render as inherit, and the next Speichern would post it
-        seeded = _article_to_form_values(stored)
-        values["audience"], values["groups"] = seeded["audience"], seeded["groups"]
+    for fields in (catalog.RECORD_AUDIENCE, catalog.FILES_AUDIENCE):
+        if catalog.audience_choice(post, fields) is None:
+            # "" would re-render as inherit, and the next Speichern would post it
+            seeded = _article_to_form_values(stored)
+            values[fields.choice], values[fields.groups] = (
+                seeded[fields.choice],
+                seeded[fields.groups],
+            )
     rows = [pair for pair in raw if pair != ("", "")]
     values["custom_rows"] = [*rows, ("", "")] if add_custom_row else rows
     return values

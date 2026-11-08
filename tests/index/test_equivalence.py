@@ -1,9 +1,12 @@
-"""SQL ≡ ``can_view`` (ADR 0012) over the article audience x parent audience x lifecycle grid.
+"""SQL ≡ ``can_view`` (ADR 0012, 0027) per aspect over the article audience x parent audience x
+(files audience x lifecycle) grid: the scope predicate itself, and every search path over it.
 
 The one allowed gap: a fail-closed row is index-visible to the Archivist but ``can_view``-denied.
 """
 
+import io
 from collections.abc import Iterator, Mapping
+from dataclasses import replace
 
 import pytest
 from pytest_django.plugin import DjangoDbBlocker
@@ -15,6 +18,7 @@ from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import (
     ULID,
     Article,
+    Aspect,
     Audience,
     AudienceTier,
     Collection,
@@ -22,7 +26,9 @@ from bundesarchiv.domain.models import (
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
+from bundesarchiv.index.models import ArticleIndex
 from bundesarchiv.index.query import SearchFilters, search
+from bundesarchiv.index.scope import _viewer_scope
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -50,6 +56,15 @@ _ARTICLE_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
     ("ainh", None),
 )
 
+# ``None`` takes the record's rung; every rung is narrower than some record rung and wider (inert)
+# than another.
+_FILES_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
+    ("fpub", Audience(AudienceTier.PUBLIC)),
+    ("fmem", Audience(AudienceTier.MEMBERS)),
+    ("fgrb", Audience(AudienceTier.GROUPS, (GROUP_B,))),
+    ("finh", None),
+)
+
 # ``None`` inherits the silent root: the MEMBERS default.
 _PARENT_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
     ("ppub", Audience(AudienceTier.PUBLIC)),
@@ -58,9 +73,11 @@ _PARENT_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
     ("pinh", None),
 )
 
-_LIFECYCLES: tuple[tuple[str, Lifecycle], ...] = (
-    ("draft", Lifecycle.DRAFT),
-    ("pub", Lifecycle.PUBLISHED),
+# Every files rung on a published article; a draft gets one, since the lifecycle gate makes its
+# files rung inert.
+_FILES_X_LIFECYCLE: tuple[tuple[str, Audience | None, str, Lifecycle], ...] = (
+    *((tag, audience, "pub", Lifecycle.PUBLISHED) for tag, audience in _FILES_AUDIENCES),
+    ("fpub", Audience(AudienceTier.PUBLIC), "draft", Lifecycle.DRAFT),
 )
 
 _ROOT_ULID = ULID("GRID_ROOT")
@@ -68,6 +85,11 @@ _ROOT_ULID = ULID("GRID_ROOT")
 # One media_type shared by every grid article, so its facet count per viewer must equal the size of
 # the whole can_view-visible set — a single dimension-independent number for the aggregate check.
 _GRID_MEDIA_TYPE = "Rasterakte"
+
+# Every grid article carries the one file: a page word reaches an article through its own scope only.
+_GRID_FILE = b"one file on every grid article"
+_PAGE_ONLY_WORD = "Rasterseite"
+_RECORD_WORD = "Rasterartikel"  # in every title and on the page
 
 
 def _parent_ulid(parent_tag: str) -> ULID:
@@ -110,7 +132,8 @@ def _build_grid_store() -> InMemoryObjectStore:
         )
 
     for article in _grid_articles():
-        articles.save(article, 0, changed_by="tester")
+        ref = articles.add_media(article.ulid, "raster.pdf", io.BytesIO(_GRID_FILE))
+        articles.save(replace(article, media=(ref,)), 0, changed_by="tester")
     return store
 
 
@@ -118,14 +141,15 @@ def _grid_articles() -> Iterator[Article]:
     """Ulids encode the grid coordinates, so a mismatch names the exact cell."""
     for parent_tag, _parent_audience in _PARENT_AUDIENCES:
         for art_tag, art_audience in _ARTICLE_AUDIENCES:
-            for life_tag, lifecycle in _LIFECYCLES:
-                ulid = ULID(f"GRID_{parent_tag}_{art_tag}_{life_tag}")
+            for files_tag, files_audience, life_tag, lifecycle in _FILES_X_LIFECYCLE:
+                ulid = ULID(f"GRID_{parent_tag}_{art_tag}_{files_tag}_{life_tag}")
                 yield Article(
                     ulid=ulid,
-                    title=f"Rasterartikel {ulid}",
+                    title=f"{_RECORD_WORD} {ulid}",
                     collection_id=_leaf_ulid(parent_tag),
                     lifecycle=lifecycle,
                     audience=art_audience,
+                    files_audience=files_audience,
                     media_type=_GRID_MEDIA_TYPE,
                 )
 
@@ -153,7 +177,7 @@ class _Grid:
             ArticleRepository(store).load(ULID(u)).article for u in _all_ulids(store)
         )
 
-    def can_view_ulids(self, viewer: Viewer) -> set[str]:
+    def can_view_ulids(self, viewer: Viewer, aspect: Aspect = Aspect.RECORD) -> set[str]:
         """Catch only ``DomainError`` (what ``can_view`` fails closed on): anything else must fail
         the guard, not shrink the expected set."""
         visible: set[str] = set()
@@ -162,7 +186,7 @@ class _Grid:
                 chain: ResolvedChain = resolve_chain(article.collection_id, self.lookup)
             except DomainError:
                 continue
-            if can_view(viewer, article, chain):
+            if can_view(viewer, article, chain, aspect):
                 visible.add(article.ulid)
         return visible
 
@@ -189,10 +213,28 @@ def _search_ulids(viewer: Viewer) -> set[str]:
 @pytest.mark.django_db
 def test_grid_has_expected_shape(corpus: _Grid) -> None:
     """A shrunk grid or a fail-closed row would silently weaken every equivalence test below."""
-    assert len(corpus.articles) == 40
-    assert corpus.report.indexed == 40
+    assert len(corpus.articles) == 100
+    assert corpus.report.indexed == 100
     assert corpus.report.failed_closed == ()
     assert _search_ulids(Archivist()) == {a.ulid for a in corpus.articles}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("aspect", list(Aspect))
+def test_the_scope_predicate_equals_can_view_per_viewer(corpus: _Grid, aspect: Aspect) -> None:
+    failed_closed = set(corpus.report.failed_closed)
+    mismatches: list[str] = []
+    for label, viewer in _VIEWERS:
+        rows = ArticleIndex.objects.filter(_viewer_scope(viewer, aspect))
+        got = set(rows.values_list("ulid", flat=True))
+        expected = corpus.can_view_ulids(viewer, aspect)
+        if isinstance(viewer, Archivist):
+            expected = expected | failed_closed
+        if got != expected:
+            mismatches.append(
+                f"[{label}] leaked={sorted(got - expected)} missing={sorted(expected - got)}"
+            )
+    assert not mismatches, f"_viewer_scope({aspect.name}) ≢ can_view:\n" + "\n".join(mismatches)
 
 
 @pytest.mark.django_db
@@ -214,6 +256,29 @@ def test_search_equals_can_view_per_viewer(corpus: _Grid) -> None:
     assert not mismatches, "SQL ≢ can_view — offending (viewer, articles) pairs:\n" + "\n".join(
         mismatches
     )
+
+
+@pytest.mark.django_db
+def test_files_scope_equals_can_view_files_per_viewer(corpus: _Grid) -> None:
+    (file_hash,) = {a.media[0].content_hash for a in corpus.articles}
+    indexer.store_media_text(file_hash, (f"{_PAGE_ONLY_WORD} {_RECORD_WORD}",))
+    mismatches: list[str] = []
+    for label, viewer in _VIEWERS:
+        files = corpus.can_view_ulids(viewer, Aspect.FILES)
+        by_page = search(viewer, text=_PAGE_ONLY_WORD, page_size=1000)
+        media = {fc.value: fc.count for fc in by_page.facets["media_type"]}
+        got = {h.ulid for h in by_page.hits}
+        if got != files:
+            mismatches.append(
+                f"[{label}] page word: leaked={sorted(got - files)} missing={sorted(files - got)}"
+            )
+        if (by_page.total, media.get(_GRID_MEDIA_TYPE, 0)) != (len(files), len(files)):
+            mismatches.append(f"[{label}] page word: total/facet != {len(files)}")
+        by_record = search(viewer, text=_RECORD_WORD, page_size=1000).hits
+        with_pages = {h.ulid for h in by_record if h.text_pages}
+        if ({h.ulid for h in by_record}, with_pages) != (corpus.can_view_ulids(viewer), files):
+            mismatches.append(f"[{label}] record word: pages on {sorted(with_pages ^ files)}")
+    assert not mismatches, "FILES scope ≢ can_view(FILES):\n" + "\n".join(mismatches)
 
 
 # ===========================================================================

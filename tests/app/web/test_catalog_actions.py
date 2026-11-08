@@ -1,6 +1,7 @@
 """Read-view actions and lifecycle: copy, delete, delete-permanently, restore, publish
 (spec §6.2/§7/§8, ADR 0022)."""
 
+import io
 from dataclasses import replace
 from functools import partial
 from typing import Any
@@ -20,6 +21,8 @@ from tests.app.web._fixtures import (
     with_two_media,
 )
 
+from bundesarchiv.app.web import vocab
+from bundesarchiv.domain.access import VisibilityPreview
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import ULID, Article, Audience, AudienceTier, Change, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -584,6 +587,29 @@ def test_the_confirmation_says_who_will_see_the_record(corpus: Corpus) -> None:
     articles.save(members, stored.version, changed_by="tester")
     body = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}").content.decode()
     assert "Nach dem Veröffentlichen sehen alle Mitglieder diesen Eintrag." in body
+
+
+def test_the_confirmation_names_narrower_files_only_when_there_are_files(corpus: Corpus) -> None:
+    stored = corpus.articles.load(ULID(DRAFT_ULID))
+    narrowed = replace(
+        stored.article,
+        audience=Audience(AudienceTier.MEMBERS),
+        files_audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
+    )
+    corpus.articles.save(narrowed, stored.version, changed_by="tester")
+    record = VisibilityPreview(public=False, members=True, groups=())
+    files = VisibilityPreview(public=False, members=False, groups=("vorstand",))
+    with_clause = vocab.publish_statement(record, files)
+
+    body = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}").content.decode()
+    assert vocab.publish_statement(record, record) in body
+    assert with_clause not in body
+
+    stored = corpus.articles.load(ULID(DRAFT_ULID))
+    ref = corpus.articles.add_media(ULID(DRAFT_ULID), "a.pdf", io.BytesIO(b"a"))
+    corpus.articles.save(replace(stored.article, media=(ref,)), stored.version, changed_by="tester")
+    body = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}").content.decode()
+    assert with_clause in body
 
 
 def test_a_published_record_has_no_confirmation(corpus: Corpus) -> None:

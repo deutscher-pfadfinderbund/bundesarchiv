@@ -39,6 +39,19 @@ _AUDIENCE_CHOICES = frozenset({"", *_AUDIENCE_TIER})
 
 
 @dataclass(frozen=True, slots=True)
+class AudienceFields:
+    """The form names of one Sichtbarkeit pair: the rung select, named after the Article attribute
+    it sets, and its Gruppen field."""
+
+    choice: str
+    groups: str
+
+
+RECORD_AUDIENCE = AudienceFields("audience", "groups")
+FILES_AUDIENCE = AudienceFields("files_audience", "files_groups")
+
+
+@dataclass(frozen=True, slots=True)
 class ParseResult:
     """The outcome of parsing an edit-form POST. Exactly one of ``article`` / ``errors`` is
     meaningful: a non-empty ``errors`` means the form did not validate and ``article is None``.
@@ -96,6 +109,7 @@ def parse_edit_form(
     chooser: CollectionChooser,
     current_media: tuple[MediaRef, ...] = (),
     current_audience: Audience | None,
+    current_files_audience: Audience | None,
     lifecycle: Lifecycle = Lifecycle.DRAFT,
     added_at: datetime | None,
     deleted: Change | None,
@@ -108,7 +122,8 @@ def parse_edit_form(
     ``current_media`` is the article's media as stored: the metadata save PRESERVES it (never wipes
     it) and only updates each entry's caption from the form's ``caption[<hash>]`` field (spec §6.3 —
     captions ride the metadata CAS save; reorder/remove/upload are separate structural POSTs).
-    ``current_audience`` is the stored audience, kept when the POST names no rung (``parse_audience``).
+    ``current_audience`` and ``current_files_audience`` (ADR 0027) are the stored rungs, each kept
+    when the POST names none for it (``parse_audience``).
     ``lifecycle`` is the state the saved Article carries. The caller passes the article's CURRENT
     lifecycle when the submit carried no Status — or the Status the archivist chose, so publishing
     from the edit screen saves the form and transitions in ONE CAS write (owner decision 2026-08-08).
@@ -143,9 +158,11 @@ def parse_edit_form(
     if date_error is not None:
         errors["date"] = date_error
 
-    audience, audience_error = parse_audience(post, keep=current_audience)
-    if audience_error is not None:
-        errors["groups"] = audience_error
+    audience, audience_errors = parse_audience(post, keep=current_audience)
+    files_audience, files_errors = parse_audience(
+        post, keep=current_files_audience, fields=FILES_AUDIENCE
+    )
+    errors |= audience_errors | files_errors
 
     custom, custom_error = _parse_custom(
         _getlist(post, "custom_key"), _getlist(post, "custom_value")
@@ -168,6 +185,7 @@ def parse_edit_form(
         body=_get(post, "body").replace("\r\n", "\n"),
         lifecycle=lifecycle,
         audience=audience,
+        files_audience=files_audience,
         ref_code=trim_or_none(_get(post, "ref_code")),
         media_type=media_type,
         document_type=document_type,
@@ -246,35 +264,37 @@ def _parse_date(raw: str) -> tuple[EdtfDate | None, str | None]:
         return None, f"Datierung: {err}."
 
 
-def audience_choice(post: Mapping[str, object]) -> str | None:
-    """The Sichtbarkeit choice ``post`` names, or ``None`` when it names none the form offers: the
-    field absent (a form from before a rename) or an unknown value. ``""`` is the explicit inherit
-    choice. An absent field never means a value: ``None`` keeps a stored audience and refuses a
-    create, never inherits — inheriting can widen."""
-    values = _getlist(post, "audience")
+def audience_choice(
+    post: Mapping[str, object], fields: AudienceFields = RECORD_AUDIENCE
+) -> str | None:
+    """The choice ``post`` names for the pair ``fields``, or ``None`` when it names none the form
+    offers: the field absent (a form from before a rename) or an unknown value. ``""`` is the
+    explicit inherit choice. An absent field never means a value: ``None`` keeps a stored audience
+    and refuses a create, never inherits — inheriting can widen."""
+    values = _getlist(post, fields.choice)
     return values[0] if values and values[0] in _AUDIENCE_CHOICES else None
 
 
 def parse_audience(
-    post: Mapping[str, object], *, keep: Audience | None
-) -> tuple[Audience | None, str | None]:
-    """The Sichtbarkeit group: no choice (``audience_choice``) → ``keep``; ``""`` → inherit
-    (``audience=None``); otherwise the chosen rung. The GROUPS rung REQUIRES at least one group (the
-    model's GROUPS-iff invariant, server-enforced) — an absent ``groups`` field names none; groups
+    post: Mapping[str, object], *, keep: Audience | None, fields: AudienceFields = RECORD_AUDIENCE
+) -> tuple[Audience | None, FormErrors]:
+    """The Sichtbarkeit pair ``fields``: no choice (``audience_choice``) → ``keep``; ``""`` → inherit
+    (``None``); otherwise the chosen rung. The GROUPS rung REQUIRES at least one group (the
+    model's GROUPS-iff invariant, server-enforced) — an absent Gruppen field names none; groups
     named on a non-GROUPS rung are dropped (naming them there is a silent over-exposure the model
-    forbids)."""
-    choice = audience_choice(post)
+    forbids). The error is keyed by the pair's Gruppen field."""
+    choice = audience_choice(post, fields)
     if choice is None:
-        return keep, None
+        return keep, {}
     tier = _AUDIENCE_TIER.get(choice)
     if tier is None:
-        return None, None  # the explicit inherit choice (ADR 0001)
+        return None, {}  # the explicit inherit choice (ADR 0001)
     if tier is not AudienceTier.GROUPS:
-        return Audience(tier=tier), None
-    groups = parse_lines(_get(post, "groups"))
+        return Audience(tier=tier), {}
+    groups = parse_lines(_get(post, fields.groups))
     if not groups:
-        return None, "Bitte mindestens eine Gruppe angeben."
-    return Audience(tier=AudienceTier.GROUPS, groups=groups), None
+        return None, {fields.groups: "Bitte mindestens eine Gruppe angeben."}
+    return Audience(tier=AudienceTier.GROUPS, groups=groups), {}
 
 
 def _parse_custom(

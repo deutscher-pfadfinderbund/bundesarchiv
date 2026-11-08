@@ -74,6 +74,7 @@ def create_article(
     body: str = "",
     lifecycle: Lifecycle = Lifecycle.DRAFT,
     audience: Audience | None = None,
+    files_audience: Audience | None = None,
     ref_code: str | None = None,
     media_type: str | None = None,
     document_type: str | None = None,
@@ -91,6 +92,7 @@ def create_article(
         body=body,
         lifecycle=lifecycle,
         audience=audience,
+        files_audience=files_audience,
         ref_code=ref_code,
         media_type=media_type,
         document_type=document_type,
@@ -117,6 +119,7 @@ def copy_article(archive: Archive, source: Article, *, changed_by: str) -> Creat
         body=source.body,
         lifecycle=Lifecycle.DRAFT,  # a copy always starts as a draft (never inherits published)
         audience=source.audience,
+        files_audience=source.files_audience,
         ref_code=None,  # Signatur cleared — unique per record (spec §7)
         media_type=source.media_type,
         document_type=source.document_type,

@@ -121,6 +121,28 @@ def test_index_article_updates_a_changed_row(store: InMemoryObjectStore) -> None
 
 
 @pytest.mark.django_db
+def test_index_article_narrows_the_files_scope_and_keeps_the_record_scope(
+    store: InMemoryObjectStore,
+) -> None:
+    from bundesarchiv.index.models import ArticleIndex
+
+    indexer.index_article(store, ID_01FOTO)
+    articles = ArticleRepository(store)
+    stored = articles.load(ID_01FOTO)
+    narrowed = replace(stored.article, files_audience=Audience(AudienceTier.GROUPS, ("vorstand",)))
+    articles.save(narrowed, stored.version, changed_by="tester")
+    indexer.index_article(store, ID_01FOTO)
+
+    row = ArticleIndex.objects.get(ulid="01FOTO")
+    assert (row.files_archivist_only, row.files_tier, list(row.files_groups)) == (
+        False,
+        "GROUPS",
+        ["vorstand"],
+    )
+    assert (row.archivist_only, row.tier) == (False, "PUBLIC")
+
+
+@pytest.mark.django_db
 def test_index_article_deletes_row_when_article_gone(store: InMemoryObjectStore) -> None:
     from bundesarchiv.index.models import ArticleIndex
 

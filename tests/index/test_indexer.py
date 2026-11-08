@@ -362,6 +362,7 @@ def test_rebuild_fails_closed_on_dangling_collection(store: InMemoryObjectStore)
     assert bad.archivist_only is True  # fail-closed: only an Archivist can find it
     assert bad.tier is None
     assert list(bad.groups) == []
+    assert (bad.files_archivist_only, bad.files_tier, list(bad.files_groups)) == (True, None, [])
     assert bad.is_draft is False
     assert bad.title == "Verwaistes Artikel"  # still indexed with its text, so it's findable
 

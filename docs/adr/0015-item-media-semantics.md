@@ -1,10 +1,6 @@
 # Item media semantics: articles stay leaves; cover, mixed media, captions
 
-> **Amended (proposed 2026-09-24):** media files are stored under their own name, not their
-> hash — [ADR 0019](0019-canonical-layout-v1.md). The reference shape gains an optional
-> stored name.
-
-Status: Accepted (owner, 2026-07-10)
+Status: Accepted (owner, 2026-07-10). Amended by ADR 0019 (2026-09-24: media stored under their own name), ADR 0023 (2026-10-11: derived text in Postgres) and ADR 0027 (2026-11-07: visibility per aspect of the Article, never per media entry).
 
 ## Context
 
@@ -22,9 +18,8 @@ reindex) assumes an Article is a leaf.
    visibility. No nested READMEs, no article-in-article. Sub-structure has
    exactly two sanctioned answers:
    - Sub-parts **without identity** (scan pages, tape sides, derived text):
-     entries in the article's ordered `media` tuple, plus sidecar files for
-     derived data (e.g. `<content-hash>.ocr.txt`, Part 7). Sidecars are
-     regenerable, never canonical.
+     entries in the article's ordered `media` tuple; derived text lives in
+     Postgres, keyed by content hash (ADR 0023), regenerable, never canonical.
    - Sub-parts **with identity** (photos worth their own catalog card):
      promote to a Collection with one Article per part. The batch pipeline
      (dropzone → annotate queue) is what makes this cheap.
@@ -63,21 +58,20 @@ media:
   content_hash: c01d9e…
   media_type: image/jpeg
   byte_size: 2011458
+  stored_name: huelle-vorderseite-2.jpg    # optional: the file's name in the store (ADR 0019)
 ```                                        # no caption line = uncaptioned
 
 **Empty fields are omitted on write.** The loader defaults every missing
 optional field (that is what makes old READMEs parse), so `field: null`
 lines are pure noise — and READMEs are the human-readable face of the
-archive in the mirror. The current codec still emits explicit nulls
-(`document_type: null`); that write-side cleanup lands with the caption
-change. Loaders MUST keep accepting both spellings.
+archive in the mirror. Loaders MUST keep accepting both spellings.
 
 ## Consequences
 
-- Old READMEs parse unchanged (`caption` defaults to `None`) — no migration.
-- Captions join the article's FTS document (body weight): `build_row`
-  change + `config_version` bump; the reconcile machinery rolls it out.
-- The 4.7 form gets per-row caption inputs next to the reorder controls;
-  the detail view renders captions under each file.
+- Old READMEs parsed unchanged (`caption` defaulted to `None`) — no migration.
+- Captions joined the article's FTS document (body weight) through a
+  `build_row` change and a `config_version` bump.
+- The form got per-row caption inputs next to the reorder controls; the
+  detail view renders captions under each file.
 - "One item with 30 scans vs. 30 items" remains a cataloging convention
   (archivists' guidance doc), deliberately not enforced in code.

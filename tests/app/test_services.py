@@ -423,6 +423,20 @@ def test_copy_article_copies_metadata_clears_ref_code_and_media(
     assert ArticleIndex.objects.filter(ulid=result.ulid).exists()
 
 
+@pytest.mark.parametrize(
+    "files_audience", [Audience(AudienceTier.MEMBERS), None], ids=["files-rung", "no-rung"]
+)
+def test_copy_article_keeps_the_files_rung(
+    archive: Archive, files_audience: Audience | None
+) -> None:
+    source = Article(
+        ulid=ULID("01SRC"), title="Original", collection_id=ID_FOTOS, files_audience=files_audience
+    )
+    archive.articles.save(source, 0, changed_by="tester")
+    result = copy_article(archive, source, changed_by="tester")
+    assert archive.articles.load(result.ulid).article.files_audience == files_audience
+
+
 def test_copy_article_source_untouched(archive: Archive) -> None:
     articles = archive.articles
     source = Article(ulid=ULID("01SRC"), title="Original", collection_id=ID_FOTOS, ref_code="F1")

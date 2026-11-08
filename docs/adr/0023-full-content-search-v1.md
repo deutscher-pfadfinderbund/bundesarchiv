@@ -1,7 +1,7 @@
 # Full-content search v1: the text of each PDF page, found through the article
 
-Status: Proposed (2026-10-11), not yet accepted by the owner; built as proposed. Amends ADR 0003 (lifts the full-content deferral for PDF text
-layers) and ADR 0015 (derived text lives in Postgres, not as a sidecar file, for now).
+Status: Accepted (owner, 2026-11-07; proposed 2026-10-11). Amends ADR 0003 (lifts the full-content deferral for PDF text
+layers) and ADR 0015 (derived text lives in Postgres, not as a sidecar file, for now). Amended by ADR 0027 (2026-11-07): page rows follow the Article's `FILES` rung.
 
 ## Context
 
