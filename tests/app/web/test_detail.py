@@ -160,16 +160,9 @@ def test_a_tile_shows_a_thumbnail_only_once_the_cache_holds_one(
         )
         after = _body(Public(), corpus.pub)
     assert second not in before
-    assert "b.<wbr>png" in before  # the blank tile names the file
-    assert second in re.findall(r'<img [^>]*src="([^"]*)"', after)
+    assert "b.<wbr>png" in before  # the placeholder names the file
+    assert second in re.findall(r'<img\s[^>]*src="([^"]*)"', after)
     assert "data:image" not in after  # no bytes inlined
-
-
-def test_the_page_leads_with_the_original_of_an_image_a_browser_draws(
-    corpus: _DetailArchive,
-) -> None:
-    images = re.findall(r'<img [^>]*src="([^"]*)"', _body(Public(), corpus.pub))
-    assert images[0] == media_url(corpus.pub, corpus.cover_hash)  # sharp at any width
 
 
 def test_a_pdf_leads_the_page_with_its_first_page_once_derived(
@@ -190,7 +183,7 @@ def test_a_pdf_leads_the_page_with_its_first_page_once_derived(
     thumbs = tmp_path / "thumbs"
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
         assert generate_thumbnail(Archive.canonical().store, ulid, pdf.content_hash, thumbs)
-        images = re.findall(r'<img [^>]*src="([^"]*)"', _body(Public(), ulid))
+        images = re.findall(r'<img\s[^>]*src="([^"]*)"', _body(Public(), ulid))
     assert images[0] == thumbnail_url(ulid, pdf.content_hash)
 
 
@@ -198,7 +191,8 @@ def test_each_tile_brings_its_ratio_and_an_image_its_display_url_to_the_page(
     make_corpus: Callable[[], Corpus], tmp_path: Path
 ) -> None:
     """The ratio is the image's as shown (its tile's), unknown until the tile exists; only an image
-    has a display version."""
+    has a display version, and its pixels reach the page once the job derived it (a small original
+    is not enlarged)."""
     from PIL import Image
 
     def encoded(size: tuple[int, int], format: str) -> io.BytesIO:
@@ -228,6 +222,7 @@ def test_each_tile_brings_its_ratio_and_an_image_its_display_url_to_the_page(
         "",
         display_url(ulid, untiled.content_hash),
     ]
+    assert [t.display_aspect for t in tiles] == [(960, 640), None, None]
 
 
 def test_every_tile_opens_and_offers_to_save_its_original(corpus: _DetailArchive) -> None:
@@ -501,8 +496,17 @@ def test_published_record_offers_no_publish_to_archivist(corpus: _DetailArchive)
     assert "Als Entwurf zurückziehen" not in body
 
 
-def test_the_files_after_the_cover_leave_the_cover_out(corpus: _DetailArchive) -> None:
-    strip = _body(Public(), corpus.pub).split('class="media-rows"', 1)[1].split("</section>", 1)[0]
+def test_the_files_after_the_cover_leave_the_cover_out(
+    corpus: _DetailArchive, tmp_path: Path
+) -> None:
+    thumbs = tmp_path / "thumbs"
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+        # the first file leads as the cover once it has a picture to show
+        assert generate_thumbnail(
+            Archive.canonical().store, ULID(corpus.pub), corpus.cover_hash, thumbs
+        )
+        body = _body(Public(), corpus.pub)
+    strip = body.split('class="media-rows"', 1)[1].split("</section>", 1)[0]
     assert media_url(corpus.pub, corpus.second_hash) in strip
     assert media_url(corpus.pub, corpus.cover_hash) not in strip
 
@@ -579,9 +583,9 @@ def test_an_images_alt_is_its_description_else_its_caption_else_its_file_name(
     )
     archive.add_article(make_article(ulid, collection_id=FOTOS, media=refs))
     body = client_as(Public()).get(f"/articles/{ulid}").content.decode()
-    alts = re.findall(r'<img [^>]*alt="([^"]*)"', body)
-    # the cover (drawn from its original) and the lightbox (one figure per image)
-    assert sorted(alts) == ["Beschreibung", "Beschreibung", "Nur Unterschrift", "c.png", "d.png"]
+    alts = re.findall(r'<img\s[^>]*alt="([^"]*)"', body)
+    # the lightbox, one figure per image (no thumbnail is cached, so no tile draws one)
+    assert sorted(alts) == ["Beschreibung", "Nur Unterschrift", "c.png", "d.png"]
 
 
 @pytest.mark.parametrize(
@@ -595,7 +599,5 @@ def test_an_images_alt_is_its_description_else_its_caption_else_its_file_name(
 def test_a_tile_breaks_a_file_name_only_after_its_separators_and_escapes_the_rest(
     name: str, breakable: str
 ) -> None:
-    tile = MediaTile(
-        kind="Datei", glyph="", name=name, caption="", file_url="", full_url="", thumb_url=""
-    )
+    tile = MediaTile(kind="Datei", glyph="", name=name, caption="", file_url="", thumb_url="")
     assert tile.breakable_name == breakable

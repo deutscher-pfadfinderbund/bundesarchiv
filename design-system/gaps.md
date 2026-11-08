@@ -22,3 +22,28 @@ requires demonstrating the original Expected result.
   owner's approval.
 - **Decision needed:** when an action outside a menu takes a text look; the button size (DESIGN.md
   and the mock against the shipped CSS); a disabled state for the framed looks.
+
+### The Lightbox has no contract and is not on every page with image tiles
+
+- **Source:** owner ruling 2026-10-28 (MediaTile): opening the Lightbox is the tile's behaviour;
+  the Lightbox is its own component.
+- **Need:** a Media tile that promises "a plain click opens the Lightbox" needs the Lightbox
+  wherever image tiles are composed.
+- **Actual result:** the Lightbox (`workbench/_lightbox`) is included and scripted on the article
+  page only; on other pages an image tile is a plain link. It depends on a control (its buttons),
+  so it waits for the controls gap above.
+- **Expected result:** a Lightbox contract; every page that composes image tiles includes it, or
+  the tile's contract states the pages that do not.
+- **Evidence:** `design-system/components/media-tile.md`, "The Lightbox hook".
+- **Next step:** after the control primitives, a Lightbox adoption round.
+
+### Audio and video have no playback
+
+- **Source:** owner ruling 2026-10-28 (MediaTile): a playback control is audio's stand-in once
+  playback exists; the Lightbox may later take other kinds (an inline video player).
+- **Need:** playing a recording in place.
+- **Actual result:** audio and video open as downloads in a new tab; audio has no thumbnail.
+- **Expected result:** a decided player surface (in the Lightbox or the tile) and the tile's
+  playback state.
+- **Evidence:** `design-system/components/media-tile.md`, "Behaviour and states", last item.
+- **Next step:** a product decision; no round planned.

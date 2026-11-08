@@ -276,8 +276,9 @@ uv run manage.py procrastinate worker   # run the worker (single process)
 - `BUNDESARCHIV_RECONCILE_CRON` — scheduled full-rebuild cadence (default
   `0 * * * *`, hourly; bounds worst-case staleness after any missed incremental
   update).
-- Job-table hygiene: prune finished `procrastinate_jobs` rows periodically (the
-  worker's `db_cleanup` periodic task / the `procrastinate` CLI).
+- Job-table hygiene: the worker's daily `prune_finished_jobs` task deletes
+  `procrastinate_jobs` rows that succeeded more than 7 days ago (Procrastinate's
+  builtin `remove_old_jobs`). Failed jobs are kept.
 - One index-writer advisory lock serializes every index writer
   (`indexer._INDEX_WRITER_LOCK_KEY`); do not reuse that key elsewhere.
 

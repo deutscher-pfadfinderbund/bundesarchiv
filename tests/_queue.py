@@ -42,7 +42,12 @@ def run_worker_once_in_test(defer: Callable[[], None]) -> int:
     connector = InMemoryConnector()
     with app.replace_connector(connector):
         defer()
-        app.run_worker(
-            wait=False, install_signal_handlers=False, listen_notify=False, delete_jobs="never"
-        )
+        drain_worker()
     return len(connector.finished_jobs)
+
+
+def drain_worker() -> None:
+    """Run the worker over the jobs queued now and return; finished jobs stay in the queue."""
+    app.run_worker(
+        wait=False, install_signal_handlers=False, listen_notify=False, delete_jobs="never"
+    )

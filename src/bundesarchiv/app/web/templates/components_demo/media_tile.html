@@ -1,0 +1,76 @@
+{% comment %}The media tile in every state its file decides, and in each box a container gives it. A
+.demo-box stands in for the container: it sets the tile's box on the root (its rules: the library
+page's style). Params: modes, status, tiles (photo, PDF and small photo with a thumbnail, then each
+kind without one), few (a photo, a PDF, the small photo, a placeholder), long.{% endcomment %}
+<h2 id="demo-media-tile">Media tile — one file, its best stand-in, a link to it <span class="status">{{ status }}</span></h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="demo-tiles">
+      {% for file in tiles %}
+      <div class="demo-box demo-inline">
+        {% include "components/media_tile.html" with file=file only %}
+      </div>
+      {% endfor %}
+      <div class="demo-box demo-inline">
+        {% include "components/media_tile.html" with file=long only %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/media_tile.html · file=MediaTile [label=False] — the file decides the state: a thumbnail in its own shape, with no label (a photo, a PDF's first page, a small photo's thumbnail); without one (Foto, PDF, Video, Audio, the unknown Datei) the glyph of its kind with the kind and name at its foot; a long name wraps after its separators. Box: an inline size only, so a placeholder is square</code>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="demo-tiles">
+      {% for file in tiles %}
+      <div class="demo-beside">
+        <div class="demo-box demo-small">
+          {% include "components/media_tile.html" with file=file label=False only %}
+        </div>
+        <span>{{ file.name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">label=False — the placeholder's kind and name are hidden; the link keeps its name (kind · name). The consumer sets the name beside the tile, as here</code>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="demo-tiles">
+      {% for file in few %}
+      <div class="demo-box demo-wide">
+        {% include "components/media_tile.html" with file=file only %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">the container's box, set on the tile's root (the rule edge marks it), is a maximum: the stand-in is never drawn larger than its own pixels (the small photo; a placeholder's are a thumbnail's square). The box is an inline size (16rem); the height follows the stand-in's shape</code>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="demo-tiles">
+      {% for file in few %}
+      <div class="demo-box demo-inline demo-mock">
+        {% include "components/media_tile.html" with file=file label=False only %}
+        <span>{{ file.kind }} · {{ file.name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="demo-tiles">
+      {% for file in few %}
+      <div class="demo-box demo-inline demo-mock demo-mock-foot">
+        {% include "components/media_tile.html" with file=file label=False only %}
+        <span>{{ file.kind }} · {{ file.name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">open decision, the label's form — as built (above): a thumbnail shows no label, a placeholder shows the kind and name at its foot, label=False hides them. The candidates, drawn by this page around a tile with label=False (a mock, not a tile option): below every stand-in; over every stand-in's foot; off, with the name beside (label=False, above)</code>

@@ -1,4 +1,6 @@
-# The WebDAV mirror adapter is hand-rolled on httpx2, not a client library
+# The WebDAV adapter is hand-rolled on httpx2, not a client library
+
+Status: Accepted (2026-06-26). Amended by 0020 (2026-09-24): one plain PUT.
 
 **Amended 2026-09-26:** httpx is replaced by `httpx2`, its fork maintained by Pydantic since
 httpx 0.28.1 — the package name is the only API change. The reasoning below, written for httpx,
@@ -10,7 +12,7 @@ holds unchanged.
 
 ## Context
 
-`WebDavObjectStore` (the Nextcloud mirror backend, ADR 0005) is ~160 lines of our own
+`WebDavObjectStore` (the system-of-record backend, ADR 0020) is our own
 code on `httpx`. We evaluated replacing it with a maintained Python WebDAV client
 library (webdav4, webdavclient3, fsspec-webdav, nc-py-api, pyncclient, aiodav,
 easywebdav). The minimal-deps convention sets a high bar for adding a runtime dependency.
@@ -39,7 +41,7 @@ that breaks no convention — but it ships **no `py.typed`** (forcing an
 ## Consequences
 
 - We own the deferred Nextcloud hardening either way. Chunked-v2 is a documented Nextcloud
-  protocol that slots into the existing PUT+MOVE shape and the `put_large(stream, size)`
+  protocol that slots into the existing PUT shape and the `put_large(stream, size)`
   signature (the `size` hint exists for exactly this) in ~30–50 lines, zero new deps —
   build it inside the adapter when large-media volume justifies it.
   **Update 2026-10-06:** `put_large` is gone (GH #33); the streamed write is now

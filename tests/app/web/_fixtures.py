@@ -130,6 +130,11 @@ def page_forms(body: str) -> list[tuple[str, dict[str, str]]]:
     return parser.forms
 
 
+def edit_form(body: str) -> dict[str, str]:
+    """The values the page's article edit form would submit as rendered."""
+    return next(fields for action, fields in page_forms(body) if action.endswith("/edit"))
+
+
 def page_hrefs(body: str) -> list[str]:
     """Every link target on a page, unescaped."""
     return [unescape(href) for href in re.findall(r'href="([^"]*)"', body)]

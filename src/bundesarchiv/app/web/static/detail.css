@@ -64,7 +64,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-    max-width: 65ch; /* the reading measure (the mock's --measure-prose) */
+    max-width: var(--measure-prose);
   }
   .prose > p {
     margin: 0;
@@ -72,29 +72,15 @@
 }
 
 @layer components {
-  /* ---- cover Platte — the focal point: a mounted photo with an edge ---- */
-  .cover {
-    padding: var(--space-3);
-    border: var(--line-width) solid var(--edge);
-  }
-  /* a lead is never drawn wider than its own pixels (a 480px thumbnail stays sharp), so the mount
-     hugs it; the caption wraps to the picture's width instead of widening it */
-  .cover:has(img) {
-    width: fit-content;
-  }
-  .cover :is(figcaption, .download) {
-    contain: inline-size;
-  }
-  .cover img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-  }
-  /* under a picture: its caption, then the download line, both quiet words */
+  /* ---- cover Platte — the focal point: the first file's tile, then its caption and the download
+     line, both quiet words ---- */
   .cover :is(figcaption, .download) {
     margin: var(--space-2) 0 0;
     color: var(--ink-2);
     font: var(--type-meta);
+  }
+  .cover figcaption {
+    max-inline-size: var(--measure-prose); /* a caption never runs the column */
   }
 
   /* ---- the lightbox: the article's images one at a time on the band's black. A scroll-snap
@@ -229,6 +215,9 @@
       & > * {
         margin: 0;
       }
+      & > span {
+        max-inline-size: var(--measure-prose);
+      }
       & a {
         color: var(--ink-2);
       }
@@ -288,9 +277,9 @@
   }
 
   /* ---- the files after the cover: rows of equal height, each image in its own shape. Without
-     script the rows end ragged; media.js sets each figure's --r (its width over its height) and
-     marks the row [data-justified], and every row then fills the width. A caption is one line and
-     never widens its tile. ---- */
+     script every tile takes one width and the rows end ragged; media.js sets each figure's --r
+     (its width over its height) and marks the row [data-justified], and every row then fills the
+     width. A caption is one line and never widens its tile. ---- */
   .media-rows h2 {
     margin: 0 0 var(--space-3);
     font: var(--type-subhead);
@@ -310,25 +299,15 @@
     min-width: 0;
     margin: 0;
   }
-  .media-rows figure > a {
-    display: block;
+  /* without the script every tile takes one width and its picture its own height */
+  .media-rows figure > .media-tile {
+    inline-size: var(--_row-height);
   }
   /* under a picture: its caption, then the download line, both quiet words, as under the cover */
   .media-rows :is(figcaption, .download) {
     margin: var(--space-2) 0 0;
     color: var(--ink-2);
     font: var(--type-meta);
-  }
-  .media-rows img {
-    display: block;
-  }
-  .media-rows img,
-  .media-rows .blank {
-    height: var(--_row-height);
-    width: auto;
-  }
-  .media-rows img {
-    border: var(--line-width) solid var(--edge);
   }
   .media-rows figcaption {
     overflow: hidden;
@@ -347,9 +326,8 @@
     & figure {
       flex: var(--r) 1 calc(var(--r) * var(--_row-height));
     }
-    & :is(img, .blank) {
-      width: 100%;
-      height: auto;
-    }
+  }
+  .media-rows > [data-justified] figure > .media-tile {
+    inline-size: 100%;
   }
 }

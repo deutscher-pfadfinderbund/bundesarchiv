@@ -5,6 +5,9 @@ How each port operation maps onto WebDAV is the table "Mapping to the storage po
 `base_url` is the storage root. Every request goes through `_request`, which keeps raw
 transport failures (a down/slow mirror is the expected failure mode) from crossing the port
 as anything but `ArchiveError`.
+
+The adapter stays hand-rolled on httpx2: adopt a client library only if it ships `py.typed` and covers
+what the adapter does (ADR 0007).
 """
 
 import io

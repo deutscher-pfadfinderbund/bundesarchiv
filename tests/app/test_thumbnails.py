@@ -118,6 +118,21 @@ def test_an_image_derives_its_display_version_on_the_first_miss(tmp_path: Path) 
     assert list(path.parent.iterdir()) == [path], "a temp file was left behind"
 
 
+def test_the_job_derives_an_images_display_version_beside_its_tile(tmp_path: Path) -> None:
+    """Pages offer the display version as soon as the job ran, before a lightbox asks for it."""
+    tile = _derive(tmp_path, "scan.png", _png((2400, 1800)), "image/png")
+    assert tile is not None
+    display = tile.with_name(tile.stem + "-1600.avif")
+    with Image.open(display) as version:
+        assert (version.format, version.size) == ("AVIF", (1600, 1200))
+
+
+def test_the_job_derives_no_display_version_for_a_pdf(tmp_path: Path) -> None:
+    tile = _derive(tmp_path, "brief.pdf", _pdf(), "application/pdf")
+    assert tile is not None
+    assert list(tile.parent.iterdir()) == [tile]
+
+
 def test_an_empty_cache_file_is_derived_again(tmp_path: Path) -> None:
     ref = _stored(tmp_path, "scan.png", _png(), "image/png")
     path = _planted(tmp_path, ref, b"")

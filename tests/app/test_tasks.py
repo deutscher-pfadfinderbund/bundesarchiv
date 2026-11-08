@@ -4,6 +4,7 @@ The task shells run over a canonical root on disk; the jobs over an in-memory ar
 import contextlib
 import io
 from collections.abc import Callable, Iterator
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -13,8 +14,11 @@ import pytest
 from django.core.management.base import CommandError
 from django.test import override_settings
 from PIL import Image
+from procrastinate import utils
+from procrastinate.contrib.django import app
+from procrastinate.testing import InMemoryConnector
 from tests._pdfs import text_pdf
-from tests._queue import MIRROR, queued, run_worker_once_in_test
+from tests._queue import MIRROR, drain_worker, queued, run_worker_once_in_test
 
 from bundesarchiv.app import jobs
 from bundesarchiv.app.archive import Archive
@@ -205,6 +209,22 @@ def test_the_monthly_verify_fails_its_job_when_it_finds_something(tmp_path: Path
         Archive.canonical().store.write_atomic("articles/01WAISE/media/Scan.pdf", b"Scan")
         with pytest.raises(CommandError, match="Findings"):
             tasks_mod.verify.func(timestamp=0)
+
+
+def test_the_job_prune_drops_succeeded_jobs_past_the_retention_and_keeps_newer_ones() -> None:
+    import bundesarchiv.app.tasks as tasks_mod
+
+    connector = InMemoryConnector()
+    with app.replace_connector(connector):
+        old, recent = (tasks_mod.reindex_article.defer(ulid=ulid) for ulid in ("01ALT", "01NEU"))
+        for job_id, age in ((old, timedelta(days=8)), (recent, timedelta(days=1))):
+            connector.jobs[job_id]["status"] = "succeeded"
+            connector.events[job_id] = [{"type": "succeeded", "at": utils.utcnow() - age}]
+        tasks_mod.prune_finished_jobs.configure().defer(timestamp=0)
+        drain_worker()
+
+    assert old not in connector.jobs
+    assert recent in connector.jobs
 
 
 # ---------------------------------------------------------------------------

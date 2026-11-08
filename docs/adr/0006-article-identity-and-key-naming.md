@@ -1,7 +1,6 @@
 # Article identity is a ULID; the canonical key is ULID-only; the slug is display-only
 
-> **Amended (proposed 2026-09-24):** media keys are named files, `media/<cleaned filename>`,
-> not content hashes — [ADR 0019](0019-canonical-layout-v1.md). Folders stay ULID-only.
+Status: Accepted (2026-06-26). Amended by 0019 (2026-09-24): media keys.
 
 ## Context
 
@@ -17,7 +16,7 @@ moving its files and breaking the stable-identity invariant CONTEXT.md states pl
   lexicographically sortable), minted at creation via `domain.identity.new_ulid()`.
 - **The canonical key is ULID-only and stable** — `articles/<ulid>/…`. It never embeds a
   slug. Renaming an Article never moves its files.
-- **Media keys are content-addressed** (sha256), also slug-free and write-once.
+- **Media keys are named files**, `media/<name>` ([ADR 0019](0019-canonical-layout-v1.md)), also slug-free and write-once.
 - **A slug is never identity** — a title-derived slug changes with the title and is
   non-unique, so nothing load-bearing may depend on one. (The `slugify()` display helper
   first named here was deleted unused, 2026-10-01.)
@@ -28,7 +27,7 @@ moving its files and breaking the stable-identity invariant CONTEXT.md states pl
   persistence layer treats the ULID as an opaque key segment. Traversal safety is enforced
   by `ObjectStore.validate_key`; strict ULID-format enforcement is the **creator's** job
   (the Article factory, Part 2), not the repository's.
-- Stable keys mean stable Nextcloud-mirror paths and clean restic history across renames.
+- Stable keys mean stable paths across renames.
 - **Rejected:** `articles/<slug>-<ulid>/` for human-browsable directories — it trades the
-  stable-identity invariant for a browsing convenience, and Nextcloud browsing is a
-  convenience (humans only read the mirror), not a contract worth that cost.
+  stable-identity invariant for a browsing convenience, and browsing is a
+  convenience, not a contract worth that cost.

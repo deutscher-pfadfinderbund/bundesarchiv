@@ -21,7 +21,8 @@ class StoredCollection:
 
 class CollectionRepository:
     """Loads and saves Collections as the canonical collections/<ulid>/ tree
-    on an `ObjectStore`."""
+    on an `ObjectStore`. It never validates the tree on save or load: a `parent_id` naming no stored
+    Collection saves (ADR 0010)."""
 
     def __init__(self, store: ObjectStore) -> None:
         self._store = store

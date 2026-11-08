@@ -286,15 +286,14 @@
   .pane li {
     min-width: 0;
   }
-  .pane :is(img, .hollow) {
+  .pane li > .media-tile {
+    inline-size: 100%;
+  }
+  .pane .hollow {
     display: block;
     width: 100%;
     aspect-ratio: 4 / 3;
-    object-fit: cover;
     border: var(--line-width) solid var(--edge);
-  }
-  .pane .blank {
-    --blank-ratio: 4 / 3;
   }
   .pane li p {
     display: flex;

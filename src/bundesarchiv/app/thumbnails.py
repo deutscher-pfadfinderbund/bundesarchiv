@@ -91,12 +91,14 @@ def is_cached(thumbnail_root: Path, content_hash: str, size: Size = Size.TILE) -
         return False
 
 
-def tile_size(thumbnail_root: Path, content_hash: str) -> tuple[int, int] | None:
-    """The width and height of the cached tile, read from its header (no decode) — the ratio of the
-    file as a browser shows it; None while the cache holds no tile."""
+def version_size(
+    thumbnail_root: Path, content_hash: str, size: Size = Size.TILE
+) -> tuple[int, int] | None:
+    """The width and height of the cached version of ``size``, read from its header (no decode) —
+    the ratio of the file as a browser shows it; None while the cache holds no such version."""
     try:
-        with Image.open(thumbnail_path(thumbnail_root, content_hash)) as tile:
-            return tile.size
+        with Image.open(thumbnail_path(thumbnail_root, content_hash, size)) as version:
+            return version.size
     except OSError:
         return None
 
@@ -104,7 +106,8 @@ def tile_size(thumbnail_root: Path, content_hash: str) -> tuple[int, int] | None
 def generate_thumbnail(
     store: ObjectStore, ulid: ULID, content_hash: str, thumbnail_root: Path
 ) -> bool:
-    """True iff a tile was written; never raises for the file's content."""
+    """True iff a tile was written; never raises for the file's content. An image's display
+    version is derived beside it, so a page can offer it before a lightbox asks."""
     articles = ArticleRepository(store)
     try:
         media = articles.load(ulid).article.media
@@ -113,7 +116,10 @@ def generate_thumbnail(
     ref = next((entry for entry in media if entry.content_hash == content_hash), None)
     if ref is None:
         return False  # the file left the Article before the job ran
-    return _derive(articles, ulid, ref, thumbnail_root, Size.TILE)
+    tile = _derive(articles, ulid, ref, thumbnail_root, Size.TILE)
+    if tile:  # bytes that yield no tile yield no display version either
+        cached(articles, ulid, ref, thumbnail_root, Size.DISPLAY)
+    return tile
 
 
 def cached(

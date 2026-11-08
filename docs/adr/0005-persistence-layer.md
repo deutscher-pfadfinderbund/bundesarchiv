@@ -1,19 +1,13 @@
-# Persistence layer: ObjectStore + ArticleRepository; local-FS canonical with async Nextcloud mirror
+# Persistence layer: ObjectStore + ArticleRepository; the canonical store is ADR 0020's
 
-> **Amended (proposed 2026-09-24):** `changes/` and `.snapshots/` are replaced by
-> `history/` and the media layout by named files ([ADR 0019](0019-canonical-layout-v1.md)).
-> "Deployment topology" is replaced by [ADR 0020](0020-storage-topology-system-of-record.md).
-> Hard delete no longer keeps a `.trash/` copy (ADR 0020).
-> Since 2026-09-25 the WebDAV write is one plain `PUT` with bounded retries, no temp file
-> and no `MOVE` (ADR 0020, `docs/nextcloud-webdav-notes.md`), and the port gains `create`,
-> `create_large`, `list_entries` and `delete_prefix` (ADR 0019).
+Status: Accepted (2026-06-26). Amended by 0013 (2026-07-04), 0019 (2026-09-24); topology superseded by 0020 (2026-09-24).
 
 ## Module shape (two seams)
 
 Two modules:
 
-- **`ObjectStore`** — the low-level 6-op blob port (`read`, `writeAtomic`, `putLarge`, `list`, `exists`, `delete`). The **internal** seam, where only the storage *backend* varies.
-- **`ArticleRepository`** — the **external** deep module the rest of the app uses: `load(ulid)`, `save(article, expected_version)`, `list_ulids()`, `hard_delete(ulid)`. It owns the entire canonical-file protocol — the `articles/<ulid>/{README.md, media/, changes/, .snapshots/}` layout, README.md (de)serialization + managed-by marker, the per-Article lock, the pinned write order (media → README.md = commit → changes → snapshot), optimistic versioning, media write-once — and sits on an `ObjectStore`.
+- **`ObjectStore`** — the low-level blob port. The **internal** seam, where only the storage *backend* varies.
+- **`ArticleRepository`** — the **external** deep module the rest of the app uses. It owns the entire canonical-file protocol — README.md (de)serialization, README last as the commit, version CAS under one writer lock (0013), media write-once — and sits on an `ObjectStore`.
 
 Domain core, web views, reindex, and migration depend on **`ArticleRepository`** and never touch `ObjectStore`.
 
@@ -21,22 +15,15 @@ Domain core, web views, reindex, and migration depend on **`ArticleRepository`**
 
 ## ObjectStore is defined to the WebDAV/S3 lowest common denominator
 
-No append, no rename, no OS-level lock. The per-Article lock is a **lock object in the store**; atomic write is PUT-temp+`MOVE` (chunked upload for large media) on WebDAV, temp→fsync→rename→fsync-dir on local-FS, multipart `PutObject` on S3. All adapters pass one shared **conformance suite**: a concurrent reader sees old-or-new (never partial); a process killed mid-write leaves prior-object-or-nothing at the final key; `list` excludes reserved temp/lock keys; `putLarge` finalize is all-or-nothing.
+No append, no rename, no OS-level lock. All adapters pass one shared **conformance suite**.
 
-## Deployment topology (refines ADR 0002)
+## Deployment topology
 
-The app and Nextcloud **cannot share a host**, so:
+Replaced by [ADR 0020](0020-storage-topology-system-of-record.md), which decides which store is canonical.
 
-- **Canonical = local filesystem** (`LocalFsObjectStore`). The app is the sole writer; writes never block on Nextcloud and are not coupled to its uptime or ~yearly major-version upgrades.
-- **Nextcloud = an async, one-way WebDAV mirror** (off-host copy + human browse). After each `ArticleRepository.save()` commits locally, a Postgres-backed job replays that Article's files to the WebDAV `ObjectStore` (or an external one-way `rclone`/`nextcloudcmd` sync does the same). Eventually consistent; a lagging mirror is harmless and self-heals on the next push. Humans only **read** in Nextcloud (never write back → the sole-writer invariant holds). The WebDAV adapter is therefore a first-class, exercised component — the mirror target — even though it is not the canonical backend.
-- **Backup / DR = restic** (off-site, encrypted, rehearsed restore) — the real durability mechanism; Nextcloud is not a backup tool.
-  **Amended 2026-09-19** (owner): backup is outside this project's scope — the Nextcloud is backed up already and the VPS has a rudimentary backup. restic was never an owner requirement; nothing is built for it.
-- Losing some Nextcloud file-versions is acceptable: metadata history lives in `changes/` + `.snapshots/`, and media is write-once.
-
-Adapters: `LocalFsObjectStore` (canonical, v1), `WebDavObjectStore` (Nextcloud mirror, first-class), `S3ObjectStore` (future), `InMemoryObjectStore` (test fake).
+Adapters: `LocalFsObjectStore`, `WebDavObjectStore` (the system of record, 0020), `S3ObjectStore` (future), `InMemoryObjectStore` (test fake).
 
 ## Consequences
 
 - `ArticleRepository` is tested through its interface over an `InMemoryObjectStore` fake (no disk); `LocalFsObjectStore` and `WebDavObjectStore` are each verified against the `ObjectStore` conformance suite; domain core and web accept an injected `ArticleRepository`.
-- The mirror is one-way and idempotent; reconciliation is just a re-push from canonical — no conflict resolution, because Nextcloud is read-only to humans.
-- Keeps ADR 0002's "Nextcloud never canonical, never human-writable" stance; refines only the connection mechanism.
+- The canonical store and the mirror are decided in ADR 0020, which reverses ADR 0002's "Nextcloud never canonical".

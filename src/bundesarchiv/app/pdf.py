@@ -1,5 +1,6 @@
 """The PDF backend: the only module that knows it (PDFium, through ``pypdfium2``). Swapping the
-backend (poppler, MuPDF, a service) replaces this module and nothing else."""
+backend (poppler, MuPDF, a service) replaces this module and nothing else. A text clean-up change or a pypdfium2 upgrade that changes the
+extracted text ships a data migration that empties ``MediaText`` (ADR 0023)."""
 
 from contextlib import closing
 from typing import BinaryIO

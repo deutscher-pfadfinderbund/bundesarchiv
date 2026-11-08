@@ -1,6 +1,6 @@
-"""``manage.py rebuild_thumbnails``: every missing thumbnail derived from the canonical tree, one
-file that yields none never stops the run, an empty one is derived again, and a cache file of a
-retired format or a crashed write is removed."""
+"""``manage.py rebuild_thumbnails``: every missing thumbnail and image display version derived from
+the canonical tree, one file that yields none never stops the run, an empty one is derived again,
+and a cache file of a retired format or a crashed write is removed."""
 
 import re
 from io import BytesIO, StringIO
@@ -13,7 +13,7 @@ from PIL import Image
 from tests._articles import make_article
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.thumbnails import thumbnail_path
+from bundesarchiv.app.thumbnails import Size, thumbnail_path
 from bundesarchiv.domain.models import ULID
 
 _ULID = ULID("01KX7YT9E3VX0CP3A5Q49RZMPB")
@@ -72,10 +72,15 @@ def test_it_derives_the_missing_skips_the_present_and_a_second_run_derives_nothi
             call_command("rebuild_thumbnails", stdout=second)
 
     assert kept.read_bytes() == b"already here"
+    for image in (present, missing):  # a tile cached before display versions were gets one too
+        with Image.open(thumbnail_path(thumbs, image.content_hash, Size.DISPLAY)) as display:
+            assert display.format == "AVIF"
+    assert not thumbnail_path(thumbs, pdf.content_hash, Size.DISPLAY).exists()
     for derived in (missing, pdf):
         with Image.open(thumbnail_path(thumbs, derived.content_hash)) as thumbnail:
             assert thumbnail.format == "AVIF"
     assert not thumbnail_path(thumbs, bomb.content_hash).exists()
     assert not retired.exists()
     assert not crashed.exists()
-    assert (_generated(first), _generated(second)) == (["2"], ["0"])
+    # tiles, then display versions: the two images (the bomb yields neither), none the second time
+    assert (_generated(first), _generated(second)) == (["2", "2"], ["0", "0"])

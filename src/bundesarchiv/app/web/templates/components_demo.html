@@ -103,6 +103,28 @@ components; this storyboard updates in lockstep with them.
     .probe-mid { max-width: 56rem; }   /* mid width: the Titel wraps, the facts keep their line */
     .probe-low { max-width: 42rem; }   /* just above S: the word cells end in … */
     .probe-narrow { max-width: 30rem; } /* S (< 40rem): the title over one line of facts */
+    /* the media tile's containers: each sets the tile's box on its root (the rule edge marks
+       the box) */
+    .demo-tiles { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
+    .demo-tiles + .demo-tiles { margin-block-start: var(--space-4); }
+    .demo-box { border: var(--line-width) solid var(--rule); }
+    .demo-box > .media-tile { inline-size: 100%; }
+    .demo-inline { inline-size: 9rem; }
+    .demo-small { inline-size: 5.5rem; }
+    .demo-wide { inline-size: 16rem; }
+    .demo-beside { display: flex; gap: var(--space-2); align-items: flex-start; font: var(--type-meta); }
+    /* the label candidates the tile does not offer (an open decision), drawn by this page around
+       a tile with label=False: below every stand-in, or over every stand-in's foot */
+    .demo-mock { display: flex; flex-direction: column; gap: var(--space-1); }
+    .demo-mock > span { font: var(--type-meta); color: var(--ink-2); overflow-wrap: anywhere; }
+    .demo-mock-foot { position: relative; }
+    .demo-mock-foot > span {
+      position: absolute;
+      inset-inline: var(--space-2);
+      inset-block-end: var(--space-2);
+      padding: var(--space-1);
+      background: var(--ground);
+    }
     @media (max-width: 640px) {
       .probe { grid-template-columns: 1fr; }
       body { padding: var(--space-4); }
@@ -298,7 +320,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">components/ref_code_tab.html · ref_code=… — quiet mono, everywhere (as the ledger column); absent → nothing visible (screen-reader "Ohne Signatur"); long codes ellipsize</code>
 
-<h2>Icons — the one vendored set (register row 9) <span class="status">{{ status.icon }}</span></h2>
+<h2>Icons — each picked on its own (register row 9) <span class="status">{{ status.icon }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -320,7 +342,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/icon.html · name=pencil|panel|x|arrow-up|arrow-down|log-out|chevron-down|chevron-left|chevron-right|contrast|audio-file|video-file|file-present — hairline-stroke inline SVG, 24px grid, stroke-width 2, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: register row 9. The two arrows joined for the media register's row toolbar (owner ruling 6, 2026-08-08)</code>
+<code class="doc">components/icon.html · name=pencil|panel|x|arrow-up|arrow-down|log-out|chevron-down|chevron-left|chevron-right|contrast|audio-file|video-file|file-present — inline SVG, 24px grid, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: register row 9. The two arrows joined for the media register's row toolbar (owner ruling 6, 2026-08-08)</code>
 
 <h2>
   Menu — the form margin's "Mehr …" popover
@@ -460,6 +482,8 @@ list anchored to its own button. {% endcomment %}
   {% endfor %}
 </div>
 <code class="doc">components/pagination.html · pager=browse_views._Pager — page 2 of many: the range between the steps (a2 round 10); page 1: Zurück stays, disabled in Faint; one page: the range and the total, no steps; each led by the page-size chooser, 50 on screen; the steps and the range wrap as one group, arrows only in a pager under 40rem</code>
+
+{% include "components_demo/media_tile.html" with modes=modes status=status.media_tile tiles=media_tiles few=media_tiles_few long=media_tile_long only %}
 
 <h2>Empty state <span class="status">{{ status.empty_state }}</span></h2>
 <div class="probe">

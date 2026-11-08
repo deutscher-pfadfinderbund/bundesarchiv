@@ -1,6 +1,8 @@
 # Authentication: Keycloak OIDC, tokens held by the browser
 
-**Status.** An OIDC login keeps Keycloak's tokens in the browser, and the
+Status: Accepted (2026-07-12). Refined by 0025 (2026-10-18). Amended 2026-11-07: member login.
+
+An OIDC login keeps Keycloak's tokens in the browser, and the
 server refreshes them. Members log in as ordinary realm users (planned; owner,
 2026-11-07): with a personal account through a one-time code sent by mail, on
 the realm's login page, or with the shared member account, realm role
@@ -137,8 +139,8 @@ rather than answering the shared 404.
 The gate is **on in the base settings and disabled only in `settings_dev`** —
 the fail-closed direction. A production deploy that forgets its OIDC env vars
 cannot fall open to anonymous browsing; its door leads to a login that itself
-falls closed. Dev and the browser suites keep anonymous = `Public` and the dev
-viewer-switcher.
+falls closed. Dev and the browser suites keep anonymous = `Public` and log in
+through the dev realm (0025).
 
 ## Logout
 

@@ -403,7 +403,7 @@ Behaviour: `src/bundesarchiv/app/web/static/combobox.js`; the list's surface:
   column head, the audience in "Sichtbar für".
 - **Do** keep paired controls visible and disabled when inactive (Zurück / Weiter, the end arrows),
   drawn in Faint.
-- **Do** make every icon-only control name itself (`aria-label`); icons come from the one set.
+- **Do** make every icon-only control name itself (`aria-label`); icons come from `components/icon.html`, each picked on its own (no single set).
 - **Do** use centre dots to separate items in a line.
 
 ### Don't:
@@ -487,13 +487,15 @@ the gap journal.
    at that promise. The component's demo moves into its own partial,
    `src/bundesarchiv/app/web/templates/components_demo/<id>.html` (a layout's into
    `templates/layouts_demo/<id>.html`), which the library page includes and the contract lists
-   under `examples`. The partial shows every state and context the contract promises. The
-   contract checker passes.
+   under `examples`; a component without a demo gets one. The partial shows every state and
+   context the contract promises. The contract checker passes. In the same commit the component's
+   inventory row (a new row for a new component) gets the contract as its Status cell
+   (`[contract](../../design-system/components/<id>.md)`, relative to
+   `docs/design/design-system.md`; `layouts/` for a layout primitive): the lint allows no contract
+   without its row, and the contract's `hidden` status marks the draft. The row keeps its name,
+   root, template and CSS section.
 7. **The owner decides:** approve, change or reject. On approval the status becomes
-   `discoverable`, the indexes are regenerated, the row's Status cell becomes the link to the
-   contract (`[contract](../../design-system/components/<id>.md)`, relative to
-   `docs/design/design-system.md`; `layouts/` for a layout primitive), and the branch merges. The
-   row keeps its name, root, template and CSS section.
+   `discoverable`, the indexes are regenerated, and the branch merges.
 
 ## Verification
 

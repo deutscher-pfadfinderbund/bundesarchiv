@@ -1,7 +1,7 @@
 """The edit form's pure parse and its save shell, this form's ADR 0013 ``Conflict`` catch site."""
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Protocol, runtime_checkable
@@ -85,9 +85,8 @@ def one_line(raw: str) -> str:
     return re.sub(r"\s*[\r\n\x85\u2028\u2029]+\s*", " ", raw).strip()
 
 
-def none_if_blank(raw: str) -> str | None:
-    stripped = raw.strip()
-    return stripped or None
+def trim_or_none(raw: str | None) -> str | None:
+    return (raw and raw.strip()) or None
 
 
 def parse_edit_form(
@@ -127,12 +126,12 @@ def parse_edit_form(
     if collection_id is None:
         errors["collection_id"] = chooser.error()
 
-    media_type = none_if_blank(_get(post, "media_type"))
+    media_type = trim_or_none(_get(post, "media_type"))
     if media_type is None or media_type not in vocab.media_types():
         errors["media_type"] = "Medienart ist erforderlich."
         media_type = None
 
-    document_type = none_if_blank(_get(post, "document_type"))
+    document_type = trim_or_none(_get(post, "document_type"))
     if document_type is not None and not vocab.is_valid_pair(media_type, document_type):
         errors["document_type"] = (
             "Bitte zuerst eine Medienart wählen."
@@ -169,15 +168,15 @@ def parse_edit_form(
         body=_get(post, "body").replace("\r\n", "\n"),
         lifecycle=lifecycle,
         audience=audience,
-        ref_code=none_if_blank(_get(post, "ref_code")),
+        ref_code=trim_or_none(_get(post, "ref_code")),
         media_type=media_type,
         document_type=document_type,
         tags=parse_lines(_get(post, "tags")),
-        physical_location=none_if_blank(_get(post, "physical_location")),
+        physical_location=trim_or_none(_get(post, "physical_location")),
         media=apply_media_fields(post, current_media),
         date=date,
-        creator=none_if_blank(_get(post, "creator")),
-        subject_place=none_if_blank(_get(post, "subject_place")),
+        creator=trim_or_none(_get(post, "creator")),
+        subject_place=trim_or_none(_get(post, "subject_place")),
         custom=custom,
         added_at=added_at,
         deleted=deleted,
@@ -186,33 +185,36 @@ def parse_edit_form(
     return ParseResult(article=article, errors={}, expected_version=expected_version)
 
 
-def _edited(raw: str | None, current: str | None) -> str | None:
-    """The form's value (``"" → None``), or ``current`` when the form sent none or the value is the
-    one ``current`` already shows (so a save without edits changes no README byte)."""
-    if raw is None:
-        return current
-    edited = none_if_blank(raw)
-    return current if edited == none_if_blank(current or "") else edited
-
-
 def apply_media_fields(
     post: Mapping[str, object], current_media: tuple[MediaRef, ...]
 ) -> tuple[MediaRef, ...]:
     """``current_media`` with the form's ``caption[<hash>]`` / ``alt[<hash>]`` applied (spec
-    §6.3/§8); an absent field keeps the stored value, and only an image takes an alt."""
+    §6.3/§8) where the archivist changed them against ``caption_base[<hash>]`` /
+    ``alt_base[<hash>]``, the stored value the form was rendered with: after a lost save (ADR
+    0013) a field left alone keeps the newer stored value. An absent field keeps the stored value,
+    an absent base counts as the stored value, and only an image takes an alt. A value the stored
+    one already shows keeps it, so a save without edits changes no README byte."""
 
     def field(name: str, key: str) -> str | None:
         values = _getlist(post, f"{name}[{key}]")
         return values[0] if values else None
 
-    def alt(ref: MediaRef) -> str | None:
-        raw = field("alt", ref.content_hash)
-        if raw is None or not thumbnails.renders(ref, Size.DISPLAY):
-            return ref.alt
-        return _edited(one_line(raw), ref.alt)
+    def merged(name: str, key: str, current: str | None, clean: Callable[[str], str]) -> str | None:
+        raw, base = field(name, key), field(f"{name}_base", key)
+        if raw is None:
+            return current
+        edited = trim_or_none(clean(raw))
+        seen = current if base is None else clean(base)
+        return current if edited in (trim_or_none(seen), trim_or_none(current)) else edited
 
     return tuple(
-        replace(ref, caption=_edited(field("caption", ref.content_hash), ref.caption), alt=alt(ref))
+        replace(
+            ref,
+            caption=merged("caption", ref.content_hash, ref.caption, str),
+            alt=merged("alt", ref.content_hash, ref.alt, one_line)
+            if thumbnails.renders(ref, Size.DISPLAY)
+            else ref.alt,
+        )
         for ref in current_media
     )
 

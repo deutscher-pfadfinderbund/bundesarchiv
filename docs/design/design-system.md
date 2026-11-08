@@ -227,8 +227,8 @@ page. Values: `DESIGN.md` frontmatter (light) and `.impeccable/design.json` (the
 - **Lines and sizes:** `--line-width` 1px, `--focus-width` 3px, measures (`--measure`,
   `--measure-prose` 65ch, `--measure-title` 30ch, field and column measures).
 - **Shape:** square corners everywhere; no radius, no bevel, no shadow.
-- **Icons:** one stroke set (24px grid, stroke 2, `currentColor`): `components/icon.html` in the
-  app, `system/icons.svg` in the mock, name for name.
+- **Icons:** each picked on its own, no single set (owner, 2026-11-08): 24px grid, `currentColor`;
+  `components/icon.html` in the app, `system/icons.svg` in the mock, name for name.
 
 ## Component mapping
 
@@ -282,7 +282,7 @@ rail; they are split out only as swap units (law C7).
 | View switch | `.view-switch` | `components/view_switch` (the list's tool row: "N Treffer" and "Lesesaal · Tabelle") | `components.css` view-switch | proposed |
 | Pagination | `.pager` | `components/pagination` | `components.css` pager | [contract](../../design-system/components/pagination.md) |
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` honest empty state | approved (2026-10-11) |
-| Blank | `.blank` | `components/blank` (a file without a thumbnail: the article page, the pane, the edit form's file rows) | `components.css` blank | approved (2026-10-11) |
+| Media tile | `.media-tile` | `components/media_tile` | `components.css` media tile | [contract](../../design-system/components/media-tile.md) |
 | Icon | `.icon` | `components/icon` | none | approved (2026-10-11) |
 | Field | `.field` | `workbench/_field` (the edit form, the create step) | `components.css` field | approved (2026-10-11) |
 | Affected | `.affected` | inline (the bulk check and result pages, the Papierkorb) | `components.css` affected | approved (2026-10-11) |

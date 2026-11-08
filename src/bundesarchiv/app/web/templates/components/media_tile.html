@@ -1,0 +1,41 @@
+{% comment %}One file as one link to its original, shown by the best stand-in the archive has for its
+kind. Params: file (a MediaTile); label (False hides the placeholder's kind and name; the link keeps
+its name). Contract: design-system/components/media-tile.md.{% endcomment %}
+<a
+  class="media-tile"
+  href="{{ file.file_url }}"
+  target="_blank"
+  rel="noopener"
+  aria-label="{{ file.kind }} · {{ file.name }}"
+  {% if file.slot >= 0 %}data-lightbox="{{ file.slot }}"{% endif %}
+>
+  {% if file.thumb_url %}
+  {% comment %}A browser without sizes="auto" takes the thumbnail's width from the fallback: the
+  thumbnail at 1x, the display version on a denser screen, never the large one for every small
+  tile.{% endcomment %}
+  <img
+    class="media-tile-thumb"
+    src="{{ file.thumb_url }}"
+    {% if file.display_aspect %}
+    srcset="{{ file.thumb_url }} {{ file.aspect.0 }}w, {{ file.display_url }} {{ file.display_aspect.0 }}w"
+    sizes="auto, {{ file.aspect.0 }}px"
+    {% endif %}
+    width="{{ file.pixels.0 }}"
+    height="{{ file.pixels.1 }}"
+    alt="{{ file.alt }}"
+    loading="lazy"
+  >
+  {% else %}
+  <span class="media-tile-placeholder">
+    {% comment %}draws nothing: its size is the pixels the placeholder may take, as a thumbnail's
+    are{% endcomment %}
+    <svg width="{{ file.pixels.0 }}" height="{{ file.pixels.1 }}" aria-hidden="true"></svg>
+    <span class="media-tile-face">
+      {% include "components/icon.html" with name=file.glyph only %}
+      {% if label is not False %}
+      <span class="media-tile-label">{{ file.kind }} · {{ file.breakable_name }}</span>
+      {% endif %}
+    </span>
+  </span>
+  {% endif %}
+</a>

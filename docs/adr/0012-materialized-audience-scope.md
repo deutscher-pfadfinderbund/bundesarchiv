@@ -1,5 +1,7 @@
 # Materialized audience scope: index the effective audience, filter it in SQL
 
+Status: Accepted (2026-07-04). Amended by 0014 (2026-07-04): staleness.
+
 The search index stores each Article's **effective audience as flat columns** at index time —
 `archivist_only`, `tier`, `groups` — and search filters those columns with a **single SQL
 predicate** built from the viewer. Both sides live in one module, `index/scope.py`:
@@ -27,15 +29,7 @@ row-for-row agreement is pinned by a comparison test.
   mirror each other; no tier comparison exists anywhere else in the index adapter. A
   comparison test (Task 9's `test_equivalence.py`) asserts the SQL predicate selects exactly
   the rows `can_view` would allow, per viewer tier — the read side stays honest to the domain.
-- **Staleness is owned by a full rebuild in v1.** The materialized columns are correct only as
-  of the last `rebuild`. Editing a Collection's audience does not update the Articles beneath
-  it until the index is rebuilt. The index is derived and disposable (ADR 0003, 0004), so a
-  full rebuild is the sanctioned way to clear staleness; `config_version` triggers one when the
-  FTS config changes (ADR 0011).
-- **Part 4 gate.** Incremental reindexing must not serve member-visible rows from a subtree
-  whose audience changed before that subtree is reindexed — otherwise an edit that narrows
-  visibility could still be served wide. The Part 4 worker must reindex the affected subtree
-  (or fail closed) before any member-visible serving reflects a Collection audience edit.
+- **Writes reindex the subtree synchronously** ([ADR 0014](0014-incremental-reindex.md)).
 - **Fail closed on resolution error.** An Article whose chain or audience cannot be resolved is
   still indexed, but as archivist-only (`archivist_only=True`, no tier, no groups) with its
   text intact, so an Archivist can find and fix it. It is never dropped and its visibility is

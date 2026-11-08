@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from types import ModuleType
 
 import pytest
+from django.conf import global_settings
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 from tests.app.web._fixtures import PUBLISHED_ULID, client_as
@@ -90,6 +91,12 @@ def test_production_trusts_the_proxy_chain_for_the_scheme() -> None:
 def test_csrf_cookie_is_secure_in_production_and_not_in_dev() -> None:
     assert prod_settings.CSRF_COOKIE_SECURE is True
     assert settings_dev.CSRF_COOKIE_SECURE is False  # dev serves plain http
+
+
+def test_the_csrf_cookie_keeps_djangos_default_name_in_production() -> None:
+    """A `__Host-` name breaks Django's cookie parser (ADR 0025)."""
+    name = vars(prod_settings).get("CSRF_COOKIE_NAME", global_settings.CSRF_COOKIE_NAME)
+    assert name == "csrftoken"
 
 
 def test_the_upload_ceiling_is_four_gibibytes_by_default() -> None:

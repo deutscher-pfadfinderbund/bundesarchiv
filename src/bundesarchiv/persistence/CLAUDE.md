@@ -1,7 +1,8 @@
 # persistence — package rules
 
 this package NEVER imports Django or reads settings (ADR 0005) — construction from settings
-lives in `app/archive.py`. The README files are canonical; everything else is derived. Every save
+lives in `app/archive.py`. The README files are canonical; everything else is derived. A record's
+key is `articles/<ulid>/` or `collections/<ulid>/` only: never a title, ref_code or slug (ADR 0006). Every save
 and every hard delete goes through `_writer`, under one lock (ADR 0013, 0019, 0020).
 All three ObjectStore adapters are
 parametrized into the one shared conformance suite

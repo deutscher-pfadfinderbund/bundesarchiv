@@ -204,9 +204,9 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** concentrates
 - **Sketch:** `DIMENSIONS: tuple[Dimension(name, filter_field, column, shape, nested)]`; pure `where(filters) -> Q` and `facet_plan(filters, wanted) -> Mapping[str, Q]`; `search()` stays the only executor, the leak suites stay on Postgres (ADR 0024 kept)
 
-### 69. The tus protocol adapter is private code inside `catalog_views` — Worth exploring
-- **Indicator:** 143 lines (`catalog_views.py:842-984`); ~35 header-shape cases in `test_chunked_upload.py:236-330`, each through `client_as` + corpus + HTTP; 0 direct tests of `_count`/`_tus_metadata` (2026-11-07)
-- **Evidence:** `:905` a header refusal is revealed only after a `staging.status` lookup; `:897,993` each piece runs `_load_gated` twice (nginx `upload_gate` + the view). Protocol decisions and staging effects interleave in each view.
+### 69. The tus protocol adapter is private code inside `catalog_views` — done
+- **Indicator:** 2026-11-07, done: `web/tus.py` owns the grammar and the answers (171 lines); the tus routes in `catalog_views.py:815-860` are 46 lines of gate, read, staging, answer; 92 pure cases in `test_tus.py`, no client or corpus; the HTTP suite keeps one status per refusal a client sees and the deny-before-refusal rule. The double `_load_gated` was nginx's subrequest and the view: two requests, one call each. Before: 143 lines (`catalog_views.py:842-984`); ~35 header-shape cases in `test_chunked_upload.py:236-330`, each through `client_as` + corpus + HTTP; 0 direct tests of `_count`/`_tus_metadata` (2026-11-07)
+- **Evidence (pre-#69 lines):** `:905` a header refusal is revealed only after a `staging.status` lookup; `:897,993` each piece runs `_load_gated` twice (nginx `upload_gate` + the view). Protocol decisions and staging effects interleave in each view.
 - **Deletion test:** moves (own module) and concentrates (one pure decision)
 - **Sketch:** `web/tus.py`: `read(method, headers) -> Create | Append | Head | Delete | Refusal(status)`, `answer(response)` stamps `Tus-Resumable`; header tables run with no client or corpus. Second step after #64.
 
@@ -217,10 +217,9 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** `BulkField.validate(value, articles) -> str | None`, `.apply(article, value) -> Article`, `.display(raw) -> str`, sharing the per-field rules with the catalog parse; views iterate `FIELDS`. Touches #33/#34 without owning them.
 
 ### 71. The EDTF format is parsed twice — Worth exploring
-- **Indicator:** 5 regexes in `domain/edtf.py:26-48`, 2 more plus hand-written token logic in `app/web/vocab.py:259-327`; the season codes 21–24 declared twice (`vocab.py:293`, `edtf.py:48`); nothing checks the two agree (2026-11-07)
-- **Evidence:** `EdtfDate` offers only `.value`, `.bounds()`, `.decades()`, so vocab re-parses the string to spell it in German and falls back to the raw text at `vocab.py:308`
-- **Deletion test:** concentrates — vocab's parsing goes away
-- **Sketch:** `EdtfDate.parts() -> tuple[EdtfPart, ...]` (kind, year, month, day, season, approximate/uncertain); vocab maps parts to words; one domain table owns the format
+- **Indicator:** 1 module outside `domain/edtf.py` still reads the format itself: `app/legacy.py` `_conflicts_with_columns` slices month and day by position (`value[5:7]`, `value[8:10]`), so a season `1962-22` reads as month 22 (2026-11-07; before: `app/web/vocab.py` too, 2 date regexes, its own season table and hand-written token logic, now 0)
+- **Evidence:** `EdtfDate.parts()` decodes to `Point` (Day, Month, YearSeason, Year, Decade, Century; uncertain/approximate), `OpenEnd` (`..`) or `UnknownEnd` (an empty end) from one Lark grammar; `vocab._spelled` matches the spans, mypy holds the match exhaustive, so no raw-text fallback; `bounds()` derives from the parts
+- **Deletion test:** concentrates — `_conflicts_with_columns` reads the Day/Month span from `parts()`, and the last positional reader goes
 
 ## Implementation patterns
 
@@ -231,7 +230,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** `thumbnails.root() -> Path`; callers pass nothing
 
 ### 14. `catalog_views.py` is the wave's dumping ground — Strong (pointer entry)
-- **Indicator:** 1129 lines, 15 routes (2026-11-07, worse; the tus code alone is 143 lines, #69); 1009 lines, 12 routes (2026-10-01; 1380 on 2026-09-02, ~970 before the
+- **Indicator:** 1013 lines, 15 routes (2026-11-07, after #69 moved the tus grammar out); 1129 lines (2026-11-07, before #69); 1009 lines, 12 routes (2026-10-01; 1380 on 2026-09-02, ~970 before the
   registry landed)
 - **Evidence:** routes, the field registry, the structural-save retry, the media drawer and the
   Bestand chooser all live here. Accreted.
@@ -311,12 +310,6 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Tests
 
-### 29. The gallery has no lead without a picture — Worth exploring
-- **Indicator:** 0 gallery states render `.platte:has(.blank)` (2026-10-01, stable)
-- **Evidence:** every e2e corpus file now has a thumbnail (PDFTHUMBS); `static/detail.css`
-- **Deletion test:** a non-renderable corpus file (audio/video) brings the state back
-- **Sketch:** one audio file on a corpus article + a `detail-audio` gallery state
-
 ### 55. Tests monkeypatch our own code — Strong
 - **Indicator:** `monkeypatch.setattr` on a `bundesarchiv` name: `tests/app` 56, `tests/app/web` 48, `tests/persistence` 2, `tests/e2e` 0 (2026-10-11, AST count); `tests/app` 48 once the page-text shells moved, then `tests/app` 47 and `tests/app/web` 47 once the page-text tests dropped theirs (2026-10-11); `tests/app` 25, `tests/app/web` 53, `tests/persistence` 2 once the jobs received their dependencies, 0 `_DEBT` patches on `app.tasks` left (2026-10-18); `tests/app` 11, `tests/app/web` 48, `tests/persistence` 2 once the tests read the in-memory queue, 0 patches of an `enqueue_*` name left (2026-10-18); `tests/app` 5, `tests/app/web` 43, `tests/persistence` 2 once the index sits behind a port, 0 patches on `after_write` left (2026-10-18); `tests/app/web` 30 once the login realm sits behind a port, 0 patches on `keycloak`, `auth_views` or the `viewers` realm calls left (2026-10-18); `tests/app/web` 29 once dev and the tests log in through the dev realm, 0 patches on `viewers` left (2026-10-18); `tests/app` 4, `tests/app/web` 22, `tests/persistence` 0 once the pager, media, pixel-cap, retry and fsync tests dropped theirs: `_DEBT` sites 16 → 6, all sites 36 → 26 (2026-10-21)
 - **Evidence:** `writer-discipline` skill, "Functional core, imperative shell"; what is left (2026-10-21): the leak matrix's 4 (`browse_views.search`, `start`), `vocab.MEDIA_TYPE_DOCUMENT_TYPES` (GitHub #72), `Archive.canonical` in `recording_store`
@@ -332,12 +325,6 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Indicator:** 0 relevance judgements on real queries; config `german` fixed by ADR 0011 (2026-10-06)
 - **Evidence:** `index/query.py` ranking; parked on GH #19 until real data exists. Trigger: the archivists' first real searches
 - **Sketch:** collect misranked queries, then weights, a synonym or unaccent dictionary, or a trigram fallback
-
-### 54. A save conflict re-shows the loser's per-file fields over the winner's media — Strong
-- **Indicator:** 2 per-file fields (caption, alt) restored from a conflict without a base comparison (2026-10-07)
-- **Evidence:** `EditSurface.of(...).submitted(...)` -> `apply_media_fields`: the re-shown form overlays the losing editor's caption and alt onto the winner's media, so a second save can silently undo the winner's per-file edits
-- **Sketch:** carry the base version into the conflict re-render and overlay only the fields the loser changed against it
-- **Tracked:** issue #91
 
 ### 60. `test:affected` runs no Postgres-backed web test for a template-only diff — Worth exploring
 - **Indicator:** `scripts/affected.py` RULES: `app/web/**/*.html|css|js` selects `test:gallery` and `test:e2e` only (2026-10-21)

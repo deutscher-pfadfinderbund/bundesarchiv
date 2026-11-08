@@ -22,7 +22,7 @@ from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import browse, bulk, landing, ledger, reading, vocab
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
 from bundesarchiv.app.web.byline import BylineLink
-from bundesarchiv.app.web.catalog import none_if_blank
+from bundesarchiv.app.web.catalog import trim_or_none
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_urls import display_url, media_url, thumbnail_url
 from bundesarchiv.app.web.media_views import not_found
@@ -31,7 +31,7 @@ from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import ULID, Change, Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
-from bundesarchiv.index.indexer import file_kind, mime_type
+from bundesarchiv.index.indexer import file_kind
 from bundesarchiv.index.query import (
     Facet,
     FacetCount,
@@ -137,12 +137,13 @@ class _SetFilter:
     query: str
 
 
-#: The image types every browser draws: the article page leads with such an original, sharp at
-#: any width, where the 480px thumbnail would be stretched. A TIFF is not among them.
-_DRAWN = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
-
 #: The icon a file without a thumbnail shows in its tile.
 _GLYPHS = {FileKind.VIDEO: "video-file", FileKind.AUDIO: "audio-file"}
+
+
+def kind_glyph(kind: FileKind) -> str:
+    """The icon a tile without a thumbnail shows for ``kind``."""
+    return _GLYPHS.get(kind, "file-present")
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,10 +156,10 @@ class MediaTile:
     name: str
     caption: str
     file_url: str
-    full_url: str
     thumb_url: str
     display_url: str = ""
     aspect: tuple[int, int] | None = None
+    display_aspect: tuple[int, int] | None = None  # the display version's pixels, once cached
     size: str = ""  # the original's size in words ("1,8 MB"), empty when unknown
     slot: int = -1  # an image's place in the article page's lightbox (-1: not in it)
     alt: str = ""  # an image's accessible name: its description, else caption, else file name
@@ -174,30 +175,41 @@ class MediaTile:
         for it wraps it there, not mid-word."""
         return mark_safe(re.sub(r"([._-])", r"\1<wbr>", escape(self.name)))  # noqa: S308
 
+    @property
+    def pixels(self) -> tuple[int, int]:
+        """The stand-in's own width and height, the largest a tile draws it: its largest version's,
+        else the square a thumbnail fits in (a placeholder has no pixels of its own)."""
+        if self.aspect is None:
+            return (Size.TILE, Size.TILE)
+        return self.display_aspect or self.aspect
+
 
 def media_tiles(ulid: ULID, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
-    """``media`` as tiles, in its order (cover first, ADR 0015). One tile header read per file: the
-    thumbnail cache is local (ADR 0017)."""
+    """``media`` as tiles, in its order (cover first, ADR 0015). One header read per cached version
+    (the tile; an image's display version too): the thumbnail cache is local (ADR 0017)."""
     root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
-    return tuple(_tile(ulid, ref, thumbnails.tile_size(root, ref.content_hash)) for ref in media)
+    return tuple(_tile(ulid, ref, root) for ref in media)
 
 
-def _tile(ulid: ULID, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile:
+def _tile(ulid: ULID, ref: MediaRef, root: Path) -> MediaTile:
     image = thumbnails.renders(ref, Size.DISPLAY)
-    caption = none_if_blank(ref.caption or "") or ""
+    aspect = thumbnails.version_size(root, ref.content_hash)
+    caption = trim_or_none(ref.caption) or ""
     kind = file_kind(ref)
     return MediaTile(
         kind=vocab.file_word(kind),
-        glyph=_GLYPHS.get(kind, "file-present"),
+        glyph=kind_glyph(kind),
         name=ref.filename,
         size=vocab.human_size(ref.byte_size),
         caption=caption,
-        alt=(image and none_if_blank(ref.alt or "")) or caption or ref.filename,
+        alt=(image and trim_or_none(ref.alt)) or caption or ref.filename,
         file_url=media_url(ulid, ref.content_hash),
-        full_url=media_url(ulid, ref.content_hash) if mime_type(ref) in _DRAWN else "",
         display_url=(display_url(ulid, ref.content_hash) if image else ""),
         thumb_url=thumbnail_url(ulid, ref.content_hash) if aspect else "",
         aspect=aspect,
+        display_aspect=thumbnails.version_size(root, ref.content_hash, Size.DISPLAY)
+        if image
+        else None,
     )
 
 
@@ -672,7 +684,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     )
     tags = tuple(BylineLink(label=t, href=preset_url(browse.PARAM_TAG, t)) for t in article.tags)
     # the first file leads as the cover only with a picture to show; otherwise it joins the rows
-    cover = media[0] if media and (media[0].full_url or media[0].thumb_url) else None
+    cover = media[0] if media and media[0].thumb_url else None
     mark = article.deleted
     return {
         "ulid": article.ulid,

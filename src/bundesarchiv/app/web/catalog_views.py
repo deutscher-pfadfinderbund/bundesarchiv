@@ -2,11 +2,7 @@
 in-view (``is_valid_ulid``), never by a route converter, so malformed and absent are the same 404.
 """
 
-import base64
-import binascii
 import contextlib
-import functools
-import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import BinaryIO, cast
@@ -22,7 +18,7 @@ from bundesarchiv.app import media as media_intake
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated, UpdateOutcome
 from bundesarchiv.app.upload_staging import Key, Refused, Staging, Upload
-from bundesarchiv.app.web import catalog, landing, vocab
+from bundesarchiv.app.web import catalog, landing, tus, vocab
 from bundesarchiv.app.web.browse_views import (
     CollectionCrumb,
     MediaTile,
@@ -401,7 +397,7 @@ class EditSurface:
                         else LIFECYCLE_OPTIONS
                     ),
                 ),
-                "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
+                "media_rows": _media_rows(self.stored.ulid, self.media, self.stored.media, confirm),
                 "custom_keys": vocab.CUSTOM_KEYS,
                 "delete_confirm": vocab.TRASH_CONFIRM,
                 "crumbs": _crumbs(self.stored, self.chooser),
@@ -431,27 +427,40 @@ class _MediaRow:
     content_hash: str
     caption: str
     description: str  # the stored Bildbeschreibung (the form value), not the page's alt
+    caption_base: str
+    description_base: str
     is_cover: bool
     is_first: bool
     is_last: bool
     confirm_remove: bool
 
 
-def _media_rows(ulid: ULID, media: tuple[MediaRef, ...], remove_hash: str) -> tuple[_MediaRow, ...]:
-    """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015)."""
+def _media_rows(
+    ulid: ULID, media: tuple[MediaRef, ...], stored: tuple[MediaRef, ...], remove_hash: str
+) -> tuple[_MediaRow, ...]:
+    """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015).
+    ``media`` is what the fields show, ``stored`` the same files as saved: their values are the
+    base ``catalog.apply_media_fields`` tells the archivist's edits by."""
+
+    def shown(value: str | None) -> str:
+        return catalog.trim_or_none(value) or ""
+
     last = len(media) - 1
+    tiles = media_tiles(ulid, media)
     return tuple(
         _MediaRow(
             tile=tile,
             content_hash=ref.content_hash,
-            caption=catalog.none_if_blank(ref.caption or "") or "",
-            description=catalog.none_if_blank(ref.alt or "") or "",
+            caption=shown(ref.caption),
+            description=shown(ref.alt),
+            caption_base=shown(base.caption),
+            description_base=shown(base.alt),
             is_cover=i == 0,
             is_first=i == 0,
             is_last=i == last,
             confirm_remove=ref.content_hash == remove_hash,
         )
-        for i, (ref, tile) in enumerate(zip(media, media_tiles(ulid, media), strict=True))
+        for i, (ref, base, tile) in enumerate(zip(media, stored, tiles, strict=True))
     )
 
 
@@ -816,54 +825,29 @@ def _finish_upload(request: HttpRequest, archive: Archive, key: Key) -> HttpResp
             return _media_answer(request, archive, ULID(key.article), outcome)
 
 
-#: The tus protocol version the chunked upload speaks (ADR 0026), core protocol and creation only.
-_TUS_VERSION = "1.0.0"
-
-_TUS_REFUSED = {media_intake.Refusal.NAMELESS: 400, media_intake.Refusal.TOO_LARGE: 413}
-
-_DIGITS = re.compile(r"[0-9]+")
-
-
-def _tus(view: Callable[..., HttpResponseBase]) -> Callable[..., HttpResponseBase]:
-    """Every answer of a tus route names the protocol version, its 404 included."""
-
-    @functools.wraps(view)
-    def answered(request: HttpRequest, **kwargs: str) -> HttpResponseBase:
-        response = view(request, **kwargs)
-        response["Tus-Resumable"] = _TUS_VERSION
-        return response
-
-    return answered
-
-
-@_tus
+@tus.versioned
 def article_tus_create(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /articles/<ulid>/media/uploads`` — tus creation (ADR 0026): stage one file of
     ``Upload-Length`` bytes, named by ``filename`` in ``Upload-Metadata``; 201 with its
-    ``Location``. 413 over the per-file ceiling, 400 for a name that cleans to nothing."""
+    ``Location``."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
     _, ulid, _, archivist = gated
-    if (unsupported := _tus_unsupported(request)) is not None:
-        return unsupported
-    length = _count(request.headers.get("Upload-Length"))
-    metadata = _tus_metadata(request.headers.get("Upload-Metadata", ""))
-    filename = metadata.get("filename")
-    if length is None or filename is None:
-        return HttpResponse(status=400)
-    refused = media_intake.refusal(filename, length, ceiling=settings.BUNDESARCHIV_MAX_UPLOAD_BYTES)
-    if refused is not None:
-        return HttpResponse(status=_TUS_REFUSED[refused])
-    upload_id = Staging.configured().create(
-        Upload(ulid, archivist.username, filename, metadata.get("filetype"), length)
-    )
-    response = HttpResponse(status=201)
-    response["Location"] = reverse("article-tus-upload", args=[ulid, upload_id])
-    return response
+    match tus.read(request.method, request.headers):
+        case tus.Refusal() as refused:
+            return refused.response()
+        case tus.Create(length, filename, filetype):
+            ceiling = settings.BUNDESARCHIV_MAX_UPLOAD_BYTES
+            if (admission := media_intake.refusal(filename, length, ceiling=ceiling)) is not None:
+                return tus.refused(admission)
+            upload = Upload(ulid, archivist.username, filename, filetype, length)
+            upload_id = Staging.configured().create(upload)
+            return tus.created(reverse("article-tus-upload", args=[ulid, upload_id]))
+    return not_found()
 
 
-@_tus
+@tus.versioned
 def article_tus_upload(request: HttpRequest, ulid: str, upload_id: str) -> HttpResponseBase:
     """``HEAD|PATCH|DELETE /articles/<ulid>/media/uploads/<upload_id>`` — one staged upload (ADR
     0026), its archivist's on its Article alone: HEAD says its offset, PATCH appends the next
@@ -873,89 +857,20 @@ def article_tus_upload(request: HttpRequest, ulid: str, upload_id: str) -> HttpR
         return not_found()
     _, ulid, _, archivist = gated
     staging, key = Staging.configured(), Key(upload_id, archivist.username, ulid)
-    match _tus_headers(request):
-        case HttpResponse() as refused:
+    match tus.read(request.method, request.headers):
+        case tus.Refusal() as refused:
             # The deny outranks it: only the upload's archivist hears what its headers lack.
-            return refused if staging.status(key) is not None else not_found()
-        case (offset, size):
-            return _tus_append(request, staging, key, offset, size)
-    if request.method == "DELETE":
-        return HttpResponse(status=204) if staging.discard(key) else not_found()
-    if (staged := staging.status(key)) is None:
-        return not_found()
-    upload, offset = staged
-    response = HttpResponse(status=200)
-    response["Upload-Offset"] = str(offset)
-    response["Upload-Length"] = str(upload.length)
-    response["Cache-Control"] = "no-store"
-    return response
-
-
-def _tus_append(
-    request: HttpRequest, staging: Staging, key: Key, offset: int, size: int
-) -> HttpResponseBase:
-    """The body is read as a stream: ``request.body`` would refuse past
-    ``DATA_UPLOAD_MAX_MEMORY_SIZE``."""
-    match staging.append(key, offset, request, size):
-        case Refused.ABSENT:
-            return not_found()
-        case Refused.OFFSET:
-            return HttpResponse(status=409)
-        case Refused.TOO_LONG:
-            return HttpResponse(status=413)
-        case int() as appended:
-            response = HttpResponse(status=204)
-            response["Upload-Offset"] = str(appended)
-            return response
-
-
-def _tus_headers(request: HttpRequest) -> HttpResponse | tuple[int, int] | None:
-    """The tus refusal of the request's headers, decided by them alone; else a PATCH's offset and
-    size."""
-    if (unsupported := _tus_unsupported(request)) is not None:
-        return unsupported
-    if request.method != "PATCH":
-        return None
-    if request.content_type != "application/offset+octet-stream":
-        return HttpResponse(status=415)
-    offset = _count(request.headers.get("Upload-Offset"))
-    size = _count(request.META.get("CONTENT_LENGTH"))
-    if offset is None or size is None:
-        return HttpResponse(status=400)
-    return offset, size
-
-
-def _tus_unsupported(request: HttpRequest) -> HttpResponse | None:
-    if request.headers.get("Tus-Resumable") == _TUS_VERSION:
-        return None
-    response = HttpResponse(status=412)
-    response["Tus-Version"] = _TUS_VERSION
-    return response
-
-
-def _count(raw: str | None) -> int | None:
-    """A header's non-negative integer, ASCII digits only; None for any other shape. Beyond 19
-    digits it is past every length and offset here and reads as 10**19 (``int`` refuses past
-    4300 digits)."""
-    if raw is None or not _DIGITS.fullmatch(raw):
-        return None
-    digits = raw.lstrip("0")
-    return int(digits or "0") if len(digits) <= 19 else 10**19
-
-
-def _tus_metadata(raw: str) -> dict[str, str]:
-    """``Upload-Metadata``'s comma-separated ``key base64-value`` pairs (a key alone: an empty
-    value), each value decoded as UTF-8; empty when any pair is malformed or a key repeats."""
-    pairs: dict[str, str] = {}
-    for item in raw.split(","):
-        key, _, value = item.strip().partition(" ")
-        if not key or key in pairs:
-            return {}
-        try:
-            pairs[key] = base64.b64decode(value, validate=True).decode()
-        except binascii.Error, UnicodeDecodeError:
-            return {}
-    return pairs
+            return refused.response() if staging.status(key) is not None else not_found()
+        case tus.Append(offset, size):
+            # Read as a stream: ``request.body`` would refuse past ``DATA_UPLOAD_MAX_MEMORY_SIZE``.
+            appended = staging.append(key, offset, request, size)
+            return not_found() if appended is Refused.ABSENT else tus.appended(appended)
+        case tus.Delete():
+            return HttpResponse(status=204) if staging.discard(key) else not_found()
+        case tus.Head() if (staged := staging.status(key)) is not None:
+            upload, offset = staged
+            return tus.progress(offset, upload.length)
+    return not_found()
 
 
 def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -963,7 +878,9 @@ def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
     (``deploy/nginx/nginx.conf``): 204 exactly when ``article_media_upload`` would take the
     files from a same-origin page, so nginx refuses everyone else before it reads the body (ADR
     0017). Same-origin is ``Sec-Fetch-Site``, else ``Origin``, else the ``Referer``: the order
-    Django's CSRF check falls back in. Otherwise the plain 404."""
+    Django's CSRF check falls back in. Otherwise the plain 404. The gate's refresh is a subrequest
+    whose cookies nginx drops, so Keycloak's refresh-token rotation stays off; with it on, the gate
+    must not refresh (ADR 0018)."""
     if request.method != "GET" or _load_gated(request, ulid) is None:
         return not_found()
     site = request.headers.get("Sec-Fetch-Site")

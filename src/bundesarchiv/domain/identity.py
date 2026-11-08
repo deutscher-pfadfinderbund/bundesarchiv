@@ -29,7 +29,8 @@ def create_article(
     subject_place: str | None = None,
     custom: tuple[tuple[str, str], ...] = (),
 ) -> Article:
-    """Never for rebuilding a loaded Article: that keeps its ULID (ADR 0006)."""
+    """The only place an Article's ULID is minted (ADR 0008). Never for rebuilding a loaded Article:
+    that keeps its ULID (ADR 0006)."""
     return Article(
         ulid=new_ulid(),
         title=title,

@@ -4,6 +4,9 @@
     articles/<ulid>/media/<name>
 
 The keys inside a folder beyond the README (``history/``) and the save order are ``_writer``'s.
+
+Layout 1 has no root marker; a later layout writes ``0=bundesarchiv_layout_N`` at the root, and its
+migration decides what an older image may do with the tree (ADR 0019).
 """
 
 import hashlib

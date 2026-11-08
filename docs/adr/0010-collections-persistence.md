@@ -1,5 +1,7 @@
 # Collections persist as a per-node README tree, not a single file
 
+Status: Accepted (2026-07-04). Amended by 0013 (2026-07-04), 0019 (2026-09-24).
+
 ## Context
 
 Part 3 (derived Postgres search index) needs the full Collection tree from
@@ -17,8 +19,7 @@ Two layouts were considered:
 
 Use the per-node README tree (`collections/<ulid>/README.md`).
 
-Wire keys: `name` (required), `parent_id` (optional — absent means root),
-`audience` (optional — absent means inherit, same convention as Article).
+The name is the body's H1 ([ADR 0019](0019-canonical-layout-v1.md)).
 
 ## Consequences
 

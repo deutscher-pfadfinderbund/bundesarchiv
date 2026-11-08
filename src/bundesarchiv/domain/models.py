@@ -70,7 +70,8 @@ class Change:
 @dataclass(frozen=True, slots=True)
 class MediaRef:
     """One write-once media file. `stored_name` is set only when it differs from the upload's
-    `filename` (ADR 0019). In `Article.media` the first entry is the cover."""
+    `filename` (ADR 0019). In `Article.media` the first entry is the cover. A `caption` or `alt` is
+    canonical content here in the README, never a sidecar file or metadata in the blob (ADR 0015)."""
 
     filename: str
     content_hash: str  # sha256 hex of the bytes

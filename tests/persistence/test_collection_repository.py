@@ -111,6 +111,15 @@ def test_keys_for_marks_a_readme_that_does_not_decode(
     ]
 
 
+def test_a_parent_id_naming_no_stored_collection_saves_and_loads(
+    repo: CollectionRepository,
+) -> None:
+    """The repository never validates the tree; `resolve_chain` fails closed on it (ADR 0010)."""
+    dangling = _collection(parent_id="NOSUCH01")
+    repo.save(dangling, expected_version=0, changed_by="tester")
+    assert repo.load(ID_01J0).collection == dangling
+
+
 def test_collection_without_parent_and_audience_round_trips(repo: CollectionRepository) -> None:
     collection = Collection(ulid=ID_01J0, name="Root")
     repo.save(collection, expected_version=0, changed_by="tester")

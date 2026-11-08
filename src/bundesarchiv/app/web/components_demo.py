@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 from typing import NamedTuple
+from urllib.parse import quote
 
 import yaml
 from django.http import HttpRequest, HttpResponse
@@ -10,6 +11,7 @@ from django.shortcuts import render
 from django.templatetags.static import static
 
 from bundesarchiv.app.web import browse, ledger, start, vocab
+from bundesarchiv.app.web.browse_views import MediaTile, kind_glyph
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.start import Tile
 from bundesarchiv.domain.models import ULID
@@ -241,6 +243,92 @@ _EXPANDABLE_SAMPLES = (
     (start.shown(len(_EXPANDABLE), 4), False),
 )
 
+
+def _sample_image(width: int, height: int, drawing: str) -> str:
+    """An inline SVG as a URL: a sample thumbnail that needs no file."""
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}">{drawing}</svg>'
+    )
+    return "data:image/svg+xml," + quote(svg)
+
+
+_PHOTO = _sample_image(
+    480,
+    320,
+    '<rect width="480" height="320" fill="#9fb4c4"/>'
+    '<path d="M0 230 140 150 260 210 360 140 480 200V320H0z" fill="#56664f"/>',
+)
+_SMALL_PHOTO = _sample_image(
+    150,
+    200,
+    '<rect width="150" height="200" fill="#c4b49f"/><circle cx="75" cy="80" r="34" fill="#6b5a48"/>'
+    '<path d="M15 200C20 140 130 140 135 200z" fill="#6b5a48"/>',
+)
+_PAGE = _sample_image(
+    340,
+    480,
+    '<rect width="340" height="480" fill="#fbfaf6"/>'
+    + "".join(
+        f'<rect x="40" y="{y}" width="260" height="8" fill="#b9b6ad"/>' for y in range(60, 420, 24)
+    ),
+)
+
+
+#: A file's page in the demo: no original behind it.
+_DEMO_FILE = "#demo-media-tile"
+
+
+def _media_tile(
+    kind: FileKind,
+    name: str,
+    thumb: tuple[str, tuple[int, int]] | None = None,
+    *,
+    slot: int = -1,
+    alt: str = "",
+) -> MediaTile:
+    """A file as ``browse_views`` builds its tile: ``thumb`` is its thumbnail and that thumbnail's
+    size; an image has a display version and its ``slot`` in the page's lightbox."""
+    return MediaTile(
+        kind=vocab.file_word(kind),
+        glyph=kind_glyph(kind),
+        name=name,
+        caption="",
+        file_url=_DEMO_FILE,
+        thumb_url=thumb[0] if thumb else "",
+        display_url=_DEMO_FILE if kind is FileKind.IMAGE else "",
+        aspect=thumb[1] if thumb else None,
+        slot=slot,
+        alt=alt or name,
+    )
+
+
+#: Each file the tile shows: a photo and a PDF with a thumbnail, a small photo's thumbnail (an
+#: original smaller than a thumbnail is not enlarged), each known kind without one, the unknown kind.
+_MEDIA_TILES = (
+    _media_tile(
+        FileKind.IMAGE,
+        "sommerfahrt-1962-07.jpg",
+        (_PHOTO, (480, 320)),
+        slot=0,
+        alt="Zeltlager am Waldrand, im Hintergrund Hügel",
+    ),
+    _media_tile(FileKind.PDF, "gaubrief-herbst-1971.pdf", (_PAGE, (340, 480))),
+    _media_tile(
+        FileKind.IMAGE, "passbild-1958.jpg", (_SMALL_PHOTO, (150, 200)), slot=1, alt="Passbild"
+    ),
+    _media_tile(FileKind.IMAGE, "lagerfeuer-1964.jpg", slot=2),
+    _media_tile(FileKind.PDF, "vorstandsprotokoll-1980-03.pdf"),
+    _media_tile(FileKind.VIDEO, "festumzug-1975.mp4"),
+    _media_tile(FileKind.AUDIO, "aufnahme-1962.mp3"),
+    _media_tile(FileKind.OTHER, "mitgliederliste.xlsx"),
+)
+#: The box samples: a thumbnail of each shape, the small one, then a file without one.
+_MEDIA_TILES_FEW = tuple(_MEDIA_TILES[i] for i in (0, 1, 2, 6))
+_LONG_NAME = _media_tile(
+    FileKind.OTHER, "Protokoll_der_Mitgliederversammlung_vom_12._März_1962_Abschrift.docx"
+)
+
 #: Token swatches: (background role, text role) pairs, then the line roles.
 _SWATCH_PAIRS = (
     ("ground", "ink"),
@@ -268,6 +356,9 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "pagers": _PAGERS,
             "expandable": _EXPANDABLE,
             "expandable_samples": _EXPANDABLE_SAMPLES,
+            "media_tiles": _MEDIA_TILES,
+            "media_tiles_few": _MEDIA_TILES_FEW,
+            "media_tile_long": _LONG_NAME,
             "status": library_status(),
         },
     )

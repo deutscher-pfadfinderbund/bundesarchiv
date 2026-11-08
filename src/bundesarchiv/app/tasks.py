@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx2  # noqa: TID251
 from django.conf import settings
 from django.core.management import call_command
-from procrastinate import RetryStrategy  # noqa: TID251
+from procrastinate import JobContext, RetryStrategy, builtin_tasks  # noqa: TID251
 from procrastinate.contrib.django import app  # noqa: TID251
 from procrastinate.exceptions import AlreadyEnqueued  # noqa: TID251
 
@@ -31,6 +31,9 @@ _VERIFY_CRON = "0 4 1 * *"
 
 #: Hourly, off the hour the reconcile takes.
 _SWEEP_CRON = "30 * * * *"
+
+#: Daily, off the hours the reconcile and the sweep take.
+_PRUNE_JOBS_CRON = "15 3 * * *"
 
 #: A connect to the system of record that takes longer than 5 s is a partition, not a slow server:
 #: fail the attempt then, not after the 30 s a slow answer may take, so the one worker moves on.
@@ -100,6 +103,14 @@ def verify(timestamp: int) -> None:
 def sweep(timestamp: int) -> None:
     """ADR 0026: chunked uploads untouched for a day, abandoned or finished."""
     Staging.configured().sweep(older_than=timestamp - STALE_AFTER_SECONDS)
+
+
+@app.periodic(cron=_PRUNE_JOBS_CRON)
+@app.task(name="prune_finished_jobs", pass_context=True)
+async def prune_finished_jobs(context: JobContext, timestamp: int) -> None:
+    """Wraps the builtin, which does not take the ``timestamp`` a periodic job is passed. Failed
+    jobs are kept: they are what an operator inspects."""
+    await builtin_tasks.remove_old_jobs(context, max_hours=7 * 24)
 
 
 # --- mirror jobs (ADR 0020): a no-op when no system of record is configured --------

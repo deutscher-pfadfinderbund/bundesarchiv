@@ -1,8 +1,6 @@
 # Storage topology: Nextcloud is the system of record, the VPS holds the working copy
 
-Status: Proposed (2026-09-24), not yet accepted by the owner; built as proposed. Amends ADR 0002 (Nextcloud rejected as canonical) and
-ADR 0005 ("Deployment topology"). Stage B would amend ADR 0017 ("the mirror never serves
-users").
+Status: Accepted (2026-11-07; proposed 2026-09-24). Amends 0002, 0005. Amended by 0022 (2026-10-01), 0026 (2026-10-31). Stage A built except the `restore` command and the disk guard. Stage B would amend 0017 ("the mirror never serves users").
 
 ## Context
 
@@ -120,7 +118,8 @@ Measured on 2026-09-24, full results in [`docs/nextcloud-webdav-notes.md`](../ne
   it would fall below a reserve. The default is 3 GiB, set via an environment variable.
   The guard keeps Postgres, on the same disk, writable.
 - **Upload buffering stays on** (owner, 2026-09-24).
-  - nginx keeps buffering the request body, so a slow upload never holds an app thread.
+  - nginx keeps buffering the request body (the multipart route; tus pieces are 8 MB, 0026), so a slow
+    upload never holds an app thread.
   - With ADR 0019's streaming upload the peak is three times the file size: nginx's
     buffer, Django's temp file and the stored file. It is twice when the local adapter
     turns the temp file into the stored file without a copy.

@@ -499,10 +499,68 @@
     color: var(--ink);
   }
 
-  /* ---- file-row — one medium in a register: the thumb, then one column of the name (size and
-     marks on its line) over the caption field, the tools level with the caption input right after
-     it. The column stops at the query measure. Parts: -thumb, -name, -tools. Knob:
-     --file-row-thumb (the thumb's side). S: the tools under the caption. ---- */
+  /* ---- media tile — one file as one link to its original, shown by its best stand-in
+     (contract: design-system/components/media-tile.md). The container sets the box on the root (an
+     inline size); the stand-in fills it in its own shape up to its own pixels
+     (the placeholder's are a thumbnail's square). Parts: -thumb, -placeholder (where no thumbnail
+     exists), -face (over the placeholder: the glyph of the file's kind, then -label, its kind and
+     name at the foot). ---- */
+  .media-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    inline-size: fit-content;
+    max-inline-size: 100%;
+  }
+  /* sizes="auto" keeps the picture from sizing itself (the browser contains its size): its width
+     is the box's, up to the width attribute, its largest version's own pixels */
+  .media-tile-thumb {
+    display: block;
+    max-inline-size: 100%;
+    block-size: auto;
+    border: var(--line-width) solid var(--edge);
+  }
+  .media-tile-placeholder > svg {
+    display: block;
+    inline-size: auto;
+    block-size: auto;
+    max-inline-size: 100%;
+  }
+  .media-tile-placeholder {
+    position: relative;
+    display: flex;
+    max-inline-size: 100%;
+    overflow: hidden;
+    border: var(--line-width) solid var(--faint);
+  }
+  .media-tile-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    place-items: center;
+    padding: var(--space-2);
+    container-type: size; /* the glyph scales with the placeholder's short side */
+    color: var(--ink-3); /* the glyph: a default, not the owner's pick */
+  }
+  .media-tile-face > .icon {
+    inline-size: clamp(24px, 30cqmin, 48px); /* a default, not the owner's pick */
+    block-size: auto;
+  }
+  .media-tile-label {
+    justify-self: start;
+    max-inline-size: 100%;
+    padding: var(--space-1);
+    font: var(--type-meta);
+    color: var(--ink-2);
+    /* a name wraps at the <wbr> after its separators; only a segment wider than the tile breaks */
+    overflow-wrap: break-word;
+  }
+
+  /* ---- file-row — one medium in a register: its media tile, then one column of the name (size
+     and marks on its line) over the caption field, the tools level with the caption input right
+     after it. The column stops at the query measure. Parts: -name, -tools. Knob:
+     --file-row-thumb (the tile's width). S: the tools under the caption. ---- */
   .file-row {
     --file-row-thumb: 8rem; /* the mock's --measure-thumb */
     display: grid;
@@ -512,15 +570,9 @@
     gap: var(--space-2) var(--space-5);
     padding-block: var(--space-3);
   }
-  .file-row-thumb {
+  .file-row > .media-tile {
     grid-row: 1 / -1;
-  }
-  .file-row-thumb > img {
-    display: block;
     inline-size: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    border: var(--line-width) solid var(--faint);
   }
   .file-row > .field {
     grid-column: 2;
@@ -548,7 +600,7 @@
       grid-template-columns: var(--file-row-thumb) minmax(0, 1fr);
       grid-template-rows: auto;
     }
-    .file-row-thumb {
+    .file-row > .media-tile {
       grid-row: 1 / span 3;
     }
     .file-row-tools {
@@ -1467,35 +1519,6 @@
   }
   .pager-sizes > [aria-current] {
     color: var(--ink);
-  }
-
-  /* ---- blank — a file without a thumbnail, in its thumbnail's slot: the glyph of its kind over
-     its kind and name, so a missing preview never looks broken (owner, 2026-10-01; glyph
-     2026-10-31). The slot sizes it as it sizes an img. Part: -label. Knob: --blank-ratio
-     (default square). ---- */
-  .blank {
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    place-items: center;
-    container-type: size; /* the glyph scales with the tile's short side */
-    --_blank-ratio: var(--blank-ratio, 1);
-    aspect-ratio: var(--_blank-ratio);
-    padding: var(--space-2);
-    overflow: hidden;
-    border: var(--line-width) solid var(--faint);
-    color: var(--ink-3); /* the glyph: a default, not the owner's pick */
-  }
-  .blank > .icon {
-    inline-size: clamp(24px, 30cqmin, 48px); /* a default, not the owner's pick */
-    block-size: auto;
-  }
-  .blank-label {
-    justify-self: start;
-    padding: var(--space-1);
-    font: var(--type-meta);
-    color: var(--ink-2);
-    /* a name wraps at the <wbr> after its separators; only a segment wider than the tile breaks */
-    overflow-wrap: break-word;
   }
 
   /* ---- honest empty state: words, no frame (row 6: a dashed edge marks only what reacts) ---- */
