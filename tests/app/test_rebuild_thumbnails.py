@@ -82,4 +82,5 @@ def test_it_derives_the_missing_skips_the_present_and_a_second_run_derives_nothi
     assert not thumbnail_path(thumbs, bomb.content_hash).exists()
     assert not retired.exists()
     assert not crashed.exists()
-    assert (_generated(first), _generated(second)) == (["2"], ["0"])
+    # tiles, then display versions: the two images (the bomb yields neither), none the second time
+    assert (_generated(first), _generated(second)) == (["2", "2"], ["0", "0"])

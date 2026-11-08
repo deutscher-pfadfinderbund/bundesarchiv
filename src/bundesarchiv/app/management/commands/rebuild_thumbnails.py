@@ -21,17 +21,22 @@ class Command(BaseCommand):
             stale.unlink()
         articles = archive.articles
 
-        def fill(ulid: ULID, ref: MediaRef) -> bool:
-            """True iff a tile was written; a tile cached before the job made display versions
-            gets its display version alone."""
-            if not is_cached(root, ref.content_hash):
-                return generate_thumbnail(archive.store, ulid, ref.content_hash, root)
-            cached(articles, ulid, ref, root, Size.DISPLAY)
-            return False
+        def fill(ulid: ULID, ref: MediaRef) -> tuple[bool, bool]:
+            """Whether a tile and a display version were written; a tile cached before the job
+            made display versions gets its display version alone."""
+            had_display = is_cached(root, ref.content_hash, Size.DISPLAY)
+            if is_cached(root, ref.content_hash):
+                tile = False
+                cached(articles, ulid, ref, root, Size.DISPLAY)
+            else:
+                tile = generate_thumbnail(archive.store, ulid, ref.content_hash, root)
+            return tile, not had_display and is_cached(root, ref.content_hash, Size.DISPLAY)
 
-        generated = sum(
+        written = [
             fill(ulid, ref)
             for ulid in articles.list_ulids()
             for ref in articles.load(ulid).article.media
-        )
-        self.stdout.write(f"thumbnails generated: {generated}")
+        ]
+        tiles = sum(tile for tile, _ in written)
+        displays = sum(display for _, display in written)
+        self.stdout.write(f"thumbnails generated: {tiles}, display versions generated: {displays}")

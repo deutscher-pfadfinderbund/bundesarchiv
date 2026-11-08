@@ -10,12 +10,15 @@ its name). Contract: design-system/components/media-tile.md.{% endcomment %}
   {% if file.slot >= 0 %}data-lightbox="{{ file.slot }}"{% endif %}
 >
   {% if file.thumb_url %}
+  {% comment %}A browser without sizes="auto" takes the thumbnail's width from the fallback: the
+  thumbnail at 1x, the display version on a denser screen, never the large one for every small
+  tile.{% endcomment %}
   <img
     class="media-tile-thumb"
     src="{{ file.thumb_url }}"
     {% if file.display_aspect %}
     srcset="{{ file.thumb_url }} {{ file.aspect.0 }}w, {{ file.display_url }} {{ file.display_aspect.0 }}w"
-    sizes="auto, min(100vw, {{ file.pixels.0 }}px)"
+    sizes="auto, {{ file.aspect.0 }}px"
     {% endif %}
     width="{{ file.pixels.0 }}"
     height="{{ file.pixels.1 }}"
