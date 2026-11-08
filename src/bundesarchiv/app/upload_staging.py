@@ -37,7 +37,10 @@ _CHUNK = 1024 * 1024
 
 @dataclass(frozen=True, slots=True)
 class Upload:
-    """``filename`` as the client named the file; ``add_media`` cleans it on the finish."""
+    """``filename`` as the client named the file; ``add_media`` cleans it on the finish.
+    ``media_type`` is the client's raw ``filetype`` metadata, unchecked: ``app.media`` keeps it only
+    in a media type's shape when it attaches the file, so it is never safe to echo into a header
+    before that."""
 
     article: str
     owner: str

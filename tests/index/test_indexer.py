@@ -191,6 +191,13 @@ def test_build_row_open_ended_date_has_null_latest() -> None:
     assert row["decades"] == [1970, 1980, 1990, 2000, 2010, 2020]
 
 
+def test_build_row_unbounded_lower_end_is_the_earliest_date_not_dateless() -> None:
+    row = indexer.build_row(_article(date=EdtfDate("../1965")), _chain(_root()), cap_year=_CAP_YEAR)
+    assert row["date_earliest"] == datetime.date.min
+    assert row["date_latest"] == datetime.date(1965, 12, 31)
+    assert row["decades"] == [1960]
+
+
 def test_build_row_no_date_yields_nulls_and_empty_decades() -> None:
     root = _root()
     article = _article(date=None)
@@ -430,6 +437,22 @@ def test_a_hit_summarizes_its_files_and_the_files_filter_reads_the_same_fact() -
     # the facet counts rows per kind (not files), with its own dimension cleared
     kinds = {fc.value: fc.count for fc in pdf.facets["file_kind"]}
     assert kinds == {"image": 1, "pdf": 1}
+
+
+@pytest.mark.django_db
+def test_an_unbounded_lower_end_matches_an_earlier_window_and_is_not_dateless() -> None:
+    store = InMemoryObjectStore()
+    CollectionRepository(store).save(_root(), 0, changed_by="tester")
+    articles = ArticleRepository(store)
+    articles.save(_article(ulid="01OPN", date=EdtfDate("../1965")), 0, changed_by="tester")
+    articles.save(_article(ulid="01UNK", date=EdtfDate("/1965")), 0, changed_by="tester")
+    indexer.rebuild(store)
+
+    window = SearchFilters(date_from=datetime.date(1950, 1, 1), date_to=datetime.date(1950, 12, 31))
+    page = search(Archivist(), filters=window)
+    assert sorted(hit.ulid for hit in page.hits) == ["01OPN", "01UNK"]
+    assert page.dateless_count == 0
+    assert search(Archivist(), filters=SearchFilters(dateless=True)).total == 0
 
 
 # ===========================================================================

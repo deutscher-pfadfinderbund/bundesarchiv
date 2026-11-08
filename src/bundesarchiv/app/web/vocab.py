@@ -1,12 +1,25 @@
 """Controlled vocabulary and the UI's German spellings; pure."""
 
-import re
 from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from bundesarchiv.domain.access import VisibilityPreview
-from bundesarchiv.domain.edtf import EdtfDate
+from bundesarchiv.domain.edtf import (
+    Century,
+    Day,
+    Decade,
+    EdtfDate,
+    EdtfPart,
+    Month,
+    OpenEnd,
+    Point,
+    Season,
+    Span,
+    UnknownEnd,
+    Year,
+    YearSeason,
+)
 from bundesarchiv.domain.models import Audience, AudienceTier
 from bundesarchiv.index.query import FileKind
 
@@ -277,15 +290,12 @@ def date_mono(date: EdtfDate | None) -> str:
 
 # --- the article page's spellings ---------------------------------------------------
 
-#: A token HTML can date: a year, a month or a day (``<time datetime>``).
-_HTML_DATE = re.compile(r"\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?")
-
 
 @dataclass(frozen=True, slots=True)
 class DatePart:
-    """One EDTF token of a date as the page prints it: ``text`` the human German spelling ("Juli
+    """One EDTF part of a date as the page prints it: ``text`` the human German spelling ("Juli
     1962", "um 1963"), ``datetime`` the machine value HTML understands, or ``""`` where there is
-    none (a decade, a season, an open end)."""
+    none (a decade, a season, an open or unknown end)."""
 
     text: str
     datetime: str
@@ -295,7 +305,7 @@ def date_parts(date: EdtfDate | None) -> tuple[DatePart, ...]:
     """The date as ``<time>`` parts: one, or two for an interval. No date → ``()``."""
     if date is None:
         return ()
-    return tuple(DatePart(_spoken(token), _html_date(token)) for token in date.value.split("/"))
+    return tuple(_date_part(part) for part in date.parts())
 
 
 _MONTHS = (
@@ -312,40 +322,42 @@ _MONTHS = (
     "November",
     "Dezember",
 )
-_SEASONS = {"21": "Frühling", "22": "Sommer", "23": "Herbst", "24": "Winter"}
-_TOKEN = re.compile(r"(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?")
+_SEASONS = {
+    Season.SPRING: "Frühling",
+    Season.SUMMER: "Sommer",
+    Season.AUTUMN: "Herbst",
+    Season.WINTER: "Winter",
+}
 
 
-def _spoken(token: str) -> str:
-    """One EDTF token in words: "5. Juli 1962", "Sommer 1962", "1970er", "um 1963", "1963?". A
-    token this does not know reads verbatim."""
-    core = token.rstrip("?~%")
-    qualifier = token[len(core) :]
-    if core == "..":
-        return "…"
-    if core.endswith("XX"):
-        words = f"{core[:2]}00\N{EN DASH}{core[:2]}99"
-    elif core.endswith("X"):
-        words = f"{core[:3]}0er"
-    elif (m := _TOKEN.fullmatch(core)) is None:
-        return token
-    elif (part := m.group(2)) in _SEASONS:
-        words = f"{_SEASONS[part]} {m.group(1)}"
-    else:
-        year, month, day = m.groups()
-        words = " ".join(
-            w
-            for w in (f"{int(day)}." if day else "", _MONTHS[int(month) - 1] if month else "", year)
-            if w
-        )
-    approx = "um " if set(qualifier) & {"~", "%"} else ""
-    uncertain = "?" if set(qualifier) & {"?", "%"} else ""
-    return f"{approx}{words}{uncertain}"
+def _date_part(part: EdtfPart) -> DatePart:
+    match part:
+        case OpenEnd():
+            return DatePart("…", "")
+        case UnknownEnd():
+            return DatePart("unbekannt", "")
+        case Point(span, uncertain, approximate):
+            spelled = _spelled(span)
+            text = f"um {spelled.text}" if approximate else spelled.text
+            if uncertain:
+                text += "?"
+            return DatePart(text, spelled.datetime)
 
 
-def _html_date(token: str) -> str:
-    core = token.rstrip("?~%")
-    return core if _HTML_DATE.fullmatch(core) else ""
+def _spelled(span: Span) -> DatePart:
+    match span:
+        case Day(date):
+            return DatePart(f"{date.day}. {_MONTHS[date.month - 1]} {date.year}", date.isoformat())
+        case Month(year, month):
+            return DatePart(f"{_MONTHS[month - 1]} {year}", f"{year:04d}-{month:02d}")
+        case YearSeason(year, season):
+            return DatePart(f"{_SEASONS[season]} {year}", "")
+        case Year(year):
+            return DatePart(str(year), f"{year:04d}")
+        case Decade(first_year):
+            return DatePart(f"{first_year}er", "")
+        case Century(first_year):
+            return DatePart(f"{first_year}\N{EN DASH}{first_year + 99}", "")
 
 
 #: Each file kind as the Digital column spells it: (one, several). One file carries no number.

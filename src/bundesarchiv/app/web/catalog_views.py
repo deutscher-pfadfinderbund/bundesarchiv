@@ -2,11 +2,7 @@
 in-view (``is_valid_ulid``), never by a route converter, so malformed and absent are the same 404.
 """
 
-import base64
-import binascii
 import contextlib
-import functools
-import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import BinaryIO, cast
@@ -18,10 +14,11 @@ from django.http.response import HttpResponseBase
 from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
+from bundesarchiv.app import media as media_intake
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated, UpdateOutcome
-from bundesarchiv.app.upload_staging import Finished, Key, Refused, Staging, Upload
-from bundesarchiv.app.web import catalog, landing, vocab
+from bundesarchiv.app.upload_staging import Key, Refused, Staging, Upload
+from bundesarchiv.app.web import catalog, landing, tus, vocab
 from bundesarchiv.app.web.browse_views import (
     CollectionCrumb,
     MediaTile,
@@ -59,7 +56,7 @@ from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.query import suggest_tags
 from bundesarchiv.persistence import errors
 from bundesarchiv.persistence.errors import ArchiveError
-from bundesarchiv.persistence.repository import Stored, cleaned_name
+from bundesarchiv.persistence.repository import Stored
 
 #: The refusal when Veröffentlichen arrives for a record whose Collection chain the domain cannot
 #: resolve, said as a field error on the Collection.
@@ -730,10 +727,6 @@ def _audience_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
     return (("", vocab.inherited_caption(inherited)), *vocab.AUDIENCE_OPTIONS[1:])
 
 
-#: How many times a structural media save re-loads after a concurrent version bump before giving up
-#: and telling the archivist to try again (rare: single-app-process, a handful of writers).
-_STRUCTURAL_SAVE_RETRIES = 2
-
 #: The German hinweis shown when a structural media change lost every race (see _media_update).
 _MEDIA_CONFLICT = "Konnte nicht gespeichert werden — bitte erneut versuchen."
 
@@ -787,9 +780,9 @@ def article_media_remove(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 
 def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /articles/<ulid>/media/upload`` — append the posted ``files`` (ADR 0015, 0019); one
-    oversize or nameless file refuses the whole batch. With ``upload_id`` instead: a chunked
-    upload's finish (ADR 0026)."""
+    """``POST /articles/<ulid>/media/upload`` — attach the posted ``files`` (ADR 0015, 0019); one
+    refused file refuses the whole batch. With ``upload_id`` instead: a chunked upload's finish
+    (ADR 0026)."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
@@ -798,116 +791,68 @@ def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
         return _finish_upload(request, archive, Key(upload_id, archivist.username, ulid))
     files = request.FILES.getlist("files")
     ceiling = settings.BUNDESARCHIV_MAX_MULTIPART_UPLOAD_BYTES
-    oversize = any(f.size is not None and f.size > ceiling for f in files)
-    unnamed = any(cleaned_name(f.name or "") is None for f in files)
-    if oversize or unnamed:
-        message = f"Datei zu groß (>{ceiling // 1_000_000} MB)" if oversize else _FILENAME_EMPTY
-        return _media_surface(
-            request, stored.article, stored.version, CollectionChooser.of(archive)
-        ).render(request, overlay=MediaError(message))
-    repo = archive.articles
-    new_refs = [
-        repo.add_media(ulid, f.name or "", cast(BinaryIO, f), f.content_type or None) for f in files
-    ]
-    if new_refs:
-        return _structural_change(
-            request,
-            archive,
-            ulid,
-            lambda media: (*media, *new_refs),
-            changed_by=archivist.username,
-        )
-    # no files posted — plain re-render of the gated Stored
+    refusals = (media_intake.refusal(f.name or "", f.size or 0, ceiling=ceiling) for f in files)
+    refused = next(filter(None, refusals), None)
+    if files and refused is None:
+        incoming = [
+            media_intake.Incoming(f.name or "", cast(BinaryIO, f), f.content_type or None)
+            for f in files
+        ]
+        outcome = media_intake.attach(archive, ulid, incoming, changed_by=archivist.username)
+        return _media_answer(request, archive, ulid, outcome)
+    # no files posted: the plain re-render
+    overlay: Overlay = (
+        _NO_OVERLAY if refused is None else MediaError(_refusal_message(refused, ceiling))
+    )
     return _media_surface(
         request, stored.article, stored.version, CollectionChooser.of(archive)
-    ).render(request)
+    ).render(request, overlay=overlay)
+
+
+def _refusal_message(refused: media_intake.Refusal, ceiling: int) -> str:
+    match refused:
+        case media_intake.Refusal.NAMELESS:
+            return _FILENAME_EMPTY
+        case media_intake.Refusal.TOO_LARGE:
+            return f"Datei zu groß (>{ceiling // 1_000_000} MB)"
 
 
 def _finish_upload(request: HttpRequest, archive: Archive, key: Key) -> HttpResponseBase:
-    """A chunked upload's finish (ADR 0026): its complete bytes become one more media file, as a
-    posted file would, unless the Article has that file already. Anything but a complete upload of
-    this archivist's on this Article is the plain 404. A finish that saves nothing keeps the upload
-    for a repeat, and one that lost every save race answers 503, for the client to send it again; a
-    repeat of a finish that saved answers as it did, saving nothing."""
-    ulid = ULID(key.article)
-    with Staging.configured().claim(key) as claimed:
-        if claimed is None:
+    """A chunked upload's finish (ADR 0026). Anything but a complete upload of this archivist's on
+    this Article is the plain 404; a lost save race answers 503, for the client to send it again;
+    a repeat answers as the first finish did."""
+    match media_intake.finish_staged(archive, Staging.configured(), key):
+        case None:
             return not_found()
-        if claimed is Finished.FINISHED:
-            # Loaded under the lock: a repeat that waited on the first finish shows what it saved.
-            if (stored := _load(archive, ulid, marked=False)) is None:
-                return not_found()
-            return _media_answer(
-                request, archive, ulid, Updated(stored.article, stored.version, index_updated=True)
-            )
-        upload, stream, finish = claimed
-        ref = archive.articles.add_media(ulid, upload.filename, stream, upload.media_type)
-        outcome = _media_update(
-            archive, ulid, lambda media: _with(media, ref), changed_by=key.owner
-        )
-        if isinstance(outcome, Updated):
-            finish()
-    if isinstance(outcome, Conflicted):
-        return HttpResponse(status=503)
-    return _media_answer(request, archive, ulid, outcome)
+        case Conflicted():
+            return HttpResponse(status=503)
+        case outcome:
+            return _media_answer(request, archive, ULID(key.article), outcome)
 
 
-def _with(media: tuple[MediaRef, ...], ref: MediaRef) -> tuple[MediaRef, ...]:
-    """``ref`` after ``media``, unless a file of its bytes is there already."""
-    return media if any(r.content_hash == ref.content_hash for r in media) else (*media, ref)
-
-
-#: The tus protocol version the chunked upload speaks (ADR 0026), core protocol and creation only.
-_TUS_VERSION = "1.0.0"
-
-_DIGITS = re.compile(r"[0-9]+")
-
-#: A ``filetype`` is kept only in the shape a multipart part's Content-Type has: it is served back
-#: as the file's Content-Type header.
-_MEDIA_TYPE = re.compile(r"[\w!#$&^.+-]+/[\w!#$&^.+-]+", re.ASCII)
-
-
-def _tus(view: Callable[..., HttpResponseBase]) -> Callable[..., HttpResponseBase]:
-    """Every answer of a tus route names the protocol version, its 404 included."""
-
-    @functools.wraps(view)
-    def answered(request: HttpRequest, **kwargs: str) -> HttpResponseBase:
-        response = view(request, **kwargs)
-        response["Tus-Resumable"] = _TUS_VERSION
-        return response
-
-    return answered
-
-
-@_tus
+@tus.versioned
 def article_tus_create(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /articles/<ulid>/media/uploads`` — tus creation (ADR 0026): stage one file of
     ``Upload-Length`` bytes, named by ``filename`` in ``Upload-Metadata``; 201 with its
-    ``Location``. 413 over the per-file ceiling, 400 for a name that cleans to nothing."""
+    ``Location``."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
     _, ulid, _, archivist = gated
-    if (unsupported := _tus_unsupported(request)) is not None:
-        return unsupported
-    length = _count(request.headers.get("Upload-Length"))
-    metadata = _tus_metadata(request.headers.get("Upload-Metadata", ""))
-    filename = metadata.get("filename")
-    if length is None or filename is None or cleaned_name(filename) is None:
-        return HttpResponse(status=400)
-    if length > settings.BUNDESARCHIV_MAX_UPLOAD_BYTES:
-        return HttpResponse(status=413)
-    filetype = metadata.get("filetype", "")
-    media_type = filetype if _MEDIA_TYPE.fullmatch(filetype) else None
-    upload_id = Staging.configured().create(
-        Upload(ulid, archivist.username, filename, media_type, length)
-    )
-    response = HttpResponse(status=201)
-    response["Location"] = reverse("article-tus-upload", args=[ulid, upload_id])
-    return response
+    match tus.read(request.method, request.headers):
+        case tus.Refusal() as refused:
+            return refused.response()
+        case tus.Create(length, filename, filetype):
+            ceiling = settings.BUNDESARCHIV_MAX_UPLOAD_BYTES
+            if (admission := media_intake.refusal(filename, length, ceiling=ceiling)) is not None:
+                return tus.refused(admission)
+            upload = Upload(ulid, archivist.username, filename, filetype, length)
+            upload_id = Staging.configured().create(upload)
+            return tus.created(reverse("article-tus-upload", args=[ulid, upload_id]))
+    return not_found()
 
 
-@_tus
+@tus.versioned
 def article_tus_upload(request: HttpRequest, ulid: str, upload_id: str) -> HttpResponseBase:
     """``HEAD|PATCH|DELETE /articles/<ulid>/media/uploads/<upload_id>`` — one staged upload (ADR
     0026), its archivist's on its Article alone: HEAD says its offset, PATCH appends the next
@@ -917,89 +862,20 @@ def article_tus_upload(request: HttpRequest, ulid: str, upload_id: str) -> HttpR
         return not_found()
     _, ulid, _, archivist = gated
     staging, key = Staging.configured(), Key(upload_id, archivist.username, ulid)
-    match _tus_headers(request):
-        case HttpResponse() as refused:
+    match tus.read(request.method, request.headers):
+        case tus.Refusal() as refused:
             # The deny outranks it: only the upload's archivist hears what its headers lack.
-            return refused if staging.status(key) is not None else not_found()
-        case (offset, size):
-            return _tus_append(request, staging, key, offset, size)
-    if request.method == "DELETE":
-        return HttpResponse(status=204) if staging.discard(key) else not_found()
-    if (staged := staging.status(key)) is None:
-        return not_found()
-    upload, offset = staged
-    response = HttpResponse(status=200)
-    response["Upload-Offset"] = str(offset)
-    response["Upload-Length"] = str(upload.length)
-    response["Cache-Control"] = "no-store"
-    return response
-
-
-def _tus_append(
-    request: HttpRequest, staging: Staging, key: Key, offset: int, size: int
-) -> HttpResponseBase:
-    """The body is read as a stream: ``request.body`` would refuse past
-    ``DATA_UPLOAD_MAX_MEMORY_SIZE``."""
-    match staging.append(key, offset, request, size):
-        case Refused.ABSENT:
-            return not_found()
-        case Refused.OFFSET:
-            return HttpResponse(status=409)
-        case Refused.TOO_LONG:
-            return HttpResponse(status=413)
-        case int() as appended:
-            response = HttpResponse(status=204)
-            response["Upload-Offset"] = str(appended)
-            return response
-
-
-def _tus_headers(request: HttpRequest) -> HttpResponse | tuple[int, int] | None:
-    """The tus refusal of the request's headers, decided by them alone; else a PATCH's offset and
-    size."""
-    if (unsupported := _tus_unsupported(request)) is not None:
-        return unsupported
-    if request.method != "PATCH":
-        return None
-    if request.content_type != "application/offset+octet-stream":
-        return HttpResponse(status=415)
-    offset = _count(request.headers.get("Upload-Offset"))
-    size = _count(request.META.get("CONTENT_LENGTH"))
-    if offset is None or size is None:
-        return HttpResponse(status=400)
-    return offset, size
-
-
-def _tus_unsupported(request: HttpRequest) -> HttpResponse | None:
-    if request.headers.get("Tus-Resumable") == _TUS_VERSION:
-        return None
-    response = HttpResponse(status=412)
-    response["Tus-Version"] = _TUS_VERSION
-    return response
-
-
-def _count(raw: str | None) -> int | None:
-    """A header's non-negative integer, ASCII digits only; None for any other shape. Beyond 19
-    digits it is past every length and offset here and reads as 10**19 (``int`` refuses past
-    4300 digits)."""
-    if raw is None or not _DIGITS.fullmatch(raw):
-        return None
-    digits = raw.lstrip("0")
-    return int(digits or "0") if len(digits) <= 19 else 10**19
-
-
-def _tus_metadata(raw: str) -> dict[str, str]:
-    """``Upload-Metadata``'s comma-separated ``key base64-value`` pairs (a key alone: an empty
-    value), each value decoded as UTF-8; empty when any pair is malformed or a key repeats."""
-    pairs: dict[str, str] = {}
-    for item in raw.split(","):
-        key, _, value = item.strip().partition(" ")
-        if not key or key in pairs:
-            return {}
-        try:
-            pairs[key] = base64.b64decode(value, validate=True).decode()
-        except binascii.Error, UnicodeDecodeError:
-            return {}
-    return pairs
+            return refused.response() if staging.status(key) is not None else not_found()
+        case tus.Append(offset, size):
+            # Read as a stream: ``request.body`` would refuse past ``DATA_UPLOAD_MAX_MEMORY_SIZE``.
+            appended = staging.append(key, offset, request, size)
+            return not_found() if appended is Refused.ABSENT else tus.appended(appended)
+        case tus.Delete():
+            return HttpResponse(status=204) if staging.discard(key) else not_found()
+        case tus.Head() if (staged := staging.status(key)) is not None:
+            upload, offset = staged
+            return tus.progress(offset, upload.length)
+    return not_found()
 
 
 def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -1051,12 +927,15 @@ def _media_update(
         ulid,
         lambda article: replace(article, media=transform(article.media)),
         changed_by=changed_by,
-        retries=_STRUCTURAL_SAVE_RETRIES,
+        retries=media_intake.SAVE_RETRIES,
     )
 
 
 def _media_answer(
-    request: HttpRequest, archive: Archive, ulid: ULID, outcome: UpdateOutcome
+    request: HttpRequest,
+    archive: Archive,
+    ulid: ULID,
+    outcome: UpdateOutcome | media_intake.Repeated,
 ) -> HttpResponseBase:
     chooser = CollectionChooser.of(archive)
     match outcome:
@@ -1074,6 +953,11 @@ def _media_answer(
             return _media_surface(request, article, version, chooser, own_save=True).render(
                 request, overlay=_NO_OVERLAY if index_updated else DrawerIndexLag()
             )
+        case media_intake.Repeated(stored=stored):
+            # The save was this client's own finish, whose answer it never got.
+            return _media_surface(
+                request, stored.article, stored.version, chooser, own_save=True
+            ).render(request)
 
 
 def _media_surface(

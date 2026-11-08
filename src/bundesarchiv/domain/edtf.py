@@ -1,115 +1,178 @@
-"""EDTF Level 0/1 value object for archival dates.
-
-**Dependency decision — ``edtf`` (PyPI) rejected, verified 2026-07-04:**
-The package exists as ``edtf`` 5.0.1 on PyPI (``python-edtf`` is only the GitHub repo
-name). It is maintained and imports/parses fine on Python 3.14. It fails the
-``mypy --strict`` typability criterion: the wheel ships a ``py.typed`` marker, but the
-entry point ``parse_edtf`` is wrapped in an untyped decorator and has no return
-annotation, so it — and everything reached through it — type-checks as ``Any``
-(confirmed via ``reveal_type`` under mypy --strict). Adopting it would make this
-module's typed boundary vacuous unless we hand-wrote stubs for its pyparsing-based
-parser, which is more work than hand-rolling the small Level 0/1 subset below.
-
-**Supported subset** (anything else raises ValueError):
-- Level 0: ``YYYY``, ``YYYY-MM``, ``YYYY-MM-DD``
-- Level 1: uncertainty/approximation qualifiers ``?`` ``~`` ``%`` (suffix, display-only —
-  do not change bounds); unspecified digits ``197X`` / ``19XX``; intervals ``A/B``,
-  ``A/..`` (open upper), ``../B`` (open lower); seasons ``YYYY-21..24``.
-"""
+"""EDTF Level 0/1 value object for archival dates. ``_GRAMMAR`` is the supported subset."""
 
 import calendar
 import datetime
-import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum
 
-# Qualifier suffix: ?, ~, %  (display-level uncertainty; does not affect bounds)
-_Q = r"[?~%]?"
+from lark import Lark, Token, Transformer, v_args
+from lark.exceptions import UnexpectedInput, VisitError
 
-# YYYY-MM-DD  (most specific first)
-_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})" + _Q + r"$")
+_GRAMMAR = r"""
+start     : point | _interval
+_interval : point "/" (point | _nonpoint) | _nonpoint "/" point
+_nonpoint : open | unknown
+open      : ".."
+unknown   :
+point     : _span [QUAL] | season
+_span     : day | month | year | decade | century
+day       : YEAR "-" MONTH "-" DAY
+month     : YEAR "-" MONTH ["-" "XX"]
+season    : YEAR "-" SEASON
+year      : YEAR ["-" "XX" ["-" "XX"]]
+decade    : DECADE_DIGITS "X"
+century   : CENTURY_DIGITS "XX"
+YEAR      : DIGIT~4
+DECADE_DIGITS  : DIGIT~3
+CENTURY_DIGITS : DIGIT~2
+MONTH     : "0" "1".."9" | "1" "0".."2"
+DAY       : "0" "1".."9" | "1".."2" DIGIT | "3" "0".."1"
+SEASON    : "2" "1".."4"
+QUAL      : "?" | "~" | "%"
+DIGIT     : "0".."9"
+"""
 
-# Seasons YYYY-21..24  (must precede YEARMONTH so 2001-22 is not parsed as month 22)
-_SEASON_RE = re.compile(r"^(\d{4})-(2[1-4])$")
+_PARSER = Lark(_GRAMMAR, parser="lalr")
 
-# YYYY-MM  (only months 01-12; season codes already caught above)
-_YEARMONTH_RE = re.compile(r"^(\d{4})-(\d{2})" + _Q + r"$")
 
-# Unspecified digits: 197X or 19XX — at least one digit must be X
-_UNSPEC_RE = re.compile(r"^(\d{2})(?:(\d)(X)|X(X))" + _Q + r"$")
+class Season(Enum):
+    SPRING = 21
+    SUMMER = 22
+    AUTUMN = 23
+    WINTER = 24
 
-# Plain YYYY (with optional qualifier)
-_YEAR_RE = re.compile(r"^(\d{4})" + _Q + r"$")
 
-# Open-end sentinel in intervals
-_OPEN = ".."
-
-# Season code → (month_start, day_start, month_end, day_end)
-# Winter (24) ends in Feb of the *following* year — handled specially in _parse_season.
-_SEASON_BOUNDS: dict[str, tuple[int, int, int, int]] = {
-    "21": (3, 1, 5, 31),  # spring
-    "22": (6, 1, 8, 31),  # summer
-    "23": (9, 1, 11, 30),  # autumn
-    "24": (12, 1, 2, 28),  # winter (Feb end adjusted for leap year at runtime)
+#: Each season's first and last month; winter's last lies in the following year.
+_SEASON_MONTHS: dict[Season, tuple[int, int]] = {
+    Season.SPRING: (3, 5),
+    Season.SUMMER: (6, 8),
+    Season.AUTUMN: (9, 11),
+    Season.WINTER: (12, 2),
 }
+
+
+@dataclass(frozen=True, slots=True)
+class Day:
+    date: datetime.date
+
+
+@dataclass(frozen=True, slots=True)
+class Month:
+    """``1968-06``: June 1968, a month of one year."""
+
+    year: int
+    month: int
+
+
+@dataclass(frozen=True, slots=True)
+class YearSeason:
+    year: int
+    season: Season
+
+
+@dataclass(frozen=True, slots=True)
+class Year:
+    year: int
+
+
+@dataclass(frozen=True, slots=True)
+class Decade:
+    """``197X``: ``first_year`` 1970."""
+
+    first_year: int
+
+
+@dataclass(frozen=True, slots=True)
+class Century:
+    """``19XX``: ``first_year`` 1900."""
+
+    first_year: int
+
+
+type Span = Day | Month | YearSeason | Year | Decade | Century
+
+
+@dataclass(frozen=True, slots=True)
+class Point:
+    """One date, at its precision; ``%`` is both uncertain and approximate."""
+
+    span: Span
+    uncertain: bool = False
+    approximate: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class OpenEnd:
+    """An interval's ``..`` end."""
+
+
+@dataclass(frozen=True, slots=True)
+class UnknownEnd:
+    """An interval's empty end."""
+
+
+type EdtfPart = Point | OpenEnd | UnknownEnd
 
 
 def _last_day(year: int, month: int) -> int:
     return calendar.monthrange(year, month)[1]
 
 
-def _parse_single(s: str) -> tuple[datetime.date, datetime.date]:
-    """One EDTF token, no ``/``."""
-    m = _DATE_RE.match(s)
-    if m:
-        try:
-            d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        except ValueError as err:
-            raise ValueError(f"invalid EDTF date: {s!r}") from err
-        return d, d
+@v_args(inline=True)
+class _Parts(Transformer[Token, tuple[EdtfPart, ...]]):
+    """Terminals become numbers, rules become parts."""
 
-    # Seasons before YYYY-MM, so codes 21-24 are not rejected as bad months.
-    ms = _SEASON_RE.match(s)
-    if ms:
-        return _parse_season(int(ms.group(1)), ms.group(2))
+    YEAR = MONTH = DAY = int
 
-    m2 = _YEARMONTH_RE.match(s)
-    if m2:
-        year, mm = int(m2.group(1)), int(m2.group(2))
-        if not (1 <= mm <= 12):
-            raise ValueError(f"invalid EDTF month: {s!r}")
-        lo = datetime.date(year, mm, 1)
-        hi = datetime.date(year, mm, _last_day(year, mm))
-        return lo, hi
+    def SEASON(self, code: Token) -> Season:
+        return Season(int(code))
 
-    mu = _UNSPEC_RE.match(s)
-    if mu:
-        century_tens = mu.group(1)  # e.g. "19"
-        if mu.group(2) is not None:
-            # pattern (\d)(X) matched — decade digit known, year digit is X: 197X
-            decade_digit = mu.group(2)
-            base = int(century_tens) * 100 + int(decade_digit) * 10
-            return datetime.date(base, 1, 1), datetime.date(base + 9, 12, 31)
-        # pattern X(X) matched — both unknown: 19XX
-        base = int(century_tens) * 100
-        return datetime.date(base, 1, 1), datetime.date(base + 99, 12, 31)
+    def DECADE_DIGITS(self, digits: Token) -> int:
+        return int(digits) * 10
 
-    my = _YEAR_RE.match(s)
-    if my:
-        year = int(my.group(1))
-        return datetime.date(year, 1, 1), datetime.date(year, 12, 31)
+    def CENTURY_DIGITS(self, digits: Token) -> int:
+        return int(digits) * 100
 
-    raise ValueError(f"unrecognised EDTF value: {s!r}")
+    month, season, year, decade, century = Month, YearSeason, Year, Decade, Century
+    open, unknown = OpenEnd, UnknownEnd
+
+    def day(self, year: int, month: int, day: int) -> Day:
+        return Day(datetime.date(year, month, day))
+
+    def point(self, span: Span, qualifier: Token | None = None) -> Point:
+        return Point(span, uncertain=qualifier in ("?", "%"), approximate=qualifier in ("~", "%"))
+
+    def start(self, *parts: EdtfPart) -> tuple[EdtfPart, ...]:
+        return parts
 
 
-def _parse_season(year: int, code: str) -> tuple[datetime.date, datetime.date]:
-    sm, sd, em, ed = _SEASON_BOUNDS[code]
-    lo = datetime.date(year, sm, sd)
-    if code == "24":
-        end_year = year + 1
-        hi = datetime.date(end_year, 2, _last_day(end_year, 2))
-    else:
-        hi = datetime.date(year, em, ed)
-    return lo, hi
+def _parse(value: str) -> tuple[EdtfPart, ...]:
+    try:
+        return _Parts().transform(_PARSER.parse(value))
+    except UnexpectedInput as err:
+        raise ValueError(f"unrecognised EDTF value: {value!r}") from err
+    except VisitError as err:  # only ``day`` raises: a day its month lacks
+        raise ValueError(f"invalid EDTF date: {value!r}") from err.orig_exc
+
+
+def _range(span: Span) -> tuple[datetime.date, datetime.date]:
+    match span:
+        case Day(date):
+            return date, date
+        case Month(year, month):
+            return datetime.date(year, month, 1), datetime.date(year, month, _last_day(year, month))
+        case YearSeason(year, season):
+            first, last = _SEASON_MONTHS[season]
+            end_year = year + (last < first)
+            return datetime.date(year, first, 1), datetime.date(
+                end_year, last, _last_day(end_year, last)
+            )
+        case Year(year):
+            return datetime.date(year, 1, 1), datetime.date(year, 12, 31)
+        case Decade(first_year):
+            return datetime.date(first_year, 1, 1), datetime.date(first_year + 9, 12, 31)
+        case Century(first_year):
+            return datetime.date(first_year, 1, 1), datetime.date(first_year + 99, 12, 31)
 
 
 def _decade_of(d: datetime.date) -> int:
@@ -125,61 +188,33 @@ class EdtfDate:
     """
 
     value: str
+    _parts: tuple[EdtfPart, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        _validate(self.value)
+        object.__setattr__(self, "_parts", _parse(self.value))
+        lo, hi = self.bounds()
+        # Bounds feed SQL date-range columns; an inverted range would silently match nothing.
+        if lo is not None and hi is not None and lo > hi:
+            raise ValueError(f"invalid EDTF interval (start after end): {self.value!r}")
 
-    def bounds(self) -> tuple[datetime.date, datetime.date | None]:
-        """(earliest, latest); latest is None for an open upper end. An open lower end
-        (``../B``) floors at B's start, since there is no unbounded-below."""
-        return _bounds(self.value)
+    def parts(self) -> tuple[EdtfPart, ...]:
+        """One point, or an interval's two ends; at least one end is a point."""
+        return self._parts
+
+    def bounds(self) -> tuple[datetime.date | None, datetime.date | None]:
+        """(earliest, latest); ``None`` for an open or unknown end: unbounded."""
+        first, last = self._parts[0], self._parts[-1]
+        lo = _range(first.span)[0] if isinstance(first, Point) else None
+        hi = _range(last.span)[1] if isinstance(last, Point) else None
+        return lo, hi
 
     def decades(self, *, cap_year: int) -> tuple[int, ...]:
-        """``cap_year`` caps only an open upper end, at the decade of ``cap_year - 1``."""
-        lo, hi = self.bounds()
+        """From the first point's decade; ``cap_year`` caps only an unbounded upper end, at the
+        decade of ``cap_year - 1``."""
+        first_point = next(part for part in self._parts if isinstance(part, Point))
+        _, hi = self.bounds()
         if hi is None:
             hi = datetime.date(cap_year - 1, 12, 31)
-        first_decade = _decade_of(lo)
+        first_decade = _decade_of(_range(first_point.span)[0])
         last_decade = _decade_of(hi)
         return tuple(range(first_decade, last_decade + 1, 10))
-
-
-def _validate(value: str) -> None:
-    if not value:
-        raise ValueError("EDTF value must not be empty")
-    _bounds(value)
-
-
-def _bounds(value: str) -> tuple[datetime.date, datetime.date | None]:
-    if "/" not in value:
-        return _parse_single(value)
-
-    parts = value.split("/", 1)
-    left, right = parts[0], parts[1]
-
-    if not left and not right:
-        raise ValueError(f"invalid EDTF interval (both ends empty): {value!r}")
-
-    # Open upper end: "A/.."
-    if right == _OPEN:
-        if not left:
-            raise ValueError(f"invalid EDTF interval: {value!r}")
-        lo, _ = _parse_single(left)
-        return lo, None
-
-    # Empty right side (e.g. "1970/") is not the open-end notation — reject
-    if not right:
-        raise ValueError(f"invalid EDTF interval (missing end, use '..' for open): {value!r}")
-
-    # Open lower end: "../B"
-    if left == _OPEN or not left:
-        lo_anchor, hi = _parse_single(right)
-        return lo_anchor, hi
-
-    # Closed interval: "A/B" — earliest must not exceed latest (bounds feed SQL
-    # date-range columns downstream; an inverted range would silently match nothing)
-    lo, _ = _parse_single(left)
-    _, hi = _parse_single(right)
-    if lo > hi:
-        raise ValueError(f"invalid EDTF interval (start after end): {value!r}")
-    return lo, hi

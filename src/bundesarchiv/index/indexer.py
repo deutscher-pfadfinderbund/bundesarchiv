@@ -190,12 +190,11 @@ def _content_columns(article: Article, *, ancestors: list[ULID], cap_year: int) 
 def _date_columns(
     article: Article, *, cap_year: int
 ) -> tuple[datetime.date | None, datetime.date | None, tuple[int, ...]]:
-    """(date_earliest, date_latest, decades) from the Article's EDTF date, or nulls/empty when
-    it has none. ``date_latest`` is ``None`` for an open-ended interval (the EdtfDate bounds)."""
+    """(date_earliest, date_latest, decades); ``date_earliest`` is ``None`` only when dateless."""
     if article.date is None:
         return None, None, ()
     earliest, latest = article.date.bounds()
-    return earliest, latest, article.date.decades(cap_year=cap_year)
+    return earliest or datetime.date.min, latest, article.date.decades(cap_year=cap_year)
 
 
 def _fail_closed_row(article: Article, *, cap_year: int) -> IndexRow:

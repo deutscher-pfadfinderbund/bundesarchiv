@@ -1,13 +1,10 @@
 """The chunked upload over HTTP (ADR 0026): tus 1.0.0 pieces into staging, the finish into the
 Article, every miss the plain 404."""
 
-import base64
-import fcntl
 import os
 import re
 import time
 from collections.abc import Callable, Iterator
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +28,6 @@ from tests.app.web._tus import (
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app import tasks
 from bundesarchiv.app.result import Conflicted
-from bundesarchiv.app.upload_staging import Key, Staging
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 _ANNA = Archivist("anna")
@@ -139,49 +135,6 @@ def test_a_finished_upload_resumes_straight_to_the_finish(
     assert _freed(staging_root, upload)
 
 
-def test_two_uploads_of_one_file_list_it_once(corpus: Corpus, staging_root: Path) -> None:
-    client = client_as(_ANNA)
-    for _ in range(2):
-        assert finish(client, DRAFT_ULID, staged(client, DRAFT_ULID, _DATA)).status_code == 200
-    assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
-
-
-def test_the_finish_of_an_incomplete_upload_saves_nothing(
-    corpus: Corpus, staging_root: Path
-) -> None:
-    client = client_as(_ANNA)
-    upload = staged(client, DRAFT_ULID, _DATA[:8], length=len(_DATA))
-    keys = corpus.articles.keys_for(DRAFT_ULID)
-    assert_denied(finish(client, DRAFT_ULID, upload))
-    assert corpus.articles.keys_for(DRAFT_ULID) == keys
-    assert _staged_ids(staging_root) == [upload]
-
-
-def test_a_finish_that_saves_nothing_keeps_the_upload_for_the_next_finish(
-    corpus: Corpus, staging_root: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The Article goes to the Papierkorb while the finish waits on the upload's lock."""
-    client = client_as(_ANNA)
-    upload = staged(client, DRAFT_ULID, _DATA)
-    flock = fcntl.flock
-
-    def deleted_meanwhile(file: Any, operation: int) -> None:
-        flock(file, operation)
-        stored = corpus.articles.load(DRAFT_ULID)
-        corpus.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
-
-    with monkeypatch.context() as patched:
-        patched.setattr(fcntl, "flock", deleted_meanwhile)
-        assert_denied(finish(client, DRAFT_ULID, upload))
-    assert _staged_ids(staging_root) == [upload]
-    stored = corpus.articles.load(DRAFT_ULID)
-    corpus.articles.save(replace(stored.article, deleted=None), stored.version, changed_by="bert")
-
-    assert finish(client, DRAFT_ULID, upload).status_code == 200
-    assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
-    assert _freed(staging_root, upload)
-
-
 def test_a_finish_that_loses_every_save_race_answers_for_a_repeat(
     corpus: Corpus, staging_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -192,10 +145,6 @@ def test_a_finish_that_loses_every_save_race_answers_for_a_repeat(
         patched.setattr(article_services, "update_article", lambda *_, **__: Conflicted())
         assert finish(client, DRAFT_ULID, upload).status_code == 503
     assert _media(corpus) == ()
-
-    assert finish(client, DRAFT_ULID, upload).status_code == 200
-    assert [ref.filename for ref in _media(corpus)] == ["scan.pdf"]
-    assert _freed(staging_root, upload)
 
 
 @pytest.mark.parametrize("finished", [False, True])
@@ -208,79 +157,35 @@ def test_a_delete_drops_the_upload(corpus: Corpus, staging_root: Path, finished:
     assert _staged_ids(staging_root) == []
 
 
-def test_a_filetype_that_is_no_media_type_is_dropped(corpus: Corpus, staging_root: Path) -> None:
-    """It is served back as a Content-Type header, where a line break would break every answer."""
-    client = client_as(_ANNA)
-    created = client.post(
-        f"/articles/{DRAFT_ULID}/media/uploads",
-        headers={
-            **TUS,
-            "Upload-Length": "0",
-            "Upload-Metadata": metadata(filename="a.pdf", filetype="text/html\r\nX-Evil: 1"),
-        },
-    )
-    staged_upload = Staging(staging_root).status(Key(upload_id(created), "anna", DRAFT_ULID))
-    assert staged_upload is not None and staged_upload[0].media_type is None
-
-
-# --- every invalid header shape answers its tus status and stores nothing --------------------
-
-
-def _b64(raw: bytes) -> str:
-    return base64.b64encode(raw).decode()
-
-
-_FILENAME = metadata(filename="scan.pdf")
+# --- a refusal a client sees answers its tus status and stores nothing ----------------------
+# Every other header shape: test_tus.py.
 
 
 @pytest.mark.parametrize(
     ("headers", "status"),
     [
-        pytest.param({"Upload-Length": "6", "Upload-Metadata": _FILENAME}, 412, id="no-version"),
         pytest.param(
-            {**TUS, "Tus-Resumable": "0.2.2", "Upload-Length": "6", "Upload-Metadata": _FILENAME},
+            {"Upload-Length": "6", "Upload-Metadata": metadata(filename="scan.pdf")},
             412,
-            id="old-version",
-        ),
-        *(
-            pytest.param({**TUS, "Upload-Length": length, "Upload-Metadata": _FILENAME}, 400, id=k)
-            for k, length in {
-                "length-empty": "",
-                "length-signed": "-6",
-                "length-plus": "+6",
-                "length-fraction": "6.0",
-                "length-hex": "0x6",
-                "length-spaced": "6 ",
-                "length-two": "6, 6",
-                "length-arabic-digits": "\N{ARABIC-INDIC DIGIT SIX}",
-            }.items()
-        ),
-        pytest.param({**TUS, "Upload-Metadata": _FILENAME}, 400, id="length-missing"),
-        pytest.param(
-            {**TUS, "Upload-Length": "9" * 5000, "Upload-Metadata": _FILENAME},
-            413,
-            id="length-overflow",
+            id="no-version",
         ),
         pytest.param(
-            {**TUS, "Upload-Length": str(4 * 1024**3 + 1), "Upload-Metadata": _FILENAME},
+            {**TUS, "Upload-Metadata": metadata(filename="scan.pdf")}, 400, id="length-missing"
+        ),
+        pytest.param(
+            {**TUS, "Upload-Length": "6", "Upload-Metadata": metadata(filename=" . ")},
+            400,
+            id="filename-cleans-to-nothing",
+        ),
+        pytest.param(
+            {
+                **TUS,
+                "Upload-Length": str(4 * 1024**3 + 1),
+                "Upload-Metadata": metadata(filename="scan.pdf"),
+            },
             413,
             id="length-over-ceiling",
         ),
-        *(
-            pytest.param({**TUS, "Upload-Length": "6", "Upload-Metadata": meta}, 400, id=k)
-            for k, meta in {
-                "metadata-empty": "",
-                "metadata-bad-base64": "filename !!!",
-                "metadata-unpadded": f"filename {_b64(b'scan.pdf').rstrip('=')}",
-                "metadata-not-utf8": f"filename {_b64(b'\xff\xfe')}",
-                "metadata-no-filename": f"filetype {_b64(b'application/pdf')}",
-                "metadata-filename-twice": f"{_FILENAME},{_FILENAME}",
-                "metadata-trailing-comma": f"{_FILENAME},",
-                "filename-cleans-to-nothing": f"filename {_b64(b' . ')}",
-                "filename-empty": "filename",
-            }.items()
-        ),
-        pytest.param({**TUS, "Upload-Length": "6"}, 400, id="metadata-missing"),
     ],
 )
 def test_a_create_with_an_invalid_header_stages_nothing(
@@ -297,19 +202,8 @@ def test_a_create_with_an_invalid_header_stages_nothing(
         pytest.param({"headers": {"Upload-Offset": "3"}}, 412, id="no-version"),
         pytest.param({"content_type": "application/octet-stream"}, 415, id="content-type"),
         pytest.param({"headers": TUS}, 400, id="offset-missing"),
-        *(
-            pytest.param({"headers": {**TUS, "Upload-Offset": offset}}, 400, id=k)
-            for k, offset in {
-                "offset-signed": "-3",
-                "offset-fraction": "3.0",
-                "offset-word": "drei",
-                "offset-empty": "",
-            }.items()
-        ),
-        pytest.param({"CONTENT_LENGTH": "viele"}, 400, id="content-length-word"),
         pytest.param({"headers": {**TUS, "Upload-Offset": "0"}}, 409, id="offset-behind"),
         pytest.param({"headers": {**TUS, "Upload-Offset": "4"}}, 409, id="offset-ahead"),
-        pytest.param({"headers": {**TUS, "Upload-Offset": "9" * 5000}}, 409, id="offset-overflow"),
         pytest.param({"body": b"defg"}, 413, id="past-the-length"),
     ],
 )
@@ -414,6 +308,32 @@ def test_a_miss_on_a_finished_upload_is_the_plain_404_and_changes_nothing(
     _assert_tus_denied(_PROBES[method](client_as(viewer), ulid, address(upload)), method)
     assert corpus.articles.keys_for(DRAFT_ULID) == keys
     assert _head(client, DRAFT_ULID, upload)["Upload-Offset"] == str(len(_DATA))
+
+
+#: Each refused by its headers when the upload's archivist sends it, with that refusal's status.
+_HEADER_REFUSED: dict[str, tuple[Callable[[Client, str], Any], int]] = {
+    "HEAD": (lambda client, url: client.head(url), 412),
+    "PATCH": (
+        lambda client, url: client.generic(
+            "PATCH", url, b"", content_type="text/plain", headers=TUS
+        ),
+        415,
+    ),
+    "DELETE": (lambda client, url: client.delete(url), 412),
+}
+
+
+@pytest.mark.parametrize("method", _HEADER_REFUSED)
+@pytest.mark.parametrize("miss", _MISSES)
+def test_a_miss_is_the_plain_404_before_its_headers_are_refused(
+    corpus: Corpus, staging_root: Path, miss: str, method: str
+) -> None:
+    upload = staged(client_as(_ANNA), DRAFT_ULID, _DATA)
+    viewer, ulid, address = _MISSES[miss]
+    send, status = _HEADER_REFUSED[method]
+    _assert_tus_denied(send(client_as(viewer), upload_url(ulid, address(upload))), method)
+    assert send(client_as(_ANNA), upload_url(DRAFT_ULID, upload)).status_code == status
+    assert _head(client_as(_ANNA), DRAFT_ULID, upload)["Upload-Offset"] == str(len(_DATA))
 
 
 @pytest.mark.parametrize("viewer", [None, Public(), Member(groups=("vorstand",)), Archivist()])

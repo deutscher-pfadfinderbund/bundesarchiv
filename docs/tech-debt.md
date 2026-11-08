@@ -20,7 +20,8 @@ every open entry, writes the new number with its date, and closes entries whose 
 
 Source: the 2026-09-01 architecture review (two explorers: web layer, domain/persistence spine),
 migrated here from `ARCHITECTURE-CANDIDATES.local.md`. Numbering is that review's; new entries
-continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are in the evidence lines).
+continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are in the evidence lines);
+#64–76 from the 2026-11-07 deepening review (web layer and spine scouts, weighted to the work since 2026-10-01).
 
 ## Domain language
 
@@ -54,6 +55,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   2026-10-21, better: 2 cross-module, both from `index/scope.py` (`_viewer_scope`, `_scope_columns`); the strict
   count is 6 imports of 4 names, the other 4 take the private `_front_matter`/`_change` modules inside `persistence`.
   The 5 `module._name` reaches in `app/web/legacy_params.py` (`browse_views`, `landing`) are not counted.
+  2026-11-07: 9 such reaches in `app/web` (5 in `legacy_params`, 2 each in `components_demo`, `layouts_demo`).
 - **Evidence:** `media_views._not_found` ×5; `viewers`, `catalog`, `catalog_views`, `browse_views`,
   `index.models` and `index.scope` each hand one or two private names to siblings. Accreted.
 - **Sketch:** promote the deny helper to a public web-level name; each other name goes public on its
@@ -86,6 +88,18 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `repository.py:222`, `collections.py:103`.
 - **Indicator 2026-10-21, stable:** 6 call sites in `app/web`, 0 in persistence and domain.
 - **Sketch:** validate once where a key is built.
+
+### 72. File kind is a domain concept living in the Postgres adapter — Strong
+- **Indicator:** 9 modules outside `index` import `FileKind`/`file_kind`/`mime_type` (2026-11-07)
+- **Evidence:** `index/query.py:FileKind`, `index/indexer.py:mime_type,file_kind` (pure); importers `app/thumbnails.py`, `app/media_text.py`, `app/stats.py`, `app/legacy.py`, `app/web/{browse,browse_views,vocab,components_demo,layouts_demo}.py`. `thumbnails` needs only Pillow yet loads the ORM to ask a pure question. Accreted.
+- **Deletion test:** concentrates — one table of kinds and derivations, one cross-layer import per caller gone
+- **Sketch:** `domain/files.py`: `FileKind`, `mime_type(ref)`, `file_kind(ref)`, `derivations(ref) -> frozenset[Derived]`; thumbnails and media_text keep only their renderers
+
+### 73. Django project settings live in the index package — Worth exploring
+- **Indicator:** 37 settings in `index/settings.py`, 2 about the index (2026-11-07)
+- **Evidence:** `index/settings.py:13,17` build paths into `app/web`; `index/wsgi.py:19` guards a web port; referenced from `pyproject.toml`, `mise.toml`, `manage.py`, `deploy/gunicorn.conf.py`, 3 test sites. Placement, not depth: `index` was the first installed app.
+- **Deletion test:** moves
+- **Sketch:** `bundesarchiv/settings.py`, `settings_dev.py`, `wsgi.py` at the package root; `index` keeps apps, models, migrations
 
 ## Interfaces
 
@@ -160,16 +174,63 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `app/archive.py` reads `BUNDESARCHIV_INDEX`, `app/web/viewers.py` reads `BUNDESARCHIV_REALM`. Bite: `5c4377ee` shipped the realm port without its refusal; `547a1e01` added it the same day.
 - **Sketch:** `tests/app/web/test_deploy_settings.py` derives its list from every `BUNDESARCHIV_*` override that prod settings do not define.
 
+### 64. Media intake: two upload adapters, no shared attach seam — in progress (Wave MEDIA)
+- **Indicator:** 1 dedupe site (`catalog_views._with`), 5 consumers assume one `MediaRef` per content hash; 2 tests pin opposite behaviour (`test_catalog_media.py:246` duplicate ref, `test_chunked_upload.py:142` listed once) (2026-11-07)
+- **Evidence:** `catalog_views.py:771-839` multipart and tus finish each restate admission (ceiling, cleaned name, media-type shape — multipart unchecked) and the write; `:823` forges `Updated(index_updated=True)` for a repeat finish; consumers `catalog.py:apply_media_fields`, `catalog_views._reordered/_without/confirm_remove`, `media_views.py:128`, `thumbnails.py:113`. ADR 0026 states the one-per-hash rule.
+- **Deletion test:** concentrates
+- **Sketch:** `app/media.py`: `attach(archive, ulid, incoming, *, changed_by) -> UpdateOutcome`, `finish_staged(archive, staging, key) -> UpdateOutcome | Repeated | None`, pure `admit(...) -> Refusal | None`; the routes keep protocol and gate only. Owner-grilled 2026-11-07.
+
+### 65. What runs after a canonical write has no single owner — Strong
+- **Indicator:** 6 `after_write.run` call sites in 2 files; `_enqueue_derived` at 2 more; `import_legacy` writes canonical twice with 0 `after_write` calls (2026-11-07)
+- **Evidence:** `app/after_write.py:55-73` owns index sync + mirror enqueue, not the derived jobs (`SavedArticle(ulid)` drops the media); `app/articles.py:36,105,139,157,192-203`, `app/collections.py:28-61` (picks the `Written` variant by reading the stored copy itself); `import_legacy.py:88,115` has a third policy (sync thumbnails, full rebuild, no mirror push, no page text)
+- **Deletion test:** concentrates — the ADR 0013/0014 order lives in one module
+- **Sketch:** `after_write.run(archive, written) -> bool` with `SavedArticle` carrying the Article; pure `after_write.jobs(written) -> tuple[Job, ...]`; pure `domain.collections.moves_visibility(before, after)` picks the variant. Pairs with #66.
+
+### 66. A job is spread over three modules and string-typed references — Strong
+- **Indicator:** 10 `@app.task` + 7 `enqueue_*` wrappers in `tasks.py`, bodies for 4 in `jobs.py`; tests pin 25 task-name string literals through 24 `queued(` calls (2026-11-07)
+- **Evidence:** `app/tasks.py:58-180`, `app/jobs.py:22-72` (mirror pass-throughs; `isinstance(remote, WebDavObjectStore)` at :67 leaks the adapter through the `ObjectStore` port), `app/articles.py:162-189` (typed `Thumbnail`/`PageText` flattened to str kwargs + lock strings)
+- **Deletion test:** moves for the mirror pass-throughs, concentrates for the enqueue wrappers
+- **Sketch:** `type Job = Reindex | ReindexSubtree | Thumbnail | PageText | MirrorPush | MirrorDelete`; `enqueue(job)` the one Procrastinate adapter call; `run(job, deps)` the one dispatch; tests assert `Job` values (ADR 0014's reference-job rule kept)
+
+### 67. Search state is passed in two forms; only one decodes — Worth exploring
+- **Indicator:** 26 signatures take `params: Mapping[str, str]` (browse 11, browse_views 9, ledger 5, reading 1); all 4 results builders take both the raw params and `ParsedQuery` (2026-11-07). Drift: `start.py:74` counts drafts sorted by `added`, its link at `:83` sets only `drafts=1`, so the list opens in ulid order.
+- **Evidence:** `browse.py:52-103` (`ParsedQuery`, one-way), `:154-248` (11 link helpers over raw params), `browse_views.py:285-289`, `ledger.py:152-157,195-202,225-226`, `reading.py:65-75`, `legacy_params.py:50-56` (copies `_parse_sort`). #8 is the output model; this is the input model.
+- **Deletion test:** concentrates — the `params` argument leaves 4 builders, presets become states
+- **Sketch:** `SearchState.parse(params)`, `.query()`, `.with_(p, v)`, `.without(p)`, `.search(viewer, facets) -> SearchPage`; law `parse(s.query()) == s`. `test_workbench.py:489` (14 Postgres round trips) becomes a pure round-trip property.
+
+### 68. A search dimension is spelled in 5 tables; its SQL is visible only through Postgres — Worth exploring
+- **Indicator:** `place` at `index/query.py:53,88,271,430,666`; 153 `django_db` marks in `tests/index`, 0 tests import `_apply_filters`/`_without`/`_ordered`; commit `26fc9141` (creator/place) edited 26 lines across the tables (2026-11-07)
+- **Evidence:** `index/query.py:267-273,419-444,662-725` (`_NESTED` :717, `_without` :721): facet exclusion, Medienart→Dokumenttyp nesting and the date-overlap rule exist only as QuerySet→QuerySet steps. Overlaps #10's "a faceted field = 20 files" from the index side.
+- **Deletion test:** concentrates
+- **Sketch:** `DIMENSIONS: tuple[Dimension(name, filter_field, column, shape, nested)]`; pure `where(filters) -> Q` and `facet_plan(filters, wanted) -> Mapping[str, Q]`; `search()` stays the only executor, the leak suites stay on Postgres (ADR 0024 kept)
+
+### 69. The tus protocol adapter is private code inside `catalog_views` — done
+- **Indicator:** 2026-11-07, done: `web/tus.py` owns the grammar and the answers (171 lines); the tus routes in `catalog_views.py:815-860` are 46 lines of gate, read, staging, answer; 92 pure cases in `test_tus.py`, no client or corpus; the HTTP suite keeps one status per refusal a client sees and the deny-before-refusal rule. The double `_load_gated` was nginx's subrequest and the view: two requests, one call each. Before: 143 lines (`catalog_views.py:842-984`); ~35 header-shape cases in `test_chunked_upload.py:236-330`, each through `client_as` + corpus + HTTP; 0 direct tests of `_count`/`_tus_metadata` (2026-11-07)
+- **Evidence (pre-#69 lines):** `:905` a header refusal is revealed only after a `staging.status` lookup; `:897,993` each piece runs `_load_gated` twice (nginx `upload_gate` + the view). Protocol decisions and staging effects interleave in each view.
+- **Deletion test:** moves (own module) and concentrates (one pure decision)
+- **Sketch:** `web/tus.py`: `read(method, headers) -> Create | Append | Head | Delete | Refusal(status)`, `answer(response)` stamps `Tus-Resumable`; header tables run with no client or corpus. Second step after #64.
+
+### 70. `BulkField` registers labels; the behaviour is a string switch — Worth exploring
+- **Indicator:** 10 per-field `field == "…"`/`case "…"` branches in 2 modules; "Medienart ist erforderlich." twice (`catalog.py:132`, `bulk_views.py:74`); `chooser.accepts`/`error()` at 3 sites; `apply_field`'s `case _:` does nothing (2026-11-07)
+- **Evidence:** `bulk.py:27-37` (`FIELDS`: labels and widgets only), `bulk.py:109-121,168,214,249`, `bulk_views.py:73-77,139,192-195`; the edit form's copy at `catalog.py:128-136`, `catalog_views.py:138-141`. 25 HTTP tests are the only way to reach `_validate`.
+- **Deletion test:** concentrates
+- **Sketch:** `BulkField.validate(value, articles) -> str | None`, `.apply(article, value) -> Article`, `.display(raw) -> str`, sharing the per-field rules with the catalog parse; views iterate `FIELDS`. Touches #33/#34 without owning them.
+
+### 71. The EDTF format is parsed twice — Worth exploring
+- **Indicator:** 1 module outside `domain/edtf.py` still reads the format itself: `app/legacy.py` `_conflicts_with_columns` slices month and day by position (`value[5:7]`, `value[8:10]`), so a season `1962-22` reads as month 22 (2026-11-07; before: `app/web/vocab.py` too, 2 date regexes, its own season table and hand-written token logic, now 0)
+- **Evidence:** `EdtfDate.parts()` decodes to `Point` (Day, Month, YearSeason, Year, Decade, Century; uncertain/approximate), `OpenEnd` (`..`) or `UnknownEnd` (an empty end) from one Lark grammar; `vocab._spelled` matches the spans, mypy holds the match exhaustive, so no raw-text fallback; `bounds()` derives from the parts
+- **Deletion test:** concentrates — `_conflicts_with_columns` reads the Day/Month span from `parts()`, and the last positional reader goes
+
 ## Implementation patterns
 
 ### 27. The thumbnail root is resolved in six places — Worth exploring
-- **Indicator:** 6 `Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)` sites (2026-10-06; 5 on 2026-10-01 — `app/stats.py` joined; 6 on 2026-10-21, stable)
+- **Indicator:** 6 `Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)` sites (2026-10-06; 5 on 2026-10-01 — `app/stats.py` joined; 6 on 2026-10-21, stable; `browse_views.py:192` still one of them 2026-11-07)
 - **Evidence:** `app/tasks.py`, `app/stats.py`, `app/web/media.py`, `import_legacy`, `browse_views`, `rebuild_thumbnails`
 - **Deletion test:** one `thumbnails.root()` removes five copies of the settings lookup
 - **Sketch:** `thumbnails.root() -> Path`; callers pass nothing
 
 ### 14. `catalog_views.py` is the wave's dumping ground — Strong (pointer entry)
-- **Indicator:** 1009 lines, 12 routes (2026-10-01, better; 1380 on 2026-09-02, ~970 before the
+- **Indicator:** 1013 lines, 15 routes (2026-11-07, after #69 moved the tus grammar out); 1129 lines (2026-11-07, before #69); 1009 lines, 12 routes (2026-10-01; 1380 on 2026-09-02, ~970 before the
   registry landed)
 - **Evidence:** routes, the field registry, the structural-save retry, the media drawer and the
   Bestand chooser all live here. Accreted.
@@ -179,7 +240,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ### 15. Archivist route gate spelled many ways — Strong
 - **Indicator:** 15 hand-written `request.method != …` re-checks in `app/web` (2026-10-01, worse; 8 on
   2026-09-02); 13 `isinstance(…, Archivist)` sites in 9 modules (A8: the policy rework's real cost).
-  2026-10-21, worse: 18 method checks (16 on 2026-10-07), a third gate shape in `suggestions.py` (Public or non-GET); 12 sites in 7 modules
+  2026-10-21, worse: 18 method checks (16 on 2026-10-07), a third gate shape in `suggestions.py` (Public or non-GET); 12 sites in 7 modules.
+  2026-11-07, worse: 21 method checks; 11 `isinstance` sites in 6 modules
 - **Evidence:** each write route gates itself; a forgotten gate is open to every Member at runtime
   (only the leak matrix catches it, in tests). 2026-10-01: archivist-only is the default.
 - **Sketch:** a middleware after the anonymous gate makes every route archivist-only; a view opts
@@ -227,6 +289,24 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   selector on a non-root class that sets a non-custom property on a component root.
 - **A context reaches only what reads the role:** `color: inherit` passes the resolved colour, so a
   part that should answer a context binds itself to `var(--ink)` (the menu entries had to).
+
+### 74. Record kind (Article | Collection) has no single seam — Speculative
+- **Indicator:** 10 same-named methods across `ArticleRepository` and `CollectionRepository`; `fixity.py:78-98` dispatches on the key prefix; `mirror.push` tries both repositories for a bare ulid (`mirror.py:106,135`) because `enqueue_mirror_push(ulid)` dropped the kind `after_write` knew (2026-11-07)
+- **Evidence:** `persistence/_layout.py:66-67` (`Records` covers the layout part only), `repository.py`, `collections.py`, `fixity.py`, `app/mirror.py`
+- **Deletion test:** concentrates
+- **Sketch:** `RecordKind(layout, codec, media_of, version_of)` with ARTICLE and COLLECTION; repositories, fixity and the mirror iterate the kinds; conformance tests parametrized by kind. Reads better once #66 carries the kind in the job.
+
+### 75. The edit overlay union stops being a union at `render()` — Speculative
+- **Indicator:** 5 `isinstance(overlay` in `catalog_views.py`, 0 `match`/`assert_never` on `Overlay` (2026-11-07)
+- **Evidence:** `catalog_views.py:307` (the union), `:375-410` (flattened to 4 template flags + a hash in `media_rows`), `:1077` (`_media_surface` configures the surface outside the union, repeating `submitted()`'s media line). The source of #26 and #54; a new member type-checks and renders as if there were no overlay.
+- **Deletion test:** concentrates
+- **Sketch:** `render` does `match overlay` with `assert_never` and passes one `overlay` value to the template; `EditSurface.after_media_change(post, outcome)` replaces `_media_surface`
+
+### 76. `CardRow` repeats `_Field` — Speculative
+- **Indicator:** 14 attribute names shared between `_Field` (21) and `CardRow` (19); 12 copied unchanged at `card.py:398-416`; a throwaway `CardRow` built only to compute an id at `:120` (2026-11-07)
+- **Evidence:** `card.py:52-110,324-365,398-416`; the docstring at `:329` still names the Collection forms removed in `d2113aee`
+- **Deletion test:** vanishes
+- **Sketch:** `CardRow(field: _Field, value, error, was, autofocus, prefix)`; templates read `row.field.label`
 
 ## Tests
 
