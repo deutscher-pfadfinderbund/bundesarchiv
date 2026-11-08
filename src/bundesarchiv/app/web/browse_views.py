@@ -776,8 +776,8 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         # preview() names groups and ignores the lifecycle: archivists only (part-4-web.md)
         "publish_statement": (
             vocab.publish_statement(
-                preview(article, resolution.chain),
-                preview(article, resolution.chain, Aspect.FILES),
+                record := preview(article, resolution.chain),
+                preview(article, resolution.chain, Aspect.FILES) if article.media else record,
             )
             if resolution.is_archivist and is_draft
             else ""
