@@ -9,7 +9,7 @@ from django.db.models import Count
 from procrastinate.contrib.django.models import ProcrastinateJob  # noqa: TID251
 
 from bundesarchiv.app import thumbnails
-from bundesarchiv.index.indexer import mime_type
+from bundesarchiv.domain.files import mime_type
 from bundesarchiv.index.models import ArticleIndex
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.objectstore import ObjectStore

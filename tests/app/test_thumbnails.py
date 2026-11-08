@@ -14,6 +14,7 @@ from tests._pdfs import text_pdf
 
 from bundesarchiv.app import thumbnails
 from bundesarchiv.app.thumbnails import Size, cached, generate_thumbnail, thumbnail_path
+from bundesarchiv.domain.files import Derived, FileKind, derivations
 from bundesarchiv.domain.models import ULID, MediaRef
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -207,3 +208,21 @@ def test_an_unreadable_pdf_derives_no_thumbnail_and_does_not_raise(
     tmp_path: Path, data: bytes
 ) -> None:
     assert _derive(tmp_path, "akte.pdf", data, "application/pdf") is None
+
+
+def test_every_kind_given_a_version_has_a_renderer() -> None:
+    """The domain decides which kinds get a version; their renderers live here, beside Pillow."""
+    a_type_of = {
+        FileKind.IMAGE: "image/png",
+        FileKind.PDF: "application/pdf",
+        FileKind.VIDEO: "video/mp4",
+        FileKind.AUDIO: "audio/mpeg",
+        FileKind.OTHER: "text/plain",
+    }
+    versioned = {
+        kind
+        for kind in FileKind
+        if derivations(MediaRef("f", "h", media_type=a_type_of[kind]))
+        & {Derived.TILE, Derived.DISPLAY}
+    }
+    assert versioned <= thumbnails._RENDERERS.keys()

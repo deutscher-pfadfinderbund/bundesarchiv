@@ -8,6 +8,7 @@ from tests._articles import make_article
 
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.edtf import EdtfDate
+from bundesarchiv.domain.files import FileKind
 from bundesarchiv.domain.models import (
     ULID,
     Article,
@@ -19,7 +20,7 @@ from bundesarchiv.domain.models import (
 )
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import indexer
-from bundesarchiv.index.query import FileKind, SearchFilters, search
+from bundesarchiv.index.query import SearchFilters, search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository

@@ -7,7 +7,8 @@ import pytest
 from django.http import QueryDict
 
 from bundesarchiv.app.web.browse import PAGE_SIZE, PAGE_SIZES, ParsedQuery, parse_query
-from bundesarchiv.index.query import FileKind, SearchFilters, SortOrder
+from bundesarchiv.domain.files import FileKind
+from bundesarchiv.index.query import SearchFilters, SortOrder
 
 
 def _parse(**params: str) -> ParsedQuery:

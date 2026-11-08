@@ -7,8 +7,8 @@ from zoneinfo import ZoneInfo
 
 from bundesarchiv.domain.access import VisibilityPreview
 from bundesarchiv.domain.edtf import EdtfDate
+from bundesarchiv.domain.files import FileKind
 from bundesarchiv.domain.models import Audience, AudienceTier
-from bundesarchiv.index.query import FileKind
 
 #: The Medienarten, verbatim and in the legacy archive's order — the words its catalogers used.
 MEDIA_TYPES: tuple[str, ...] = (

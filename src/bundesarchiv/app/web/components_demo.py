@@ -14,8 +14,9 @@ from bundesarchiv.app.web import browse, ledger, start, vocab
 from bundesarchiv.app.web.browse_views import MediaTile, kind_glyph
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.start import Tile
+from bundesarchiv.domain.files import FileKind
 from bundesarchiv.domain.models import ULID
-from bundesarchiv.index.query import FileKind, SearchHit, TextPage
+from bundesarchiv.index.query import SearchHit, TextPage
 
 ROOT = Path(__file__).resolve().parents[4]
 DESIGN_SYSTEM = ROOT / "docs" / "design" / "design-system.md"

@@ -12,7 +12,8 @@ from tests.app.web._fixtures import make_collection
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_urls import media_url
-from bundesarchiv.index.query import FileKind, SearchHit, TextPage
+from bundesarchiv.domain.files import FileKind
+from bundesarchiv.index.query import SearchHit, TextPage
 
 _ULID = "01KX6RHVHG90WHP1PZWP0GSKQQ"
 _COLLECTION = "01KX6RHVHG90WHP1PZWP0GSKAA"

@@ -89,11 +89,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Indicator 2026-10-21, stable:** 6 call sites in `app/web`, 0 in persistence and domain.
 - **Sketch:** validate once where a key is built.
 
-### 72. File kind is a domain concept living in the Postgres adapter — Strong
-- **Indicator:** 9 modules outside `index` import `FileKind`/`file_kind`/`mime_type` (2026-11-07)
-- **Evidence:** `index/query.py:FileKind`, `index/indexer.py:mime_type,file_kind` (pure); importers `app/thumbnails.py`, `app/media_text.py`, `app/stats.py`, `app/legacy.py`, `app/web/{browse,browse_views,vocab,components_demo,layouts_demo}.py`. `thumbnails` needs only Pillow yet loads the ORM to ask a pure question. Accreted.
+### 72. File kind is a domain concept living in the Postgres adapter — done
+- **Indicator:** 0 modules outside `index` import `FileKind`/`file_kind`/`mime_type` from it (2026-11-07; 9 before)
+- **Evidence:** `domain/files.py` owns `FileKind`, `mime_type`, `file_kind` and the one table `derivations`; `app/thumbnails.py` imports nothing from `index`. One pinned pair: the renderers need Pillow, so `thumbnails._RENDERERS` stays in `app` and `test_every_kind_given_a_version_has_a_renderer` pins it to cover every kind the table gives a version.
 - **Deletion test:** concentrates — one table of kinds and derivations, one cross-layer import per caller gone
-- **Sketch:** `domain/files.py`: `FileKind`, `mime_type(ref)`, `file_kind(ref)`, `derivations(ref) -> frozenset[Derived]`; thumbnails and media_text keep only their renderers
+- **Sketch:** `thumbnails.renders` and `media_text.reads` are one-line asks of `derivations`; `articles.derived_jobs` could ask it directly and drop `reads`
 
 ### 73. Django project settings live in the index package — Worth exploring
 - **Indicator:** 37 settings in `index/settings.py`, 2 about the index (2026-11-07)

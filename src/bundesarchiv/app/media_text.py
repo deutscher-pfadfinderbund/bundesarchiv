@@ -17,9 +17,9 @@ from typing import assert_never
 
 from bundesarchiv.app import pdf
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.domain.files import Derived, derivations
 from bundesarchiv.domain.models import ULID, MediaRef
 from bundesarchiv.index import indexer
-from bundesarchiv.index.query import FileKind
 from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.repository import content_digest
 
@@ -52,7 +52,7 @@ type Parsed = Pages | Unreadable | HashMismatch
 
 def reads(ref: MediaRef) -> bool:
     """Whether text is derived from ``ref``'s file."""
-    return indexer.file_kind(ref) is FileKind.PDF
+    return Derived.PAGE_TEXT in derivations(ref)
 
 
 def readable(media: Iterable[MediaRef]) -> tuple[MediaRef, ...]:
