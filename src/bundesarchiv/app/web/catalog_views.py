@@ -18,9 +18,10 @@ from django.http.response import HttpResponseBase
 from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
+from bundesarchiv.app import media as media_intake
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated, UpdateOutcome
-from bundesarchiv.app.upload_staging import Finished, Key, Refused, Staging, Upload
+from bundesarchiv.app.upload_staging import Key, Refused, Staging, Upload
 from bundesarchiv.app.web import catalog, landing, vocab
 from bundesarchiv.app.web.browse_views import (
     CollectionCrumb,
@@ -59,7 +60,7 @@ from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.query import suggest_tags
 from bundesarchiv.persistence import errors
 from bundesarchiv.persistence.errors import ArchiveError
-from bundesarchiv.persistence.repository import Stored, cleaned_name
+from bundesarchiv.persistence.repository import Stored
 
 #: The refusal when Veröffentlichen arrives for a record whose Collection chain the domain cannot
 #: resolve, said as a field error on the Collection.
@@ -725,10 +726,6 @@ def _audience_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
     return (("", vocab.inherited_caption(inherited)), *vocab.AUDIENCE_OPTIONS[1:])
 
 
-#: How many times a structural media save re-loads after a concurrent version bump before giving up
-#: and telling the archivist to try again (rare: single-app-process, a handful of writers).
-_STRUCTURAL_SAVE_RETRIES = 2
-
 #: The German hinweis shown when a structural media change lost every race (see _media_update).
 _MEDIA_CONFLICT = "Konnte nicht gespeichert werden — bitte erneut versuchen."
 
@@ -782,9 +779,9 @@ def article_media_remove(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 
 def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /articles/<ulid>/media/upload`` — append the posted ``files`` (ADR 0015, 0019); one
-    oversize or nameless file refuses the whole batch. With ``upload_id`` instead: a chunked
-    upload's finish (ADR 0026)."""
+    """``POST /articles/<ulid>/media/upload`` — attach the posted ``files`` (ADR 0015, 0019); one
+    refused file refuses the whole batch. With ``upload_id`` instead: a chunked upload's finish
+    (ADR 0026)."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
@@ -793,73 +790,51 @@ def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
         return _finish_upload(request, archive, Key(upload_id, archivist.username, ulid))
     files = request.FILES.getlist("files")
     ceiling = settings.BUNDESARCHIV_MAX_MULTIPART_UPLOAD_BYTES
-    oversize = any(f.size is not None and f.size > ceiling for f in files)
-    unnamed = any(cleaned_name(f.name or "") is None for f in files)
-    if oversize or unnamed:
-        message = f"Datei zu groß (>{ceiling // 1_000_000} MB)" if oversize else _FILENAME_EMPTY
-        return _media_surface(
-            request, stored.article, stored.version, CollectionChooser.of(archive)
-        ).render(request, overlay=MediaError(message))
-    repo = archive.articles
-    new_refs = [
-        repo.add_media(ulid, f.name or "", cast(BinaryIO, f), f.content_type or None) for f in files
-    ]
-    if new_refs:
-        return _structural_change(
-            request,
-            archive,
-            ulid,
-            lambda media: (*media, *new_refs),
-            changed_by=archivist.username,
-        )
-    # no files posted — plain re-render of the gated Stored
+    refusals = (media_intake.refusal(f.name or "", f.size or 0, ceiling=ceiling) for f in files)
+    refused = next(filter(None, refusals), None)
+    if files and refused is None:
+        incoming = [
+            media_intake.Incoming(f.name or "", cast(BinaryIO, f), f.content_type or None)
+            for f in files
+        ]
+        outcome = media_intake.attach(archive, ulid, incoming, changed_by=archivist.username)
+        return _media_answer(request, archive, ulid, outcome)
+    # no files posted: the plain re-render
+    overlay: Overlay = (
+        _NO_OVERLAY if refused is None else MediaError(_refusal_message(refused, ceiling))
+    )
     return _media_surface(
         request, stored.article, stored.version, CollectionChooser.of(archive)
-    ).render(request)
+    ).render(request, overlay=overlay)
+
+
+def _refusal_message(refused: media_intake.Refusal, ceiling: int) -> str:
+    match refused:
+        case media_intake.Refusal.NAMELESS:
+            return _FILENAME_EMPTY
+        case media_intake.Refusal.TOO_LARGE:
+            return f"Datei zu groß (>{ceiling // 1_000_000} MB)"
 
 
 def _finish_upload(request: HttpRequest, archive: Archive, key: Key) -> HttpResponseBase:
-    """A chunked upload's finish (ADR 0026): its complete bytes become one more media file, as a
-    posted file would, unless the Article has that file already. Anything but a complete upload of
-    this archivist's on this Article is the plain 404. A finish that saves nothing keeps the upload
-    for a repeat, and one that lost every save race answers 503, for the client to send it again; a
-    repeat of a finish that saved answers as it did, saving nothing."""
-    ulid = ULID(key.article)
-    with Staging.configured().claim(key) as claimed:
-        if claimed is None:
+    """A chunked upload's finish (ADR 0026). Anything but a complete upload of this archivist's on
+    this Article is the plain 404; a lost save race answers 503, for the client to send it again;
+    a repeat answers as the first finish did."""
+    match media_intake.finish_staged(archive, Staging.configured(), key):
+        case None:
             return not_found()
-        if claimed is Finished.FINISHED:
-            # Loaded under the lock: a repeat that waited on the first finish shows what it saved.
-            if (stored := _load(archive, ulid, marked=False)) is None:
-                return not_found()
-            return _media_answer(
-                request, archive, ulid, Updated(stored.article, stored.version, index_updated=True)
-            )
-        upload, stream, finish = claimed
-        ref = archive.articles.add_media(ulid, upload.filename, stream, upload.media_type)
-        outcome = _media_update(
-            archive, ulid, lambda media: _with(media, ref), changed_by=key.owner
-        )
-        if isinstance(outcome, Updated):
-            finish()
-    if isinstance(outcome, Conflicted):
-        return HttpResponse(status=503)
-    return _media_answer(request, archive, ulid, outcome)
-
-
-def _with(media: tuple[MediaRef, ...], ref: MediaRef) -> tuple[MediaRef, ...]:
-    """``ref`` after ``media``, unless a file of its bytes is there already."""
-    return media if any(r.content_hash == ref.content_hash for r in media) else (*media, ref)
+        case Conflicted():
+            return HttpResponse(status=503)
+        case outcome:
+            return _media_answer(request, archive, ULID(key.article), outcome)
 
 
 #: The tus protocol version the chunked upload speaks (ADR 0026), core protocol and creation only.
 _TUS_VERSION = "1.0.0"
 
-_DIGITS = re.compile(r"[0-9]+")
+_TUS_REFUSED = {media_intake.Refusal.NAMELESS: 400, media_intake.Refusal.TOO_LARGE: 413}
 
-#: A ``filetype`` is kept only in the shape a multipart part's Content-Type has: it is served back
-#: as the file's Content-Type header.
-_MEDIA_TYPE = re.compile(r"[\w!#$&^.+-]+/[\w!#$&^.+-]+", re.ASCII)
+_DIGITS = re.compile(r"[0-9]+")
 
 
 def _tus(view: Callable[..., HttpResponseBase]) -> Callable[..., HttpResponseBase]:
@@ -888,14 +863,13 @@ def article_tus_create(request: HttpRequest, ulid: str) -> HttpResponseBase:
     length = _count(request.headers.get("Upload-Length"))
     metadata = _tus_metadata(request.headers.get("Upload-Metadata", ""))
     filename = metadata.get("filename")
-    if length is None or filename is None or cleaned_name(filename) is None:
+    if length is None or filename is None:
         return HttpResponse(status=400)
-    if length > settings.BUNDESARCHIV_MAX_UPLOAD_BYTES:
-        return HttpResponse(status=413)
-    filetype = metadata.get("filetype", "")
-    media_type = filetype if _MEDIA_TYPE.fullmatch(filetype) else None
+    refused = media_intake.refusal(filename, length, ceiling=settings.BUNDESARCHIV_MAX_UPLOAD_BYTES)
+    if refused is not None:
+        return HttpResponse(status=_TUS_REFUSED[refused])
     upload_id = Staging.configured().create(
-        Upload(ulid, archivist.username, filename, media_type, length)
+        Upload(ulid, archivist.username, filename, metadata.get("filetype"), length)
     )
     response = HttpResponse(status=201)
     response["Location"] = reverse("article-tus-upload", args=[ulid, upload_id])
@@ -1046,12 +1020,15 @@ def _media_update(
         ulid,
         lambda article: replace(article, media=transform(article.media)),
         changed_by=changed_by,
-        retries=_STRUCTURAL_SAVE_RETRIES,
+        retries=media_intake.SAVE_RETRIES,
     )
 
 
 def _media_answer(
-    request: HttpRequest, archive: Archive, ulid: ULID, outcome: UpdateOutcome
+    request: HttpRequest,
+    archive: Archive,
+    ulid: ULID,
+    outcome: UpdateOutcome | media_intake.Repeated,
 ) -> HttpResponseBase:
     chooser = CollectionChooser.of(archive)
     match outcome:
@@ -1069,6 +1046,11 @@ def _media_answer(
             return _media_surface(request, article, version, chooser, own_save=True).render(
                 request, overlay=_NO_OVERLAY if index_updated else DrawerIndexLag()
             )
+        case media_intake.Repeated(stored=stored):
+            # The save was this client's own finish, whose answer it never got.
+            return _media_surface(
+                request, stored.article, stored.version, chooser, own_save=True
+            ).render(request)
 
 
 def _media_surface(

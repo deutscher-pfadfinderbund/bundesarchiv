@@ -79,6 +79,10 @@ An archival date as an EDTF Level 0/1 string: plain year (`1967`), year-month (`
 **Date added** (*Hinzugefügt am*) — code field `added_at`:
 When an Article entered the archive, UTC. Set once at creation (the legacy import carries the old `pub_date`) and never changed by an edit; a copy is a new Article with its own. Not an archival date — that is the EDTF date. Unknown for trees written before the field existed.
 
+**Media intake** (code term, no UI label):
+Adding files to an Article's media, whatever the transport (a multipart post, a finished chunked upload, later a Submission): one write rule in `app/media.py` — admission (name, size against the transport's ceiling, media-type shape), one `MediaRef` per content hash per Article, the retrying save (ADR 0013). A transport is an adapter that speaks its protocol and hands the module ready bytes; it decides nothing about the Article.
+_Avoid_: upload (the transport, not the rule), attachment (an email idiom).
+
 **Index** (*Suchindex*):
 The derived, disposable Postgres table rebuilt from the canonical `README.md` files. Holds each Article's resolved effective-audience columns (materialized at build time, ADR 0012) and searchable text. Rebuilt in full by `rebuild()`; queried by `search()`. Never canonical — the README is.
 
