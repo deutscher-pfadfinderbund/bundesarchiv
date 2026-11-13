@@ -808,12 +808,28 @@ def test_create_article_enqueues_the_push_of_the_new_article(archive: Archive) -
 
 def test_save_collection_enqueues_one_push_of_the_collection(archive: Archive) -> None:
     stored = archive.collections.load(ID_FOTOS)
+    renamed = replace(stored.collection, name="Lichtbilder")
     jobs = queued(
-        lambda: save_collection(archive, stored.collection, stored.version, changed_by="tester"),
+        lambda: save_collection(archive, renamed, stored.version, changed_by="tester"),
         mirror=True,
     )
 
     assert jobs == [("mirror_push", {"ulid": "FOTOS"})]
+
+
+def test_a_collection_save_that_changes_nothing_refreshes_and_pushes_nothing(
+    archive: Archive, refreshed: list[Refresh]
+) -> None:
+    stored, before = archive.collections.load(ID_FOTOS), list(refreshed)
+    results: list[SaveResult] = []
+    jobs = queued(
+        lambda: results.append(
+            save_collection(archive, stored.collection, stored.version, changed_by="tester")
+        ),
+        mirror=True,
+    )
+
+    assert (results, jobs, refreshed) == ([SaveResult(stored.version, True)], [], before)
 
 
 def test_save_article_mirror_enqueue_failure_does_not_break_save(archive: Archive) -> None:

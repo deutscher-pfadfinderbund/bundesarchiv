@@ -120,21 +120,27 @@ def test_a_stale_save_writes_nothing(store: ObjectStore, make: Callable[..., _Tr
     assert _snapshot(store) == before
 
 
-def test_an_article_save_that_changes_nothing_writes_nothing(store: ObjectStore) -> None:
-    repo = ArticleRepository(store)
-    repo.save(Article(ARTICLE_ULID, "eins", ULID("coll")), 0, changed_by="anna")
+@_KINDS
+def test_a_save_that_changes_nothing_writes_nothing(
+    store: ObjectStore, make: Callable[..., _Tree]
+) -> None:
+    tree = make(store)
+    tree.save("eins", 0, "anna")
     before = _snapshot(store)
-    assert repo.save(repo.load(ARTICLE_ULID).article, 1, changed_by="ben") == 1
+    assert tree.save("eins", 1, "ben") == 1
     assert _snapshot(store) == before
 
 
-def test_a_stale_article_save_conflicts_even_when_it_changes_nothing(store: ObjectStore) -> None:
-    repo = ArticleRepository(store)
-    repo.save(Article(ARTICLE_ULID, "eins", ULID("coll")), 0, changed_by="anna")
-    repo.save(Article(ARTICLE_ULID, "zwei", ULID("coll")), 1, changed_by="anna")
+@_KINDS
+def test_a_stale_save_conflicts_even_when_it_changes_nothing(
+    store: ObjectStore, make: Callable[..., _Tree]
+) -> None:
+    tree = make(store)
+    tree.save("eins", 0, "anna")
+    tree.save("zwei", 1, "anna")
     before = _snapshot(store)
     with pytest.raises(Conflict):
-        repo.save(repo.load(ARTICLE_ULID).article, 1, changed_by="ben")
+        tree.save("zwei", 1, "ben")
     assert _snapshot(store) == before
 
 

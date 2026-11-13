@@ -42,8 +42,9 @@ class CollectionRepository:
         self, collection: Collection, expected_version: Version, *, changed_by: str
     ) -> Version:
         """Optimistically create-or-replace the Collection's README, by `changed_by`, returning the
-        new version. Raises `Conflict` (writing nothing) if the store's version no longer matches
-        `expected_version` — a concurrent write won."""
+        new version; when `collection` equals the stored one, write nothing and return
+        `expected_version`. Raises `Conflict` (writing nothing) if the store's version no longer
+        matches `expected_version` — a concurrent write won."""
         ulid = collection.ulid
         return commit(
             self._store,
@@ -53,6 +54,9 @@ class CollectionRepository:
             version_of=lambda text: collection_readme.decode_collection(text, ulid=ulid)[1],
             render=lambda version, change: collection_readme.encode_collection(
                 collection, version, change
+            ),
+            unchanged=lambda text: (
+                collection_readme.decode_collection(text, ulid=ulid)[0] == collection
             ),
         )
 

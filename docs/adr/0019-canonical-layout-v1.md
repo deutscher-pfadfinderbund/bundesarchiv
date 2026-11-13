@@ -122,7 +122,7 @@ collections/<ulid>/history/<version>.md
   `history/<n>.md`, then the new README (the commit).
   - A crash before the commit leaves the old README in place. The retry finds an
     identical history file and goes on.
-  - An Article save that changes nothing writes no version.
+  - A save that changes nothing writes no version.
 - The history write is create-only. An existing history file is never replaced.
 - Collections follow the same rule. A collection edit is an access change (ADR 0013).
 - `changes/` is dropped. `history/` replaces the `.snapshots/` provision of ADR 0005.

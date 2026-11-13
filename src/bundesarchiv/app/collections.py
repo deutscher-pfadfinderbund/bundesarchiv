@@ -44,6 +44,8 @@ def save_collection(
     """A stale ``expected_version`` raises ``Conflict``."""
     moves = _moves_visibility(archive, collection, expected_version)
     new_version = archive.collections.save(collection, expected_version, changed_by=changed_by)
+    if new_version == expected_version:
+        return SaveResult(version=new_version, index_updated=True)
     written = after_write.MovedCollection if moves else after_write.SavedCollection
     index_updated = after_write.run(archive, written(collection.ulid))
     return SaveResult(version=new_version, index_updated=index_updated)
