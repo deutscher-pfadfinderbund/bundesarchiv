@@ -29,6 +29,7 @@ from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
+from bundesarchiv.domain.history import VersionEntry
 from bundesarchiv.domain.models import ULID, Change, Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.indexer import file_kind
@@ -789,12 +790,12 @@ def _change(change: Change | None) -> dict[str, object] | None:
     }
 
 
-def _versions(versions: tuple[tuple[Version, Change | None], ...]) -> tuple[dict[str, object], ...]:
+def _versions(versions: tuple[VersionEntry, ...]) -> tuple[dict[str, object], ...]:
     """Newest first. One version alone would only repeat the last-change line: no list then."""
     if len(versions) < 2:
         return ()
     return tuple(
-        {"number": number, "change": _change(change)} for number, change in reversed(versions)
+        {"number": entry.version, "change": _change(entry.change)} for entry in reversed(versions)
     )
 
 

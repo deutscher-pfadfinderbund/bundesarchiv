@@ -9,6 +9,7 @@ from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import project_change, project_versions, visible
 from bundesarchiv.domain.collections import ResolvedChain
+from bundesarchiv.domain.history import VersionEntry
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, Change, Version
 from bundesarchiv.domain.viewer import Archivist
@@ -19,14 +20,14 @@ from bundesarchiv.persistence.errors import ArchiveError
 class DetailResolution:
     """``article`` is the ``visible`` projection; ``version`` the stored one the archivist's CAS
     writes expect; ``change`` who wrote it, floored by ``project_change``; ``versions`` reads every
-    version with its change record from the index when called, floored by ``project_versions``."""
+    version as the index logged it when called, floored by ``project_versions``."""
 
     article: Article
     chain: ResolvedChain
     is_archivist: bool
     version: Version
     change: Change | None
-    versions: Callable[[], tuple[tuple[Version, Change | None], ...]]
+    versions: Callable[[], tuple[VersionEntry, ...]]
 
 
 def resolve_visible_detail(

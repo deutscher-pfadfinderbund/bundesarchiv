@@ -4,6 +4,7 @@ Each tsvector is a generated column over an ``IMMUTABLE`` SQL wrapper (migration
 ADR 0011 expression is only ``STABLE``.
 """
 
+import re
 from typing import ClassVar
 
 from django.contrib.postgres.fields import ArrayField
@@ -12,6 +13,12 @@ from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.db.models import F, Func
 from django.db.models.indexes import Index
+
+from bundesarchiv.domain.history import Act, Difference, VersionEntry
+from bundesarchiv.domain.models import ULID, Change
+
+#: What Postgres refuses in a text column: NUL, and a lone surrogate (it has no UTF-8 form).
+UNSTORABLE = re.compile("[\x00\ud800-\udfff]")
 
 # The source columns each wrapper reads, in call order. These MUST match the argument order of
 # the SQL functions created in migration 0001 — the migration and this model are one contract.
@@ -113,13 +120,54 @@ class MediaText(models.Model):
 
 
 class ArticleVersion(models.Model):
-    """One version of an Article and its change record, derived from the files. A rebuild keeps the
-    rows unless the config is stale. The row of a version below the Article's current one never
+    """One version of an Article as its ``VersionEntry``, derived from the files. A rebuild keeps
+    the rows unless the config is stale. The row of a version below the Article's current one never
     changes: history files are create-only. ``changed_at`` and ``changed_by`` are both set or both
-    absent (a version without a readable change record)."""
+    absent (a version without a readable change record); ``difference`` is NULL when what the
+    version changed is unknown."""
 
     pk = models.CompositePrimaryKey("ulid", "version")
     ulid = models.TextField()
     version = models.IntegerField()
     changed_at = models.DateTimeField(null=True)
     changed_by = models.TextField(null=True)
+    difference = models.JSONField(null=True)
+
+    @classmethod
+    def of(cls, ulid: ULID, entry: VersionEntry) -> ArticleVersion:
+        change, difference = entry.change, entry.difference
+        return cls(
+            ulid=ulid,
+            version=entry.version,
+            changed_at=change.at if change else None,
+            changed_by=change.by if change else None,
+            difference=None
+            if difference is None
+            else {
+                "fields": sorted(difference.fields),
+                "custom": sorted(_storable(key) for key in difference.custom),
+                "added": [[_storable(text) for text in file] for file in difference.added],
+                "removed": [[_storable(text) for text in file] for file in difference.removed],
+                "acts": sorted(act.value for act in difference.acts),
+            },
+        )
+
+    def entry(self) -> VersionEntry:
+        at, by, stored = self.changed_at, self.changed_by, self.difference
+        return VersionEntry(
+            self.version,
+            None if at is None or by is None else Change(at, by),
+            None
+            if stored is None
+            else Difference(
+                fields=frozenset(stored["fields"]),
+                custom=frozenset(stored["custom"]),
+                added=tuple((content_hash, name) for content_hash, name in stored["added"]),
+                removed=tuple((content_hash, name) for content_hash, name in stored["removed"]),
+                acts=frozenset(Act(act) for act in stored["acts"]),
+            ),
+        )
+
+
+def _storable(text: str) -> str:
+    return UNSTORABLE.sub("", text)

@@ -26,13 +26,12 @@ from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import (
     ULID,
     Article,
-    Change,
     Collection,
     Lifecycle,
     MediaRef,
     Version,
 )
-from bundesarchiv.index.models import ArticleIndex, ArticleVersion, MediaText
+from bundesarchiv.index.models import UNSTORABLE, ArticleIndex, ArticleVersion, MediaText
 from bundesarchiv.index.query import FileKind
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
 from bundesarchiv.persistence.collections import CollectionRepository
@@ -44,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 # Bump on any change to build_row's output, to what ArticleVersion holds, or to the ADR 0011 FTS
 # config, collation or tsvector wrappers; rows of another version trigger a rebuild.
-CONFIG_VERSION = 10
+CONFIG_VERSION = 11
 
 # Never change it, never reuse it for another lock (ADR 0014).
 _INDEX_WRITER_LOCK_KEY = 0x42554E44
@@ -344,30 +343,18 @@ def index_article(store: ObjectStore, ulid: ULID, *, lock_timeout_ms: int | None
 def _version_rows(
     articles: ArticleRepository, stored: Stored, logged: AbstractSet[Version]
 ) -> list[ArticleVersion]:
-    """The row of ``stored``'s current version, from its README, and the rows of the kept versions
-    below it that ``logged`` lacks. A version is logged only once every kept version below it is,
-    so the history is read only when neither the current version nor the one before it is
-    logged."""
+    """The row of ``stored``'s current version, and the rows of the kept versions below it that
+    ``logged`` lacks. A version is logged only once every kept version below it is, so the whole
+    history is read only when neither the current version nor the one before it is logged; else
+    only the version before it."""
     current = stored.version
     complete = current == 1 or current in logged or current - 1 in logged
-    missing = (
-        []
+    entries = (
+        (articles.last_version(stored),)
         if complete
-        else [(v, c) for v, c in articles.versions(stored) if v < current and v not in logged]
+        else [entry for entry in articles.versions(stored) if entry.version not in logged]
     )
-    return [
-        _version_row(stored.article.ulid, version, change)
-        for version, change in (*missing, (current, stored.change))
-    ]
-
-
-def _version_row(ulid: ULID, version: Version, change: Change | None) -> ArticleVersion:
-    return ArticleVersion(
-        ulid=ulid,
-        version=version,
-        changed_at=change.at if change else None,
-        changed_by=change.by if change else None,
-    )
+    return [ArticleVersion.of(stored.article.ulid, entry) for entry in entries]
 
 
 def index_subtree(
@@ -399,9 +386,6 @@ def _in_subtree(article: Article, collection_ulid: ULID, lookup: dict[ULID, Coll
 #: (the densest legacy page holds 13,753 characters).
 _MAX_PAGE_CHARS = 100_000
 
-#: What Postgres refuses in a text column: NUL, and a lone surrogate (it has no UTF-8 form).
-_UNSTORABLE = re.compile("[\x00\ud800-\udfff]")
-
 
 def store_media_text(content_hash: str, pages: Sequence[str]) -> None:
     """Store the page texts of the file with ``content_hash``, page 1 first; no pages stores the
@@ -412,7 +396,7 @@ def store_media_text(content_hash: str, pages: Sequence[str]) -> None:
             MediaText(
                 content_hash=content_hash,
                 page=number,
-                text=_UNSTORABLE.sub("", text)[:_MAX_PAGE_CHARS],
+                text=UNSTORABLE.sub("", text)[:_MAX_PAGE_CHARS],
             )
             for number, text in enumerate(pages or ("",), 1 if pages else 0)
         ),

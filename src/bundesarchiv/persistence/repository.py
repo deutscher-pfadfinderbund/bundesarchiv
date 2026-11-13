@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, replace
 from typing import BinaryIO
 
+from bundesarchiv.domain.history import VersionEntry, version_entry
 from bundesarchiv.domain.models import ULID, Article, Change, MediaRef, Version
 from bundesarchiv.persistence import _front_matter, readme
 from bundesarchiv.persistence._change import from_front_matter
@@ -141,10 +142,10 @@ class ArticleRepository:
         closes the stream."""
         return self._store.open_stream(media_key(ulid, ref))
 
-    def versions(self, current: Stored) -> tuple[tuple[Version, Change | None], ...]:
-        """Each version of `current`'s Article by number, with its change record: those kept under
-        `history/` (ADR 0019) below it, then `current`. Of a kept version only the change record is read;
-        one without a readable record gives None."""
+    def versions(self, current: Stored) -> tuple[VersionEntry, ...]:
+        """Each version of `current`'s Article by number: those kept under `history/` (ADR 0019)
+        below it, then `current`, each compared with the version below it. A kept version that does
+        not decode still gives who wrote it and when, if its change record reads."""
         ulid = current.article.ulid
         folder = ARTICLES.folder(ulid)
         kept = sorted(
@@ -152,17 +153,35 @@ class ArticleRepository:
             for key in self._store.list(f"{folder}/history/")
             if (version := history_version(folder, key)) is not None and version < current.version
         )
-        return (
-            *((version, self._kept_change(ulid, history_key(folder, version))) for version in kept),
-            (current.version, current.change),
+        known = {
+            **{version: self._kept(ulid, version) for version in kept},
+            current.version: (current.change, current.article),
+        }
+        articles = {version: article for version, (_, article) in known.items()}
+        return tuple(
+            version_entry(version, change, article, articles.get(version - 1))
+            for version, (change, article) in known.items()
         )
 
-    def _kept_change(self, ulid: ULID, key: str) -> Change | None:
+    def last_version(self, current: Stored) -> VersionEntry:
+        """`current`'s own entry in `versions`; reads only the kept version below it."""
+        version = current.version
+        before = self._kept(current.article.ulid, version - 1)[1] if version > 1 else None
+        return version_entry(version, current.change, current.article, before)
+
+    def _kept(self, ulid: ULID, version: Version) -> tuple[Change | None, Article | None]:
+        """The change record and the Article of a kept version, each None when the file is not
+        there or it does not decode. Any other store error raises."""
+        key = history_key(ARTICLES.folder(ulid), version)
         try:
             text = _front_matter.text_of(key, self._store.read(key))
-            return from_front_matter(_front_matter.parse(ulid, text)[0])
-        except ArchiveError, TypeError, ValueError:
-            return None
+        except NotFound, UnreadableReadme:
+            return None, None
+        try:
+            article, _, change = readme.decode(ulid, text)
+        except UnreadableReadme:
+            return _change_alone(ulid, text), None
+        return change, article
 
     def list_ulids(self) -> Iterable[ULID]:
         return ARTICLES.list_ulids(self._store)
@@ -255,6 +274,13 @@ def _equals_stored(article: Article, text: str) -> bool:
     except UnreadableReadme:
         return False
     return stored == article
+
+
+def _change_alone(ulid: ULID, text: str) -> Change | None:
+    try:
+        return from_front_matter(_front_matter.parse(ulid, text)[0])
+    except UnreadableReadme, TypeError, ValueError:
+        return None
 
 
 def _name_of(key: str) -> str:

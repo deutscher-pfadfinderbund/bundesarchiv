@@ -8,7 +8,8 @@ from typing import assert_never
 from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle, Version
+from bundesarchiv.domain.history import VersionEntry
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 # `project` must floor exactly these.
@@ -79,8 +80,8 @@ def project_change(viewer: Viewer, change: Change | None) -> Change | None:
 
 
 def project_versions(
-    viewer: Viewer, read: Callable[[], tuple[tuple[Version, Change | None], ...]]
-) -> tuple[tuple[Version, Change | None], ...]:
+    viewer: Viewer, read: Callable[[], tuple[VersionEntry, ...]]
+) -> tuple[VersionEntry, ...]:
     """Each version names its editor, so the list is an Archivist's alone, as `project_change`;
     `read` runs for no one else."""
     return read() if _sees_changes(viewer) else ()

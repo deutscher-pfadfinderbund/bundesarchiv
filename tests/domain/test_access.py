@@ -15,6 +15,7 @@ from bundesarchiv.domain.access import (
     visible,
 )
 from bundesarchiv.domain.collections import ResolvedChain
+from bundesarchiv.domain.history import Difference, VersionEntry
 from bundesarchiv.domain.models import (
     ULID,
     Article,
@@ -228,10 +229,10 @@ def test_project_change_shows_an_archivist_the_change_as_stored(change: Change |
     assert project_change(Archivist("bert"), change) == change
 
 
-_VERSIONS = ((1, None), (2, _CHANGE))
+_VERSIONS = (VersionEntry(1, None, Difference()), VersionEntry(2, _CHANGE, None))
 
 
-def _unread() -> tuple[tuple[int, Change | None], ...]:
+def _unread() -> tuple[VersionEntry, ...]:
     raise AssertionError("read the versions for a viewer who gets none")
 
 

@@ -3,12 +3,13 @@ under ``history/``, byte for byte, before it commits the new one, and every vers
 wrote it and when."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from bundesarchiv.domain.history import Difference, VersionEntry
 from bundesarchiv.domain.models import ULID, Article, Change, Collection, Version
 from bundesarchiv.persistence._writer import history_key, readme_key
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
@@ -246,11 +247,12 @@ def test_a_crash_mid_save_loses_nothing_and_the_retry_goes_on(
     assert store.read(history_key(tree.folder, 1)) == first
 
 
-# --- reading the versions back: who edited when (#71) -----------------------------
+# --- reading the versions back: who edited when, and what changed ------------------
 
 
 def _saved(repo: ArticleRepository, times: int) -> list[Change | None]:
-    """Save the Article `times` times, each by its own editor; each version's change record."""
+    """Save the Article `times` times, each by its own editor and under its own title; each
+    version's change record."""
     changes = []
     for expected in range(times):
         repo.save(
@@ -262,16 +264,41 @@ def _saved(repo: ArticleRepository, times: int) -> list[Change | None]:
     return changes
 
 
-def test_the_versions_are_every_version_in_order_with_its_change_record(
+def _versions(repo: ArticleRepository) -> tuple[VersionEntry, ...]:
+    return repo.versions(repo.load(ARTICLE_ULID))
+
+
+_TITLE = Difference(fields=frozenset({"title"}))
+
+
+def test_the_versions_are_every_version_in_order_with_who_when_and_what(
     store: ObjectStore,
 ) -> None:
     repo = ArticleRepository(store)
     changes = _saved(repo, 11)  # past 9: the order is by number, not by key text
-    assert repo.versions(repo.load(ARTICLE_ULID)) == tuple(enumerate(changes, start=1))
+    assert _versions(repo) == (
+        VersionEntry(1, changes[0], Difference()),
+        *(VersionEntry(number, change, _TITLE) for number, change in enumerate(changes[1:], 2)),
+    )
+
+
+def test_two_versions_are_compared_as_decoded_never_as_text(store: ObjectStore) -> None:
+    repo = ArticleRepository(store)
+    store.write_atomic(
+        readme_key(_FOLDER),
+        b"<!-- Managed by bundesarchiv \xe2\x80\x94 do not edit by hand. -->\n---\nulid: 01J0\n"
+        b"version: 1\ntitle: Alt\ncollection_id: coll\nlifecycle: draft\ntags: []\n---\nText",
+    )
+    older = repo.load(ARTICLE_ULID)
+    repo.save(replace(older.article, title="Neu"), older.version, changed_by="ed")
+    assert _versions(repo)[1].difference == _TITLE
 
 
 _FOLDER = f"articles/{ARTICLE_ULID}"
 _NO_CHANGE = b"---\nulid: 01J0\nversion: 1\ntitle: Alt\ncollection_id: coll\n---\nText"
+_NO_ARTICLE = (
+    b"---\nulid: 01J0\nversion: 2\nchanged_at: '2026-01-02T00:00:00Z'\nchanged_by: anna\n---\n"
+)
 
 
 @pytest.mark.parametrize(
@@ -292,7 +319,34 @@ def test_a_kept_version_without_a_readable_change_record_still_gives_its_number(
     repo = ArticleRepository(store)
     changes = _saved(repo, 2)
     store.write_atomic(history_key(_FOLDER, 1), kept)
-    assert repo.versions(repo.load(ARTICLE_ULID)) == ((1, None), (2, changes[1]))
+    assert _versions(repo) == (
+        VersionEntry(1, None, Difference()),
+        VersionEntry(2, changes[1], None),
+    )
+
+
+def test_a_kept_version_that_does_not_decode_still_names_who_and_when(
+    store: ObjectStore,
+) -> None:
+    repo = ArticleRepository(store)
+    changes = _saved(repo, 3)
+    store.write_atomic(history_key(_FOLDER, 2), _NO_ARTICLE)
+    assert _versions(repo) == (
+        VersionEntry(1, changes[0], Difference()),
+        VersionEntry(2, Change(datetime(2026, 1, 2, tzinfo=UTC), "anna"), None),
+        VersionEntry(3, changes[2], None),
+    )
+
+
+def test_a_missing_version_leaves_what_the_next_changed_unknown(store: ObjectStore) -> None:
+    repo = ArticleRepository(store)
+    changes = _saved(repo, 4)
+    store.delete(history_key(_FOLDER, 2))
+    assert _versions(repo) == (
+        VersionEntry(1, changes[0], Difference()),
+        VersionEntry(3, changes[2], None),
+        VersionEntry(4, changes[3], _TITLE),
+    )
 
 
 @pytest.mark.parametrize(
@@ -306,13 +360,35 @@ def test_a_kept_version_not_below_the_current_one_is_not_listed(
     store: ObjectStore, kept: Version
 ) -> None:
     repo = ArticleRepository(store)
-    changes = _saved(repo, 2)
+    _saved(repo, 2)
+    listed = _versions(repo)
     store.write_atomic(history_key(_FOLDER, kept), store.read(readme_key(_FOLDER)))
-    assert repo.versions(repo.load(ARTICLE_ULID)) == tuple(enumerate(changes, start=1))
+    assert _versions(repo) == listed
 
 
 def test_a_file_in_history_that_keeps_no_version_is_no_version(store: ObjectStore) -> None:
     repo = ArticleRepository(store)
     changes = _saved(repo, 1)
     store.write_atomic(f"{_FOLDER}/history/notiz.md", b"hand-written")
-    assert repo.versions(repo.load(ARTICLE_ULID)) == ((1, changes[0]),)
+    assert _versions(repo) == (VersionEntry(1, changes[0], Difference()),)
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        pytest.param(lambda store: None, id="complete"),
+        pytest.param(lambda store: store.delete(history_key(_FOLDER, 2)), id="before it missing"),
+        pytest.param(
+            lambda store: store.write_atomic(history_key(_FOLDER, 2), _NO_ARTICLE),
+            id="before it undecodable",
+        ),
+    ],
+)
+def test_the_last_version_alone_is_the_last_of_the_versions(
+    store: ObjectStore, damage: Callable[[ObjectStore], None]
+) -> None:
+    repo = ArticleRepository(store)
+    _saved(repo, 3)
+    damage(store)
+    current = repo.load(ARTICLE_ULID)
+    assert repo.last_version(current) == repo.versions(current)[-1]

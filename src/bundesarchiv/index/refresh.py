@@ -5,7 +5,8 @@ subtree, read an Article's versions. Each adapter is built over the archive's st
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
-from bundesarchiv.domain.models import ULID, Change, Version
+from bundesarchiv.domain.history import VersionEntry
+from bundesarchiv.domain.models import ULID, Version
 from bundesarchiv.index.indexer import index_article, index_subtree
 from bundesarchiv.index.models import ArticleVersion
 from bundesarchiv.persistence.collections import CollectionRepository
@@ -27,9 +28,9 @@ class Index(Protocol):
     def refresh_subtree(self, collection_ulid: ULID) -> None:
         """Recompute the row of every Article under ``collection_ulid``."""
 
-    def versions(self, ulid: ULID) -> tuple[tuple[Version, Change | None], ...]:
-        """Each version of Article ``ulid`` by number, with its change record. It names who
-        edited, so only ``project_versions`` hands it on."""
+    def versions(self, ulid: ULID) -> tuple[VersionEntry, ...]:
+        """Each version of Article ``ulid`` by number, as ``ArticleRepository.versions`` reads it
+        from the files. It names who edited, so only ``project_versions`` hands it on."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,15 +47,9 @@ class PostgresIndex:
     def refresh_subtree(self, collection_ulid: ULID) -> None:
         index_subtree(self.store, collection_ulid, lock_timeout_ms=self.lock_timeout_ms)
 
-    def versions(self, ulid: ULID) -> tuple[tuple[Version, Change | None], ...]:
-        rows = (
-            ArticleVersion.objects.filter(ulid=ulid)
-            .order_by("version")
-            .values_list("version", "changed_at", "changed_by")
-        )
+    def versions(self, ulid: ULID) -> tuple[VersionEntry, ...]:
         return tuple(
-            (version, None if at is None or by is None else Change(at, by))
-            for version, at, by in rows
+            row.entry() for row in ArticleVersion.objects.filter(ulid=ulid).order_by("version")
         )
 
 
@@ -86,7 +81,7 @@ class InMemoryIndex:
             version = None
         self._record(("subtree", collection_ulid, version))
 
-    def versions(self, ulid: ULID) -> tuple[tuple[Version, Change | None], ...]:
+    def versions(self, ulid: ULID) -> tuple[VersionEntry, ...]:
         articles = ArticleRepository(self.store)
         return articles.versions(articles.load(ulid))
 

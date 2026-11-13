@@ -454,8 +454,8 @@ def test_an_archivist_sees_every_version_with_its_date_and_editor(twice_edited: 
     articles = twice_edited.articles
     versions = articles.versions(articles.load(ULID(PUB)))
     body = _body(Archivist(), PUB)
-    assert [number for number, _ in versions] == [1, 2]
-    for _, change in versions:
+    assert [entry.version for entry in versions] == [1, 2]
+    for change in (entry.change for entry in versions):
         assert change is not None
         assert change.by in body
         assert change.at.isoformat() in body
