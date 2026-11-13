@@ -259,7 +259,9 @@ def rebuild(store: ObjectStore) -> RebuildReport:
         _take_writer_lock()
         lookup, unreadable_collections = _collection_lookup(store)
         scan = articles.scan()
-        built = [(a.ulid, *_row_for(a, lookup, cap_year=cap_year)) for a in scan.readable]
+        built = [
+            (s.article.ulid, *_row_for(s.article, lookup, cap_year=cap_year)) for s in scan.readable
+        ]
         rows = [row for _, row, _ in built]
         rows += [_unreadable_row(ulid, cap_year=cap_year) for ulid in scan.unreadable]
         # No row at all leaves nothing to tell which config the kept page vectors were built under.
@@ -313,7 +315,8 @@ def index_subtree(
     with transaction.atomic():
         _take_writer_lock(lock_timeout_ms)
         lookup, _ = _collection_lookup(store)
-        for article in articles.scan().readable:
+        for stored in articles.scan().readable:
+            article = stored.article
             if _in_subtree(article, collection_ulid, lookup):
                 row, _failed = _row_for(article, lookup, cap_year=cap_year)
                 ArticleIndex.objects.update_or_create(ulid=article.ulid, defaults=row)

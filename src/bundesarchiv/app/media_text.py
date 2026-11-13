@@ -123,7 +123,7 @@ def _fill_one(archive: Archive, ulid: ULID, ref: MediaRef) -> Parsed | None:
 
 def missing(archive: Archive) -> tuple[ULID, ...]:
     """The Articles whose README decodes with a ``readable`` file that has no text yet."""
-    files = {a.ulid: readable(a.media) for a in archive.articles.scan().readable}
+    files = {s.article.ulid: readable(s.article.media) for s in archive.articles.scan().readable}
     done = indexer.hashes_with_text(r.content_hash for refs in files.values() for r in refs)
     return tuple(
         ulid for ulid, refs in files.items() if any(r.content_hash not in done for r in refs)

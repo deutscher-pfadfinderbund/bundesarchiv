@@ -26,7 +26,7 @@ def log_archive_stats(store: ObjectStore, *, index_rows_before: int | None = Non
     of a kind that has a renderer; ``index_drift`` is the index rows BEFORE the reconcile's rebuild
     (``index_rows_before``; else the current rows) minus canonical Articles: what the rebuild repaired."""
     scan = ArticleRepository(store).scan()
-    articles = scan.readable
+    articles = [stored.article for stored in scan.readable]
     refs = [ref for article in articles for ref in article.media]
     per_type = Counter(mime_type(ref) or "unknown" for ref in refs)
     bytes_per_type = Counter[str]()

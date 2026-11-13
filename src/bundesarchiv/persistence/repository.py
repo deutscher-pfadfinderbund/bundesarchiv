@@ -167,9 +167,10 @@ class ArticleRepository:
     def list_ulids(self) -> Iterable[ULID]:
         return ARTICLES.list_ulids(self._store)
 
-    def scan(self) -> Scan[Article]:
-        """Every saved Article, sorted by whether its README decodes (owner 2026-10-01)."""
-        return ARTICLES.scan(self._store, lambda ulid: self.load(ulid).article)
+    def scan(self) -> Scan[Stored]:
+        """Every saved Article as loaded, sorted by whether its README decodes (owner
+        2026-10-01)."""
+        return ARTICLES.scan(self._store, self.load)
 
     def keys_for(self, ulid: ULID) -> list[StoredKey]:
         """The keys of the Article's folder in the order a save writes them: media, history, the
