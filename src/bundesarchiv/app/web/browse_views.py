@@ -773,7 +773,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
             else vocab.FURTHER_FILES
         ),
         "location": article.physical_location or "",
-        "custom": article.custom,
+        "custom": tuple((k, v) for k, v in article.custom if k != "Legacy-ID"),
     }
 
 

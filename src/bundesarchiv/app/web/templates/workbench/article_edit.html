@@ -200,6 +200,10 @@ save gets HX-Redirect.{% endcomment %}
       <header class="section-head"><h2 id="h-more">Weitere Angaben <span class="note">intern</span></h2></header>
       {% if errors.custom %}<p class="error" role="alert">{{ errors.custom }}</p>{% endif %}
       {% for key, val in values.custom_rows %}
+      {% if key == "Legacy-ID" %}
+      <input type="hidden" name="custom_key" value="{{ key }}" form="edit-form">
+      <input type="hidden" name="custom_value" value="{{ val }}" form="edit-form">
+      {% else %}
       <div class="pairs">
         <label class="field">
           <span>Feld</span>
@@ -212,6 +216,7 @@ save gets HX-Redirect.{% endcomment %}
         <button class="remove danger" type="submit" name="custom_remove" value="{{ forloop.counter0 }}" form="edit-form"
                 aria-label="{{ key|default:"Angabe" }} entfernen" title="{{ key|default:"Angabe" }} entfernen">{% include "components/icon.html" with name="x" only %}</button>
       </div>
+      {% endif %}
       {% endfor %}
       <button class="add" type="submit" name="custom_add" form="edit-form">+ Angabe hinzufügen</button>
       <datalist id="custom-keys">

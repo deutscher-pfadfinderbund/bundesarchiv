@@ -1094,7 +1094,7 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     page.goto(edit_url)
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
     page.click('button:has-text("+ Angabe hinzufügen")')
-    page.fill('input[name="custom_key"]', "Quelle")
+    page.fill('input[name="custom_key"]:visible', "Quelle")
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
     # and the plain path still works: a field inside the form reveals it too
     page.goto(edit_url)
