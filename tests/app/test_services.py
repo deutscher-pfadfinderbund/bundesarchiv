@@ -112,6 +112,10 @@ def _filled(archive: Archive) -> Archive:
     return archive
 
 
+def _edited(article: Article) -> Article:
+    return replace(article, body=f"{article.body}Bearbeitet.")
+
+
 def _pub_titles(viewer: Viewer) -> set[str]:
     return {hit.title for hit in search(viewer, page_size=200).hits}
 
@@ -127,7 +131,7 @@ def test_save_article_writes_canonical_and_indexes(pg_archive: Archive) -> None:
 
     articles = pg_archive.articles
     stored = articles.load(ID_01FOTO)
-    result = save_article(pg_archive, stored.article, stored.version, changed_by="tester")
+    result = save_article(pg_archive, _edited(stored.article), stored.version, changed_by="tester")
 
     assert isinstance(result, SaveResult)
     assert result.index_updated is True
@@ -288,7 +292,7 @@ def test_delete_and_restore_move_the_article_between_the_list_and_the_trash(
     pg_archive: Archive,
 ) -> None:
     stored = pg_archive.articles.load(ID_01FOTO)
-    save_article(pg_archive, stored.article, stored.version, changed_by="tester")
+    save_article(pg_archive, _edited(stored.article), stored.version, changed_by="tester")
     assert _archivist_titles(deleted=False) == {"Öffentliches Foto"}
 
     stored = pg_archive.articles.load(ID_01FOTO)
@@ -445,7 +449,7 @@ def test_hard_delete_article_removes_index_row(pg_archive: Archive) -> None:
     articles = pg_archive.articles
     save_article(
         pg_archive,
-        articles.load(ID_01FOTO).article,
+        _edited(articles.load(ID_01FOTO).article),
         articles.load(ID_01FOTO).version,
         changed_by="tester",
     )
@@ -486,7 +490,7 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
     results: list[SaveResult] = []
     jobs = queued(
         lambda: results.append(
-            save_article(archive, stored.article, stored.version, changed_by="tester")
+            save_article(archive, _edited(stored.article), stored.version, changed_by="tester")
         )
     )
     (result,) = results
@@ -507,7 +511,7 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
     results: list[SaveResult] = []
     queued(
         lambda: results.append(
-            save_article(archive, stored.article, stored.version, changed_by="tester")
+            save_article(archive, _edited(stored.article), stored.version, changed_by="tester")
         ),
         refuse=frozenset({"reindex_article"}),
     )
@@ -543,7 +547,7 @@ def test_a_write_refreshes_the_index_once_the_store_holds_it(
 ) -> None:
     """A refresh re-reads the store, so it runs after the canonical write (ADR 0014)."""
     stored = archive.articles.load(ID_01FOTO)
-    saved = save_article(archive, stored.article, stored.version, changed_by="t")
+    saved = save_article(archive, _edited(stored.article), stored.version, changed_by="t")
     marked = delete_article(archive, stored.article, saved.version, changed_by="t")
     hard_delete_article(archive, ID_01FOTO, marked.version)
     fotos = archive.collections.load(ID_FOTOS)
@@ -584,7 +588,7 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(pg_archive: Arc
         results: list[SaveResult] = []
         jobs = queued(
             lambda: results.append(
-                save_article(archive, stored.article, stored.version, changed_by="tester")
+                save_article(archive, _edited(stored.article), stored.version, changed_by="tester")
             )
         )
         elapsed = time.monotonic() - started
@@ -608,7 +612,7 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
     articles = pg_archive.articles
     save_article(
         pg_archive,
-        articles.load(ID_01FOTO).article,
+        _edited(articles.load(ID_01FOTO).article),
         articles.load(ID_01FOTO).version,
         changed_by="tester",
     )
@@ -640,7 +644,7 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
     articles = pg_archive.articles
     save_article(
         pg_archive,
-        articles.load(ID_01FOTO).article,
+        _edited(articles.load(ID_01FOTO).article),
         articles.load(ID_01FOTO).version,
         changed_by="tester",
     )
@@ -723,6 +727,22 @@ def test_a_save_queues_the_jobs_its_files_derive(archive: Archive) -> None:
     ]
 
 
+def test_a_save_that_changes_nothing_refreshes_pushes_and_derives_nothing(
+    archive: Archive, refreshed: list[Refresh]
+) -> None:
+    _save_scan_and_pdf(archive)
+    stored, before = archive.articles.load(ID_01FOTO), list(refreshed)
+    results: list[SaveResult] = []
+    jobs = queued(
+        lambda: results.append(
+            save_article(archive, stored.article, stored.version, changed_by="tester")
+        ),
+        mirror=True,
+    )
+
+    assert (results, jobs, refreshed) == ([SaveResult(stored.version, True)], [], before)
+
+
 def test_a_failed_thumbnail_enqueue_neither_breaks_the_save_nor_skips_the_page_text(
     archive: Archive,
 ) -> None:
@@ -741,7 +761,7 @@ def test_a_failed_thumbnail_enqueue_neither_breaks_the_save_nor_skips_the_page_t
 def test_save_article_enqueues_one_push_of_the_article(archive: Archive) -> None:
     stored = archive.articles.load(ID_01FOTO)
     jobs = queued(
-        lambda: save_article(archive, stored.article, stored.version, changed_by="tester"),
+        lambda: save_article(archive, _edited(stored.article), stored.version, changed_by="tester"),
         mirror=True,
     )
 
@@ -751,7 +771,7 @@ def test_save_article_enqueues_one_push_of_the_article(archive: Archive) -> None
 def test_a_write_enqueues_nothing_without_a_mirror(archive: Archive) -> None:
     stored = archive.articles.load(ID_01FOTO)
     jobs = queued(
-        lambda: save_article(archive, stored.article, stored.version, changed_by="tester")
+        lambda: save_article(archive, _edited(stored.article), stored.version, changed_by="tester")
     )
 
     assert jobs == []
@@ -803,7 +823,7 @@ def test_save_article_mirror_enqueue_failure_does_not_break_save(archive: Archiv
     results: list[SaveResult] = []
     queued(
         lambda: results.append(
-            save_article(archive, stored.article, stored.version, changed_by="tester")
+            save_article(archive, _edited(stored.article), stored.version, changed_by="tester")
         ),
         mirror=True,
         refuse=frozenset({"mirror_push"}),
@@ -874,7 +894,9 @@ def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(pg_archive: Arch
     """The index holds no Collection name and a new Collection holds no Articles, so neither waits on the
     index lock nor queues a reindex, and the renamed Collection still finds its Article."""
     stored_article = pg_archive.articles.load(ID_01FOTO)
-    save_article(pg_archive, stored_article.article, stored_article.version, changed_by="tester")
+    save_article(
+        pg_archive, _edited(stored_article.article), stored_article.version, changed_by="tester"
+    )
     archive = _with_lock_timeout(pg_archive)
 
     stored = archive.collections.load(ID_FOTOS)
@@ -907,7 +929,9 @@ def test_gate_a_rename_at_a_version_it_did_not_read_still_reindexes(
     """A rename whose ``expected_version`` is ahead of the version the service read wins the CAS
     against a concurrent widening edit that lands in between, and writes the older, narrower
     audience back. Its reindex must run, or the index keeps the widened audience."""
-    save_article(pg_archive, pg_archive.articles.load(ID_01FOTO).article, 1, changed_by="t")
+    save_article(
+        pg_archive, _edited(pg_archive.articles.load(ID_01FOTO).article), 1, changed_by="t"
+    )
     fotos = pg_archive.collections.load(ID_FOTOS)
     save_collection(pg_archive, _narrowed(fotos.collection), fotos.version, changed_by="t")
     narrow = pg_archive.collections.load(ID_FOTOS)
@@ -942,7 +966,7 @@ def test_gate_moving_a_collection_under_a_narrower_parent_hides_its_articles(
         lifecycle=Lifecycle.PUBLISHED,
     )
     pg_archive.articles.save(article, 0, changed_by="t")
-    save_article(pg_archive, article, 1, changed_by="t")
+    save_article(pg_archive, _edited(article), 1, changed_by="t")
     assert "Geerbt" in _pub_titles(PUBLIC)  # inherits PUBLIC from FOTOS
 
     stored = pg_archive.collections.load(ULID("KIND"))

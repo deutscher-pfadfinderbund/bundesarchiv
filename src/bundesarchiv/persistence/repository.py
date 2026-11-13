@@ -61,9 +61,16 @@ class ArticleRepository:
 
     def save(self, article: Article, expected_version: Version, *, changed_by: str) -> Version:
         """Commit `article` as the version after `expected_version`, by `changed_by`, and return
-        it. Raises `Conflict` (writing nothing) on a stale version, `ArchiveError` on media not yet
+        it; when `article` equals the stored one, write nothing and return `expected_version`.
+        Raises `Conflict` (writing nothing) on a stale version, `ArchiveError` on media not yet
         stored."""
-        return self._commit(article, lambda _: article, expected_version, changed_by)
+        return self._commit(
+            article,
+            lambda _: article,
+            expected_version,
+            changed_by,
+            unchanged=lambda text: _equals_stored(article, text),
+        )
 
     def mark_deleted(
         self, article: Article, expected_version: Version, *, changed_by: str
@@ -80,6 +87,8 @@ class ArticleRepository:
         stamped: Callable[[Change], Article],
         expected_version: Version,
         changed_by: str,
+        *,
+        unchanged: Callable[[str], bool] = lambda _: False,
     ) -> Version:
         return commit(
             self._store,
@@ -89,6 +98,7 @@ class ArticleRepository:
             version_of=lambda text: readme.read_version(article.ulid, text),
             render=lambda version, change: readme.encode(stamped(change), version, change),
             precondition=lambda: self._refuse_unstored_media(article),
+            unchanged=unchanged,
         )
 
     def add_media(
@@ -236,6 +246,14 @@ class ArticleRepository:
 
     def _read_readme(self, ulid: ULID) -> str:
         return _front_matter.text_of(ulid, self._store.read(ARTICLES.readme_key(ulid)))
+
+
+def _equals_stored(article: Article, text: str) -> bool:
+    try:
+        stored = readme.decode(article.ulid, text)[0]
+    except UnreadableReadme:
+        return False
+    return stored == article
 
 
 def _name_of(key: str) -> str:

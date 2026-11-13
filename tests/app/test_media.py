@@ -163,6 +163,14 @@ def test_attach_lists_bytes_the_article_holds_once(archive: Archive) -> None:
     assert _names(archive) == ["cover.jpg", "scan.pdf"]
 
 
+def test_attaching_only_files_the_article_holds_writes_no_version(archive: Archive) -> None:
+    media.attach(archive, _ULID, [_incoming("scan.pdf", _DATA)], changed_by="anna")
+    stored = archive.articles.load(_ULID)
+    outcome = media.attach(archive, _ULID, [_incoming("scan.pdf", _DATA)], changed_by="bert")
+    assert isinstance(outcome, Updated) and outcome.version == stored.version
+    assert archive.articles.load(_ULID) == stored
+
+
 def test_attach_to_an_article_in_the_papierkorb_is_missing(archive: Archive) -> None:
     stored = archive.articles.load(_ULID)
     archive.articles.mark_deleted(stored.article, stored.version, changed_by="bert")

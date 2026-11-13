@@ -233,8 +233,8 @@ def test_the_form_as_rendered_saves_every_other_value_unchanged(
     post["title"] = title or post["title"]
     assert archivist.post(f"/articles/{_ULID}/edit", post).status_code == 302
     after = corpus.articles.load(_ULID)
-    assert after.version == version + 1, "the form did not save"
     assert after.article == replace(before, title=title or before.title)
+    assert after.version == (version + 1 if title else version)
 
 
 @pytest.mark.parametrize("ticked", [True, False])

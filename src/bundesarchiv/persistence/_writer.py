@@ -87,9 +87,11 @@ def commit(
     version_of: Callable[[str], Version],
     render: Callable[[Version, Change], str],
     precondition: Callable[[], None] = lambda: None,
+    unchanged: Callable[[str], bool] = lambda _: False,
 ) -> Version:
     """Replace ``folder``'s README with ``render(new_version, change)`` and return the new version.
-    ``change`` names ``changed_by`` and the time of the save.
+    ``change`` names ``changed_by`` and the time of the save. When ``unchanged`` holds for the
+    stored README's text, nothing is written and the stored version comes back.
 
     Raises ``Conflict`` and writes nothing when the stored version is not ``expected_version``
     (absent README: version 0), and ``ValueError`` before any write when ``changed_by`` is not a
@@ -100,9 +102,13 @@ def commit(
     change = Change(datetime.now(UTC).replace(microsecond=0), changed_by)
     with WRITER_LOCK:
         current = _read_readme(store, folder)
-        version = 0 if current is None else version_of(text_of(folder, current))
+        stored = None if current is None else text_of(folder, current)
+        version = 0 if stored is None else version_of(stored)
         _check(folder, expected_version, version)
         precondition()
+        # After the check: a stale save conflicts even when it changes nothing.
+        if stored is not None and unchanged(stored):
+            return version
         text = render(version + 1, change)
         if current is not None:
             _keep(store, history_key(folder, version), current)

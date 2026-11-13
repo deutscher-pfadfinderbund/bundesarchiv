@@ -301,14 +301,18 @@ def _reach_edit_more_details(page: Page, base: str, corpus: CorpusHandles) -> No
 
 
 def _reach_edit_conflict(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # "Inzwischen geändert": a second tab saves the record unchanged (a version bump only, so every
-    # other state keeps its content), then this tab's typed edits lose the CAS race
+    # "Inzwischen geändert": a second tab saves a change and takes it back (new versions, the same
+    # content, so the notice shows only this tab's edits), then this tab's edits lose the CAS race
     page.goto(f"{base}/articles/{corpus.published_ulid}/edit")
     other = page.context.new_page()
     try:
         other.goto(page.url)
-        other.click('main button:has-text("Speichern")')
-        other.wait_for_url(lambda url: "/edit" not in url)
+        creator = other.input_value('input[name="creator"]')
+        for value in (f"{creator} (zuvor)", creator):
+            other.goto(page.url)
+            other.fill('input[name="creator"]', value)
+            other.click('main button:has-text("Speichern")')
+            other.wait_for_url(lambda url: "/edit" not in url)
     finally:
         other.close()
     page.fill('input[name="date"]', "1962~")

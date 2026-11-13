@@ -120,6 +120,37 @@ def test_a_stale_save_writes_nothing(store: ObjectStore, make: Callable[..., _Tr
     assert _snapshot(store) == before
 
 
+def test_an_article_save_that_changes_nothing_writes_nothing(store: ObjectStore) -> None:
+    repo = ArticleRepository(store)
+    repo.save(Article(ARTICLE_ULID, "eins", ULID("coll")), 0, changed_by="anna")
+    before = _snapshot(store)
+    assert repo.save(repo.load(ARTICLE_ULID).article, 1, changed_by="ben") == 1
+    assert _snapshot(store) == before
+
+
+def test_a_stale_article_save_conflicts_even_when_it_changes_nothing(store: ObjectStore) -> None:
+    repo = ArticleRepository(store)
+    repo.save(Article(ARTICLE_ULID, "eins", ULID("coll")), 0, changed_by="anna")
+    repo.save(Article(ARTICLE_ULID, "zwei", ULID("coll")), 1, changed_by="anna")
+    before = _snapshot(store)
+    with pytest.raises(Conflict):
+        repo.save(repo.load(ARTICLE_ULID).article, 1, changed_by="ben")
+    assert _snapshot(store) == before
+
+
+def test_an_article_save_over_a_readme_whose_fields_do_not_decode_still_writes(
+    store: ObjectStore,
+) -> None:
+    """A hand edit may leave a README whose version reads but whose fields do not (ADR 0020)."""
+    rotten = (
+        b"---\nulid: 01J0\nversion: 1\ntitle: eins\ncollection_id: coll\nlifecycle: kaputt\n---\n"
+    )
+    store.write_atomic(readme_key(_FOLDER), rotten)
+    repo = ArticleRepository(store)
+    assert repo.save(Article(ARTICLE_ULID, "eins", ULID("coll")), 1, changed_by="ben") == 2
+    assert store.read(history_key(_FOLDER, 1)) == rotten
+
+
 @_KINDS
 def test_a_history_file_holding_other_bytes_stops_the_save(
     store: ObjectStore, make: Callable[..., _Tree]
@@ -217,7 +248,9 @@ def _saved(repo: ArticleRepository, times: int) -> list[Change | None]:
     changes = []
     for expected in range(times):
         repo.save(
-            Article(ARTICLE_ULID, "Titel", ULID("coll")), expected, changed_by=f"ed{expected}"
+            Article(ARTICLE_ULID, f"Titel {expected}", ULID("coll")),
+            expected,
+            changed_by=f"ed{expected}",
         )
         changes.append(repo.load(ARTICLE_ULID).change)
     return changes

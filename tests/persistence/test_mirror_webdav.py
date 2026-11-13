@@ -63,7 +63,7 @@ def test_a_save_pushes_its_new_history_file_and_readme_in_one_request_each(
     scan = archive.articles.add_media(ID_01A, "Brief 100% ü.pdf", io.BytesIO(b"x" * 3_000_007))
     for version in (0, 1):
         archive.articles.save(
-            Article(ID_01A, "Brief", ID_FOTOS, media=(scan,)),
+            Article(ID_01A, f"Brief {version}", ID_FOTOS, media=(scan,)),
             version,
             changed_by="tester",
         )

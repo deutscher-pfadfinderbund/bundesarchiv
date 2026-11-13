@@ -4,7 +4,7 @@ public body."""
 import io
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -427,7 +427,7 @@ def twice_edited(make_corpus: Callable[[], Corpus]) -> Corpus:
     )
     article = make_article(PUB, collection_id=FOTOS)
     archive.articles.save(article, 0, changed_by=_FIRST_EDITOR)
-    archive.articles.save(article, 1, changed_by=_SECOND_EDITOR)
+    archive.articles.save(replace(article, title="Neu"), 1, changed_by=_SECOND_EDITOR)
     return archive
 
 
@@ -557,8 +557,6 @@ def test_an_images_alt_is_its_description_else_its_caption_else_its_file_name(
     make_corpus: Callable[[], Corpus],
 ) -> None:
     """One rule for the cover, the row tiles and the lightbox; a blank stored alt counts as none."""
-    from dataclasses import replace
-
     from PIL import Image
 
     archive = make_corpus()

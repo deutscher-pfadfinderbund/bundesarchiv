@@ -34,6 +34,8 @@ def save_article(
 ) -> SaveResult:
     """The form path (ADR 0013): a stale ``expected_version`` raises ``Conflict``."""
     new_version = archive.articles.save(article, expected_version, changed_by=changed_by)
+    if new_version == expected_version:
+        return SaveResult(version=new_version, index_updated=True)
     index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
     _enqueue_derived(article)
     return SaveResult(version=new_version, index_updated=index_updated)

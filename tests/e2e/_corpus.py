@@ -2,7 +2,7 @@
 stress goes on the Titel, the one unbounded field (Signaturen are bounded: ``CEILING_REF_CODE``).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from io import BytesIO
 from pathlib import Path
 
@@ -182,9 +182,8 @@ def write_corpus(root: Path, thumbnail_root: Path | None = None) -> None:
         ),
     )
     # two versions by two archivists: the article page's version list
-    articles.save(
-        sommerfahrt, articles.save(sommerfahrt, 0, changed_by="anna.k"), changed_by="tester"
-    )
+    first = articles.save(replace(sommerfahrt, subject_place=None), 0, changed_by="anna.k")
+    articles.save(sommerfahrt, first, changed_by="tester")
     articles.save(
         Article(
             ulid=SECOND_ULID,
