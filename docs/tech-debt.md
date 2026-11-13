@@ -74,8 +74,9 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ### 37. "What a non-Archivist may see" is declared in 7 places — Strong
 - **Indicator:** 7 declarations, 3 drift guards, 2 unguarded; 2 contradict on `audience` (2026-10-01, A2; not re-measured 2026-10-31)
-- **Evidence:** `domain/access.py:ARCHIVIST_ONLY_FIELDS`, `index/indexer.py:_BUILDER_FIELDS`, `index/query.py:HEADLINE_FIELDS`/`_SUGGESTED_COLUMNS`, `index/models.py:archivist_text`. Bite: `91900b3` (group names leaked), `ed4c054`.
+- **Evidence:** `domain/access.py:ARCHIVIST_ONLY_FIELDS`, `index/indexer.py:_BUILDER_FIELDS`, `index/query.py:HEADLINE_FIELDS`/`Suggested`, `index/models.py:archivist_text`. Bite: `91900b3` (group names leaked), `ed4c054`.
 - **Indicator 2026-10-21, worse:** `query.HEADLINE_FIELDS` and `query._SUGGESTED_COLUMNS` declare member-visible subsets, each guarded by its own leak suite (`test_leaks_headlines.py`, `test_leaks_suggestions.py`), neither derived from `ARCHIVIST_ONLY_FIELDS`.
+- **Indicator 2026-11-07:** `_SUGGESTED_COLUMNS` is gone (#68): the suggested subset is the `query.Suggested` Literal, held by the type checker only; `values_containing` reads its column from `_DIMENSIONS`, which accepts every `Facet`. Still 7 declarations.
 - **Sketch:** one owner of the visible attributes; the Python/SQL scope pair stays two encodings.
 
 ### 39. Mirror push overwrites a remote README without checking its token — Worth exploring
@@ -198,8 +199,9 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** concentrates — the `params` argument leaves 4 builders, presets become states
 - **Sketch:** `SearchState.parse(params)`, `.query()`, `.with_(p, v)`, `.without(p)`, `.search(viewer, facets) -> SearchPage`; law `parse(s.query()) == s`. `test_workbench.py:489` (14 Postgres round trips) becomes a pure round-trip property.
 
-### 68. A search dimension is spelled in 5 tables; its SQL is visible only through Postgres — Worth exploring
+### 68. A search dimension is spelled in 5 tables; its SQL is visible only through Postgres — done
 - **Indicator:** `place` at `index/query.py:53,88,271,430,666`; 153 `django_db` marks in `tests/index`, 0 tests import `_apply_filters`/`_without`/`_ordered`; commit `26fc9141` (creator/place) edited 26 lines across the tables (2026-11-07)
+- **Indicator 2026-11-07, done:** `place` at `index/query.py:54` (`Facet`), `:89` (`SearchFilters`), `:268` (`Suggested`, #37), `:435` (its one `_DIMENSIONS` row); 0 parallel tables. `where`, `facet_plan` and `dateless_plan` own every filter and exclusion; 10 database-free tests pin composition, exclusion and nesting (`tests/index/test_search_predicates.py`), the rows each filter keeps stay pinned once on Postgres (220 tests in `tests/index`).
 - **Evidence:** `index/query.py:267-273,419-444,662-725` (`_NESTED` :717, `_without` :721): facet exclusion, Medienart→Dokumenttyp nesting and the date-overlap rule exist only as QuerySet→QuerySet steps. Overlaps #10's "a faceted field = 20 files" from the index side.
 - **Deletion test:** concentrates
 - **Sketch:** `DIMENSIONS: tuple[Dimension(name, filter_field, column, shape, nested)]`; pure `where(filters) -> Q` and `facet_plan(filters, wanted) -> Mapping[str, Q]`; `search()` stays the only executor, the leak suites stay on Postgres (ADR 0024 kept)
