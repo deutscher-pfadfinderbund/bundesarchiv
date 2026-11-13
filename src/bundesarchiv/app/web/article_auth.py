@@ -19,7 +19,7 @@ from bundesarchiv.persistence.errors import ArchiveError
 class DetailResolution:
     """``article`` is the ``visible`` projection; ``version`` the stored one the archivist's CAS
     writes expect; ``change`` who wrote it, floored by ``project_change``; ``versions`` reads every
-    version with its change record when called, floored by ``project_versions``."""
+    version with its change record from the index when called, floored by ``project_versions``."""
 
     article: Article
     chain: ResolvedChain
@@ -53,5 +53,7 @@ def resolve_visible_detail(
         is_archivist=isinstance(viewer, Archivist),
         version=loaded.version,
         change=project_change(viewer, loaded.change),
-        versions=partial(project_versions, viewer, partial(archive.articles.versions, loaded)),
+        versions=partial(
+            project_versions, viewer, partial(archive.index.versions, loaded.article.ulid)
+        ),
     )

@@ -8,32 +8,43 @@ import datetime
 import logging
 import mimetypes
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
+from functools import reduce
+from operator import or_
 from typing import TypedDict
 
 from django.db import connection, transaction
-from django.db.models import F, Func
+from django.db.models import F, Func, Q
 
 from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
 from bundesarchiv.domain.audience import ARCHIVIST_ONLY, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import ULID, Article, Collection, Lifecycle, MediaRef
-from bundesarchiv.index.models import ArticleIndex, MediaText
+from bundesarchiv.domain.models import (
+    ULID,
+    Article,
+    Change,
+    Collection,
+    Lifecycle,
+    MediaRef,
+    Version,
+)
+from bundesarchiv.index.models import ArticleIndex, ArticleVersion, MediaText
 from bundesarchiv.index.query import FileKind
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import NotFound, UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository
+from bundesarchiv.persistence.repository import ArticleRepository, Stored
 
 logger = logging.getLogger(__name__)
 
-# Bump on any change to build_row's output or to the ADR 0011 FTS config, collation or tsvector
-# wrappers; rows of another version trigger a rebuild.
-CONFIG_VERSION = 9
+# Bump on any change to build_row's output, to what ArticleVersion holds, or to the ADR 0011 FTS
+# config, collation or tsvector wrappers; rows of another version trigger a rebuild.
+CONFIG_VERSION = 10
 
 # Never change it, never reuse it for another lock (ADR 0014).
 _INDEX_WRITER_LOCK_KEY = 0x42554E44
@@ -245,9 +256,11 @@ def _collection_lookup(store: ObjectStore) -> tuple[dict[ULID, Collection], tupl
 
 def rebuild(store: ObjectStore) -> RebuildReport:
     """Rebuild the index from the canonical files in one transaction. On return ``ArticleIndex``
-    holds one row per Article, ``MediaText`` holds only text some row names (ADR 0023), and every
-    page vector matches the current config. An Article that cannot be indexed (a ``DomainError``, a
-    README that does not decode) gets an archivist-only row, reported in the ``RebuildReport``.
+    holds one row per Article, ``ArticleVersion`` the versions of each (refilled from the files
+    when the config is stale, else read from a history only where rows are missing), ``MediaText``
+    holds only text some row names (ADR 0023), and every page vector matches the current config.
+    An Article that cannot be indexed (a ``DomainError``, a README that does not decode) gets an
+    archivist-only row, reported in the ``RebuildReport``.
 
     Holds the shared index-writer lock throughout (ADR 0014 v2); searches see the old rows until
     it commits.
@@ -270,6 +283,23 @@ def rebuild(store: ObjectStore) -> RebuildReport:
         ArticleIndex.objects.bulk_create(ArticleIndex(**row) for row in rows)
         named = ArticleIndex.objects.annotate(_hash=Func(F("media_hashes"), function="unnest"))
         MediaText.objects.exclude(content_hash__in=named.values("_hash")).delete()
+        gone = ArticleVersion.objects.exclude(ulid__in=ArticleIndex.objects.values("ulid"))
+        (ArticleVersion.objects.all() if stale else gone).delete()
+        logged: defaultdict[str, set[Version]] = defaultdict(set)
+        for ulid, version in ArticleVersion.objects.values_list("ulid", "version"):
+            logged[ulid].add(version)
+        if tails := [
+            Q(ulid=s.article.ulid, version__gt=s.version)
+            for s in scan.readable
+            if any(version > s.version for version in logged[s.article.ulid])
+        ]:
+            ArticleVersion.objects.filter(reduce(or_, tails)).delete()
+        ArticleVersion.objects.bulk_create(
+            row
+            for s in scan.readable
+            if s.version not in logged[s.article.ulid]
+            for row in _version_rows(articles, s, logged[s.article.ulid])
+        )
         if stale:
             # Postgres recomputes a stored generated column
             MediaText.objects.update(text=F("text"))
@@ -293,16 +323,51 @@ def index_article(store: ObjectStore, ulid: ULID, *, lock_timeout_ms: int | None
     with transaction.atomic():
         _take_writer_lock(lock_timeout_ms)
         try:
-            article = articles.load(ulid).article
+            stored = articles.load(ulid)
         except NotFound:
             ArticleIndex.objects.filter(ulid=ulid).delete()
+            ArticleVersion.objects.filter(ulid=ulid).delete()
             return
         except UnreadableReadme:
             row = _unreadable_row(ulid, cap_year=cap_year)
         else:
             lookup, _ = _collection_lookup(store)
-            row, _failed = _row_for(article, lookup, cap_year=cap_year)
+            row, _failed = _row_for(stored.article, lookup, cap_year=cap_year)
+            logged = frozenset(
+                ArticleVersion.objects.filter(ulid=ulid).values_list("version", flat=True)
+            )
+            ArticleVersion.objects.filter(ulid=ulid, version__gte=stored.version).delete()
+            ArticleVersion.objects.bulk_create(_version_rows(articles, stored, logged))
         ArticleIndex.objects.update_or_create(ulid=ulid, defaults=row)
+
+
+def _version_rows(
+    articles: ArticleRepository, stored: Stored, logged: AbstractSet[Version]
+) -> list[ArticleVersion]:
+    """The row of ``stored``'s current version, from its README, and the rows of the kept versions
+    below it that ``logged`` lacks. A version is logged only once every kept version below it is,
+    so the history is read only when neither the current version nor the one before it is
+    logged."""
+    current = stored.version
+    complete = current == 1 or current in logged or current - 1 in logged
+    missing = (
+        []
+        if complete
+        else [(v, c) for v, c in articles.versions(stored) if v < current and v not in logged]
+    )
+    return [
+        _version_row(stored.article.ulid, version, change)
+        for version, change in (*missing, (current, stored.change))
+    ]
+
+
+def _version_row(ulid: ULID, version: Version, change: Change | None) -> ArticleVersion:
+    return ArticleVersion(
+        ulid=ulid,
+        version=version,
+        changed_at=change.at if change else None,
+        changed_by=change.by if change else None,
+    )
 
 
 def index_subtree(

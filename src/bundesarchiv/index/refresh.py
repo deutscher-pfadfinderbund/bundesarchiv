@@ -1,12 +1,13 @@
-"""The index as the write path sees it (ADR 0024): refresh one Article's row, refresh a
-Collection's subtree. Each adapter is built over the archive's store. ``PostgresIndex`` is the
-index; ``InMemoryIndex`` is the test fake."""
+"""The index as the archive holds it (ADR 0024): refresh one Article's row, refresh a Collection's
+subtree, read an Article's versions. Each adapter is built over the archive's store.
+``PostgresIndex`` is the index; ``InMemoryIndex`` is the test fake."""
 
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
-from bundesarchiv.domain.models import ULID, Version
+from bundesarchiv.domain.models import ULID, Change, Version
 from bundesarchiv.index.indexer import index_article, index_subtree
+from bundesarchiv.index.models import ArticleVersion
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
@@ -17,13 +18,18 @@ SYNC_LOCK_TIMEOUT_MS = 5000
 
 
 class Index(Protocol):
-    """Best effort: the write already stood, so a caller survives a raise (ADR 0014)."""
+    """A refresh is best effort: the write already stood, so a caller survives a raise
+    (ADR 0014)."""
 
     def refresh_article(self, ulid: ULID) -> None:
         """Recompute ``ulid``'s row from the store, or drop it when the Article is gone."""
 
     def refresh_subtree(self, collection_ulid: ULID) -> None:
         """Recompute the row of every Article under ``collection_ulid``."""
+
+    def versions(self, ulid: ULID) -> tuple[tuple[Version, Change | None], ...]:
+        """Each version of Article ``ulid`` by number, with its change record. It names who
+        edited, so only ``project_versions`` hands it on."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +46,17 @@ class PostgresIndex:
     def refresh_subtree(self, collection_ulid: ULID) -> None:
         index_subtree(self.store, collection_ulid, lock_timeout_ms=self.lock_timeout_ms)
 
+    def versions(self, ulid: ULID) -> tuple[tuple[Version, Change | None], ...]:
+        rows = (
+            ArticleVersion.objects.filter(ulid=ulid)
+            .order_by("version")
+            .values_list("version", "changed_at", "changed_by")
+        )
+        return tuple(
+            (version, None if at is None or by is None else Change(at, by))
+            for version, at, by in rows
+        )
+
 
 #: A refresh the fake was asked for, and the version ``store`` held at that moment (None: absent).
 type Refresh = tuple[Literal["article", "subtree"], ULID, Version | None]
@@ -48,8 +65,8 @@ type Refresh = tuple[Literal["article", "subtree"], ULID, Version | None]
 @dataclass
 class InMemoryIndex:
     """Records each refresh with what ``store`` held then, and computes no rows; with ``failing``
-    every refresh raises after it is recorded. It never gets search or facets: the read side runs
-    real SQL so the leak tests prove it (ADR 0024)."""
+    every refresh raises after it is recorded. ``versions`` reads the store's files. It never gets
+    search or facets: the read side runs real SQL so the leak tests prove it (ADR 0024)."""
 
     store: ObjectStore
     failing: bool = False
@@ -68,6 +85,10 @@ class InMemoryIndex:
         except NotFound:
             version = None
         self._record(("subtree", collection_ulid, version))
+
+    def versions(self, ulid: ULID) -> tuple[tuple[Version, Change | None], ...]:
+        articles = ArticleRepository(self.store)
+        return articles.versions(articles.load(ulid))
 
     def _record(self, refresh: Refresh) -> None:
         self.refreshed.append(refresh)

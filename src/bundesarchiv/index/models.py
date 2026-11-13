@@ -110,3 +110,16 @@ class MediaText(models.Model):
 
     class Meta:
         indexes: ClassVar[list[Index]] = [GinIndex(fields=["tsv"], name="index_media_text_tsv_gin")]
+
+
+class ArticleVersion(models.Model):
+    """One version of an Article and its change record, derived from the files. A rebuild keeps the
+    rows unless the config is stale. The row of a version below the Article's current one never
+    changes: history files are create-only. ``changed_at`` and ``changed_by`` are both set or both
+    absent (a version without a readable change record)."""
+
+    pk = models.CompositePrimaryKey("ulid", "version")
+    ulid = models.TextField()
+    version = models.IntegerField()
+    changed_at = models.DateTimeField(null=True)
+    changed_by = models.TextField(null=True)

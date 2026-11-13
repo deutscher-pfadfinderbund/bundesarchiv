@@ -22,8 +22,9 @@ canonical store and the two repositories built over it.
 - **Construction rule: the `Archive` builds its index from its own store.** It takes a factory
   `(store) -> index` and calls it with its store; it never takes a ready index.
 - **The port speaks in IDs** and lives in the `index` package: refresh one Article's row (or drop
-  it when the Article is gone), refresh a Collection's subtree. Best effort: the write already
-  stood. Which write needs which refresh stays in `after_write.run`.
+  it when the Article is gone), refresh a Collection's subtree, read one Article's versions. A
+  refresh is best effort: the write already stood. Which write needs which refresh stays in
+  `after_write.run`.
 - **Postgres is the default.** `Archive.of(store)` builds the Postgres index; a test asks for the
   in-memory one explicitly. `Archive.canonical()` builds the Postgres index too, unless a test's
   settings override sets `BUNDESARCHIV_INDEX` to another factory. The settings module never
@@ -33,7 +34,8 @@ canonical store and the two repositories built over it.
   lock timeout is a construction parameter.
 - **The in-memory index computes no rows.** It records each refresh with the version the store
   held at that moment, so a test still sees a refresh that ran before its write; it can be told
-  to fail. Row content stays covered by the indexer's own Postgres tests.
+  to fail. It answers an Article's versions from the store's files. Row content stays covered by
+  the indexer's own Postgres tests.
 
 The mirror is different. It is another store that receives copies, it is optional, and its role
 swaps with the canonical store in ADR 0020 Stage B. So it stays an argument of the jobs that use

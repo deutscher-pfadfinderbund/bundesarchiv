@@ -13,6 +13,7 @@ from django.test import override_settings
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import (
     Corpus,
+    KeyRecordingStore,
     client_as,
     download_hrefs,
     draft_mark,
@@ -438,6 +439,15 @@ def test_no_non_archivist_learns_who_edited_any_version(
     body = _body(viewer, PUB)
     assert _FIRST_EDITOR not in body
     assert _SECOND_EDITOR not in body
+
+
+@pytest.mark.parametrize("viewer", [Public(), Member(groups=()), Member(groups=("Leitung",))])
+def test_no_non_archivist_view_reads_the_versions(
+    twice_edited: Corpus, recording_store: KeyRecordingStore, viewer: Viewer
+) -> None:
+    _body(viewer, PUB)
+    assert recording_store.keys
+    assert not [key for key in recording_store.keys if "/history/" in key]
 
 
 def test_an_archivist_sees_every_version_with_its_date_and_editor(twice_edited: Corpus) -> None:

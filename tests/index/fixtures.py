@@ -155,11 +155,12 @@ def indexed_corpus[T](django_db_blocker: DjangoDbBlocker, build: Callable[[], T]
     at teardown. Every module-scoped corpus fixture yields from it and adds no wipe of its own; not
     autouse, so no-DB tests stay DB-free. One more row beside the corpus: ``index_beside_corpus``.
     """
-    from bundesarchiv.index.models import ArticleIndex
+    from bundesarchiv.index.models import ArticleIndex, ArticleVersion
 
     with django_db_blocker.unblock():
         yield build()
         ArticleIndex.objects.all().delete()
+        ArticleVersion.objects.all().delete()
 
 
 def index_beside_corpus(root: Collection, *articles: Article) -> None:
