@@ -55,6 +55,10 @@ Status: Accepted (2026-11-07; proposed 2026-09-24). Amends 0005, 0006, 0013, 001
 > matches the push record (ADR 0020). It runs with the app stopped and takes no lock:
 > `WRITER_LOCK` serializes the saves of one process only (ADR 0013).
 >
+> A migration that changes what a README decodes to is not this exception. It commits a new
+> version under a system name, as the legacy import does, so the difference is recorded as the
+> migration's and not as the next editor's (owner, 2026-11-13).
+>
 > The re-encode ran on 2026-10-16 (2516 rewritten, none left); its code was removed afterwards.
 
 ## Context
