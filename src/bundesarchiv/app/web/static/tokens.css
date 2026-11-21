@@ -91,8 +91,13 @@
     --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
     --measure: 80rem; /* the page grid: the header and a page share its measure and gutter */
     --gutter: 3rem;
+    /* the inline padding that puts a full-width band's content on the page grid */
+    --page-inset: max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter));
     --measure-prose: 65ch; /* the reading measure: running text and captions */
     --measure-query: 26rem; /* one query or caption field; a toolpanel's width */
+    --measure-menu: 12rem; /* a menu's and a check list's least width */
+    --measure-title: 30ch; /* the article title */
+    --column-min: 18rem; /* the narrowest column: a form cell, the form's margin */
     --measure-decade: 10ch; /* "Unbekannt" in the data face */
     --measure-date: 12ch; /* "1984-11-26" plus air, in the data face */
     --measure-ref-code: 12ch; /* a Signatur of at most 8 characters, in the data face */

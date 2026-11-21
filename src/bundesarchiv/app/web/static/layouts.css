@@ -26,7 +26,7 @@
        (0 where a composition already sets the page grid). */
     --_search-sentence-pad: var(
       --search-sentence-pad,
-      var(--space-4) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter)) var(--space-2)
+      var(--space-4) var(--page-inset) var(--space-2)
     );
     container-type: inline-size;
     padding: var(--_search-sentence-pad);
@@ -317,7 +317,7 @@
     align-items: center;
     gap: var(--space-3) var(--space-4);
     /* the band spans the viewport; its content sits on the page grid (the measure, then the gutter) */
-    padding: var(--space-3) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter));
+    padding: var(--space-3) var(--page-inset);
     /* the band: re-points the roles for its subtree (tokens.css) */
     --ground: var(--band-ground);
     --ink: var(--band-ink);
@@ -334,7 +334,7 @@
     display: flex;
     margin-block-start: auto;
     justify-content: flex-end;
-    padding: var(--space-8) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter));
+    padding: var(--space-8) var(--page-inset);
   }
   /* the wordmark: the ONE place a display face has character (owner 2026-08-07) */
   .wordmark {
@@ -408,7 +408,7 @@
     align-items: start;
     gap: var(--space-4);
     /* on the page grid, like the header (body > header): the list starts where the wordmark starts */
-    padding: var(--space-4) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter));
+    padding: var(--space-4) var(--page-inset);
   }
 
   /* the work column: a vertical stack, whatever the screen puts in it. The workbench's bulk form
@@ -450,8 +450,7 @@
       );
     align-items: start;
     gap: var(--space-8);
-    padding: var(--space-6) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter))
-      var(--space-8);
+    padding: var(--space-6) var(--page-inset) var(--space-8);
   }
   .start > [data-span="all"] {
     grid-column: 1 / -1;
@@ -686,7 +685,7 @@
   }
   @media (width >= 80rem) /* space budget L (design-system.md): the margin takes a side column */ {
     .form-sheet {
-      grid-template-columns: minmax(0, 1fr) 18rem; /* the margin column: the mock's --column-min */
+      grid-template-columns: minmax(0, 1fr) var(--column-min);
       grid-template-areas: "lead meta" "body meta";
     }
     .form-sheet > aside {
@@ -697,13 +696,12 @@
   }
 
   /* field-grid — fields in aligned cells, at most two per row; [data-span="all"] takes the row.
-     S gets one per row: a cell is never narrower than --field-grid-min. */
+     S gets one per row: a cell is never narrower than --column-min. */
   .field-grid {
     display: grid;
-    --field-grid-min: 18rem; /* the narrowest cell: the mock's --column-min */
     grid-template-columns: repeat(
         auto-fill,
-        minmax(max(min(100%, var(--field-grid-min)), calc((100% - var(--space-8)) / 2)), 1fr)
+        minmax(max(min(100%, var(--column-min)), calc((100% - var(--space-8)) / 2)), 1fr)
       );
     align-items: start;
     gap: var(--space-6) var(--space-8);

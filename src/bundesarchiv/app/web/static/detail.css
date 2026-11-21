@@ -30,7 +30,7 @@
     margin: 0;
   }
   .article-page h1 {
-    max-width: 30ch; /* the title measure (the mock's --measure-title) */
+    max-width: var(--measure-title);
     font: var(--type-page-title);
   }
 

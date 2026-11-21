@@ -970,7 +970,7 @@
     text-decoration: none;
   }
   ul.menu[popover] {
-    min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
+    min-width: var(--measure-menu);
   }
   /* menu delta: a fixed label neither wraps nor ellipsizes, so the entry's own box pads and centers
      it — link or submit button alike (Kopieren mutates, so it cannot be a link), or the button
@@ -1201,7 +1201,7 @@
   /* a check list (the ledger's "Spalten …") is as wide as its longest entry */
   .toolpanel:has(> ul) {
     inline-size: auto;
-    min-inline-size: 12rem; /* the panel's reading width — one structural size, no token fits */
+    min-inline-size: var(--measure-menu);
   }
   .toolpanel > ul {
     padding: 0;
