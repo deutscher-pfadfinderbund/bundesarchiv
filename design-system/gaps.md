@@ -21,7 +21,9 @@ requires demonstrating the original Expected result.
 - **Next step:** design the control primitives clean-room, then propose their contracts for the
   owner's approval.
 - **Decision needed:** when an action outside a menu takes a text look; the button size (DESIGN.md
-  and the mock against the shipped CSS); a disabled state for the framed looks.
+  and the mock against the shipped CSS); a disabled state for the framed looks. Decided
+  2026-11-21 (owner): the frame is opt-in, a bare `button` is text (law C1); a control's inner
+  sizes follow its font (law C5).
 
 ### The Lightbox has no contract and is not on every page with image tiles
 

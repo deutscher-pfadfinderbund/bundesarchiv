@@ -22,6 +22,7 @@ Source: the 2026-09-01 architecture review (two explorers: web layer, domain/per
 migrated here from `ARCHITECTURE-CANDIDATES.local.md`. Numbering is that review's; new entries
 continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are in the evidence lines);
 #64–76 from the 2026-11-07 deepening review (web layer and spine scouts, weighted to the work since 2026-10-01).
+#77–80 from the 2026-11-21 stylesheet analysis and the owner's decisions of that day (design-review-law C1, C3, C5, C15 to C18).
 
 ## Domain language
 
@@ -308,6 +309,18 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** vanishes
 - **Sketch:** `CardRow(field: _Field, value, error, was, autofocus, prefix)`; templates read `row.field.label`
 
+### 77. Stylesheets restate and undo instead of inheriting — Strong
+- **Indicator:** 31 `margin: 0`; 26 rules restating the quiet voice (meta or label type with `--ink-2`); 6 rules stripping the button frame for 23 of 48 `<button>`s; 56 hand-written stacks and wrap-rows; 12 hover-underline rules (2026-11-21)
+- **Evidence:** `components.css` elements layer (`:where(button, a.button)`, no margin reset), `button.link`, `.remove`, `.theme-toggle`, `.add`, `.help`, `.menu-button`; the mock's `system.css` elements layer and `.stack`; accreted, one component section per task
+- **Deletion test:** a component declares only its difference; the six undo blocks, most margin resets and the per-component flex bundles go
+- **Sketch:** law C1 and C15 to C17: a bare `button` is text and `.button` frames; one margin reset; a voice set once per region; stack, wrap-row and page grid as classes. One consolidation wave each (C18)
+
+### 78. Literals and control sizes the amended C5 refuses — Worth exploring
+- **Indicator:** 7 literals whose comment names a mock token (`--column-min` twice, `--measure-thumb`, `--measure-title`); `12rem` twice, `0.18s` four times, `opacity: 0.6` twice; every control padded in `rem` (2026-11-21)
+- **Evidence:** `layouts.css` `.form-sheet`, `.field-grid`; `components.css` `.file-row`, `ul.menu[popover]`, `.toolpanel:has(> ul)`; `detail.css` `.lightbox`; the elements layer's button and field padding; `design-system.md` "Tokens" lists `--space-9`, `--space-10`, `--gap-*`, `--pad-row` and `--measure-title`, which `tokens.css` lacks
+- **Deletion test:** the comments defending a literal go; a control in a larger type role needs no padding knob (`--search-field-pad`)
+- **Sketch:** port the mock's tokens the app uses twice; control padding, gap and icon size in `em`
+
 ## Tests
 
 ### 55. Tests monkeypatch our own code — Strong
@@ -349,6 +362,18 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `workbench/column.html`, `workbench/_header.html`, `workbench/_search_field.html`
 - **Deletion test:** one include per fact; the demo shows the real entries
 - **Sketch:** a crumbs include and a filter-params include
+
+### 79. The design lint lags the 2026-11-21 decisions — Strong
+- **Indicator:** 3 checks missing or contradicting law C3 and C5; 2 knobs no rule sets (`--toolbar-opacity`, `--reading-measure`), 11 of 19 set once (2026-11-21)
+- **Evidence:** `test_design_lint.py` `test_bare_dimension_literals_are_named_or_commented` (any comment or `--name:` exempts a literal), `test_a_public_knob_is_read_only_where_it_is_resolved` (refuses the inline form)
+- **Deletion test:** a repeated literal or a speculative knob fails the lint instead of passing with a comment
+- **Sketch:** a literal in two rules fails whatever its comment; the S and L thresholds (40rem, 80rem) are named once in the lint, since a query cannot read a token; a knob with no setter fails; a knob read once may be read inline
+
+### 80. No declaration probe (law C18) — Strong
+- **Indicator:** about 50 of 1,150 declarations change no computed value in any gallery state, about 35 sit in rules no state activates (2026-11-21, a throwaway probe over 171 page-states, Chromium)
+- **Evidence:** no tool; `tests/CLAUDE.md` allows it (owner, 2026-11-21); #61 wants the same harness
+- **Deletion test:** a declaration that does nothing fails one command instead of passing review
+- **Sketch:** per gallery state, in light and dark, at rest and with hover and focus forced over CDP: mark each rule with a sentinel property to find where it applies, drop each declaration through `rule.style.cssText`, compare the computed longhands; a baseline that only shrinks
 
 ## Process law
 

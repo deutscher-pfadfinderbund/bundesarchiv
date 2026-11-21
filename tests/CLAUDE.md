@@ -20,7 +20,9 @@ governs new tests only.
   law's lintable subset over the prod stylesheets. A second exception: a structure gate
   is allowed when its failure names a finding class with bite evidence in
   `docs/tech-debt.md` or the review ledger; `tests/test_structure.py` and the
-  module-map gate are the instances.
+  module-map gate are the instances. A third (owner, 2026-11-21): the declaration probe of
+  design-review-law C18, a browser run that removes each stylesheet declaration over the
+  gallery states; not built yet (`docs/tech-debt.md` #80).
 - **Performance micro-pins** (load-count spies) — they pin implementation, not
   behavior. Not one: a wire pin that states an ADR's contract (the push order ADR 0020
   prescribes, `[PUT history, PUT README]`) is behaviour, even though it also fixes the count.

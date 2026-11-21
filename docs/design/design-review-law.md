@@ -111,6 +111,12 @@ trapezoid register tab lapsed with the square-corner ruling.
    class named for the component, and compositions select that root and
    never past it (owner, 2026-09-25; the roots: `design-system.md`,
    "Component inventory"). Inside a component, elements first still holds.
+   **The element default is the least any instance wants** (owner, 2026-11-21). The elements
+   layer holds resets and what every instance of an element shares; a look most instances do
+   not want is opt-in by class: a bare `button` is text, `.button` adds the frame.
+   **A layout primitive is a class in markup** (owner, 2026-11-21; the mock's `.stack` and
+   `.page`): stack, wrap-row and page grid are inventoried once, any element may carry one, a
+   component's root too, and the component sets only the primitive's knob.
 2. **Context over variants.** A component adapts to where it sits (ancestor
    scope, `@container`), never via variant modifier classes. A context may sit on
    the element itself: `.danger` re-points `--ink` to `--error` and sets no property,
@@ -131,6 +137,12 @@ trapezoid register tab lapsed with the square-corner ruling.
    differently. A component declares every `--_` name it reads; it never
    reads one an ancestor set. Source: Lea Verou, "Custom properties with defaults"
    (2021), pseudo-private properties. Not `@property`: registration is global.
+   **A knob is earned by a second value in use** (owner, 2026-11-21; amends the 2026-10-01
+   form). A knob no rule sets is deleted and its value written where it was read. A knob read
+   by one declaration is read there with its fallback
+   (`gap: var(--stack-gap, var(--space-3))`); the `--_` line is for a knob that two or more
+   declarations read. The lint still demands the `--_` line everywhere
+   (`docs/tech-debt.md` #79).
 4. **Components own the inside; compositions own the between.** No external
    margins on components. Clearance for a component's own positioned parts
    is internal spacing and comes from the scale like everything else.
@@ -143,6 +155,12 @@ trapezoid register tab lapsed with the square-corner ruling.
    fits**; a bare literal is an S3 defect. This binds **at-rule conditions**
    too — a width threshold is the most consequential literal in a stylesheet
    (see C9) and is linted like any other (section E).
+   **A value used in two rules is a token** (owner, 2026-11-21), a duration, an opacity and a
+   weight included, and a comment does not license a literal the mock system already names
+   (`--column-min`, `--measure-menu`): port the token.
+   **Inside a control, sizes follow its font** (owner, 2026-11-21): padding, gap and icon
+   size in `em`, `lh` or `cap`, so a control in a larger type role grows without a knob; the
+   `--space-*` scale is for the space between things.
    **Stacking is one scale, `--z-*` in `tokens.css`** (recorded 2026-08-08;
    owner may veto): a bare `z-index` is a literal whose RELATIONSHIP to its
    neighbours is its entire meaning, so the model is stated once, in order —
@@ -215,6 +233,23 @@ trapezoid register tab lapsed with the square-corner ruling.
    outranks components, so a descendant selector is a silent override of any
    component that happens to sit inside. This is C4 made enforceable:
    components own the inside.
+15. **Write only the difference** (the "Inherit first" principle of `design-system.md` as a
+   cascade rule; 15 to 18 recorded 2026-11-21 with the owner's decisions of that day, owner
+   may veto). Before a declaration, ask what the element gets without it: from its parent,
+   the elements layer, its family. A voice (a type role and an ink tier) is set once, on the
+   root of the region that speaks it; a part declares only where it differs.
+16. **An undo is a defect in a default.** A declaration that only cancels one of our own
+   rules (`background: none`, `border: 0`, `margin: 0`, `font: inherit`) may stand once. When
+   a second rule needs the same undo, the default changes (C1) and both undos go.
+17. **One declaration per property per component.** The base rule maps properties to values;
+   a variant, state or context rule sets custom properties and nothing else
+   (`.primary { --button-ground: var(--ink); }`), so a change to the base never touches a
+   variant. Source: Andy Bell, "How I build a button component" (2024).
+18. **A declaration must bite, and consolidation is its own wave.** Every new declaration
+   changes a computed value in at least one gallery state; otherwise it goes, or the state
+   that needs it joins the gallery. Merging restated CSS is a wave of its own that only
+   deletes and merges; its gate is a gallery diff of zero pixels
+   (`mise run test:gallery-diff`).
 
 ## Themability law (owner, 2026-08-06)
 
@@ -272,6 +307,10 @@ The machine-checkable slice of B and C, enforced by
 - a knob is resolved once (C3): a `var(--_x)` needs a `--_x:` in the same section, and a
   public knob with a fallback is read only on a `--_` line (handing it on to another knob is
   setting it).
+
+Not in the lint yet (`docs/tech-debt.md` #79, #80): a literal used in two rules, whatever its
+comment says (C5); a knob no rule sets, and the inline form for a knob read once (C3); the
+declaration probe (C18).
 
 **Generic computed invariant (mandatory):** one
 e2e test walks EVERY control row on the journey pages (each `[role=toolbar]`,

@@ -44,6 +44,33 @@ is a context: something that only re-points role tokens or knobs and would work 
 properties, it is a variant and law C2 forbids it. A context reaches only parts that read the role
 (`color: var(--ink)`), not parts that inherit a resolved colour.
 
+## CSS economy
+
+Most of the stylesheets' weight is one decision written again in each component, and defaults the
+next rule undoes (`docs/tech-debt.md` #77). Law C1, C3, C5 and C15 to C18 bind (owner,
+2026-11-21); while you write they mean:
+
+- **Write only the difference.** Before a declaration, look at what the element gets without it:
+  from its parent, the elements layer, its family. Set a voice (type role, ink tier) once on the
+  region's root; a part declares only what differs.
+- **Do not undo.** About to write `background: none`, `border: 0`, `margin: 0` or `font: inherit`
+  against one of our own rules, where another rule already does? Change the default instead: the
+  elements layer carries what every instance shares, a look is opt-in (a bare `button` is text,
+  `.button` frames it).
+- **One declaration per property per component.** A variant, state or context rule sets custom
+  properties only.
+- **A knob needs a second value in use.** No setter, no knob. Read once: `var(--knob, default)`
+  in place; the `--_` line only for a knob read twice (the lint still wants it everywhere: #79).
+- **Take layout from a primitive.** Stack, wrap-row and page grid are classes in markup; a
+  component sets the primitive's gap knob. The consolidation wave builds them (#77); until then
+  a new `display: flex` and `gap` bundle goes under "Found, not fixed".
+- **No literal twice, none the mock names.** A value two rules use is a token; a comment is no
+  licence. Inside a control, size in `em`, `lh` or `cap`.
+- **Prove it bites.** Delete each new declaration once and look: if no gallery state changes, it
+  goes, or the state joins the gallery. Report the declarations added and removed per section.
+- **Consolidating is its own task:** deletions and merges only, gate
+  `mise run test:gallery-diff` at zero pixels.
+
 ## CSS that reaches into a container
 
 A rule that reaches `form`, `p` or `ul` inside a container also hits a popover panel nested there:
