@@ -345,11 +345,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** a template edit that breaks a rendered page asserted in `tests/app/web` goes red in `test:affected`
 - **Sketch:** the `UI` rule also names `test:db`
 
-### 61. No stock computed-style probe for pixel-neutral waves — Speculative
-- **Indicator:** each writer writes ~50 throwaway lines over `tests/e2e/_gallery.py` states (2026-10-21, one wave)
-- **Evidence:** `dispatch-wave` skill asks for the probe; no tool exists
-- **Deletion test:** a wave runs one command and gets a before/after computed-style diff
-- **Sketch:** a `tests/e2e` helper dumping computed styles per gallery state: per element and its `::before` and `::after`, the longhands the stylesheets set, at rest and with hover and focus forced over CDP (`CSS.forcePseudoState`); 139 page-states ran in 38 s (2026-11-21)
+### 61. No stock computed-style probe for pixel-neutral waves — done
+- **Indicator:** 0 throwaway harnesses needed since 2026-11-21: the gallery writes `<state>.<width>.styles.json` beside its PNGs
+- **Evidence:** `tests/e2e/_styles.py` (`fingerprint`, `force_interaction`), `tests/e2e/_gallery.py` `render_state`, `scripts/gallery_diff.py` `compare`
+- **Deletion test:** a wave runs `mise run test:gallery-diff` and reads which states' computed styles moved
+- **Sketch:** per element and its `::before` and `::after`, the longhands the stylesheets set, at rest and with hover and focus forced over CDP (`CSS.forcePseudoState`)
 
 ### 62. Private test helpers other suites want — Worth exploring
 - **Indicator:** 3 (2026-10-21): `_BLANK_FORM` (`tests/app/web/_fixtures.py`), `_article_whose_collection_chain_is_broken` (`test_catalog_actions.py`), the "orphan" fixture (`test_media.py`)

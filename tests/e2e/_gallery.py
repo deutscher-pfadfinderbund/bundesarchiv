@@ -1,7 +1,9 @@
 """The state gallery: every inventory screen plus the interaction states declared here, shot per mode
-and width to ``var/gallery/<state>.<mode>.<width>.png`` (``BUNDESARCHIV_GALLERY_DIR`` overrides).
+and width to ``var/gallery/<state>.<mode>.<width>.png`` (``BUNDESARCHIV_GALLERY_DIR`` overrides),
+each width's computed-style fingerprint beside them (``_styles.py``).
 """
 
+import json
 import os
 import re
 from collections.abc import Callable
@@ -21,6 +23,7 @@ from tests.e2e._pages import (
     reach_search_suggestions,
     reach_tag_suggestions,
 )
+from tests.e2e._styles import fingerprint, force_interaction
 from tests.e2e.conftest import add_archivist_cookies
 
 from bundesarchiv.app.web.suggestions import Entry, Group
@@ -631,6 +634,11 @@ def render_state(
                 target = out / f"{state.name}.{mode}.{width}.png"
                 page.screenshot(path=str(target), full_page=state.full_page)
                 written.append(target)
+            # after the shots: forcing hover and focus must never reach a PNG
+            styles = {"rest": fingerprint(page)}
+            force_interaction(context, page)
+            styles["forced"] = fingerprint(page)
+            (out / f"{state.name}.{width}.styles.json").write_text(json.dumps(styles))
         finally:
             context.close()
     return written

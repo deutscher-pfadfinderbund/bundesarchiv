@@ -57,6 +57,13 @@ def compare(ref: Path, tree: Path) -> int:
         if verdict != "identical":
             print(f"{verdict:9} {name}")
     print(f"{len(names)} PNGs, {bad} differ")
+    # Computed styles (tests/e2e/_styles.py): reported, never the exit code. A ref rendered before
+    # the fingerprint existed has none, and a change may move a value without moving a pixel.
+    styles = sorted(p.name for p in tree.glob("*.styles.json") if (ref / p.name).exists())
+    moved = [name for name in styles if (ref / name).read_text() != (tree / name).read_text()]
+    for name in moved:
+        print(f"styles    {name}")
+    print(f"{len(styles)} style fingerprints, {len(moved)} differ")
     return int(bad > 0)
 
 
