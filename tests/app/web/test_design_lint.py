@@ -770,6 +770,33 @@ def test_a_public_knob_is_read_only_where_it_is_resolved() -> None:
     assert not offenders, "a public knob read outside its --_ line (C3):\n" + "\n".join(offenders)
 
 
+_PUBLIC_DECL = re.compile(r"^\s*(--(?!_)[\w-]+)\s*:")
+_SCRIPT_SET = re.compile(r"""setProperty\(\s*["'](--[\w-]+)["']""")
+
+
+def test_every_public_knob_has_a_setter() -> None:
+    # Law C3: a knob is earned by a second value in use. One that no rule and no script sets is
+    # its fallback under another name.
+    lines = [
+        (name, lineno, line)
+        for name in STYLESHEETS
+        for _s, lineno, line in _sectioned_statements((STATIC / name).read_text())
+    ]
+    set_somewhere = {m.group(1) for _f, _n, line in lines if (m := _PUBLIC_DECL.match(line))} | {
+        knob for script in STATIC.glob("*.js") for knob in _SCRIPT_SET.findall(script.read_text())
+    }
+    offenders = [
+        f"{name}:{lineno}: {knob}"
+        for name, lineno, line in lines
+        for knob in _KNOB_WITH_FALLBACK.findall(line)
+        if knob not in set_somewhere
+    ]
+    assert not offenders, (
+        "a knob no rule sets (C3): delete it and write its value where it was read:\n"
+        + "\n".join(offenders)
+    )
+
+
 COMPONENT_TEMPLATES = STATIC.parent / "templates" / "components"
 
 

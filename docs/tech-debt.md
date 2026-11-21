@@ -364,10 +364,10 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** a crumbs include and a filter-params include
 
 ### 79. The design lint lags the 2026-11-21 decisions — Strong
-- **Indicator:** 3 checks missing or contradicting law C3 and C5; 11 of 17 knobs set once, none unset since the two unset ones went (2026-11-21)
+- **Indicator:** 2 checks missing or contradicting law C3 and C5 (a knob no rule sets fails since 2026-11-21, `test_every_public_knob_has_a_setter`); 11 of 17 knobs set once (2026-11-21)
 - **Evidence:** `test_design_lint.py` `test_bare_dimension_literals_are_named_or_commented` (any comment or `--name:` exempts a literal), `test_a_public_knob_is_read_only_where_it_is_resolved` (refuses the inline form)
 - **Deletion test:** a repeated literal or a speculative knob fails the lint instead of passing with a comment
-- **Sketch:** a literal in two rules fails whatever its comment; the S and L thresholds (40rem, 80rem) are named once in the lint, since a query cannot read a token; a knob with no setter fails; a knob read once may be read inline
+- **Sketch:** a literal in two rules fails whatever its comment; the S and L thresholds (40rem, 80rem) are named once in the lint, since a query cannot read a token; a knob read once may be read inline
 
 ### 80. No declaration probe (law C18) — Strong
 - **Indicator:** about 50 of 1,150 declarations change no computed value in any gallery state (11 of them deleted the same day), about 35 sit in rules no state activates (2026-11-21, a throwaway probe over 171 page-states, Chromium)

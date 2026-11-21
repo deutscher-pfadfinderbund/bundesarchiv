@@ -306,11 +306,12 @@ The machine-checkable slice of B and C, enforced by
 - no compositions-layer selector past a component root (C1);
 - a knob is resolved once (C3): a `var(--_x)` needs a `--_x:` in the same section, and a
   public knob with a fallback is read only on a `--_` line (handing it on to another knob is
-  setting it).
+  setting it);
+- a knob is set somewhere (C3): a public knob read with a fallback has a rule or a script
+  that sets it.
 
 Not in the lint yet (`docs/tech-debt.md` #79, #80): a literal used in two rules, whatever its
-comment says (C5); a knob no rule sets, and the inline form for a knob read once (C3); the
-declaration probe (C18).
+comment says (C5); the inline form for a knob read once (C3); the declaration probe (C18).
 
 **Generic computed invariant (mandatory):** one
 e2e test walks EVERY control row on the journey pages (each `[role=toolbar]`,
