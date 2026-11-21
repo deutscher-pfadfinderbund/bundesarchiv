@@ -86,7 +86,6 @@
   .search-sentence-slots > div:has(~ div)::after {
     content: "·";
     margin-inline: calc(var(--space-3) - var(--space-2)) var(--space-2);
-    color: var(--ink-2);
   }
   /* an open slot is quieter: a context, it re-points the ink its button reads */
   .search-sentence-slots > .is-minor {
@@ -94,7 +93,6 @@
   }
   /* a set slot's link reads like the slot menus' buttons */
   .search-sentence .is-set > a {
-    font: inherit;
     color: var(--ink);
     text-decoration: none;
   }
@@ -121,7 +119,6 @@
   .search-sentence-clear {
     padding-inline-start: var(--space-3);
     font: var(--type-meta);
-    color: var(--ink-2);
     text-decoration: none;
   }
   .search-sentence-clear:hover {

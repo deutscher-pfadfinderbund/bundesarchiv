@@ -138,7 +138,6 @@
     border: var(--line-width) solid var(--edge);
     background: var(--band-ground);
     color: var(--ink);
-    cursor: pointer;
     &:disabled {
       opacity: 0.3;
       cursor: default;
