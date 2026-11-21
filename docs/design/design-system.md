@@ -278,7 +278,7 @@ rail; they are split out only as swap units (law C7).
 | Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button | approved (2026-10-11) |
 | Byline | `.byline` | inline (article page: the origin and the labelled lines), `components/byline_links` (Schlagworte, a result row's pages: part `.byline-links`; knob `--byline-font`) | `components.css` byline | proposed |
 | Ledger | `.ledger` | `components/ledger`, `components/ledger_row` | `components.css` ledger | approved (2026-10-11) |
-| Reading list | `.reading` | `components/reading` (the Lesesaal: a search's hits with the why line; parts `.reading-title`, `.reading-why`; knob `--reading-measure`) | `components.css` reading | proposed |
+| Reading list | `.reading` | `components/reading` (the Lesesaal: a search's hits with the why line; parts `.reading-title`, `.reading-why`) | `components.css` reading | proposed |
 | View switch | `.view-switch` | `components/view_switch` (the list's tool row: "N Treffer" and "Lesesaal · Tabelle") | `components.css` view-switch | proposed |
 | Pagination | `.pager` | `components/pagination` | `components.css` pager | [contract](../../design-system/components/pagination.md) |
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` honest empty state | approved (2026-10-11) |

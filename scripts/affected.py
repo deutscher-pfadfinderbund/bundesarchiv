@@ -17,7 +17,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BROWSER_SETUP = ("tests/e2e/_corpus.py", "tests/e2e/conftest.py")
-_PG_TESTS = "requires_pg and not e2e and not gallery"  # the marker expression of test:db
+_PG_TESTS = (
+    "requires_pg and not e2e and not gallery and not css_probe"  # the marker expression of test:db
+)
 
 
 @dataclass(frozen=True)

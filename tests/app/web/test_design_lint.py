@@ -741,33 +741,67 @@ def test_a_private_knob_is_declared_in_its_own_section() -> None:
 
 
 def test_a_public_knob_is_read_only_where_it_is_resolved() -> None:
-    # Law C3: the knob's fallback lives on its one `--_` line; every rule reads the `--_` name. A
-    # fallback elsewhere is a second default, and a bare read elsewhere skips the default.
+    # Law C3: a knob has one default per component. One declaration reads it in place with its
+    # fallback; two or more read the `--_` name its one `--_` line resolved. A second fallback is a
+    # second default, and a bare read skips the default.
     # Handing the knob on to another knob (`--a: var(--b)`) is a parent setting a knob.
     lines = [
-        (name, lineno, line)
+        (name, section, lineno, line)
         for name in STYLESHEETS
-        for _s, lineno, line in _sectioned_statements((STATIC / name).read_text())
+        for section, lineno, line in _sectioned_statements((STATIC / name).read_text())
     ]
-    knobs = {
-        knob
-        for _f, _n, line in lines
-        if _PRIVATE_DECL.match(line)
+    fallback_reads = Counter(
+        (name, section, knob)
+        for name, section, _n, line in lines
         for knob in _KNOB_WITH_FALLBACK.findall(line)
-    }
+    )
+    knobs = {knob for _f, _s, knob in fallback_reads}
     offenders = [
         f"{name}:{lineno}: {line.strip()}"
-        for name, lineno, line in lines
+        for name, section, lineno, line in lines
         if not _PRIVATE_DECL.match(line)
         and (
-            _KNOB_WITH_FALLBACK.search(line)
+            any(
+                fallback_reads[name, section, knob] > 1
+                for knob in _KNOB_WITH_FALLBACK.findall(line)
+            )
             or (
                 not _CUSTOM_DECL.match(line)
                 and any(re.search(rf"var\(\s*{knob}\s*\)", line) for knob in knobs)
             )
         )
     ]
-    assert not offenders, "a public knob read outside its --_ line (C3):\n" + "\n".join(offenders)
+    assert not offenders, (
+        "a public knob with two defaults, or read without one (C3): resolve it once on a --_ line:\n"
+        + "\n".join(offenders)
+    )
+
+
+_PUBLIC_DECL = re.compile(r"^\s*(--(?!_)[\w-]+)\s*:")
+_SCRIPT_SET = re.compile(r"""setProperty\(\s*["'](--[\w-]+)["']""")
+
+
+def test_every_public_knob_has_a_setter() -> None:
+    # Law C3: a knob is earned by a second value in use. One that no rule and no script sets is
+    # its fallback under another name.
+    lines = [
+        (name, lineno, line)
+        for name in STYLESHEETS
+        for _s, lineno, line in _sectioned_statements((STATIC / name).read_text())
+    ]
+    set_somewhere = {m.group(1) for _f, _n, line in lines if (m := _PUBLIC_DECL.match(line))} | {
+        knob for script in STATIC.glob("*.js") for knob in _SCRIPT_SET.findall(script.read_text())
+    }
+    offenders = [
+        f"{name}:{lineno}: {knob}"
+        for name, lineno, line in lines
+        for knob in _KNOB_WITH_FALLBACK.findall(line)
+        if knob not in set_somewhere
+    ]
+    assert not offenders, (
+        "a knob no rule sets (C3): delete it and write its value where it was read:\n"
+        + "\n".join(offenders)
+    )
 
 
 COMPONENT_TEMPLATES = STATIC.parent / "templates" / "components"

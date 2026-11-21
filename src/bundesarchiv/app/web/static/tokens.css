@@ -77,6 +77,8 @@
     --space-6: 1.5rem; /* 24px */
     --space-7: 1.75rem; /* 28px */
     --space-8: 2rem; /* 32px */
+    --space-9: 3rem; /* 48px */
+    --space-10: 5.5rem; /* 88px */
 
     /* Named non-spacing dimensions (design-review-law.md C5). Square corners everywhere: there is
      no radius token. */
@@ -89,10 +91,18 @@
     --line-width: 1px; /* every line; a contrast mode may thicken it globally */
     --focus-width: 3px; /* the focus ring: width and offset */
     --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
+    --motion-fade: 0.18s; /* the lightbox's fade and its image morph */
+    --in-flight-opacity: 0.6; /* a region dimmed while its HTMX request is under way */
     --measure: 80rem; /* the page grid: the header and a page share its measure and gutter */
-    --gutter: 3rem;
+    --gutter: var(--space-9);
+    /* the inline padding that puts a full-width band's content on the page grid */
+    --page-inset: max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter));
     --measure-prose: 65ch; /* the reading measure: running text and captions */
     --measure-query: 26rem; /* one query or caption field; a toolpanel's width */
+    --measure-menu: 12rem; /* a menu's and a check list's least width */
+    --measure-thumb: 8rem; /* a medium's preview in a form row */
+    --measure-title: 30ch; /* the article title */
+    --column-min: 18rem; /* the narrowest column: a form cell, the form's margin */
     --measure-decade: 10ch; /* "Unbekannt" in the data face */
     --measure-date: 12ch; /* "1984-11-26" plus air, in the data face */
     --measure-ref-code: 12ch; /* a Signatur of at most 8 characters, in the data face */
