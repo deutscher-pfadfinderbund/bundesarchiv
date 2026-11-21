@@ -430,7 +430,7 @@
   }
   /* HTMX in-flight: a static opacity dim, no motion */
   #results.htmx-request {
-    opacity: 0.6;
+    opacity: var(--in-flight-opacity);
   }
 
   /* ---- start — the start page's grid (start.py): areas in auto-fit columns on the page grid. It

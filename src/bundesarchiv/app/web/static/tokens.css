@@ -89,6 +89,8 @@
     --line-width: 1px; /* every line; a contrast mode may thicken it globally */
     --focus-width: 3px; /* the focus ring: width and offset */
     --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
+    --motion-fade: 0.18s; /* the lightbox's fade and its image morph */
+    --in-flight-opacity: 0.6; /* a region dimmed while its HTMX request is under way */
     --measure: 80rem; /* the page grid: the header and a page share its measure and gutter */
     --gutter: 3rem;
     /* the inline padding that puts a full-width band's content on the page grid */
