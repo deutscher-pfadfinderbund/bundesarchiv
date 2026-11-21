@@ -60,7 +60,7 @@ next rule undoes (`docs/tech-debt.md` #77). Law C1, C3, C5 and C15 to C18 bind (
 - **One declaration per property per component.** A variant, state or context rule sets custom
   properties only.
 - **A knob needs a second value in use.** No setter, no knob. Read once: `var(--knob, default)`
-  in place; the `--_` line only for a knob read twice (the lint still wants it everywhere: #79).
+  in place; the `--_` line only for a knob read twice.
 - **Take layout from a primitive.** Stack, wrap-row and page grid are classes in markup; a
   component sets the primitive's gap knob. The consolidation wave builds them (#77); until then
   a new `display: flex` and `gap` bundle goes under "Found, not fixed".

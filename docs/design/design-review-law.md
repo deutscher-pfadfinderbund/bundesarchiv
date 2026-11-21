@@ -141,8 +141,7 @@ trapezoid register tab lapsed with the square-corner ruling.
    form). A knob no rule sets is deleted and its value written where it was read. A knob read
    by one declaration is read there with its fallback
    (`gap: var(--stack-gap, var(--space-3))`); the `--_` line is for a knob that two or more
-   declarations read. The lint still demands the `--_` line everywhere
-   (`docs/tech-debt.md` #79).
+   declarations read.
 4. **Components own the inside; compositions own the between.** No external
    margins on components. Clearance for a component's own positioned parts
    is internal spacing and comes from the scale like everything else.
@@ -305,14 +304,15 @@ The machine-checkable slice of B and C, enforced by
   C5);
 - no compositions-layer selector past a component root (C1);
 - a knob is resolved once (C3): a `var(--_x)` needs a `--_x:` in the same section, and a
-  public knob with a fallback is read only on a `--_` line (handing it on to another knob is
-  setting it);
+  public knob that two or more declarations of a section read with a fallback is read only on
+  a `--_` line; one declaration may read it in place (handing it on to another knob is setting
+  it);
 - a knob is set somewhere (C3): a public knob read with a fallback has a rule or a script
   that sets it.
 
 Not in the lint yet (`docs/tech-debt.md` #79, #80): a literal used in two rules, whatever its
-comment says (C5); the inline form for a knob read once (C3). The declaration probe (C18) runs
-on demand and only reports (`mise run test:css-probe`); its shrinking baseline is open (#80).
+comment says (C5). The declaration probe (C18) runs on demand and only reports
+(`mise run test:css-probe`); its shrinking baseline is open (#80).
 
 **Generic computed invariant (mandatory):** one
 e2e test walks EVERY control row on the journey pages (each `[role=toolbar]`,
