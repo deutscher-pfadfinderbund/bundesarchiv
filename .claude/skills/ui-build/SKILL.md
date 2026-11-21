@@ -69,7 +69,7 @@ next rule undoes (`docs/tech-debt.md` #77). Law C1, C3, C5 and C15 to C18 bind (
 - **Prove it bites.** Delete each new declaration once and look: if no gallery state changes, it
   goes, or the state joins the gallery. Report the declarations added and removed per section.
 - **Consolidating is its own task:** deletions and merges only, gate
-  `mise run test:gallery-diff` at zero pixels.
+  `mise run test:gallery-diff` at zero differing PNGs and zero differing style fingerprints.
 
 ## CSS that reaches into a container
 

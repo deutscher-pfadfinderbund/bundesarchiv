@@ -47,7 +47,7 @@ The fence:
 UI and pixels:
 
 - A browser-behaviour finding names the platform where it fails. A fix that adds native `required` or other validation lists the tests and gallery states that submit empty fields.
-- Pixel-neutral wave: the gallery covers only its listed states; ask for a computed-style probe over the touched roots too (error modes, open folds, hover, focus).
+- Pixel-neutral wave: `mise run test:gallery-diff -- <ref>` also reports the states whose computed-style fingerprint differs, at rest and with hover and focus forced; it covers only the gallery's listed states, so a touched root in a state the gallery lacks (an error mode, an open fold) first joins the gallery.
 - A sanctioned pixel change inside a pixel-neutral wave moves the baseline: name the new baseline dir for every later slice. A unit that adds corpus fixtures moves every list state in `test:gallery-diff`: say so instead of "only the X states may change".
 
 Data and runtime:

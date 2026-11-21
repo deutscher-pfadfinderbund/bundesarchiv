@@ -70,7 +70,7 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 - Run mutation checks with `PYTHONDONTWRITEBYTECODE=1`: a same-size edit and its restore within one second can otherwise run stale `.pyc`.
 - Render diff for a neutral refactor: dump representative states (GET, error, conflict, each overlay) before and after, normalize CSRF tokens, whitespace and static-file hashes (`/static/…<12 hex>.css`), diff, expect and report 0 lines.
 - Its harness is a throwaway `tests/…/_zz_snapshot.py` (outside `python_files`, so `check` skips it; `uv run pytest <path>` runs it; `ruff format` it); check the dump is deterministic (two identical pre-runs), then delete it.
-- Pixel-neutral in the gallery needs no harness: `mise run test:gallery-diff -- <ref>`.
+- Pixel-neutral in the gallery needs no harness: `mise run test:gallery-diff -- <ref>`. It also lists the states whose computed-style fingerprint differs, at rest and with hover and focus forced (reported, never its exit code); report "0 PNGs and 0 style fingerprints differ".
 - Tests assert derived values, never re-derived ones: an encoding, URL or key layout comes from the production helper, or is parsed back out.
 - A drift test pinning two copies equal needs a stated reason why an owning interface is not the fix, and a `docs/tech-debt.md` entry; the one standing exception is a fact in two encodings (Python and SQL scope, ADR 0012).
 

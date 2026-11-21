@@ -248,8 +248,8 @@ trapezoid register tab lapsed with the square-corner ruling.
 18. **A declaration must bite, and consolidation is its own wave.** Every new declaration
    changes a computed value in at least one gallery state; otherwise it goes, or the state
    that needs it joins the gallery. Merging restated CSS is a wave of its own that only
-   deletes and merges; its gate is a gallery diff of zero pixels
-   (`mise run test:gallery-diff`).
+   deletes and merges; its gate is a gallery diff of zero differing PNGs and zero differing
+   style fingerprints (`mise run test:gallery-diff`).
 
 ## Themability law (owner, 2026-08-06)
 
