@@ -316,7 +316,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** law C1 and C15 to C17: a bare `button` is text and `.button` frames; one margin reset; a voice set once per region; stack, wrap-row and page grid as classes. One consolidation wave each (C18)
 
 ### 78. Literals and control sizes the amended C5 refuses — Worth exploring
-- **Indicator:** 3 literals whose comment names a mock token (`--measure-thumb`, `--space-10`, the mocks' row height); every control padded in `rem` (2026-11-21, after `--column-min`, `--measure-menu`, `--measure-title`, `--page-inset`, `--motion-fade` and `--in-flight-opacity` became tokens)
+- **Indicator:** 1 literal pair whose comment names the mocks (the media rows' height); every control padded in `rem` (2026-11-21, after nine values became tokens the same day)
 - **Evidence:** `layouts.css` `.form-sheet`, `.field-grid`; `components.css` `.file-row`, `ul.menu[popover]`, `.toolpanel:has(> ul)`; `detail.css` `.lightbox`; the elements layer's button and field padding; `design-system.md` "Tokens" lists `--space-9`, `--space-10`, `--gap-*`, `--pad-row` and `--measure-title`, which `tokens.css` lacks
 - **Deletion test:** the comments defending a literal go; a control in a larger type role needs no padding knob (`--search-field-pad`)
 - **Sketch:** port the mock's tokens the app uses twice; control padding, gap and icon size in `em`

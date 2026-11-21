@@ -555,7 +555,7 @@
      after it. The column stops at the query measure. Parts: -name, -tools. Knob:
      --file-row-thumb (the tile's width). S: the tools under the caption. ---- */
   .file-row {
-    --file-row-thumb: 8rem; /* the mock's --measure-thumb */
+    --file-row-thumb: var(--measure-thumb);
     display: grid;
     grid-template-columns: var(--file-row-thumb) minmax(0, var(--measure-query)) auto;
     grid-template-rows: auto auto 1fr;
@@ -589,7 +589,7 @@
   }
   @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
     .file-row {
-      --file-row-thumb: 5.5rem; /* the mock's --space-10 */
+      --file-row-thumb: var(--space-10);
       grid-template-columns: var(--file-row-thumb) minmax(0, 1fr);
       grid-template-rows: auto;
     }
