@@ -311,7 +311,8 @@ The machine-checkable slice of B and C, enforced by
   that sets it.
 
 Not in the lint yet (`docs/tech-debt.md` #79, #80): a literal used in two rules, whatever its
-comment says (C5); the inline form for a knob read once (C3); the declaration probe (C18).
+comment says (C5); the inline form for a knob read once (C3). The declaration probe (C18) runs
+on demand and only reports (`mise run test:css-probe`); its shrinking baseline is open (#80).
 
 **Generic computed invariant (mandatory):** one
 e2e test walks EVERY control row on the journey pages (each `[role=toolbar]`,

@@ -369,11 +369,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** a repeated literal or a speculative knob fails the lint instead of passing with a comment
 - **Sketch:** a literal in two rules fails whatever its comment; the S and L thresholds (40rem, 80rem) are named once in the lint, since a query cannot read a token; a knob read once may be read inline
 
-### 80. No declaration probe (law C18) — Strong
+### 80. The declaration probe reports but has no baseline (law C18) — Worth exploring
 - **Indicator:** about 50 of 1,150 declarations change no computed value in any gallery state (11 of them deleted the same day), about 35 sit in rules no state activates (2026-11-21, a throwaway probe over 171 page-states, Chromium)
-- **Evidence:** no tool; `tests/CLAUDE.md` allows it (owner, 2026-11-21); #61 wants the same harness
+- **Evidence:** `tests/e2e/_probe.py`, `mise run test:css-probe`, `scripts/css_probe_report.py`: report only (owner, 2026-11-21, `tests/CLAUDE.md`)
 - **Deletion test:** a declaration that does nothing fails one command instead of passing review
-- **Sketch:** per gallery state, in light and dark, at rest and with hover and focus forced over CDP: mark each rule with a sentinel property to find where it applies, drop each declaration through `rule.style.cssText`, compare the computed longhands; a baseline that only shrinks
+- **Sketch:** a checked-in list of today's inert and unmatched declarations that only shrinks; the report fails on one that is not in it
 
 ## Process law
 

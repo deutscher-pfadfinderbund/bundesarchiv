@@ -106,7 +106,7 @@ description = "The Postgres-backed tests"
 raw_args = true
 daemons = "postgres"
 # A command-line -m replaces the addopts deselection of e2e and gallery.
-run = 'uv run pytest -m "requires_pg and not e2e and not gallery" -n auto'
+run = 'uv run pytest -m "requires_pg and not e2e and not gallery and not css_probe" -n auto'
 
 [tasks."test:affected"]
 description = "The suites a diff needs: [BASE] [--dry-run]"
@@ -130,6 +130,13 @@ raw_args = true
 daemons = "postgres"
 depends = ["e2e:browsers"]
 run = "uv run pytest -m gallery -p playwright -s -n auto"
+
+[tasks."test:css-probe"]
+description = "Declaration probe: which stylesheet declarations change nothing (report only)"
+raw_args = true
+daemons = "postgres"
+depends = ["e2e:browsers"]
+run = ["uv run pytest -m css_probe -p playwright -n auto", "uv run python scripts/css_probe_report.py"]
 
 [tasks."test:gallery-diff"]
 description = "Pixel-diff the gallery against a git ref (default main): [REF]"
