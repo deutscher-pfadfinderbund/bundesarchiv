@@ -59,7 +59,7 @@ jobs:
 
       - name: Install uv
         # setup-uv keeps no floating major tags past v7 — pin the full version (dependabot bumps it).
-        uses: astral-sh/setup-uv@v10.3.3
+        uses: astral-sh/setup-uv@v10.4.0
         with:
           enable-cache: false # a cold sync is faster than saving and restoring the cache
 
